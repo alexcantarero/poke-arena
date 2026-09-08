@@ -1,19 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveDeck, deleteDeck } from "@/actions";
+import { deleteDeck, saveDeck } from "@/actions";
 import { parseDeckList, suggestArchetype, validateDeck } from "@/lib/decklist";
-import { TYPE_KEYS, TYPES, pokeSlug, prettyPokemon } from "@/lib/pokemon";
-import type { Archetype, Deck, Player } from "@/lib/types";
-import { Sprites } from "./ui";
+import { pokeSlug, prettyPokemon, spriteUrl, TYPES, TYPE_KEYS } from "@/lib/pokemon";
+import type { Archetype, Deck, PublicPlayer } from "@/lib/types";
 
 export function DeckForm({
-  deck, players, archetypes, defaultPlayerId,
+  deck, players, archetypes, defaultPlayerId, canPickPlayer,
 }: {
   deck?: Deck & { archetype?: Archetype };
-  players: Player[];
+  players: PublicPlayer[];
   archetypes: Archetype[];
   defaultPlayerId?: string;
+  canPickPlayer?: boolean;
 }) {
   const [list, setList] = useState(deck?.list ?? "");
   const [main, setMain] = useState(deck?.archetype?.main ?? "");
@@ -25,18 +25,7 @@ export function DeckForm({
   const suggestion = useMemo(() => (parsed ? suggestArchetype(parsed) : null), [parsed]);
   const problems = useMemo(() => (parsed ? validateDeck(parsed) : []), [parsed]);
 
-  const preview: Archetype = {
-    id: "preview",
-    name: [main, secondary].filter(Boolean).map((v) => prettyPokemon(pokeSlug(v))).join(" / ") || "Sin arquetipo",
-    main, secondary, type, limitlessId: null,
-  };
-
-  function applySuggestion() {
-    if (!suggestion) return;
-    setMain(suggestion.main);
-    setSecondary(suggestion.secondary);
-    setReuse("");
-  }
+  const previewName = [main, secondary].filter(Boolean).map((v) => prettyPokemon(pokeSlug(v))).join(" / ");
 
   function pickExisting(id: string) {
     setReuse(id);
@@ -45,137 +34,142 @@ export function DeckForm({
   }
 
   return (
-    <form action={saveDeck} className="stack">
+    <form action={saveDeck} className="flex flex-col gap-4">
       {deck && <input type="hidden" name="id" value={deck.id} />}
       {deck && <input type="hidden" name="created" value={deck.created} />}
 
-      <div className="card card-pad">
-        <div className="grid g-2" style={{ gap: 12 }}>
-          <div className="field">
-            <label htmlFor="playerId">Jugador</label>
-            <select className="inp" id="playerId" name="playerId" defaultValue={deck?.playerId ?? defaultPlayerId ?? players[0]?.id}>
-              {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="name">Nombre del mazo</label>
-            <input className="inp" id="name" name="name" defaultValue={deck?.name ?? ""} placeholder="Dragapult control" />
-          </div>
-        </div>
-      </div>
-
-      <div className="card card-pad">
-        <div className="eyebrow" style={{ marginBottom: 9 }}>
-          Arquetipo — es lo que agrupa las estadísticas
-        </div>
-        <div className="grid g-3" style={{ gap: 10 }}>
-          <div className="field">
-            <label htmlFor="main">Pokémon principal</label>
-            <input className="inp" id="main" name="main" value={main} onChange={(e) => { setMain(e.target.value); setReuse(""); }} placeholder="dragapult" list="pklist" />
-          </div>
-          <div className="field">
-            <label htmlFor="secondary">Pokémon secundario</label>
-            <input className="inp" id="secondary" name="secondary" value={secondary} onChange={(e) => { setSecondary(e.target.value); setReuse(""); }} placeholder="opcional" list="pklist" />
-          </div>
-          <div className="field">
-            <label htmlFor="type">Tipo (color)</label>
-            <select className="inp" id="type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
-              {TYPE_KEYS.map((k) => <option key={k} value={k}>{TYPES[k].name}</option>)}
-            </select>
+      <section className="card p-4">
+        <div className="flex flex-col gap-4">
+          {canPickPlayer && (
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="playerId">Jugador</label>
+              <select className="input" id="playerId" name="playerId" defaultValue={deck?.playerId ?? defaultPlayerId}>
+                {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="name">Nombre del mazo</label>
+            <input className="input" id="name" name="name" defaultValue={deck?.name ?? ""} placeholder="Dragapult control" />
           </div>
         </div>
+      </section>
 
-        <datalist id="pklist">
-          {archetypes.flatMap((a) => [a.main, a.secondary]).filter(Boolean)
-            .filter((v, i, arr) => arr.indexOf(v) === i)
-            .map((v) => <option key={v} value={v} />)}
-        </datalist>
+      <section className="card p-4">
+        <h2 className="mb-1 text-lg font-bold">Arquetipo</h2>
+        <p className="mb-4 text-sm text-muted">Es lo que agrupa todas las estadísticas.</p>
 
-        <div className="row" style={{ marginTop: 12, justifyContent: "space-between" }}>
-          <div className="row" style={{ gap: 8 }}>
-            <Sprites archetype={preview} />
-            <b>{preview.name}</b>
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="main">Pokémon principal</label>
+              <input className="input" id="main" name="main" value={main}
+                onChange={(e) => { setMain(e.target.value); setReuse(""); }}
+                placeholder="dragapult" autoCapitalize="none" spellCheck={false} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="secondary">Secundario</label>
+              <input className="input" id="secondary" name="secondary" value={secondary}
+                onChange={(e) => { setSecondary(e.target.value); setReuse(""); }}
+                placeholder="opcional" autoCapitalize="none" spellCheck={false} />
+            </div>
           </div>
-          <div className="field" style={{ minWidth: 220 }}>
-            <label htmlFor="reuse">O reutiliza uno existente</label>
-            <select className="inp" id="reuse" value={reuse} onChange={(e) => pickExisting(e.target.value)}>
-              <option value="">— crear arquetipo nuevo —</option>
-              {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+
+          <div className="flex items-center gap-3 rounded-lg bg-ground p-3">
+            <span className="flex flex-none items-center">
+              {[main, secondary].filter(Boolean).length
+                ? [main, secondary].filter(Boolean).map((s, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={s} src={spriteUrl(s)} alt="" className={`size-10 object-contain ${i ? "-ml-3" : ""}`} />
+                  ))
+                : <span className="grid size-10 place-items-center rounded-full bg-surface-3 text-muted">?</span>}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-semibold">{previewName || "Sin arquetipo"}</span>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="type">Tipo</label>
+              <select className="input" id="type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
+                {TYPE_KEYS.map((k) => <option key={k} value={k}>{TYPES[k].name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="reuse">O uno existente</label>
+              <select className="input" id="reuse" value={reuse} onChange={(e) => pickExisting(e.target.value)}>
+                <option value="">— nuevo —</option>
+                {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <input type="hidden" name="archetypeId" value={reuse} />
+          <input type="hidden" name="archetypeName" value={previewName} />
         </div>
-        <input type="hidden" name="archetypeId" value={reuse} />
-        <input type="hidden" name="archetypeName" value={preview.name} />
-      </div>
+      </section>
 
-      <div className="card card-pad">
-        <div className="field">
-          <label htmlFor="list">Lista completa (opcional)</label>
-          <div className="hint" style={{ marginBottom: 5 }}>
-            Pega la exportación de <b>Pokémon TCG Live</b> (botón Exportar) o de Limitless
-            (Compartir → Copiar como texto). También se entiende el formato antiguo de PTCGO.
-          </div>
+      <section className="card p-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="label" htmlFor="list">Lista completa</label>
+          <p className="text-sm text-muted">
+            Pega la exportación de <b>Pokémon TCG Live</b> o de Limitless. También vale el formato antiguo de PTCGO.
+          </p>
           <textarea
-            className="inp"
-            id="list"
-            name="list"
-            value={list}
-            onChange={(e) => setList(e.target.value)}
+            className="input mt-1" id="list" name="list" value={list} onChange={(e) => setList(e.target.value)}
             placeholder={"Pokémon: 14\n3 Dragapult ex TWM 130\n…"}
           />
         </div>
 
         {parsed && (
-          <div style={{ marginTop: 14 }}>
-            <div className="row" style={{ justifyContent: "space-between", marginBottom: 9 }}>
-              <div className="eyebrow">Lista interpretada</div>
-              <div className="row">
-                <span className={`chip ${parsed.total === 60 ? "w" : "l"}`}>{parsed.total} cartas</span>
-                {suggestion?.main && (
-                  <button type="button" className="btn btn-sm" onClick={applySuggestion}>
-                    Usar {prettyPokemon(suggestion.main)}
-                    {suggestion.secondary ? ` / ${prettyPokemon(suggestion.secondary)}` : ""}
-                  </button>
-                )}
-              </div>
+          <div className="mt-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className={`chip ${parsed.total === 60 ? "chip-win" : "chip-loss"}`}>{parsed.total} cartas</span>
+              {suggestion?.main && (
+                <button
+                  type="button" className="btn btn-sm"
+                  onClick={() => { setMain(suggestion.main); setSecondary(suggestion.secondary); setReuse(""); }}
+                >
+                  Usar {prettyPokemon(suggestion.main)}{suggestion.secondary ? ` / ${prettyPokemon(suggestion.secondary)}` : ""}
+                </button>
+              )}
             </div>
-            <div className="grid g-3" style={{ gap: 10 }}>
+            <div className="grid gap-3 sm:grid-cols-3">
               {(["pokemon", "trainer", "energy"] as const).map((k) => {
                 const cards = parsed[k];
                 const n = cards.reduce((a, c) => a + c.n, 0);
                 const label = k === "pokemon" ? "Pokémon" : k === "trainer" ? "Entrenador" : "Energía";
                 return (
                   <div key={k}>
-                    <div className="row" style={{ justifyContent: "space-between" }}>
-                      <b style={{ fontFamily: "var(--f-display)", fontSize: 15 }}>{label}</b>
-                      <span className="num">{n}</span>
+                    <div className="flex items-baseline justify-between">
+                      <b className="font-display">{label}</b>
+                      <span className="font-mono text-sm tabular">{n}</span>
                     </div>
-                    <div className="dl" style={{ maxHeight: 170, marginTop: 5 }}>
+                    <div className="mt-1 max-h-40 overflow-auto rounded-lg bg-ground p-2 font-mono text-xs leading-relaxed">
                       {cards.length
-                        ? cards.map((c, i) => (
-                            <div key={i}>{c.n} {c.name}{c.set ? `  ${c.set} ${c.number}` : ""}</div>
-                          ))
-                        : <span style={{ color: "var(--muted)" }}>—</span>}
+                        ? cards.map((c, i) => <div key={i} className="truncate">{c.n} {c.name}</div>)
+                        : <span className="text-muted">—</span>}
                     </div>
                   </div>
                 );
               })}
             </div>
             {problems.length > 0 && (
-              <ul className="hint" style={{ marginTop: 10, paddingLeft: 18, color: "var(--loss)" }}>
+              <ul className="mt-3 list-disc pl-5 text-sm text-loss">
                 {problems.map((p, i) => <li key={i}>{p}</li>)}
               </ul>
             )}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="row">
-        <button className="btn btn-gold" type="submit">{deck ? "Guardar cambios" : "Crear mazo"}</button>
+      <label className="inline-flex items-center gap-2 text-sm">
+        <input type="checkbox" name="retired" className="size-4" defaultChecked={deck?.retired ?? false} />
+        Retirado (no aparece al registrar partidas)
+      </label>
+
+      <div className="flex gap-2">
+        <button className="btn btn-brand flex-1" type="submit">{deck ? "Guardar" : "Crear mazo"}</button>
         {deck && (
-          <button className="btn btn-danger" type="submit" formAction={deleteDeck} name="id" value={deck.id}>
-            Borrar mazo
-          </button>
+          <button className="btn btn-danger" type="submit" formAction={deleteDeck} name="id" value={deck.id}>Borrar</button>
         )}
       </div>
     </form>

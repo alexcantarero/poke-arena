@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { loadSnapshot, compPlayers } from "@/lib/data";
+import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
-import { archetypeStats, isPlayed, standings } from "@/lib/stats";
-import { MONTHS, pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
+import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
+import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
-  Avatar, Bars, Empty, Kpi, MatchRow, MatchTable, PageHead, PlayerTag, Record, Sprites, StreakChip,
+  ArchTag, Avatar, Bars, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
+  Record, SectionTitle, Sprites, StreakChip,
 } from "@/components/ui";
-
-const EVENT_NAMES: Record<string, string> = {
-  round: "Jornada", tourney: "Torneo", deadline: "Límite", other: "Evento",
-};
+import { Icon } from "@/components/icons";
 
 export default async function HomePage() {
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
@@ -30,202 +28,184 @@ export default async function HomePage() {
   );
   const leader = table.find((r) => r.played > 0);
   const mine = session ? table.find((r) => r.playerId === session.playerId) : undefined;
-  const totalGames = played.reduce((a, m) => a + m.games.length, 0);
-  const archs = archetypeStats(played, snap.archIndex);
-  const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 4);
+  const myCp = session ? playerCp(snap, session.playerId) : null;
+  const archs = archetypeStats(played, snap.archIndex, undefined, snap.archById);
+  const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 3);
   const recent = played.slice(-6).reverse();
+  const nextTournaments = snap.tournaments.filter((t) => t.date >= todayISO()).slice(-3).reverse();
 
   return (
     <>
       <PageHead
         title={snap.config.name}
-        sub={`${snap.config.season} · ${snap.activePlayerIds.length} jugadores · ${snap.competitions.length} competiciones`}
-        actions={<Link className="btn btn-gold" href="/partidas/nueva">Registrar partida</Link>}
+        sub={`${snap.config.season} · ${snap.activePlayerIds.length} jugadores · ${played.length} partidas`}
+        actions={
+          <Link className="btn btn-brand hidden md:inline-flex" href="/partidas/nueva">
+            <Icon name="plus" className="size-4" /> Registrar partida
+          </Link>
+        }
       />
 
-      <div className="grid g-4" style={{ marginBottom: 16 }}>
-        <Kpi label="Partidas jugadas" value={played.length} note={`${totalGames} juegos en total`} />
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+        <Kpi label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
         <Kpi
           highlight
-          label={`Líder${mainComp ? ` · ${shortName(mainComp.name, 18)}` : ""}`}
+          label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
           value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
-          note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)} victorias` : "sin datos"}
+          note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)}` : "sin datos"}
         />
+        {mine
+          ? <Kpi label="Tú" value={pct(mine.winRate, 0)} note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`} />
+          : <Kpi label="Arquetipos" value={archs.length} note="vistos en la liga" />}
         <Kpi
-          label="Arquetipo más jugado"
-          value={archs[0]?.archetype?.name ?? "—"}
-          note={archs[0] ? `${archs[0].played} usos · ${pct(archs[0].winRate, 0)}` : "sin datos"}
+          label="Tus CP"
+          value={myCp ? myCp.total : "—"}
+          note={myCp ? `temporada ${myCp.season}${myCp.confirmed ? "" : " · provisional"}` : "sin torneos"}
         />
-        {mine ? (
-          <Kpi
-            label="Tú"
-            value={pct(mine.winRate, 0)}
-            note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`}
-            highlight={(mine.winRate ?? 0) >= 0.5}
-          />
-        ) : (
-          <Kpi label="Juegos por partida" value={played.length ? (totalGames / played.length).toFixed(2) : "—"} note="media de la liga" />
-        )}
-      </div>
-
-      <div className="grid g-2-13" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="card-head">
-            <h2>Próximas fechas</h2>
-            <Link className="btn btn-sm btn-ghost" href="/calendario">Calendario</Link>
-          </div>
-          {upcoming.length ? (
-            <ul className="list-plain">
-              {upcoming.map((e) => {
-                const d = new Date(`${e.date}T12:00:00`);
-                return (
-                  <li key={e.id}>
-                    <div style={{ width: 44, flex: "none", textAlign: "center" }}>
-                      <div style={{ fontFamily: "var(--f-display)", fontWeight: 800, fontSize: 19, lineHeight: 1 }}>{d.getDate()}</div>
-                      <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--muted)", fontWeight: 700 }}>
-                        {MONTHS[d.getMonth()].slice(0, 3)}
-                      </div>
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{e.title}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {relDays(e.date)}{e.note ? ` · ${e.note}` : ""}
-                      </div>
-                    </div>
-                    <span className={`chip ${e.kind === "round" ? "g" : e.kind === "tourney" ? "b" : ""}`}>
-                      {EVENT_NAMES[e.kind] ?? "Evento"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div className="empty"><p>No hay fechas próximas. <Link href="/calendario">Añade una</Link>.</p></div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <h2>Clasificación{mainComp ? ` · ${shortName(mainComp.name, 24)}` : ""}</h2>
-            <Link className="btn btn-sm btn-ghost" href="/ranking">Ver completa</Link>
-          </div>
-          <div className="tw">
-            <table>
-              <thead>
-                <tr>
-                  <th className="rk">#</th><th>Jugador</th><th className="num">PJ</th>
-                  <th>Récord</th><th className="num">%V</th><th className="num">Pts</th>
-                  <th className="num">Elo</th><th className="num">Racha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {table.slice(0, 6).map((r, i) => (
-                  <tr key={r.playerId} className={i === 0 ? "r1" : ""}>
-                    <td className="rk">{i + 1}</td>
-                    <td><PlayerTag player={snap.playersById.get(r.playerId)} /></td>
-                    <td className="num">{r.played}</td>
-                    <td><Record w={r.wins} d={r.ties} l={r.losses} /></td>
-                    <td className="num" style={{ color: wrColor(r.winRate), fontWeight: 600 }}>{pct(r.winRate, 0)}</td>
-                    <td className="num" style={{ fontWeight: 700 }}>{r.points}</td>
-                    <td className="num">{r.elo}</td>
-                    <td className="num"><StreakChip kind={r.streak.kind} n={r.streak.n} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       {pending.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <section className="card mb-4">
           <div className="card-head">
-            <h2>Partidas pendientes</h2>
-            <span className="hint">{pending.length} emparejamientos sin resultado</span>
+            <h2 className="text-lg font-bold">Partidas pendientes</h2>
+            <span className="text-xs text-muted">{pending.length}</span>
           </div>
-          <ul className="list-plain">
-            {pending.map((m) => {
+          <ul className="divide-y divide-line-soft">
+            {pending.slice(0, 5).map((m) => {
               const A = snap.playersById.get(m.playerAId);
-              const B = snap.playersById.get(m.playerBId);
-              const c = m.competitionId ? snap.compsById.get(m.competitionId) : undefined;
+              const B = m.playerBId ? snap.playersById.get(m.playerBId) : undefined;
               return (
                 <li key={m.id}>
-                  <span className="chip">{c ? shortName(c.name, 16) : "Amistoso"}{m.round ? ` · J${m.round}` : ""}</span>
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 9, justifyContent: "center", minWidth: 0 }}>
-                    <div className="row" style={{ gap: 7, justifyContent: "flex-end", flex: 1, minWidth: 0 }}>
-                      {A?.name}<Avatar player={A} />
+                  <Link href={`/partidas/${m.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <Avatar player={A} size="sm" />
+                      <span className="truncate text-sm font-medium">{A?.name}</span>
                     </div>
-                    <span className="hint" style={{ fontFamily: "var(--f-display)", fontWeight: 700 }}>VS</span>
-                    <div className="row" style={{ gap: 7, flex: 1, minWidth: 0 }}>
-                      <Avatar player={B} />{B?.name}
+                    <span className="flex-none font-display text-xs font-bold text-muted">VS</span>
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                      <span className="truncate text-right text-sm font-medium">{B?.name ?? m.opponentName}</span>
+                      <Avatar player={B} size="sm" />
                     </div>
-                  </div>
-                  <Link className="btn btn-gold btn-sm" href={`/partidas/${m.id}`}>Anotar resultado</Link>
+                    <span className="btn btn-brand btn-sm flex-none">Anotar</span>
+                  </Link>
                 </li>
               );
             })}
           </ul>
-        </div>
+        </section>
       )}
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="card">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Clasificación</h2>
+            <Link className="btn btn-ghost btn-sm" href="/ranking">Ver toda</Link>
+          </div>
+          {table.some((r) => r.played) ? (
+            <ol className="divide-y divide-line-soft">
+              {table.slice(0, 6).map((r, i) => (
+                <li key={r.playerId} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className={`w-5 flex-none text-center font-display text-lg font-extrabold tabular
+                    ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</span>
+                  <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="flex-1" />
+                  <Record w={r.wins} d={r.ties} l={r.losses} />
+                  <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>
+                    {pct(r.winRate, 0)}
+                  </span>
+                  <StreakChip kind={r.streak.kind} n={r.streak.n} />
+                </li>
+              ))}
+            </ol>
+          ) : <Empty title="Sin partidas todavía">Registra la primera y esto se llena solo.</Empty>}
+        </section>
+
+        <section className="card">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Próximo</h2>
+            <Link className="btn btn-ghost btn-sm" href="/calendario">Calendario</Link>
+          </div>
+          {upcoming.length || nextTournaments.length ? (
+            <ul className="divide-y divide-line-soft">
+              {upcoming.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+                  <Icon name="calendar" className="size-5 flex-none text-muted" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{e.title}</span>
+                    <span className="block text-xs text-muted">{relDays(e.date)}{e.note ? ` · ${e.note}` : ""}</span>
+                  </span>
+                </li>
+              ))}
+              {nextTournaments.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/torneos/${t.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                    <Icon name="trophy" className="size-5 flex-none text-brand" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{t.name}</span>
+                      <span className="block text-xs text-muted">{relDays(t.date)}{t.city ? ` · ${t.city}` : ""}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="Nada en la agenda">
+              Añade una jornada o apunta el próximo torneo al que vayáis.
+            </Empty>
+          )}
+        </section>
+      </div>
+
+      <section className="card mt-4">
         <div className="card-head">
-          <h2>Últimos resultados</h2>
-          <Link className="btn btn-sm btn-ghost" href="/resultados">Todos</Link>
+          <h2 className="text-lg font-bold">Últimos resultados</h2>
+          <Link className="btn btn-ghost btn-sm" href="/resultados">Todos</Link>
         </div>
         {recent.length ? (
-          <MatchTable>
+          <MatchList>
             {recent.map((m) => (
-              <MatchRow
+              <MatchCard
                 key={m.id}
                 match={m}
                 playerA={snap.playersById.get(m.playerAId)}
-                playerB={snap.playersById.get(m.playerBId)}
+                playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
                 archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
-                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : undefined}
-                compName={m.competitionId ? snap.compsById.get(m.competitionId)?.name : undefined}
+                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : (m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined)}
+                context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
               />
             ))}
-          </MatchTable>
+          </MatchList>
         ) : (
           <Empty
             title="Todavía no hay partidas"
-            action={<Link className="btn btn-gold" href="/partidas/nueva">Registrar partida</Link>}
+            action={<Link className="btn btn-brand" href="/partidas/nueva">Registrar la primera</Link>}
           >
-            Registra la primera y el ranking, las estadísticas y la matriz de emparejamientos se construyen solos.
+            En cuanto registréis unas cuantas, el ranking y las estadísticas se construyen solos.
           </Empty>
         )}
-      </div>
+      </section>
 
       {archs.length > 0 && (
-        <div className="grid g-2">
-          <div className="card">
-            <div className="card-head"><h2>Arquetipos más jugados</h2></div>
-            <div className="card-pad">
-              <Bars
-                rows={archs.slice(0, 7).map((a) => ({
-                  label: <span className="arch"><Sprites archetype={a.archetype} size="sm" /><span className="an">{a.archetype?.name}</span></span>,
-                  value: a.played,
-                  right: `${a.played} usos`,
-                }))}
-              />
-            </div>
+        <section className="card mt-4">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Mazos más jugados</h2>
+            <Link className="btn btn-ghost btn-sm" href="/estadisticas">Estadísticas</Link>
           </div>
-          <div className="card">
-            <div className="card-head"><h2>% de victorias por arquetipo</h2><span className="hint">mín. 2 usos</span></div>
-            <div className="card-pad">
-              <Bars
-                max={100}
-                rows={archs.filter((a) => a.played >= 2).slice(0, 7).map((a) => ({
-                  label: <span className="arch"><Sprites archetype={a.archetype} size="sm" /><span className="an">{a.archetype?.name}</span></span>,
-                  value: (a.winRate ?? 0) * 100,
-                  right: `${pct(a.winRate, 0)} (${a.played})`,
-                  color: wrColor(a.winRate),
-                }))}
-              />
-            </div>
+          <div className="p-4">
+            <Bars
+              rows={archs.slice(0, 6).map((a) => ({
+                label: (
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <Sprites archetype={a.archetype} size="sm" />
+                    <span className="truncate text-[13px]">{a.archetype?.name}</span>
+                  </span>
+                ),
+                value: a.played,
+                right: `${a.played} · ${pct(a.winRate, 0)}`,
+                color: wrColor(a.winRate),
+              }))}
+            />
           </div>
-        </div>
+        </section>
       )}
     </>
   );

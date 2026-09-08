@@ -13,11 +13,22 @@ import { config } from "dotenv";
 
 config({ path: ".env.local" });
 config();
+import { scrypt as scryptCb, randomBytes } from "node:crypto";
+import { promisify } from "node:util";
 import { db } from "./index";
 import {
-  archetypes, competitionPlayers, competitions, decks, events, games, matches, players, settings,
+  archetypes, competitionPlayers, competitions, decks, events, games, invites, matches,
+  players, settings, tournamentResults, tournaments,
 } from "./schema";
 import { SEED_ARCHETYPES } from "../lib/pokemon";
+
+const scrypt = promisify(scryptCb) as (p: string, s: Buffer, l: number) => Promise<Buffer>;
+
+/** Mismo formato que src/lib/auth.ts: "salt:hash". */
+async function hash(password: string) {
+  const salt = randomBytes(16);
+  return `${salt.toString("hex")}:${(await scrypt(password, salt, 64)).toString("hex")}`;
+}
 
 const EMPTY = process.argv.includes("--empty");
 
@@ -62,6 +73,9 @@ async function main() {
   console.log("Limpiando…");
   await db.delete(games);
   await db.delete(matches);
+  await db.delete(tournamentResults);
+  await db.delete(tournaments);
+  await db.delete(invites);
   await db.delete(competitionPlayers);
   await db.delete(competitions);
   await db.delete(decks);
@@ -74,17 +88,24 @@ async function main() {
     id: "default",
     name: "Liga Arena",
     season: "Temporada 1",
+    cpSeason: 2027,
     ptsWin: 3, ptsTie: 1, ptsLoss: 0,
     eloStart: 1000, eloK: 24,
-    inviteCode: process.env.LEAGUE_INVITE_CODE ?? "",
+    ratingZone: "europe",
+    registrationOpen: true,
   });
 
   const archRows = SEED_ARCHETYPES.map((a, i) => ({ id: `a${i + 1}`, ...a }));
   await db.insert(archetypes).values(archRows);
   console.log(`${archRows.length} arquetipos del metagame Standard.`);
 
+  // Una invitación lista para usar, tanto en modo vacío como con ejemplos.
+  const token = randomBytes(24).toString("base64url");
+  await db.insert(invites).values({ token, label: "Primera invitación", role: "player", maxUses: 0 });
+
   if (EMPTY) {
-    console.log("Listo (--empty): añade jugadores desde Ajustes.");
+    console.log("Listo (--empty). Ábre esta invitación para darte de alta como organizador:");
+    console.log(`  ${process.env.APP_URL ?? "http://localhost:3000"}/registro/${token}`);
     return;
   }
 
@@ -92,9 +113,20 @@ async function main() {
     ["Ibai", "#f0b429"], ["Marta", "#4aa8e8"], ["Javi", "#63bd5a"],
     ["Nerea", "#e987b8"], ["Unai", "#b271c9"], ["Sara", "#f0803c"],
   ];
-  const playerRows = names.map(([name, color], i) => ({
-    id: `p${i + 1}`, name, color, isAdmin: i === 0, active: true, pin: null, joined: "2026-06-01",
-  }));
+  const demoHash = await hash("arena1234");
+  const playerRows = await Promise.all(names.map(async ([name, color], i) => ({
+    id: `p${i + 1}`,
+    name,
+    email: `${name.toLowerCase()}@ejemplo.test`,
+    passwordHash: demoHash,
+    role: i === 0 ? "owner" : "player",
+    active: true,
+    color,
+    avatarKind: "none",
+    avatarValue: "",
+    bio: "",
+    joined: "2026-06-01",
+  })));
   await db.insert(players).values(playerRows);
 
   const deckRows = [
@@ -148,7 +180,7 @@ async function main() {
       if (aWins) ga++; else gb++;
     }
     matchRows.push({
-      id, competitionId: compId, round, date, playerAId: a, playerBId: b,
+      id, competitionId: compId, round, date, playerAId: a, playerBId: b, createdBy: "p1",
       deckAId: deckOf(a)?.id ?? null, deckBId: deckOf(b)?.id ?? null,
       bestOf, status: "done", note: "",
     });
@@ -184,8 +216,45 @@ async function main() {
     { id: "e3", title: "Copa Otoño (suizo + top 4)", date: "2026-10-04", kind: "tourney", competitionId: null, note: "6 jugadores, 4 rondas" },
   ]);
 
-  console.log(`Listo: ${playerRows.length} jugadores, ${deckRows.length} mazos, ${matchRows.length} partidas, ${gameRows.length} juegos.`);
-  console.log(`Código de invitación: ${process.env.LEAGUE_INVITE_CODE || "(vacío: entrada libre)"}`);
+  // Un par de torneos de fuera, para que la sección no salga vacía.
+  await db.insert(tournaments).values([
+    {
+      id: "t1", name: "League Cup Tienda Kanto", kind: "league_cup", scope: "onsite",
+      format: "standard", bestOf: 3, date: "2026-08-16", venue: "Tienda Kanto", city: "Bilbao",
+      playerCount: 42, rounds: 6, topCut: 8, season: 2027, division: "masters",
+      organizer: "Tienda Kanto", url: "", country: "ES", notes: "", endDate: null, createdBy: "p1",
+    },
+    {
+      id: "t2", name: "Torneo online semanal", kind: "online", scope: "online",
+      format: "standard", bestOf: 3, date: "2026-08-30", venue: "PTCG Live", city: "",
+      playerCount: 24, rounds: 5, topCut: 0, season: 2027, division: "masters",
+      organizer: "", url: "", country: "", notes: "", endDate: null, createdBy: "p1",
+    },
+  ]);
+
+  await db.insert(tournamentResults).values([
+    {
+      id: "tr1", tournamentId: "t1", playerId: "p1", placement: 5, wins: 4, losses: 1, ties: 1,
+      deckId: "d1", archetypeId: null, cpEarned: 24, cpManual: false,
+      prizes: "6 sobres", notes: "Perdí en cuartos contra el espejo.", dropped: false,
+    },
+    {
+      id: "tr2", tournamentId: "t1", playerId: "p3", placement: 17, wins: 3, losses: 3, ties: 0,
+      deckId: "d5", archetypeId: null, cpEarned: 16, cpManual: false,
+      prizes: "", notes: "", dropped: false,
+    },
+    {
+      id: "tr3", tournamentId: "t2", playerId: "p2", placement: 1, wins: 5, losses: 0, ties: 0,
+      deckId: "d3", archetypeId: null, cpEarned: 0, cpManual: false,
+      prizes: "Entrada gratis al siguiente", notes: "", dropped: false,
+    },
+  ]);
+
+  console.log(`Listo: ${playerRows.length} jugadores, ${deckRows.length} mazos, ${matchRows.length} partidas, ${gameRows.length} juegos, 2 torneos.`);
+  console.log("\nEntra con cualquiera de estos correos y la contraseña  arena1234 :");
+  playerRows.forEach((p) => console.log(`  ${p.email}`));
+  console.log("\nO date de alta con esta invitación:");
+  console.log(`  ${process.env.APP_URL ?? "http://localhost:3000"}/registro/${token}`);
 }
 
 main().catch((e) => {

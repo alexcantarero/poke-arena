@@ -1,18 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { canManageLeague, readSession } from "@/lib/auth";
 import { compPlayers, loadSnapshot } from "@/lib/data";
 import { isPlayed, pairRound, standings, suggestedRounds } from "@/lib/stats";
 import { pct, wrColor } from "@/lib/format";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
-import { Avatar, MatchRow, MatchTable, PageHead, PlayerTag, Record } from "@/components/ui";
+import { Avatar, Empty, MatchCard, MatchList, PageHead, PlayerTag, Record, SectionTitle } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { createPairings } from "@/actions";
+import { Icon } from "@/components/icons";
 
 export default async function CompetitionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const snap = await loadSnapshot();
+  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const comp = snap.compsById.get(id);
   if (!comp) notFound();
+
+  const me = session ? snap.playersById.get(session.playerId) : undefined;
+  const manager = me ? canManageLeague(me.role) : false;
 
   const ids = compPlayers(snap, id);
   const inComp = snap.matches.filter((m) => m.competitionId === id);
@@ -21,116 +26,143 @@ export default async function CompetitionPage({ params }: { params: Promise<{ id
   const table = standings(played, ids, snap.elo.rating, snap.config);
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
   const preview = pairRound(comp.kind, ids, played, snap.elo.rating, snap.config);
-  const kind = COMPETITION_KINDS[(comp.kind as CompetitionKind)] ?? COMPETITION_KINDS.league;
+  const kind = COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
 
   return (
     <>
       <PageHead
         title={comp.name}
         sub={`${kind.name} · Bo${comp.bestOf} · ${ids.length} jugadores${comp.kind === "swiss" ? ` · ${comp.rounds || suggestedRounds(ids.length)} rondas` : ""}`}
-        actions={<Link className="btn btn-sm btn-ghost" href="/competiciones">Todas</Link>}
+        actions={<Link className="btn btn-ghost btn-sm" href="/competiciones"><Icon name="back" className="size-4" /> Todas</Link>}
       />
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-head"><h2>Clasificación</h2><span className="hint">{played.length} partidas jugadas</span></div>
-        {table.some((r) => r.played > 0) ? (
-          <div className="tw">
-            <table>
-              <thead>
-                <tr><th className="rk">#</th><th>Jugador</th><th className="num">PJ</th><th>Récord</th><th className="num">%V</th><th className="num">Pts</th><th className="num">Res.</th><th className="num">Dif.</th></tr>
-              </thead>
-              <tbody>
-                {table.map((r, i) => (
-                  <tr key={r.playerId} className={i === 0 ? "r1" : ""}>
-                    <td className="rk">{i + 1}</td>
-                    <td><PlayerTag player={snap.playersById.get(r.playerId)} /></td>
-                    <td className="num">{r.played}</td>
-                    <td><Record w={r.wins} d={r.ties} l={r.losses} /></td>
-                    <td className="num" style={{ color: wrColor(r.winRate), fontWeight: 600 }}>{pct(r.winRate, 0)}</td>
-                    <td className="num" style={{ fontWeight: 700 }}>{r.points}</td>
-                    <td className="num" style={{ color: "var(--muted)" }}>{pct(r.resistance, 1)}</td>
-                    <td className="num">{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <div className="empty"><p>Sin partidas todavía.</p></div>}
-      </div>
+      <section className="card mb-4">
+        <div className="card-head">
+          <h2 className="text-lg font-bold">Clasificación</h2>
+          <span className="text-xs text-muted">{played.length} partidas</span>
+        </div>
+        {table.some((r) => r.played) ? (
+          <ol className="divide-y divide-line-soft">
+            {table.map((r, i) => (
+              <li key={r.playerId} className="flex items-center gap-3 px-4 py-2.5">
+                <span className={`w-6 flex-none text-center font-display text-lg font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</span>
+                <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1" />
+                <Record w={r.wins} d={r.ties} l={r.losses} />
+                <span className="hidden w-14 text-right font-mono text-xs tabular text-muted sm:block">{pct(r.resistance, 0)}</span>
+                <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 0)}</span>
+                <span className="w-8 text-right font-mono text-sm font-bold tabular">{r.points}</span>
+              </li>
+            ))}
+          </ol>
+        ) : <Empty title="Sin partidas todavía" />}
+      </section>
 
-      <div className="grid g-2" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="card-head"><h2>Jornada {nextRound}</h2><span className="hint">{kind.hint}</span></div>
-          <div className="card-pad">
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <section className="card">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Jornada {nextRound}</h2>
+            <span className="text-xs text-muted">{kind.hint}</span>
+          </div>
+          <div className="p-4">
             {preview.pairs.length ? (
               <>
-                <ul className="list-plain" style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
+                <ul className="mb-3 divide-y divide-line-soft rounded-xl border border-line">
                   {preview.pairs.map(([a, b], i) => {
                     const A = snap.playersById.get(a), B = snap.playersById.get(b);
                     return (
-                      <li key={`${a}-${b}`}>
-                        <span className="rk">{i + 1}</span>
-                        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
-                          <div className="row" style={{ gap: 7, justifyContent: "flex-end", flex: 1 }}>{A?.name}<Avatar player={A} /></div>
-                          <span className="hint" style={{ fontFamily: "var(--f-display)", fontWeight: 700 }}>VS</span>
-                          <div className="row" style={{ gap: 7, flex: 1 }}><Avatar player={B} />{B?.name}</div>
-                        </div>
+                      <li key={`${a}-${b}`} className="flex items-center gap-2 px-3 py-2.5">
+                        <span className="w-5 flex-none text-center font-mono text-xs text-muted">{i + 1}</span>
+                        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                          <span className="truncate text-sm">{A?.name}</span><Avatar player={A} size="sm" />
+                        </span>
+                        <span className="flex-none font-display text-xs font-bold text-muted">VS</span>
+                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                          <Avatar player={B} size="sm" /><span className="truncate text-sm">{B?.name}</span>
+                        </span>
                       </li>
                     );
                   })}
                   {preview.bye && (
-                    <li><span className="rk">—</span><div style={{ flex: 1 }}><PlayerTag player={snap.playersById.get(preview.bye)} /></div><span className="chip g">descansa</span></li>
+                    <li className="flex items-center gap-2 px-3 py-2.5">
+                      <span className="w-5 flex-none text-center text-xs text-muted">—</span>
+                      <PlayerTag player={snap.playersById.get(preview.bye)} size="sm" className="flex-1" />
+                      <span className="chip chip-brand">descansa</span>
+                    </li>
                   )}
                 </ul>
-                <form action={createPairings} style={{ marginTop: 12 }}>
-                  <input type="hidden" name="competitionId" value={comp.id} />
-                  <button className="btn btn-gold" type="submit">Crear {preview.pairs.length} partidas pendientes</button>
-                </form>
+                {manager ? (
+                  <form action={createPairings}>
+                    <input type="hidden" name="competitionId" value={comp.id} />
+                    <button className="btn btn-brand w-full" type="submit">
+                      Crear {preview.pairs.length} partidas pendientes
+                    </button>
+                  </form>
+                ) : (
+                  <p className="text-sm text-muted">
+                    Los cruces los genera el organizador.
+                  </p>
+                )}
               </>
-            ) : <div className="hint">No quedan cruces por generar con estos participantes.</div>}
+            ) : <p className="text-sm text-muted">No quedan cruces por generar con estos participantes.</p>}
           </div>
-        </div>
+        </section>
 
-        <div className="card">
-          <div className="card-head"><h2>Partidas pendientes</h2><span className="hint">{pending.length}</span></div>
+        <section className="card">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Pendientes</h2>
+            <span className="text-xs text-muted">{pending.length}</span>
+          </div>
           {pending.length ? (
-            <ul className="list-plain">
+            <ul className="divide-y divide-line-soft">
               {pending.map((m) => (
                 <li key={m.id}>
-                  <span className="chip">J{m.round}</span>
-                  <div style={{ flex: 1 }}>
-                    {snap.playersById.get(m.playerAId)?.name} <span className="hint">vs</span>{" "}
-                    {snap.playersById.get(m.playerBId)?.name}
-                  </div>
-                  <Link className="btn btn-gold btn-sm" href={`/partidas/${m.id}`}>Anotar</Link>
+                  <Link href={`/partidas/${m.id}`} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2">
+                    <span className="chip flex-none">J{m.round}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {snap.playersById.get(m.playerAId)?.name} <span className="text-muted">vs</span>{" "}
+                      {m.playerBId ? snap.playersById.get(m.playerBId)?.name : m.opponentName}
+                    </span>
+                    <span className="btn btn-brand btn-sm flex-none">Anotar</span>
+                  </Link>
                 </li>
               ))}
             </ul>
-          ) : <div className="empty"><p>Nada pendiente.</p></div>}
-        </div>
+          ) : <Empty title="Nada pendiente" />}
+        </section>
       </div>
 
       {played.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="card-head"><h2>Partidas de la competición</h2></div>
-          <MatchTable>
-            {played.slice().reverse().map((m) => (
-              <MatchRow
-                key={m.id}
-                match={m}
-                playerA={snap.playersById.get(m.playerAId)}
-                playerB={snap.playersById.get(m.playerBId)}
-                archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
-                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : undefined}
-                compName={undefined}
-              />
-            ))}
-          </MatchTable>
-        </div>
+        <>
+          <SectionTitle aside={`${played.length}`}>Partidas</SectionTitle>
+          <div className="card mb-6">
+            <MatchList>
+              {played.slice().reverse().map((m) => (
+                <MatchCard
+                  key={m.id}
+                  match={m}
+                  playerA={snap.playersById.get(m.playerAId)}
+                  playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
+                  archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
+                  archB={m.deckBId ? snap.archIndex.get(m.deckBId) : undefined}
+                  context={m.round ? `Jornada ${m.round}` : undefined}
+                />
+              ))}
+            </MatchList>
+          </div>
+        </>
       )}
 
-      <h2 style={{ marginBottom: 12 }}>Editar competición</h2>
-      <CompetitionForm competition={comp} players={snap.players} selectedPlayerIds={snap.playersOfComp.get(id) ?? []} />
+      {manager && (
+        <>
+          <SectionTitle>Editar competición</SectionTitle>
+          <CompetitionForm
+            competition={comp}
+            players={snap.players}
+            selectedPlayerIds={snap.playersOfComp.get(id) ?? []}
+            canDelete={manager}
+          />
+        </>
+      )}
     </>
   );
 }

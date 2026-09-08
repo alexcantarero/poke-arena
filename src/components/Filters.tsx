@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 type Option = { value: string; label: string };
 
-/** Selectores que escriben en la query string y recargan la página en el servidor. */
+/** Filtros que escriben en la URL: se pueden compartir y volver atrás. */
 export function Filters({
   basePath, fields,
 }: {
@@ -13,6 +13,7 @@ export function Filters({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const active = fields.filter((f) => params.get(f.name)).length;
 
   function change(name: string, value: string) {
     const next = new URLSearchParams(params.toString());
@@ -23,25 +24,25 @@ export function Filters({
   }
 
   return (
-    <div className="card card-pad" style={{ marginBottom: 16 }}>
-      <div className="grid g-4">
+    <details className="card mb-4" open={active > 0}>
+      <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold">
+        Filtros {active > 0 && <span className="chip chip-brand">{active}</span>}
+      </summary>
+      <div className="grid gap-3 border-t border-line-soft p-4 sm:grid-cols-2 lg:grid-cols-4">
         {fields.map((f) => (
-          <div className="field" key={f.name}>
-            <label htmlFor={`f-${f.name}`}>{f.label}</label>
+          <div className="flex flex-col gap-1.5" key={f.name}>
+            <label className="label" htmlFor={`f-${f.name}`}>{f.label}</label>
             <select
-              id={`f-${f.name}`}
-              className="inp"
+              id={`f-${f.name}`} className="input"
               value={params.get(f.name) ?? ""}
               onChange={(e) => change(f.name, e.target.value)}
             >
               <option value="">{f.placeholder}</option>
-              {f.options.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+              {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
         ))}
       </div>
-    </div>
+    </details>
   );
 }

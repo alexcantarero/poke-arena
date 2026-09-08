@@ -208,7 +208,7 @@ Cópiala entera. Si la pierdes: panel de Neon → tu proyecto → **Connection D
 
 ## 7. Configurar las variables de entorno
 
-Las tres claves que necesita la aplicación van en un fichero llamado `.env.local`, que **no se
+Las claves que necesita la aplicación van en un fichero llamado `.env.local`, que **no se
 sube a Git** por seguridad.
 
 ```bash
@@ -226,7 +226,7 @@ Copy-Item .env.example .env.local
 ```bash
 DATABASE_URL="postgresql://…lo que copiaste de Neon…"
 SESSION_SECRET="una cadena larga y aleatoria"
-LEAGUE_INVITE_CODE="ARENA26"
+APP_URL="http://localhost:3000"
 ```
 
 - **`DATABASE_URL`** — la cadena de conexión del paso anterior, entre comillas.
@@ -238,9 +238,16 @@ LEAGUE_INVITE_CODE="ARENA26"
 
   Copia lo que salga. Si lo cambias más adelante, todo el mundo tendrá que volver a entrar:
   no es grave, pero conviene saberlo.
-- **`LEAGUE_INVITE_CODE`** — el código que repartirás a tus amigos. Puede ser cualquier cosa:
-  `ARENA26`, `pikachu`, lo que queráis. Déjalo vacío si prefieres que cualquiera con el enlace
-  entre eligiendo jugador.
+- **`APP_URL`** — la dirección pública de la aplicación. **Solo la usa `npm run invite`**, para
+  componer el enlace de invitación que imprime por pantalla. En local, `http://localhost:3000`;
+  cuando despliegues, la URL de Vercel.
+- **`LIMITLESS_API_KEY`** — opcional, y hoy no hace falta. Está por si el endpoint de arquetipos
+  de Limitless llega a pedir clave; solo la lee `npm run archetypes:sync`.
+
+> **Ya no hay código de liga compartido.** Antes existía un `LEAGUE_INVITE_CODE` con el que
+> cualquiera entraba eligiendo un jugador de la lista. Ahora cada persona tiene su cuenta con
+> correo y contraseña, y se entra por un enlace de invitación de un solo uso. Si te encuentras
+> esa variable en un `.env.local` viejo, bórrala: no la lee nadie.
 
 ### Comprobación
 
@@ -260,7 +267,7 @@ dir .env.local         # Windows
 npm run db:push
 ```
 
-Esto lee `src/db/schema.ts` y crea en Neon las nueve tablas que necesita la aplicación. Te
+Esto lee `src/db/schema.ts` y crea en Neon las doce tablas que necesita la aplicación. Te
 mostrará las sentencias SQL y pedirá confirmación.
 
 ### Comprobación
@@ -270,8 +277,9 @@ npm run db:studio
 ```
 
 Abre un explorador visual de la base de datos en el navegador. Deberías ver las tablas
-`players`, `matches`, `games`, `decks`, `archetypes`, `competitions`, `competition_players`,
-`events` y `settings`, todas vacías. Ciérralo con `Ctrl+C` en la terminal.
+`settings`, `players`, `invites`, `archetypes`, `decks`, `competitions`, `competition_players`,
+`matches`, `games`, `tournaments`, `tournament_results` y `events`, todas vacías. Ciérralo con
+`Ctrl+C` en la terminal.
 
 ---
 
@@ -285,8 +293,12 @@ Dos opciones. Elige una.
 npm run db:seed
 ```
 
-Crea 6 jugadores, 20 arquetipos del metagame Standard, 10 mazos, 3 competiciones, unas 41
-partidas y 3 eventos de calendario. Todo inventado, y todo borrable después desde la propia web.
+Crea 6 jugadores con cuenta, 20 arquetipos del metagame Standard, 10 mazos, 3 competiciones, 41
+partidas, 3 eventos de calendario y 2 torneos de fuera con sus resultados. Todo inventado, y
+todo borrable después desde la propia web.
+
+Las seis cuentas de ejemplo comparten la contraseña `arena1234` y su correo se imprime al
+terminar (`ibai@ejemplo.test`, `marta@ejemplo.test`…). La primera, Ibai, es la organizadora.
 
 **B) En limpio**, para empezar vuestra liga de verdad desde el minuto uno:
 
@@ -294,17 +306,20 @@ partidas y 3 eventos de calendario. Todo inventado, y todo borrable después des
 npm run db:seed -- --empty
 ```
 
-Crea solo la configuración de la liga y el catálogo de arquetipos del metagame. Los jugadores
-los añades desde *Ajustes* en cuanto entres.
+Crea solo la configuración de la liga y el catálogo de arquetipos del metagame, sin ningún
+jugador.
 
-> Ojo con la opción B: si no hay ningún jugador, la pantalla de acceso no te deja entrar
-> (no hay a quién elegir). Añade el primer jugador desde `npm run db:studio` (tabla `players`,
-> con un `id` cualquiera como `p1`, tu nombre, `is_admin` a `true`, `active` a `true` y una
-> fecha en `joined`), o arranca con la opción A y borra luego los datos de ejemplo.
+> **Los dos modos borran lo que hubiera antes.** `db:seed` limpia todas las tablas y vuelve a
+> escribirlas: úsalo para probar, nunca sobre una liga en marcha.
+
+En los dos casos el comando deja además **una invitación creada y sin límite de usos**, e imprime
+su enlace. Ábrelo y date de alta: como no hay nadie más, te quedas como organizador. Si prefieres
+generar la invitación tú, es el paso 11.
 
 ### Comprobación
 
-El comando termina diciendo cuántos jugadores, mazos y partidas ha creado.
+El comando termina diciendo cuántos jugadores, mazos y partidas ha creado, y con qué enlace
+puedes darte de alta.
 
 ---
 
@@ -334,13 +349,45 @@ Para parar el servidor: `Ctrl+C` en la terminal.
 
 ## 11. Entrar por primera vez
 
-1. Te recibe la pantalla **Entrar**.
-2. Escribe el código de invitación (`LEAGUE_INVITE_CODE`).
-3. Elige quién eres de la lista de jugadores.
-4. Ya estás dentro.
+Cada jugador tiene **cuenta propia con correo y contraseña**, y solo se puede crear desde un
+**enlace de invitación**. Eso deja un problema de huevo y gallina la primera vez: no hay ninguna
+cuenta, así que no hay nadie que pueda invitarte. Se resuelve desde la terminal.
 
-La elección se guarda en una cookie firmada que dura 180 días, así que no tendrás que repetirlo.
-Para salir o cambiar de jugador, pulsa tu nombre abajo del todo en la barra lateral.
+```bash
+npm run invite
+```
+
+Imprime algo así:
+
+```
+Invitación creada.
+
+  http://localhost:3000/registro/8Kj2mQ7xR4vN...
+
+  1 uso, caduca en 14 días.
+```
+
+Abre ese enlace en el navegador, rellena nombre, correo y contraseña, y ya estás dentro. **El
+primero que se da de alta se queda como `owner`** (organizador de la liga): es quien puede
+repartir papeles y crear más invitaciones desde la propia web.
+
+El comando admite tres argumentos opcionales — etiqueta, usos y días — por si quieres una
+invitación distinta de la de serie:
+
+```bash
+npm run invite -- "Javi" 5 90     # para Javi, 5 usos, caduca en 90 días
+npm run invite -- "Grupo" 0 0     # usos ilimitados, sin caducidad
+```
+
+El enlace se compone con `APP_URL`. Si lo despliegas en otro dominio y el enlace sale con
+`localhost`, es que falta esa variable.
+
+> **A partir de la segunda persona no hace falta la terminal.** Desde *Ajustes → Invitaciones*
+> cualquier organizador crea enlaces, los copia o los comparte con el botón nativo del móvil, y
+> los anula si hace falta.
+
+La sesión se guarda en una cookie firmada que dura 180 días, así que no tendrás que repetirlo.
+Para salir, el botón de la barra lateral en escritorio, o *Más → Salir de la cuenta* en móvil.
 
 A partir de aquí, sigue con el **[manual de usuario](02-manual-de-usuario.md)**.
 
@@ -377,12 +424,13 @@ Es más corto, porque la base de datos ya existe:
 1. Instala **Node.js** y **Git** (pasos 2 y 3).
 2. `git clone` del repositorio (paso 4).
 3. `npm install` (paso 5).
-4. `cp .env.example .env.local` y pega **las mismas tres variables** que en el primer
-   ordenador. La `DATABASE_URL` tiene que ser idéntica: es lo que hace que los dos veáis los
-   mismos datos.
+4. `cp .env.example .env.local` y pega **las mismas variables** que en el primer ordenador. La
+   `DATABASE_URL` tiene que ser idéntica: es lo que hace que los dos veáis los mismos datos.
+   `SESSION_SECRET` también, si queréis que una sesión valga en los dos.
 5. **No ejecutes `db:push` ni `db:seed`**: las tablas ya están creadas y los datos ya existen.
    `db:seed` **borra todo** antes de sembrar.
-6. `npm run dev`.
+6. `npm run dev`, y entra con tu correo y tu contraseña de siempre. No hace falta invitación
+   nueva: la cuenta está en la base de datos, no en el ordenador.
 
 Para pasarle las variables a la otra persona, mándaselas por un canal privado (no por el
 repositorio, no por un grupo de WhatsApp compartido con más gente). La `DATABASE_URL` da acceso

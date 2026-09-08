@@ -1,18 +1,39 @@
 export const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 export const DOWS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+/** Zona horaria de la liga. Cambiarla aquí cambia qué día es "hoy" en toda la app. */
+export const TZ = "Europe/Madrid";
+
+/**
+ * El día de hoy en la zona de la liga, no en UTC.
+ *
+ * Con `toISOString()` una partida registrada a las 00:30 de un martes de verano
+ * se guardaba con fecha del lunes, y eso descoloca el Elo (que ordena por
+ * fecha) y las rachas. El formato sueco es exactamente AAAA-MM-DD.
+ */
+export const todayISO = () => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date());
+
+/** ¿Es una fecha ISO real? Filtra tanto la basura como el 2026-02-31. */
+export function isIsoDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T12:00:00`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
 
 export function fmtDate(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(`${iso}T12:00:00`);
-  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${String(d.getFullYear()).slice(2)}`;
+  const m = MONTHS[d.getMonth()];
+  if (!m) return "—";
+  return `${d.getDate()} ${m.slice(0, 3)} ${String(d.getFullYear()).slice(2)}`;
 }
 
 export function fmtDateLong(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(`${iso}T12:00:00`);
-  return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
+  const m = MONTHS[d.getMonth()];
+  if (!m) return "—";
+  return `${d.getDate()} de ${m} de ${d.getFullYear()}`;
 }
 
 export function relDays(iso: string) {
@@ -41,7 +62,8 @@ export function wrColor(wp: number | null | undefined) {
   if (wp == null) return "var(--muted)";
   if (wp >= 0.6) return "var(--win)";
   if (wp <= 0.4) return "var(--loss)";
-  return "var(--blue)";
+  // El mismo azul que la matriz de emparejamientos usa para "equilibrado".
+  return "var(--series-1)";
 }
 
 let counter = 0;

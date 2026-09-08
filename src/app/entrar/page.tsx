@@ -1,47 +1,52 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { currentPlayer } from "@/lib/data";
 import { db } from "@/db";
 import { players, settings } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
-import { effectiveInviteCode, readSession } from "@/lib/auth";
-import { EnterForm } from "@/components/EnterForm";
+import { eq, sql } from "drizzle-orm";
+import { LoginForm } from "@/components/LoginForm";
+import { Wordmark } from "@/components/Wordmark";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Entrar" };
 
-export default async function EnterPage() {
-  const session = await readSession();
-  if (session) redirect("/");
+export default async function LoginPage() {
+  // Solo rebotamos a la portada si la sesión corresponde a alguien que de
+  // verdad puede entrar. Si no, se enseña el formulario.
+  if (await currentPlayer()) redirect("/");
 
-  const [cfgRows, list] = await Promise.all([
+  const [cfgRows, count] = await Promise.all([
     db.select().from(settings).where(eq(settings.id, "default")),
-    db.select().from(players).where(eq(players.active, true)).orderBy(asc(players.name)),
+    db.select({ n: sql<number>`count(*)::int` }).from(players),
   ]);
-  const needsCode = Boolean(effectiveInviteCode(cfgRows[0]?.inviteCode ?? ""));
+  const cfg = cfgRows[0];
+  const empty = (count[0]?.n ?? 0) === 0;
 
   return (
-    <div className="pagebox">
-      <div className="row" style={{ gap: 12, marginBottom: 18 }}>
-        <div className="brand-mark" style={{ width: 38, height: 38 }} aria-hidden="true" />
-        <div>
-          <div className="brand-txt" style={{ fontSize: 26 }}>{cfgRows[0]?.name ?? "Arena"}</div>
-          <div className="brand-sub">{cfgRows[0]?.season ?? "Liga privada de Pokémon TCG"}</div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+      <Wordmark name={cfg?.name ?? "Arena"} season={cfg?.season ?? "Liga privada de Pokémon TCG"} />
+
+      {empty ? (
+        <div className="card mt-7 p-5">
+          <h2 className="text-2xl font-bold">Aún no hay nadie</h2>
+          <p className="mt-2 text-sm text-ink-2">
+            Esta liga está recién instalada. Crea la primera invitación con{" "}
+            <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[13px]">npm run invite</code>{" "}
+            y ábrela para darte de alta: el primero en entrar se queda como organizador.
+          </p>
         </div>
-      </div>
-      <div className="card card-pad">
-        {list.length === 0 ? (
-          <>
-            <h2>Todavía no hay jugadores</h2>
-            <p className="hint" style={{ marginTop: 8 }}>
-              Ejecuta <code>npm run db:seed</code> para crear la liga con datos de ejemplo, o añade
-              el primer jugador directamente en la base de datos.
-            </p>
-          </>
-        ) : (
-          <EnterForm players={list} needsCode={needsCode} />
-        )}
-      </div>
-      <p className="hint" style={{ marginTop: 14, textAlign: "center" }}>
-        El acceso se guarda en este navegador. Para entrar como otra persona, sal desde la barra lateral.
+      ) : (
+        <div className="card mt-7 p-5">
+          <LoginForm />
+        </div>
+      )}
+
+      <p className="mt-5 text-center text-sm text-muted">
+        ¿Tienes un enlace de invitación? Ábrelo y te das de alta desde ahí.
       </p>
-    </div>
+      <p className="mt-1 text-center text-sm text-muted">
+        <Link href="/" className="underline underline-offset-2">Volver</Link>
+      </p>
+    </main>
   );
 }

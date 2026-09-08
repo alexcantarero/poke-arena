@@ -1,12 +1,16 @@
 import Link from "next/link";
-import { loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadSnapshot } from "@/lib/data";
+import { canManageLeague } from "@/lib/auth";
 import { isPlayed, outcome } from "@/lib/stats";
 import { DOWS, MONTHS, fmtDateLong, relDays, todayISO } from "@/lib/format";
-import { Empty, PageHead } from "@/components/ui";
+import { Empty, PageHead, SectionTitle } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
+import { Icon } from "@/components/icons";
+
+export const metadata = { title: "Calendario" };
 
 const EVENT_NAMES: Record<string, string> = {
-  round: "Jornada", tourney: "Torneo", deadline: "Límite", other: "Evento",
+  round: "Jornada", tourney: "Torneo", deadline: "Fecha límite", other: "Evento",
 };
 
 export default async function CalendarPage({
@@ -17,116 +21,127 @@ export default async function CalendarPage({
   const year = Number(q.y) || now.getFullYear();
   const month = q.m != null && q.m !== "" ? Number(q.m) : now.getMonth();
 
-  const snap = await loadSnapshot();
+  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
+  const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
 
-  const byDay = new Map<string, Array<{ text: string; cls: string }>>();
-  const push = (date: string, text: string, cls: string) => {
+  type Mark = { text: string; tone: "event" | "match" | "tournament" };
+  const byDay = new Map<string, Mark[]>();
+  const push = (date: string, m: Mark) => {
     const list = byDay.get(date);
-    if (list) list.push({ text, cls });
-    else byDay.set(date, [{ text, cls }]);
+    if (list) list.push(m); else byDay.set(date, [m]);
   };
-  for (const e of snap.events) push(e.date, e.title, e.kind === "round" ? "r" : "");
+  for (const e of snap.events) push(e.date, { text: e.title, tone: "event" });
+  for (const t of snap.tournaments) push(t.date, { text: t.name, tone: "tournament" });
   for (const m of snap.matches.filter(isPlayed)) {
     const o = outcome(m);
-    push(
-      m.date,
-      `${snap.playersById.get(m.playerAId)?.name ?? "?"} ${o.ga}–${o.gb} ${snap.playersById.get(m.playerBId)?.name ?? "?"}`,
-      "m",
-    );
+    push(m.date, {
+      text: `${snap.playersById.get(m.playerAId)?.name ?? "?"} ${o.ga}–${o.gb} ${m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "?" : m.opponentName ?? "?"}`,
+      tone: "match",
+    });
   }
 
   const first = new Date(year, month, 1);
   const start = (first.getDay() + 6) % 7;
   const days = new Date(year, month + 1, 0).getDate();
-  const prevDays = new Date(year, month, 0).getDate();
   const tail = (7 - ((start + days) % 7)) % 7;
   const iso = (d: number) => `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
   const prev = month === 0 ? { y: year - 1, m: 11 } : { y: year, m: month - 1 };
   const next = month === 11 ? { y: year + 1, m: 0 } : { y: year, m: month + 1 };
+
   const upcoming = snap.events.filter((e) => e.date >= today);
+
+  const TONE: Record<Mark["tone"], string> = {
+    event: "bg-info-soft text-info",
+    tournament: "bg-brand-soft text-brand",
+    match: "bg-surface-2 text-ink-2",
+  };
 
   return (
     <>
       <PageHead
         title="Calendario"
-        sub="Jornadas, torneos y fechas límite que añadáis, más las partidas ya jugadas de cada día."
+        sub="Jornadas y fechas límite que añadáis, torneos apuntados y las partidas ya jugadas."
         actions={
-          <div className="row">
-            <Link className="btn btn-sm" href={`/calendario?y=${prev.y}&m=${prev.m}`}>◀</Link>
-            <b style={{ fontFamily: "var(--f-display)", fontSize: 19, textTransform: "capitalize", minWidth: 150, textAlign: "center" }}>
-              {MONTHS[month]} {year}
-            </b>
-            <Link className="btn btn-sm" href={`/calendario?y=${next.y}&m=${next.m}`}>▶</Link>
+          <div className="flex items-center gap-1.5">
+            <Link className="btn btn-sm px-3" href={`/calendario?y=${prev.y}&m=${prev.m}`} aria-label="Mes anterior">
+              <Icon name="back" className="size-4" />
+            </Link>
+            <span className="min-w-32 text-center font-display text-lg font-bold capitalize">{MONTHS[month]} {year}</span>
+            <Link className="btn btn-sm px-3" href={`/calendario?y=${next.y}&m=${next.m}`} aria-label="Mes siguiente">
+              <Icon name="back" className="size-4 rotate-180" />
+            </Link>
             <Link className="btn btn-sm" href="/calendario">Hoy</Link>
           </div>
         }
       />
 
-      <div className="card" style={{ overflow: "hidden", marginBottom: 16 }}>
-        <div className="cal">
-          {DOWS.map((d) => <div className="dow" key={d}>{d}</div>)}
+      <div className="card mb-5 overflow-hidden">
+        <div className="grid grid-cols-7">
+          {DOWS.map((d) => (
+            <div key={d} className="border-b border-r border-line-soft bg-surface-2 px-1 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-muted last:border-r-0">
+              <span className="hidden sm:inline">{d}</span><span className="sm:hidden">{d[0]}</span>
+            </div>
+          ))}
           {Array.from({ length: start }, (_, i) => (
-            <div className="day out" key={`p${i}`}><span className="dn">{prevDays - start + 1 + i}</span></div>
+            <div key={`p${i}`} className="min-h-16 border-b border-r border-line-soft bg-surface-2/60 p-1" />
           ))}
           {Array.from({ length: days }, (_, i) => {
             const d = i + 1;
             const key = iso(d);
-            const evs = byDay.get(key) ?? [];
+            const marks = byDay.get(key) ?? [];
+            const isToday = key === today;
             return (
-              <div className={`day${key === today ? " today" : ""}`} key={key}>
-                <span className="dn">{d}</span>
-                {evs.slice(0, 3).map((e, j) => (
-                  <div className={`ev ${e.cls}`} key={j} title={e.text}>{e.text}</div>
+              <div key={key} className="flex min-h-16 flex-col gap-0.5 border-b border-r border-line-soft p-1 last:border-r-0 sm:min-h-20">
+                <span className={`text-[11px] font-mono ${isToday
+                  ? "grid size-5 place-items-center rounded-full bg-brand font-bold text-on-brand"
+                  : "text-muted"}`}>{d}</span>
+                {marks.slice(0, 2).map((m, j) => (
+                  <span key={j} className={`truncate rounded px-1 py-px text-[9px] font-semibold sm:text-[10px] ${TONE[m.tone]}`} title={m.text}>
+                    {m.text}
+                  </span>
                 ))}
-                {evs.length > 3 && <div className="hint" style={{ fontSize: 10 }}>+{evs.length - 3} más</div>}
+                {marks.length > 2 && <span className="text-[9px] text-muted">+{marks.length - 2}</span>}
               </div>
             );
           })}
           {Array.from({ length: tail }, (_, i) => (
-            <div className="day out" key={`n${i}`}><span className="dn">{i + 1}</span></div>
+            <div key={`n${i}`} className="min-h-16 border-b border-r border-line-soft bg-surface-2/60 p-1 last:border-r-0" />
           ))}
         </div>
       </div>
 
-      <div className="grid g-2-13">
-        <div className="card">
-          <div className="card-head"><h2>Nuevo evento</h2></div>
-          <div className="card-pad">
-            <EventForm competitions={snap.competitions} />
-          </div>
-        </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+        {manager && (
+          <section className="card">
+            <div className="card-head"><h2 className="text-lg font-bold">Añadir al calendario</h2></div>
+            <div className="p-4"><EventForm competitions={snap.competitions} tournaments={snap.tournaments} /></div>
+          </section>
+        )}
 
-        <div className="card">
+        <section className="card">
           <div className="card-head">
-            <h2>Agenda</h2>
-            <span className="hint">{upcoming.length} fechas por delante</span>
+            <h2 className="text-lg font-bold">Agenda</h2>
+            <span className="text-xs text-muted">{upcoming.length} por delante</span>
           </div>
           {upcoming.length ? (
-            <ul className="list-plain">
-              {upcoming.map((e) => {
-                const c = e.competitionId ? snap.compsById.get(e.competitionId) : undefined;
-                return (
-                  <li key={e.id}>
-                    <span className={`chip ${e.kind === "round" ? "g" : e.kind === "tourney" ? "b" : ""}`}>
-                      {EVENT_NAMES[e.kind] ?? "Evento"}
+            <ul className="divide-y divide-line-soft">
+              {upcoming.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className={`chip flex-none ${e.kind === "round" ? "chip-brand" : e.kind === "tourney" ? "chip-info" : ""}`}>
+                    {EVENT_NAMES[e.kind] ?? "Evento"}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{e.title}</span>
+                    <span className="block text-xs text-muted">
+                      {fmtDateLong(e.date)} · {relDays(e.date)}{e.note ? ` · ${e.note}` : ""}
                     </span>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{e.title}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {fmtDateLong(e.date)} · {relDays(e.date)}
-                        {c ? ` · ${c.name}` : ""}{e.note ? ` · ${e.note}` : ""}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+                  </span>
+                </li>
+              ))}
             </ul>
-          ) : (
-            <Empty title="Agenda vacía">Añade la próxima jornada para que todos la vean.</Empty>
-          )}
-        </div>
+          ) : <Empty title="Agenda vacía">Añade la próxima jornada para que todos la vean.</Empty>}
+        </section>
       </div>
     </>
   );

@@ -2,118 +2,128 @@
 
 import { useState } from "react";
 import { deleteCompetition, saveCompetition } from "@/actions";
-import { COMPETITION_KINDS, type Competition, type CompetitionKind, type Player } from "@/lib/types";
+import { COMPETITION_KINDS, type Competition, type CompetitionKind, type PublicPlayer } from "@/lib/types";
 import { suggestedRounds } from "@/lib/stats";
 import { todayISO } from "@/lib/format";
 
 export function CompetitionForm({
-  competition, players, selectedPlayerIds,
+  competition, players, selectedPlayerIds, canDelete,
 }: {
   competition?: Competition;
-  players: Player[];
+  players: PublicPlayer[];
   selectedPlayerIds?: string[];
+  canDelete?: boolean;
 }) {
   const [kind, setKind] = useState<CompetitionKind>((competition?.kind as CompetitionKind) ?? "league");
+  const [bestOf, setBestOf] = useState(competition?.bestOf ?? 3);
   const [chosen, setChosen] = useState<string[]>(
     selectedPlayerIds ?? players.filter((p) => p.active).map((p) => p.id),
   );
-  const toggle = (id: string) =>
-    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
   return (
-    <form action={saveCompetition} className="stack">
+    <form action={saveCompetition} className="flex flex-col gap-4">
       {competition && <input type="hidden" name="id" value={competition.id} />}
+      <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="bestOf" value={bestOf} />
 
-      <div className="card card-pad stack" style={{ gap: 14 }}>
-        <div className="field">
-          <label htmlFor="name">Nombre</label>
-          <input className="inp" id="name" name="name" required defaultValue={competition?.name ?? ""} placeholder="Liga Regular 2026" />
+      <section className="card flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="label" htmlFor="c-name">Nombre</label>
+          <input className="input" id="c-name" name="name" required maxLength={80}
+            defaultValue={competition?.name ?? ""} placeholder="Liga Regular 2026" />
         </div>
 
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 7 }}>Formato</div>
-          <div className="seg">
+        <div className="flex flex-col gap-1.5">
+          <label className="label">Formato</label>
+          <div className="grid grid-cols-2 gap-2">
             {(Object.keys(COMPETITION_KINDS) as CompetitionKind[]).map((k) => (
-              <button key={k} type="button" className={kind === k ? "on" : ""} onClick={() => setKind(k)}>
-                {COMPETITION_KINDS[k].short}
+              <button
+                key={k} type="button" onClick={() => setKind(k)}
+                className={`tap flex-col items-start justify-center rounded-lg border px-3 py-2 text-left
+                  ${kind === k ? "border-brand-line bg-brand-soft" : "border-line bg-surface"}`}
+              >
+                <span className="text-sm font-semibold">{COMPETITION_KINDS[k].short}</span>
+                <span className="text-[11px] text-muted">{COMPETITION_KINDS[k].hint}</span>
               </button>
             ))}
           </div>
-          <input type="hidden" name="kind" value={kind} />
-          <div className="hint" style={{ marginTop: 5 }}>{COMPETITION_KINDS[kind].hint}</div>
         </div>
 
-        <div className="grid g-4" style={{ gap: 12 }}>
-          <div className="field">
-            <label htmlFor="start">Inicio</label>
-            <input className="inp" id="start" name="start" type="date" defaultValue={competition?.start ?? todayISO()} />
+        <div className="flex flex-col gap-1.5">
+          <label className="label">Serie por defecto</label>
+          <div className="seg seg-brand w-full">
+            {[1, 3, 5].map((n) => (
+              <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
+            ))}
           </div>
-          <div className="field">
-            <label htmlFor="end">Fin</label>
-            <input className="inp" id="end" name="end" type="date" defaultValue={competition?.end ?? ""} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="c-start">Inicio</label>
+            <input className="input" id="c-start" name="start" type="date" defaultValue={competition?.start ?? todayISO()} />
           </div>
-          <div className="field">
-            <label htmlFor="bestOf">Formato de serie</label>
-            <select className="inp" id="bestOf" name="bestOf" defaultValue={String(competition?.bestOf ?? 3)}>
-              <option value="1">Bo1</option><option value="3">Bo3</option><option value="5">Bo5</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="status">Estado</label>
-            <select className="inp" id="status" name="status" defaultValue={competition?.status ?? "live"}>
-              <option value="live">En curso</option><option value="done">Cerrada</option>
-            </select>
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="c-end">Fin</label>
+            <input className="input" id="c-end" name="end" type="date" defaultValue={competition?.end ?? ""} />
           </div>
         </div>
 
         {kind === "swiss" && (
-          <div className="grid g-2" style={{ gap: 12 }}>
-            <div className="field">
-              <label htmlFor="rounds">Rondas</label>
-              <input className="inp" id="rounds" name="rounds" type="number" min={0} defaultValue={competition?.rounds ?? suggestedRounds(chosen.length)} />
-              <div className="hint">Con {chosen.length} jugadores, lo habitual son {suggestedRounds(chosen.length)} rondas.</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="c-rounds">Rondas</label>
+              <input className="input" id="c-rounds" name="rounds" type="number" min={0} inputMode="numeric"
+                defaultValue={competition?.rounds ?? suggestedRounds(chosen.length)} />
+              <p className="text-xs text-muted">Con {chosen.length} jugadores, lo normal son {suggestedRounds(chosen.length)}.</p>
             </div>
-            <div className="field">
-              <label htmlFor="topCut">Top cut</label>
-              <select className="inp" id="topCut" name="topCut" defaultValue={String(competition?.topCut ?? 0)}>
-                <option value="0">Sin top cut</option><option value="2">Final (top 2)</option>
-                <option value="4">Top 4</option><option value="8">Top 8</option>
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="c-cut">Top cut</label>
+              <select className="input" id="c-cut" name="topCut" defaultValue={String(competition?.topCut ?? 0)}>
+                <option value="0">Sin top cut</option>
+                <option value="2">Final</option>
+                <option value="4">Top 4</option>
+                <option value="8">Top 8</option>
               </select>
             </div>
           </div>
         )}
 
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 7 }}>Participantes ({chosen.length})</div>
-          <div className="row" style={{ gap: 8 }}>
+        <div className="flex flex-col gap-1.5">
+          <label className="label" htmlFor="c-status">Estado</label>
+          <select className="input" id="c-status" name="status" defaultValue={competition?.status ?? "live"}>
+            <option value="live">En curso</option>
+            <option value="done">Cerrada</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="label">Participantes ({chosen.length})</label>
+          <div className="flex flex-wrap gap-2">
             {players.map((p) => {
               const on = chosen.includes(p.id);
               return (
-                <label
-                  key={p.id}
-                  className="chip"
-                  style={{
-                    cursor: "pointer", padding: "6px 11px",
-                    borderColor: on ? "var(--gold-line)" : "var(--line)",
-                    background: on ? "var(--gold-bg)" : "var(--surface-2)",
-                    color: on ? "var(--gold)" : "var(--text-2)",
-                  }}
+                <button
+                  key={p.id} type="button" onClick={() => toggle(p.id)} aria-pressed={on}
+                  className={`chip ${on ? "chip-brand" : ""} min-h-9 px-3`}
                 >
-                  <input type="checkbox" checked={on} onChange={() => toggle(p.id)} style={{ marginRight: 4 }} />
                   {p.name}
-                </label>
+                </button>
               );
             })}
           </div>
           {chosen.map((id) => <input key={id} type="hidden" name="playerIds" value={id} />)}
         </div>
-      </div>
+      </section>
 
-      <div className="row">
-        <button className="btn btn-gold" type="submit">{competition ? "Guardar cambios" : "Crear competición"}</button>
-        {competition && (
+      <div className="flex gap-2">
+        <button className="btn btn-brand flex-1" type="submit">
+          {competition ? "Guardar cambios" : "Crear competición"}
+        </button>
+        {competition && canDelete && (
           <button className="btn btn-danger" type="submit" formAction={deleteCompetition} name="id" value={competition.id}>
-            Borrar competición
+            Borrar
           </button>
         )}
       </div>

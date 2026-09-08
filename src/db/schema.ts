@@ -1,50 +1,113 @@
 import {
-  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index,
+  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /* -------------------------------------------------------------------------
    Esquema de la liga.
-   Un solo espacio de trabajo (vuestra liga) con varias competiciones dentro.
-   Está pensado para crecer: si algún día quieres varias ligas independientes,
-   basta con añadir una tabla `leagues` y una columna `leagueId` a las demás.
+
+   Un espacio de trabajo (vuestra liga) con jugadores que tienen cuenta
+   propia, competiciones internas, y torneos de fuera —oficiales, de tienda
+   u online— con el resultado de cada uno.
+
+   Dos ideas que conviene tener claras antes de leer:
+
+   · `matches` es una serie completa y `games` cada juego de dentro. El
+     marcador nunca se guarda: se cuenta. Por eso corregir una partida vieja
+     deja todo coherente sin tocar nada más.
+   · `competitions` son vuestras competiciones internas; `tournaments` son
+     eventos de fuera a los que va alguien del grupo. Son cosas distintas y
+     por eso son tablas distintas.
    ------------------------------------------------------------------------- */
 
-/** Configuración global. Una única fila con id = "default". */
+/* ------------------------------------------------------------- la liga --- */
+
+/** Configuración global. Una única fila, con id = "default". */
 export const settings = pgTable("settings", {
   id: text("id").primaryKey().default("default"),
   name: text("name").notNull().default("Liga Arena"),
   season: text("season").notNull().default("Temporada 1"),
+  /** Temporada de Play! Pokémon en curso, para los CP: 2027, 2028… */
+  cpSeason: integer("cp_season").notNull().default(2027),
   ptsWin: integer("pts_win").notNull().default(3),
   ptsTie: integer("pts_tie").notNull().default(1),
   ptsLoss: integer("pts_loss").notNull().default(0),
   eloStart: integer("elo_start").notNull().default(1000),
   eloK: integer("elo_k").notNull().default(24),
-  inviteCode: text("invite_code").notNull().default(""),
+  /** Zona de clasificación, para el panel de ruta al Mundial. */
+  ratingZone: text("rating_zone").notNull().default("europe"),
+  /** Si está abierta, cualquiera con el enlace de invitación puede darse de alta. */
+  registrationOpen: boolean("registration_open").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ---------------------------------------------------------- jugadores --- */
+
+/**
+ * Un jugador ES una cuenta. No hay tabla de usuarios aparte porque la app
+ * sirve a una sola liga; el día que sirva a varias, esta tabla se parte en
+ * `users` + `league_members` y el resto del esquema no se entera.
+ */
 export const players = pgTable("players", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  color: text("color").notNull().default("#f0b429"),
-  isAdmin: boolean("is_admin").notNull().default(false),
+
+  /* --- credenciales --- */
+  /** En minúsculas y sin espacios. Único. Nulo solo en jugadores heredados. */
+  email: text("email"),
+  /** scrypt: "salt:hash" en hexadecimal. Nunca la contraseña en claro. */
+  passwordHash: text("password_hash"),
+
+  /* --- papel dentro de la liga --- */
+  /** owner · admin · player */
+  role: text("role").notNull().default("player"),
   active: boolean("active").notNull().default(true),
-  /** PIN personal opcional: si está puesto, hay que teclearlo para actuar como ese jugador. */
-  pin: text("pin"),
+
+  /* --- perfil --- */
+  color: text("color").notNull().default("#f0b429"),
+  /** none · pokemon · image */
+  avatarKind: text("avatar_kind").notNull().default("none"),
+  /** Slug del Pokémon, o URL de la imagen, según avatarKind. */
+  avatarValue: text("avatar_value").notNull().default(""),
+  bio: text("bio").notNull().default(""),
+  favoriteArchetypeId: text("favorite_archetype_id"),
+  /** Nombre de jugador en Play! Pokémon, para casar resultados oficiales. */
+  playerTag: text("player_tag"),
+
   joined: date("joined").notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("players_email_idx").on(t.email)]);
+
+/**
+ * Invitaciones. El token es la parte secreta del enlace
+ * `/registro/<token>`; se genera aleatorio y no se puede adivinar.
+ */
+export const invites = pgTable("invites", {
+  token: text("token").primaryKey(),
+  /** Etiqueta libre para acordarse de a quién se le mandó. */
+  label: text("label").notNull().default(""),
+  /** Papel con el que entra quien la use. */
+  role: text("role").notNull().default("player"),
+  /** 0 = sin límite. */
+  maxUses: integer("max_uses").notNull().default(1),
+  uses: integer("uses").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revoked: boolean("revoked").notNull().default(false),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* --------------------------------------------------------- arquetipos --- */
 
 /** Arquetipo = Pokémon principal (+ secundario). Es la unidad de las estadísticas. */
 export const archetypes = pgTable("archetypes", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  /** Slug del Pokémon principal, en minúsculas y con guiones: "raging-bolt". */
+  /** Slug del Pokémon principal, tal como lo nombra Limitless: "raging-bolt". */
   main: text("main").notNull().default(""),
   secondary: text("secondary").notNull().default(""),
-  /** Tipo de energía, solo para colorear: grass, fire, water, ... */
+  /** Tipo de energía, solo para colorear: grass, fire, water… */
   type: text("type").notNull().default("colorless"),
-  /** Identificador equivalente en Limitless, si se ha sincronizado. */
   limitlessId: text("limitless_id"),
 });
 
@@ -54,27 +117,27 @@ export const decks = pgTable("decks", {
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
   archetypeId: text("archetype_id").notNull().references(() => archetypes.id),
   name: text("name").notNull(),
-  /** Texto tal cual se pegó desde PTCG Live / Limitless. */
   list: text("list").notNull().default(""),
-  /** Lista ya interpretada: { total, pokemon[], trainer[], energy[] }. */
+  /** La lista ya interpretada: { total, pokemon[], trainer[], energy[] }. */
   listJson: jsonb("list_json"),
   format: text("format").notNull().default("standard"),
+  retired: boolean("retired").notNull().default(false),
   created: date("created").notNull(),
 }, (t) => [index("decks_player_idx").on(t.playerId)]);
+
+/* --------------------------------------------- competiciones internas --- */
 
 export const competitions = pgTable("competitions", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  /** league | swiss | bracket | casual */
+  /** league · swiss · bracket · casual */
   kind: text("kind").notNull().default("league"),
   bestOf: integer("best_of").notNull().default(3),
-  /** live | done */
+  /** live · done */
   status: text("status").notNull().default("live"),
   start: date("start").notNull(),
   end: date("end"),
-  /** Número de rondas previstas (0 = abierto). */
   rounds: integer("rounds").notNull().default(0),
-  /** Tamaño del top cut para los suizos (0 = sin top cut). */
   topCut: integer("top_cut").notNull().default(0),
 });
 
@@ -85,23 +148,34 @@ export const competitionPlayers = pgTable("competition_players", {
   dropped: boolean("dropped").notNull().default(false),
 }, (t) => [index("cp_comp_idx").on(t.competitionId)]);
 
+/* ------------------------------------------------------------ partidas --- */
+
 /** Un enfrentamiento: la serie completa (Bo1, Bo3 o Bo5). */
 export const matches = pgTable("matches", {
   id: text("id").primaryKey(),
   competitionId: text("competition_id").references(() => competitions.id, { onDelete: "set null" }),
+  /** Si la partida se jugó dentro de un torneo de fuera, queda enlazada aquí. */
+  tournamentId: text("tournament_id").references(() => tournaments.id, { onDelete: "set null" }),
   round: integer("round").notNull().default(0),
   date: date("date").notNull(),
   playerAId: text("player_a_id").notNull().references(() => players.id),
-  playerBId: text("player_b_id").notNull().references(() => players.id),
+  /** Nulo cuando el rival es de fuera de la liga; entonces se usa opponentName. */
+  playerBId: text("player_b_id").references(() => players.id),
+  /** Rival externo: solo su nombre y su mazo, para las estadísticas de metagame. */
+  opponentName: text("opponent_name"),
   deckAId: text("deck_a_id").references(() => decks.id, { onDelete: "set null" }),
   deckBId: text("deck_b_id").references(() => decks.id, { onDelete: "set null" }),
+  /** Arquetipo del rival externo, que no tiene mazo registrado en la app. */
+  opponentArchetypeId: text("opponent_archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
   bestOf: integer("best_of").notNull().default(3),
-  /** scheduled | done */
+  /** scheduled · done */
   status: text("status").notNull().default("done"),
   note: text("note").notNull().default(""),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("matches_comp_idx").on(t.competitionId),
+  index("matches_tour_idx").on(t.tournamentId),
   index("matches_a_idx").on(t.playerAId),
   index("matches_b_idx").on(t.playerBId),
   index("matches_date_idx").on(t.date),
@@ -112,32 +186,120 @@ export const games = pgTable("games", {
   id: serial("id").primaryKey(),
   matchId: text("match_id").notNull().references(() => matches.id, { onDelete: "cascade" }),
   number: integer("number").notNull(),
-  /** "a" | "b" | "tie" */
+  /** "a" · "b" · "tie" */
   winner: text("winner").notNull(),
-  /** "a" | "b" | "" — quién empezó. Alimenta la ventaja del primer turno. */
+  /** "a" · "b" · "" — quién empezó. Alimenta la ventaja del primer turno. */
   first: text("first").notNull().default(""),
-  /** Premios que le quedaban al perdedor (0-6). Opcional. */
+  /** Premios que le quedaban al perdedor (0-6). */
   prizesLeft: integer("prizes_left"),
   turns: integer("turns"),
   note: text("note").notNull().default(""),
 }, (t) => [index("games_match_idx").on(t.matchId)]);
 
-/** Calendario: jornadas, torneos, fechas límite. */
+/* ------------------------------------------------- torneos de fuera --- */
+
+/**
+ * Un torneo al que va alguien del grupo: oficial, de tienda u online.
+ * Es solo la cabecera del evento; lo que hizo cada uno va en
+ * `tournamentResults`, así que varios podéis compartir el mismo torneo.
+ */
+export const tournaments = pgTable("tournaments", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  /**
+   * league_challenge · league_cup · pokemon_challenge · pokemon_cup ·
+   * regional · special · international · worlds · store · online · other
+   *
+   * Los tipos que dan Championship Points y su equivalencia están en
+   * src/data/cp-<temporada>.json, no aquí.
+   */
+  kind: text("kind").notNull().default("store"),
+  /** onsite · online */
+  scope: text("scope").notNull().default("onsite"),
+  /** standard · expanded · glc · limited · other */
+  format: text("format").notNull().default("standard"),
+  /** Formato de serie del torneo: 1, 3 o 5. */
+  bestOf: integer("best_of").notNull().default(3),
+  date: date("date").notNull(),
+  endDate: date("end_date"),
+  /** Tienda, sede o plataforma online. */
+  venue: text("venue").notNull().default(""),
+  city: text("city").notNull().default(""),
+  country: text("country").notNull().default(""),
+  organizer: text("organizer").notNull().default(""),
+  /** Enlace al torneo en RK9, Limitless o donde esté. */
+  url: text("url").notNull().default(""),
+  /** Cuánta gente hubo. Determina qué tramos de CP se reparten. */
+  playerCount: integer("player_count"),
+  rounds: integer("rounds"),
+  topCut: integer("top_cut"),
+  /** Temporada de Play! Pokémon a la que cuenta. */
+  season: integer("season"),
+  division: text("division").notNull().default("masters"),
+  notes: text("notes").notNull().default(""),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("tournaments_date_idx").on(t.date),
+  index("tournaments_kind_idx").on(t.kind),
+  index("tournaments_season_idx").on(t.season),
+]);
+
+/** Lo que hizo un jugador del grupo en un torneo. */
+export const tournamentResults = pgTable("tournament_results", {
+  id: text("id").primaryKey(),
+  tournamentId: text("tournament_id").notNull().references(() => tournaments.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  /** Puesto final. Nulo si se retiró antes de que hubiera clasificación. */
+  placement: integer("placement"),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  ties: integer("ties").notNull().default(0),
+  /** Mazo registrado en la app, si lo hay. */
+  deckId: text("deck_id").references(() => decks.id, { onDelete: "set null" }),
+  /** Arquetipo, por si jugó algo que no tiene registrado como mazo. */
+  archetypeId: text("archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
+  /**
+   * Championship Points ganados. Se puede teclear a mano, o dejar que lo
+   * calcule la app a partir del tipo de torneo y el puesto.
+   */
+  cpEarned: integer("cp_earned").notNull().default(0),
+  /** true si el número lo puso una persona y no debe recalcularse. */
+  cpManual: boolean("cp_manual").notNull().default(false),
+  /** Premios, en texto libre: "3 sobres y un playmat". */
+  prizes: text("prizes").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  dropped: boolean("dropped").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("tr_unique_idx").on(t.tournamentId, t.playerId),
+  index("tr_player_idx").on(t.playerId),
+]);
+
+/* ------------------------------------------------------------ eventos --- */
+
+/** Calendario: jornadas, torneos previstos, fechas límite. */
 export const events = pgTable("events", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   date: date("date").notNull(),
-  /** round | tourney | deadline | other */
+  /** round · tourney · deadline · other */
   kind: text("kind").notNull().default("round"),
   competitionId: text("competition_id").references(() => competitions.id, { onDelete: "set null" }),
+  tournamentId: text("tournament_id").references(() => tournaments.id, { onDelete: "set null" }),
   note: text("note").notNull().default(""),
 });
 
+/* ------------------------------------------------------------- tipos --- */
+
 export type Player = typeof players.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
 export type Archetype = typeof archetypes.$inferSelect;
 export type Deck = typeof decks.$inferSelect;
 export type Competition = typeof competitions.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type Game = typeof games.$inferSelect;
+export type Tournament = typeof tournaments.$inferSelect;
+export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type Settings = typeof settings.$inferSelect;

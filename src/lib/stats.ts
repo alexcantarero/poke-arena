@@ -1,5 +1,5 @@
 import type {
-  Archetype, Deck, MatchFull, Outcome, Player, Settings, Side, StandingRow,
+  Archetype, Deck, MatchFull, Outcome, PublicPlayer, Settings, Side, StandingRow,
 } from "./types";
 
 /* =========================================================================
@@ -24,9 +24,18 @@ export function outcome(m: MatchFull): Outcome {
 }
 
 export const isPlayed = (m: MatchFull) => m.status === "done" && m.games.length > 0;
+
+/**
+ * Una partida es "interna" cuando los dos jugadores están en la liga. Las que
+ * se juegan contra alguien de fuera (playerBId nulo) cuentan para las
+ * estadísticas de arquetipo y de metagame, pero no para el ranking ni para el
+ * Elo: no habría contra quién compensar los puntos.
+ */
+export const isInternal = (m: MatchFull): boolean => m.playerBId !== null;
+
 export const sideOf = (m: MatchFull, playerId: string): Side | null =>
   m.playerAId === playerId ? "a" : m.playerBId === playerId ? "b" : null;
-export const opponentOf = (m: MatchFull, playerId: string) =>
+export const opponentOf = (m: MatchFull, playerId: string): string | null =>
   m.playerAId === playerId ? m.playerBId : m.playerBId === playerId ? m.playerAId : null;
 export const deckOfIn = (m: MatchFull, playerId: string) =>
   m.playerAId === playerId ? m.deckAId : m.playerBId === playerId ? m.deckBId : null;
@@ -44,7 +53,7 @@ function byDate(a: MatchFull, b: MatchFull) {
  */
 export function eloTable(
   allMatches: MatchFull[],
-  players: Player[],
+  players: PublicPlayer[],
   cfg: Pick<Settings, "eloStart" | "eloK"> = DEFAULT_SETTINGS,
 ) {
   const rating: Record<string, number> = {};
@@ -57,7 +66,8 @@ export function eloTable(
   };
   for (const p of players) touch(p.id);
 
-  for (const m of allMatches.filter(isPlayed).sort(byDate)) {
+  for (const m of allMatches.filter(isPlayed).filter(isInternal).sort(byDate)) {
+    if (!m.playerBId) continue;
     touch(m.playerAId); touch(m.playerBId);
     const o = outcome(m);
     const scoreA = o.winner === "a" ? 1 : o.winner === "b" ? 0 : 0.5;
@@ -87,7 +97,7 @@ export function standings(
   elo: Record<string, number> = {},
   cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = { ...DEFAULT_SETTINGS },
 ): StandingRow[] {
-  const played = matches.filter(isPlayed).sort(byDate);
+  const played = matches.filter(isPlayed).filter(isInternal).sort(byDate);
   const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[] }>();
   for (const id of playerIds) {
     table.set(id, {
@@ -102,7 +112,7 @@ export function standings(
     const o = outcome(m);
     const sides: Array<[Side, string, number, number]> = [
       ["a", m.playerAId, o.ga, o.gb],
-      ["b", m.playerBId, o.gb, o.ga],
+      ["b", m.playerBId as string, o.gb, o.ga],
     ];
     for (const [side, pid, gf, ga] of sides) {
       const row = table.get(pid);
@@ -169,6 +179,25 @@ export function longestWinStreak(matches: MatchFull[], playerId: string) {
 
 /* ----------------------------------------------------------- Arquetipos -- */
 
+
+/**
+ * El arquetipo de cada lado de una partida, resolviendo también a los rivales
+ * de fuera de la liga —que no tienen mazo registrado, solo un arquetipo
+ * anotado a mano. Es lo que permite que las partidas contra gente de fuera
+ * alimenten la matriz de emparejamientos, que es justo donde más falta hacen
+ * los datos.
+ */
+export function archetypesOfMatch(
+  m: MatchFull,
+  index: Map<string, Archetype | undefined>,
+  archById?: Map<string, Archetype>,
+): { a: Archetype | undefined; b: Archetype | undefined } {
+  const a = m.deckAId ? index.get(m.deckAId) : undefined;
+  let b = m.deckBId ? index.get(m.deckBId) : undefined;
+  if (!b && !m.playerBId && m.opponentArchetypeId) b = archById?.get(m.opponentArchetypeId);
+  return { a, b };
+}
+
 export type ArchRow = {
   archetypeId: string;
   archetype: Archetype | undefined;
@@ -189,6 +218,7 @@ export function archetypeStats(
   matches: MatchFull[],
   index: Map<string, Archetype | undefined>,
   onlyPlayerId?: string,
+  archById?: Map<string, Archetype>,
 ): ArchRow[] {
   const table = new Map<string, ArchRow>();
   const touch = (a: Archetype) => {
@@ -199,16 +229,18 @@ export function archetypeStats(
     }
     return r;
   };
+
   for (const m of matches.filter(isPlayed)) {
     const o = outcome(m);
-    const sides: Array<[Side, string, string | null, number, number]> = [
-      ["a", m.playerAId, m.deckAId, o.ga, o.gb],
-      ["b", m.playerBId, m.deckBId, o.gb, o.ga],
+    const { a: archA, b: archB } = archetypesOfMatch(m, index, archById);
+    const sides: Array<[Side, string | null, Archetype | undefined, number, number]> = [
+      ["a", m.playerAId, archA, o.ga, o.gb],
+      ["b", m.playerBId, archB, o.gb, o.ga],
     ];
-    for (const [side, pid, deckId, gf, ga] of sides) {
-      if (onlyPlayerId && pid !== onlyPlayerId) continue;
-      const arch = deckId ? index.get(deckId) : undefined;
+    for (const [side, pid, arch, gf, ga] of sides) {
       if (!arch) continue;
+      // Al filtrar por jugador, el lado del rival de fuera no cuenta como suyo.
+      if (onlyPlayerId && pid !== onlyPlayerId) continue;
       const r = touch(arch);
       r.played++; r.gameWins += gf; r.gameLosses += ga;
       if (o.winner === "tie") r.ties++;
@@ -216,6 +248,7 @@ export function archetypeStats(
       else r.losses++;
     }
   }
+
   const rows = [...table.values()];
   for (const r of rows) r.winRate = r.played ? (r.wins + r.ties * 0.5) / r.played : null;
   return rows.sort((x, y) => y.played - x.played || (y.winRate ?? 0) - (x.winRate ?? 0));
@@ -232,6 +265,7 @@ export function matchupMatrix(
   matches: MatchFull[],
   index: Map<string, Archetype | undefined>,
   minGames = 1,
+  archById?: Map<string, Archetype>,
 ): Matrix {
   const m = new Map<string, Map<string, { n: number; w: number; d: number }>>();
   const add = (x: string, y: string, r: "w" | "l" | "d") => {
@@ -244,8 +278,7 @@ export function matchupMatrix(
     row.set(y, c);
   };
   for (const match of matches.filter(isPlayed)) {
-    const A = match.deckAId ? index.get(match.deckAId) : undefined;
-    const B = match.deckBId ? index.get(match.deckBId) : undefined;
+    const { a: A, b: B } = archetypesOfMatch(match, index, archById);
     if (!A || !B) continue;
     const o = outcome(match);
     if (o.winner === "tie") { add(A.id, B.id, "d"); add(B.id, A.id, "d"); }
@@ -312,11 +345,11 @@ export type H2HRow = {
 
 export function headToHead(matches: MatchFull[], playerId: string): H2HRow[] {
   const t = new Map<string, H2HRow>();
-  for (const m of matches.filter(isPlayed)) {
+  for (const m of matches.filter(isPlayed).filter(isInternal)) {
     const side = sideOf(m, playerId);
     if (!side) continue;
     const opp = opponentOf(m, playerId);
-    if (!opp) continue;
+    if (!opp) continue; // rival de fuera de la liga: no hay enfrentamiento directo que llevar
     const o = outcome(m);
     const r = t.get(opp) ?? {
       opponentId: opp, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null,
@@ -340,17 +373,15 @@ export function playerMatchups(
   playerId: string,
   index: Map<string, Archetype | undefined>,
   minN = 2,
+  archById?: Map<string, Archetype>,
 ) {
   const t = new Map<string, { mine: Archetype; theirs: Archetype; n: number; w: number; d: number; winRate: number }>();
   for (const m of matches.filter(isPlayed)) {
     const side = sideOf(m, playerId);
     if (!side) continue;
-    const opp = opponentOf(m, playerId);
-    if (!opp) continue;
-    const myDeck = deckOfIn(m, playerId);
-    const theirDeck = deckOfIn(m, opp);
-    const mine = myDeck ? index.get(myDeck) : undefined;
-    const theirs = theirDeck ? index.get(theirDeck) : undefined;
+    const { a: archA, b: archB } = archetypesOfMatch(m, index, archById);
+    const mine = side === "a" ? archA : archB;
+    const theirs = side === "a" ? archB : archA;
     if (!mine || !theirs) continue;
     const key = `${mine.id}|${theirs.id}`;
     const o = outcome(m);

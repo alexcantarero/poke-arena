@@ -7,13 +7,54 @@ Requisito previo: que funcione en local. Si aún no, ve al
 
 ---
 
+## Antes de nada: GitHub Pages no sirve para esto
+
+Es la primera idea que se le ocurre a todo el mundo —el código ya está en GitHub, Pages es
+gratis— y no funciona. No es cuestión de configurarlo bien: **GitHub Pages publica ficheros
+estáticos**, los sirve tal cual y no ejecuta nada. Arena necesita dos cosas que Pages no tiene:
+
+- **Un servidor Node encendido.** Cada página es un Server Component: se ejecuta en el servidor
+  en el momento de la petición, consulta la base de datos y devuelve el HTML ya hecho. Las
+  Server Actions son endpoints reales que reciben un `POST`. Nada de eso existe en un hosting
+  estático.
+- **Una base de datos.** Los datos están en PostgreSQL y las credenciales son secretas. En una
+  web estática cualquier clave acaba en el JavaScript que descarga el navegador, es decir, a la
+  vista de cualquiera.
+
+Tampoco vale exportar el sitio con `output: "export"`: eso genera un HTML congelado en el
+momento de compilar, sin sesiones, sin formularios que guarden nada y con los datos de cuando se
+construyó.
+
+**GitHub sigue siendo la pieza donde vive el código.** Lo que no puede es servir la web. De eso
+se encarga Vercel, y se conecta al mismo repositorio, así que sigues trabajando con `git push`
+igual que si usaras Pages.
+
+---
+
 ## Las tres piezas
 
 | Servicio | Para qué | Plan |
 |---|---|---|
 | **GitHub** | Guardar el código y compartirlo entre los dos | Gratis, repositorios privados con colaboradores ilimitados |
-| **Vercel** | Servir la web | Hobby, gratuito, uso personal |
-| **Neon** | La base de datos | Free, 0,5 GB y 100 h de cómputo al mes |
+| **Vercel** | Servir la web: ejecuta el servidor Node de Next | Hobby, gratuito, uso personal |
+| **Neon** | La base de datos PostgreSQL | Free, 0,5 GB y 100 h de cómputo al mes |
+
+### Por qué Neon y no Supabase
+
+Las dos ofrecen PostgreSQL gratis y las dos habrían valido técnicamente. La diferencia que
+decidió es el comportamiento del plan gratuito cuando nadie entra: **Supabase pausa el proyecto
+tras unos días de inactividad** y hay que ir al panel a reactivarlo a mano. Una liga que juega
+los martes se pasaría media semana dormida, y el primero en abrir la web se encontraría un error
+en vez de la clasificación.
+
+Neon también apaga el cómputo cuando no se usa, pero lo **despierta solo** en menos de un segundo
+con la primera consulta. Es la diferencia entre "la primera carga tarda un poco" y "hay que ir a
+un panel a arreglarlo". Para una web que se abre a ráfagas y luego pasa días quieta, eso pesa más
+que cualquier otra comparativa.
+
+Lo demás quedó parejo: el plan gratuito de Neon da 0,5 GB —una liga ocupa kilobytes— y su
+cliente `@neondatabase/serverless` habla por HTTP, que es justo lo que quieres desde funciones
+que se levantan y se apagan como las de Vercel.
 
 ---
 
@@ -56,20 +97,40 @@ Los repositorios privados de GitHub admiten colaboradores ilimitados gratis.
 1. <https://vercel.com> → **Sign up with GitHub**.
 2. **Add New → Project** → busca `arena` → **Import**.
 3. Vercel detecta Next.js solo. No toques *Build Command* ni *Output Directory*.
-4. Despliega **Environment Variables**, y añade las tres:
+4. Despliega **Environment Variables**, y añade estas:
 
    | Nombre | Valor |
    |---|---|
-   | `DATABASE_URL` | La cadena de Neon (la **pooled**) |
+   | `DATABASE_URL` | La cadena de Neon (la **pooled**, la que lleva `-pooler` en el host) |
    | `SESSION_SECRET` | El mismo secreto que en local, o uno nuevo |
-   | `LEAGUE_INVITE_CODE` | El código de la liga |
+   | `APP_URL` | La URL pública, sin barra final: `https://arena-xxxx.vercel.app` |
+   | `LIMITLESS_API_KEY` | Opcional. Solo si el endpoint de arquetipos llegara a pedir clave |
 
    Márcalas para los tres entornos: *Production*, *Preview* y *Development*.
 5. **Deploy**. En dos o tres minutos tienes `https://arena-xxxx.vercel.app`.
 
+> `APP_URL` es un poco huevo y gallina: no conoces la URL hasta que despliegas. Despliega sin
+> ella, copia la dirección que te dé Vercel, añádela y vuelve a desplegar. Solo la usa
+> `npm run invite` para componer el enlace que imprime, así que mientras falte la web funciona
+> igual; lo único que pasa es que ese comando escribe `localhost`.
+
 > Si usas un `SESSION_SECRET` distinto al de local, no pasa nada: son dos aplicaciones
 > independientes y cada una tiene sus sesiones. Solo significa que tendrás que identificarte en
 > las dos.
+
+### La primera cuenta en producción
+
+Si has desplegado sobre una base de datos vacía, la pantalla de acceso lo dice: *"Aún no hay
+nadie"*. Necesitas una invitación, y la primera se crea desde tu ordenador, apuntando a la misma
+base de datos:
+
+```bash
+npm run invite
+```
+
+Con `APP_URL` puesta a la URL de Vercel en tu `.env.local`, el enlace que imprime ya sirve tal
+cual. Ábrelo, date de alta y te quedas como organizador. A partir de ahí las invitaciones se
+crean desde *Ajustes*, sin terminal.
 
 ### A partir de aquí
 
@@ -138,8 +199,8 @@ No hace ninguna falta: `arena-xxxx.vercel.app` funciona igual de bien.
 | Variable | Obligatoria | Qué pasa si falta |
 |---|---|---|
 | `DATABASE_URL` | Sí | Error en cuanto se toca la base de datos |
-| `SESSION_SECRET` | Sí | Error al entrar o al leer la sesión |
-| `LEAGUE_INVITE_CODE` | No | Se entra sin código, solo eligiendo jugador |
+| `SESSION_SECRET` | Sí | Error al leer o escribir la sesión: nadie puede entrar |
+| `APP_URL` | No | Solo afecta a `npm run invite`: el enlace sale con `localhost` |
 | `LIMITLESS_API_KEY` | No | Solo la usa `npm run archetypes:sync` si Limitless la pide |
 
 **Para cambiar una en producción:** Vercel → *Settings → Environment Variables* → editar →
@@ -150,12 +211,16 @@ construir y al arrancar, no en caliente.
 
 ## 6. Comprobar que el despliegue está bien
 
-1. Abre la URL de Vercel. Debe salir la pantalla de **Entrar**.
-2. Entra con el código y elige jugador.
+1. Abre la URL de Vercel. Debe salir la pantalla de **Entrar** con el formulario de correo y
+   contraseña.
+2. Entra con tu cuenta.
 3. Registra una partida de prueba y bórrala.
-4. Abre la misma URL en el móvil: debe pedirte identificarte otra vez (las cookies son por
+4. *Ajustes → Invitaciones* → crea un enlace y ábrelo en una ventana privada: debe enseñar el
+   formulario de alta.
+5. Abre la misma URL en el móvil: debe pedirte identificarte otra vez (las cookies son por
    dispositivo) y luego enseñar **los mismos datos**. Si los ves, la base de datos compartida
-   funciona.
+   funciona. Aprovecha para añadirla a la pantalla de inicio: la aplicación trae manifest, así
+   que se instala como una app y arranca sin la barra del navegador.
 
 ---
 
@@ -174,8 +239,8 @@ Con una liga privada no vas a acercarte a ningún límite, pero por si acaso:
 cuando nadie lo usa y tiene que despertarlo. Es normal y no es un problema.
 
 > A diferencia del plan gratuito de Supabase, Neon **no pausa ni borra** proyectos por
-> inactividad. Fue la razón principal para elegirlo: una liga que juega los martes se pasaría la
-> semana pausada.
+> inactividad. Fue la razón principal para elegirlo, como se explica
+> [arriba](#por-qué-neon-y-no-supabase).
 
 ---
 

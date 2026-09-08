@@ -1,8 +1,10 @@
-import { compPlayers, loadSnapshot } from "@/lib/data";
+import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import { archetypeStats, isPlayed, standings } from "@/lib/stats";
 import { PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
-import { CompSelector } from "@/components/CompSelector";
+import { ScopeTabs } from "@/components/ScopeTabs";
+
+export const metadata = { title: "Ranking" };
 
 export default async function RankingPage({
   searchParams,
@@ -18,17 +20,19 @@ export default async function RankingPage({
   const rows: RankRow[] = table.map((r) => {
     const own = archetypeStats(
       scoped.filter((m) => m.playerAId === r.playerId || m.playerBId === r.playerId),
-      snap.archIndex,
-      r.playerId,
+      snap.archIndex, r.playerId, snap.archById,
     );
     const p = snap.playersById.get(r.playerId);
     return {
       playerId: r.playerId,
       name: p?.name ?? "—",
       color: p?.color ?? "#888",
+      avatarKind: p?.avatarKind ?? "none",
+      avatarValue: p?.avatarValue ?? "",
       played: r.played, wins: r.wins, ties: r.ties, losses: r.losses,
       points: r.points, winRate: r.winRate, resistance: r.resistance,
       diff: r.diff, elo: r.elo,
+      cp: playerCp(snap, r.playerId).total,
       streakKind: r.streak.kind, streakN: r.streak.n,
       topArchId: own[0]?.archetype?.id ?? null,
       topArchName: own[0]?.archetype?.name ?? null,
@@ -43,35 +47,42 @@ export default async function RankingPage({
         title="Ranking"
         sub={
           <>
-            Puntos: {snap.config.ptsWin} por victoria, {snap.config.ptsTie} por empate.{" "}
-            <b>Res.</b> es la resistencia de Play! Pokémon (media del % de victorias de tus rivales,
-            con suelo del 25%). <b>Elo</b> es global a toda la liga, no por competición. Pulsa una
-            cabecera para reordenar.
+            {snap.config.ptsWin} puntos por victoria y {snap.config.ptsTie} por empate.
+            La <b>resistencia</b> es la media del % de victorias de tus rivales, con suelo del 25%,
+            como en los torneos oficiales. El <b>Elo</b> es global a toda la liga.
           </>
         }
-        actions={<CompSelector competitions={snap.competitions} current={comp} basePath="/ranking" />}
       />
 
-      <div className="card"><RankingTable rows={rows} /></div>
+      <ScopeTabs
+        basePath="/ranking"
+        param="comp"
+        current={comp}
+        options={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
+      />
+
+      <div className="mt-4">
+        <RankingTable rows={rows} />
+      </div>
 
       {withHistory.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <section className="card mt-4">
           <div className="card-head">
-            <h2>Evolución del Elo</h2>
-            <span className="hint">desde {snap.config.eloStart}</span>
+            <h2 className="text-lg font-bold">Evolución del Elo</h2>
+            <span className="text-xs text-muted">desde {snap.config.eloStart}</span>
           </div>
-          <div className="card-pad grid g-3">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
             {withHistory.map((p) => {
               const values = (snap.elo.history[p.id] ?? []).map((h) => h.value);
               const last = Math.round(values[values.length - 1]);
               const delta = last - snap.config.eloStart;
               return (
                 <div key={p.id}>
-                  <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                  <div className="mb-1 flex items-center justify-between gap-2">
                     <PlayerTag player={p} size="sm" />
-                    <span className="num" style={{ fontWeight: 700 }}>
+                    <span className="font-mono text-sm font-bold tabular">
                       {last}{" "}
-                      <span style={{ color: delta >= 0 ? "var(--win)" : "var(--loss)", fontSize: 11 }}>
+                      <span className={`text-xs ${delta >= 0 ? "text-win" : "text-loss"}`}>
                         {delta >= 0 ? "+" : ""}{delta}
                       </span>
                     </span>
@@ -81,7 +92,7 @@ export default async function RankingPage({
               );
             })}
           </div>
-        </div>
+        </section>
       )}
     </>
   );

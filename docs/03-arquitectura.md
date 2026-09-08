@@ -12,8 +12,8 @@ cada carpeta.
 | **Next.js 15 + TypeScript** | Un solo lenguaje y un solo proyecto para el front y el back. Es lo que más documentación tiene y lo que mejor entiende cualquier asistente de código, así que pedir cambios es fácil. |
 | **Neon** en vez de Supabase | El plan gratuito de Supabase **pausa** los proyectos tras unos días sin actividad, y una liga que juega los martes se pausa sola. Neon solo apaga el cómputo (arranca en menos de un segundo) y nunca borra los datos. |
 | **Drizzle** en vez de Prisma | El esquema es un fichero TypeScript legible (`src/db/schema.ts`), las consultas se parecen a SQL y no hay un motor extra que instalar ni un `generate` que recordar. |
-| **Cookie firmada** en vez de Auth0 / Clerk / Supabase Auth | El requisito era código de invitación: sobra un proveedor externo, su cuota gratuita y su configuración. Todo cabe en 80 líneas de `src/lib/auth.ts`. |
-| **CSS plano** en vez de Tailwind | Menos piezas que puedan romperse al actualizar, y cualquiera cambia un color abriendo un fichero y buscando el nombre de la variable. |
+| **Cookie firmada** en vez de Auth0 / Clerk / Supabase Auth | Cada jugador tiene correo y contraseña, y se entra por un enlace de invitación. Para un grupo cerrado sobra un proveedor externo, su cuota gratuita y su configuración: todo cabe en un fichero, `src/lib/auth.ts`. La contraseña se guarda con scrypt, que viene en Node y no obliga a compilar nada nativo — bcrypt da guerra en el despliegue. |
+| **Tailwind CSS v4**, configurado desde CSS | En v4 no hay `tailwind.config.js`: la paleta vive en `src/app/globals.css` como variables, y `@theme inline` las convierte en utilidades. Cambiar un color sigue siendo tocar una línea de un fichero, pero ahora las pantallas se escriben con utilidades y las cinco o seis clases compuestas de siempre (`.btn`, `.card`, `.input`…) están declaradas en un solo sitio. |
 | **Server Components + Server Actions** | Las páginas leen la base de datos directamente, sin una capa de API intermedia que escribir y mantener. Los formularios llaman a funciones de servidor sin `fetch` ni endpoints. |
 
 ---

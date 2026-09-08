@@ -1,0 +1,16 @@
+{
+  "name": "Arena — liga de Pokémon TCG",
+  "short_name": "Arena",
+  "description": "Ranking, resultados, torneos y estadísticas de la liga.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eff2f8",
+  "theme_color": "#eff2f8",
+  "lang": "es",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

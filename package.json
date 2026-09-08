@@ -1,6 +1,6 @@
 {
   "name": "poke-arena",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
-    "archetypes:sync": "tsx scripts/sync-archetypes.ts"
+    "archetypes:sync": "tsx scripts/sync-archetypes.ts",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "invite": "tsx scripts/create-invite.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
@@ -20,12 +22,14 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.1",
+    "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.0",
-    "dotenv": "^16.4.7"
+    "typescript": "^5.7.0"
   }
 }

@@ -2,27 +2,39 @@
 
 import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
-import type { Archetype, Competition, Deck, MatchFull, Player } from "@/lib/types";
+import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
 
-export function MatchForm({
-  match, players, decks, archetypes, competitions, defaultPlayerId,
-}: {
+type Props = {
   match?: MatchFull;
-  players: Player[];
+  players: PublicPlayer[];
   decks: Deck[];
   archetypes: Archetype[];
   competitions: Competition[];
-  defaultPlayerId?: string;
-}) {
+  tournaments: Tournament[];
+  meId?: string;
+  /** Los organizadores pueden registrar partidas de otros; los demás, no. */
+  canPickPlayer?: boolean;
+};
+
+/**
+ * Registro de partida, pensado para el móvil durante el torneo.
+ *
+ * El orden de los campos sigue el orden en que se conocen los datos: primero
+ * contra quién, luego qué llevabais, y solo entonces el resultado. Lo demás
+ * (competición, fecha, notas) está plegado, porque casi nunca hay que tocarlo.
+ */
+export function MatchForm({
+  match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
+}: Props) {
   const active = players.filter((p) => p.active || match);
-  const [aId, setAId] = useState(match?.playerAId ?? defaultPlayerId ?? active[0]?.id ?? "");
-  const [bId, setBId] = useState(
-    match?.playerBId ?? active.find((p) => p.id !== (defaultPlayerId ?? active[0]?.id))?.id ?? "",
-  );
+  const [aId, setAId] = useState(match?.playerAId ?? meId ?? active[0]?.id ?? "");
+  const [external, setExternal] = useState(Boolean(match && !match.playerBId));
+  const [bId, setBId] = useState(match?.playerBId ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
   const [aDeckId, setADeckId] = useState(match?.deckAId ?? "");
   const [bDeckId, setBDeckId] = useState(match?.deckBId ?? "");
+  const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
   const [bestOf, setBestOf] = useState(match?.bestOf ?? 3);
   const [games, setGames] = useState<Array<{ winner: string; first: string }>>(() => {
     const base = Array.from({ length: 5 }, () => ({ winner: "", first: "" }));
@@ -32,8 +44,8 @@ export function MatchForm({
 
   const need = Math.ceil(bestOf / 2);
   const A = players.find((p) => p.id === aId);
-  const B = players.find((p) => p.id === bId);
-  const archName = (id: string) => archetypes.find((a) => a.id === id)?.name ?? "";
+  const B = external ? undefined : players.find((p) => p.id === bId);
+  const bLabel = external ? "Rival" : B?.name ?? "B";
 
   const score = useMemo(() => {
     let a = 0, b = 0;
@@ -41,172 +53,253 @@ export function MatchForm({
     return { a, b };
   }, [games, bestOf]);
 
-  const decided = score.a >= need || score.b >= need;
-  const sameTwice = aId === bId;
-  const canSave = !sameTwice && aId && bId && decided;
+  /** Juegos que ya tienen resultado, empates incluidos. */
+  const played = games.slice(0, bestOf).filter((g) => g.winner).length;
+  // Una serie vale cuando alguien llega a la mayoría, o cuando se han jugado
+  // todos los juegos: un Bo3 que acaba 1-1 con el tercero empatado por tiempo
+  // es un resultado normal y tiene que poder guardarse.
+  const decided = score.a >= need || score.b >= need || played === bestOf;
+  const sameTwice = !external && aId === bId;
+  const canSave = !sameTwice && aId && decided;
 
-  function setGame(i: number, patch: Partial<{ winner: string; first: string }>) {
+  const setGame = (i: number, patch: Partial<{ winner: string; first: string }>) =>
     setGames((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-  }
 
-  /** ¿Está este juego ya fuera de la serie porque alguien llegó antes al límite? */
-  function isOver(i: number) {
+  /** Un juego se apaga cuando la serie ya estaba decidida antes de llegar a él. */
+  const isOver = (i: number) => {
     let a = 0, b = 0;
     for (let k = 0; k < i; k++) {
       if (games[k].winner === "a") a++;
       else if (games[k].winner === "b") b++;
     }
     return a >= need || b >= need;
-  }
+  };
 
-  const decksOf = (pid: string) => decks.filter((d) => d.playerId === pid);
+  const decksOf = (pid: string) => decks.filter((d) => d.playerId === pid && !d.retired);
 
   return (
-    <form action={saveMatch} className="stack">
+    <form action={saveMatch} className="flex flex-col gap-4">
       {match && <input type="hidden" name="id" value={match.id} />}
+      <input type="hidden" name="bestOf" value={bestOf} />
+      <input type="hidden" name="playerAId" value={aId} />
 
-      <div className="card card-pad">
-        <div className="grid g-3" style={{ gap: 12 }}>
-          <div className="field">
-            <label htmlFor="competitionId">Competición</label>
-            <select className="inp" id="competitionId" name="competitionId" defaultValue={match?.competitionId ?? ""}>
-              <option value="">Amistoso suelto</option>
-              {competitions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      {/* ------------------------------ quién ------------------------------ */}
+      <section className="card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Quién juega</h2>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox" className="size-4" checked={external}
+              onChange={(e) => setExternal(e.target.checked)}
+            />
+            Rival de fuera
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            {canPickPlayer ? (<>
+              <label className="label" htmlFor="pa">Jugador</label>
+              <select className="input" id="pa" value={aId} onChange={(e) => { setAId(e.target.value); setADeckId(""); }}>
+                {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </>) : (<>
+              {/* Sin permisos de organizador la partida es tuya: fijar el lado A
+                  evita ofrecer algo que el servidor va a rechazar. */}
+              <span className="label">Jugador</span>
+              <div className="input justify-start gap-2 bg-surface-2">
+                <Avatar player={A} size="sm" />
+                <span className="truncate font-semibold">{A?.name ?? "Tú"}</span>
+              </div>
+            </>)}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="deckAId">Su mazo</label>
+            <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
+              <option value="">— sin asignar —</option>
+              {decksOf(aId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="date">Fecha</label>
-            <input className="inp" id="date" name="date" type="date" defaultValue={match?.date ?? todayISO()} />
-          </div>
-          <div className="field">
-            <label htmlFor="round">Jornada</label>
-            <input className="inp" id="round" name="round" type="number" min={0} defaultValue={match?.round ?? 0} />
-          </div>
-        </div>
-      </div>
 
-      <div className="card card-pad">
-        <div className="eyebrow" style={{ marginBottom: 7 }}>Formato de la serie</div>
-        <div className="seg gold">
-          {[1, 3, 5].map((n) => (
-            <button key={n} type="button" className={bestOf === n ? "on" : ""} onClick={() => setBestOf(n)}>
-              Bo{n}
-            </button>
-          ))}
-        </div>
-        <input type="hidden" name="bestOf" value={bestOf} />
-        <div className="hint" style={{ marginTop: 5 }}>
-          Bo{bestOf}: gana quien llegue a {need} juego{need > 1 ? "s" : ""}.
-        </div>
-      </div>
+          <hr className="border-line-soft" />
 
-      <div className="card card-pad">
-        <div className="grid g-2" style={{ gap: 12 }}>
-          <div className="stack" style={{ gap: 8 }}>
-            <div className="field">
-              <label htmlFor="playerAId">Jugador A</label>
-              <select className="inp" id="playerAId" name="playerAId" value={aId} onChange={(e) => { setAId(e.target.value); setADeckId(""); }}>
-                {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="deckAId">Mazo de A</label>
-              <select className="inp" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
-                <option value="">— sin asignar —</option>
-                {decksOf(aId).map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}{archName(d.archetypeId) ? ` · ${archName(d.archetypeId)}` : ""}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="stack" style={{ gap: 8 }}>
-            <div className="field">
-              <label htmlFor="playerBId">Jugador B</label>
-              <select className="inp" id="playerBId" name="playerBId" value={bId} onChange={(e) => { setBId(e.target.value); setBDeckId(""); }}>
-                {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="deckBId">Mazo de B</label>
-              <select className="inp" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
-                <option value="">— sin asignar —</option>
-                {decksOf(bId).map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}{archName(d.archetypeId) ? ` · ${archName(d.archetypeId)}` : ""}</option>
-                ))}
-              </select>
-            </div>
+          {external ? (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="opponentName">Rival</label>
+                <input
+                  className="input" id="opponentName" name="opponentName" required maxLength={60}
+                  defaultValue={match?.opponentName ?? ""} placeholder="Nombre o apodo"
+                />
+                <p className="text-xs text-muted">
+                  No cuenta para el ranking ni para el Elo, pero sí para tus estadísticas de arquetipo
+                  y para la matriz de emparejamientos.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
+                <select
+                  className="input" id="opponentArchetypeId" name="opponentArchetypeId"
+                  value={oppArch} onChange={(e) => setOppArch(e.target.value)}
+                >
+                  <option value="">— no lo sé —</option>
+                  {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="pb">Rival</label>
+                <select className="input" id="pb" name="playerBId" value={bId} onChange={(e) => { setBId(e.target.value); setBDeckId(""); }}>
+                  {active.filter((p) => canPickPlayer || p.id !== aId)
+                    .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="deckBId">Su mazo</label>
+                <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
+                  <option value="">— sin asignar —</option>
+                  {decksOf(bId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+
+          {sameTwice && <p className="text-sm font-medium text-loss">Elige dos jugadores distintos.</p>}
+        </div>
+      </section>
+
+      {/* ----------------------------- resultado ----------------------------- */}
+      <section className="card p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Resultado</h2>
+          <div className="seg seg-brand">
+            {[1, 3, 5].map((n) => (
+              <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
+            ))}
           </div>
         </div>
-        {sameTwice && <div className="err" style={{ marginTop: 8 }}>Elige dos jugadores distintos.</div>}
-      </div>
 
-      <div className="card card-pad">
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
-          <div className="eyebrow">Resultado juego a juego</div>
-          <div className="row" style={{ gap: 10 }}>
+        <div className="mb-4 flex items-center justify-center gap-4 rounded-xl bg-ground py-3">
+          <div className="flex flex-col items-center gap-1">
             <Avatar player={A} size="sm" />
-            <span className="score" style={{ color: score.a > score.b ? "var(--win)" : score.b > score.a ? "var(--loss)" : "var(--tie)" }}>
-              {score.a}–{score.b}
-            </span>
+            <span className="max-w-20 truncate text-xs text-muted">{A?.name}</span>
+          </div>
+          <span className={`font-display text-4xl font-extrabold tabular leading-none
+            ${score.a > score.b ? "text-win" : score.b > score.a ? "text-loss" : "text-tie"}`}>
+            {score.a}–{score.b}
+          </span>
+          <div className="flex flex-col items-center gap-1">
             <Avatar player={B} size="sm" />
+            <span className="max-w-20 truncate text-xs text-muted">{bLabel}</span>
           </div>
         </div>
 
-        <div className="stack" style={{ gap: 8 }}>
+        <div className="flex flex-col gap-3">
           {Array.from({ length: bestOf }, (_, i) => {
             const over = isOver(i);
             return (
-              <div className="gamerow" key={i} style={over ? { opacity: 0.45 } : undefined}>
-                <div className="gl">Juego {i + 1}</div>
-                <div className="field">
-                  <label htmlFor={`g${i}_winner`}>Ganador</label>
-                  <select
-                    className="inp" id={`g${i}_winner`} name={`g${i}_winner`}
-                    value={games[i].winner} disabled={over}
-                    onChange={(e) => setGame(i, { winner: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    <option value="a">{A?.name ?? "A"}</option>
-                    <option value="b">{B?.name ?? "B"}</option>
-                    <option value="tie">Empate / tiempo</option>
-                  </select>
+              <div key={i} className={`rounded-xl border border-line-soft p-3 ${over ? "opacity-40" : ""}`}>
+                <div className="mb-2 font-display text-sm font-bold uppercase tracking-wide text-muted">
+                  Juego {i + 1}
                 </div>
-                <div className="field">
-                  <label htmlFor={`g${i}_first`}>Empezó</label>
-                  <select
-                    className="inp" id={`g${i}_first`} name={`g${i}_first`}
-                    value={games[i].first} disabled={over}
-                    onChange={(e) => setGame(i, { first: e.target.value })}
-                  >
-                    <option value="">no anotado</option>
-                    <option value="a">{A?.name ?? "A"}</option>
-                    <option value="b">{B?.name ?? "B"}</option>
-                  </select>
+
+                {/* Botones grandes: en el móvil esto se pulsa con el pulgar. */}
+                <div className="seg w-full" role="group" aria-label={`Ganador del juego ${i + 1}`}>
+                  {[
+                    { v: "a", l: A?.name ?? "A" },
+                    { v: "tie", l: "Empate" },
+                    { v: "b", l: bLabel },
+                  ].map((o) => (
+                    <button
+                      key={o.v} type="button" disabled={over}
+                      data-on={games[i].winner === o.v}
+                      onClick={() => setGame(i, { winner: games[i].winner === o.v ? "" : o.v })}
+                      className="truncate"
+                    >
+                      {o.l}
+                    </button>
+                  ))}
                 </div>
+                <input type="hidden" name={`g${i}_winner`} value={games[i].winner} />
+
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-muted">Empezó</span>
+                  <div className="seg flex-1" role="group" aria-label={`Quién empezó el juego ${i + 1}`}>
+                    {[
+                      { v: "", l: "—" },
+                      { v: "a", l: A?.name ?? "A" },
+                      { v: "b", l: bLabel },
+                    ].map((o) => (
+                      <button
+                        key={o.v || "none"} type="button" disabled={over}
+                        data-on={games[i].first === o.v}
+                        onClick={() => setGame(i, { first: o.v })}
+                        className="truncate text-xs"
+                      >
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input type="hidden" name={`g${i}_first`} value={games[i].first} />
               </div>
             );
           })}
         </div>
-        <div className="hint" style={{ marginTop: 8 }}>
-          Anotar quién empezó es opcional, pero es lo que alimenta la estadística de ventaja del primer turno.
-        </div>
-      </div>
 
-      <div className="card card-pad">
-        <div className="field">
-          <label htmlFor="note">Notas</label>
-          <input className="inp" id="note" name="note" defaultValue={match?.note ?? ""} placeholder="Punto clave de la partida, mulligans, cambios de lista…" />
-        </div>
-      </div>
+        {!decided && (
+          <p className="mt-3 text-sm text-muted">
+            Faltan juegos: nadie llega a {need}.
+          </p>
+        )}
+      </section>
 
-      <div className="row">
-        <button className="btn btn-gold" type="submit" disabled={!canSave}>
+      {/* ------------------------------ contexto ------------------------------ */}
+      <details className="card p-4" open={Boolean(match?.competitionId || match?.tournamentId || match?.note)}>
+        <summary className="cursor-pointer text-lg font-bold">Contexto y notas</summary>
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="competitionId">Competición</label>
+            <select className="input" id="competitionId" name="competitionId" defaultValue={match?.competitionId ?? ""}>
+              <option value="">Amistoso suelto</option>
+              {competitions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="tournamentId">¿Fue en un torneo?</label>
+            <select className="input" id="tournamentId" name="tournamentId" defaultValue={match?.tournamentId ?? ""}>
+              <option value="">No</option>
+              {tournaments.slice(0, 30).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="date">Fecha</label>
+              <input className="input" id="date" name="date" type="date" defaultValue={match?.date ?? todayISO()} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="round">Jornada</label>
+              <input className="input" id="round" name="round" type="number" min={0} inputMode="numeric" defaultValue={match?.round ?? 0} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="note">Notas</label>
+            <textarea className="input" id="note" name="note" rows={2} defaultValue={match?.note ?? ""}
+              placeholder="Mulligans, la jugada que lo decidió, algo que cambiar de la lista…" />
+          </div>
+        </div>
+      </details>
+
+      <div className="sticky bottom-nav z-20 flex gap-2 md:static">
+        <button className="btn btn-brand flex-1 text-base" type="submit" disabled={!canSave}>
           {match ? "Guardar cambios" : "Guardar partida"}
         </button>
-        {!decided && <span className="hint">Faltan juegos: nadie llega a {need}.</span>}
         {match && (
           <button className="btn btn-danger" type="submit" formAction={deleteMatch} name="id" value={match.id}>
-            Borrar partida
+            Borrar
           </button>
         )}
       </div>

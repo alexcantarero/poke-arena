@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadSnapshot } from "@/lib/data";
-import {
-  archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, sideOf, standings, outcome,
-} from "@/lib/stats";
-import { fmtDateLong, pct, shortName, wrColor } from "@/lib/format";
-import {
-  ArchTag, Avatar, Empty, Kpi, MatchRow, MatchTable, PlayerTag, Record, Sparkline, Sprites,
-} from "@/components/ui";
+import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
+import {
+  archetypeStats, headToHead, isPlayed, longestWinStreak, outcome, playerMatchups, sideOf, standings,
+} from "@/lib/stats";
+import { getSeason } from "@/lib/cp";
+import { fmtDate, fmtDateLong, pct, shortName, wrColor } from "@/lib/format";
+import {
+  ArchTag, Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag, Record,
+  SectionTitle, Sparkline, SplitBar, Sprites,
+} from "@/components/ui";
+import { Icon } from "@/components/icons";
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,15 +19,19 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const player = snap.playersById.get(id);
   if (!player) notFound();
 
+  const isMe = session?.playerId === id;
   const all = snap.matches.filter(isPlayed);
   const mine = all.filter((m) => sideOf(m, id));
-  const row = standings(all, snap.activePlayerIds, snap.elo.rating, snap.config)
-    .find((r) => r.playerId === id);
+  const row = standings(all, snap.activePlayerIds, snap.elo.rating, snap.config).find((r) => r.playerId === id);
   const history = (snap.elo.history[id] ?? []).map((h) => h.value);
-  const archs = archetypeStats(mine, snap.archIndex, id);
-  const matchups = playerMatchups(all, id, snap.archIndex, 2);
+  const archs = archetypeStats(mine, snap.archIndex, id, snap.archById);
+  const matchups = playerMatchups(all, id, snap.archIndex, 2, snap.archById);
   const rivals = headToHead(all, id);
   const decks = snap.decks.filter((d) => d.playerId === id);
+  const cp = playerCp(snap, id);
+  const cpTable = getSeason(cp.season);
+  const myTours = snap.tournaments.filter((t) => t.results.some((r) => r.playerId === id));
+  const favArch = player.favoriteArchetypeId ? snap.archById.get(player.favoriteArchetypeId) : undefined;
 
   let gw = 0, gl = 0;
   for (const m of mine) {
@@ -33,184 +40,210 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
     gw += side === "a" ? o.ga : o.gb;
     gl += side === "a" ? o.gb : o.ga;
   }
-  const best = matchups[0];
-  const worst = matchups.length > 1 ? matchups[matchups.length - 1] : null;
-  const elo = snap.elo.rating[id] ?? snap.config.eloStart;
 
   return (
     <>
-      <div className="page-head">
-        <div className="row" style={{ gap: 14 }}>
-          <Avatar player={player} size="lg" />
-          <div>
-            <h1>{player.name}</h1>
-            <div className="page-sub">
-              {player.isAdmin && <span className="chip g">Organizador</span>}{" "}
-              Desde {fmtDateLong(player.joined)} · {decks.length} mazos registrados
-              {session?.playerId === id && <> · <span className="chip b">eres tú</span></>}
-            </div>
-          </div>
+      <div className="mb-5 flex flex-wrap items-start gap-4">
+        <Avatar player={player} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-extrabold leading-none">{player.name}</h1>
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : "Admin"}</span>}
+            {isMe && <span className="chip chip-info">eres tú</span>}
+            <span>Desde {fmtDateLong(player.joined)}</span>
+          </p>
+          {player.bio && <p className="mt-2 max-w-prose text-sm text-ink-2">{player.bio}</p>}
+          {favArch && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm">
+              <span className="text-muted">Mazo favorito:</span>
+              <Sprites archetype={favArch} size="sm" />
+              <span className="font-semibold">{favArch.name}</span>
+            </p>
+          )}
         </div>
-        <div className="row">
-          {snap.players.map((p) => (
-            <Link key={p.id} href={`/perfil/${p.id}`} className={`chip ${p.id === id ? "g" : ""}`} style={{ padding: "5px 10px" }}>
-              {p.name}
-            </Link>
-          ))}
-        </div>
+        {isMe && (
+          <Link className="btn btn-sm" href="/perfil/editar">
+            <Icon name="cog" className="size-4" /> Editar perfil
+          </Link>
+        )}
       </div>
 
-      <div className="grid g-4" style={{ marginBottom: 16 }}>
+      <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label="Partidas" value={mine.length} note={row ? `${row.wins}V ${row.ties ? `${row.ties}E ` : ""}${row.losses}D` : "—"} />
-        <Kpi
-          label="% victorias"
-          value={pct(row?.winRate, 1)}
-          note={`juegos ${gw}–${gl} (${pct(gw + gl ? gw / (gw + gl) : null, 0)})`}
-          highlight={(row?.winRate ?? 0) >= 0.5}
-        />
-        <Kpi label="Elo" value={elo} note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
-        <Kpi
-          label="Racha actual"
-          value={
-            row?.streak.n
-              ? row.streak.kind === "w" ? `${row.streak.n} victorias`
-              : row.streak.kind === "l" ? `${row.streak.n} derrotas`
-              : `${row.streak.n} empates`
-              : "—"
-          }
-          note={`mejor racha: ${longestWinStreak(all, id)} victorias`}
-        />
+        <Kpi label="% victorias" value={pct(row?.winRate, 0)} note={`juegos ${gw}–${gl}`} highlight={(row?.winRate ?? 0) >= 0.5} />
+        <Kpi label="Elo" value={row?.elo ?? snap.config.eloStart}
+          note={`${(row?.elo ?? snap.config.eloStart) - snap.config.eloStart >= 0 ? "+" : ""}${(row?.elo ?? snap.config.eloStart) - snap.config.eloStart} desde el inicio`} />
+        <Kpi label={`CP ${cp.season}`} value={cp.total} note={cpTable.confirmed ? `${myTours.length} torneos` : "cifras provisionales"} />
       </div>
 
-      <div className="grid g-2-13" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="card-head"><h2>Evolución del Elo</h2></div>
-          <div className="card-pad">
+      {/* --------------------------- Championship Points --------------------------- */}
+      {cp.rows.length > 0 && (
+        <section className="card mb-5">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Championship Points</h2>
+            <Link className="btn btn-ghost btn-sm" href="/torneos">Torneos</Link>
+          </div>
+
+          <div className="grid gap-3 border-b border-line-soft p-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cp.buckets.map((b) => (
+              <div key={b.bucket} className="rounded-lg border border-line-soft bg-ground p-3">
+                <div className="truncate text-xs font-semibold text-muted">{b.label}</div>
+                <div className="font-display text-2xl font-extrabold tabular">{b.total}</div>
+                <div className="text-xs text-muted">
+                  {b.bfl > 0 ? `${b.counting}/${b.bfl} huecos` : "sin límite"}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <ul className="divide-y divide-line-soft">
+            {cp.rows.map((r) => (
+              <li key={r.id} className={`flex items-center gap-3 px-4 py-2.5 ${r.excluded ? "opacity-45" : ""}`}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{r.tournamentName}</span>
+                  <span className="block text-xs text-muted">
+                    {fmtDate(r.date)}{r.placement ? ` · puesto ${r.placement}` : ""}
+                    {r.excluded ? " · fuera por Best Finish Limit" : ""}
+                  </span>
+                </span>
+                <span className="font-mono text-sm font-semibold tabular">
+                  {r.excluded ? <s>{r.cpEarned || 0}</s> : r.counted}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <section className="card">
+          <div className="card-head"><h2 className="text-lg font-bold">Evolución del Elo</h2></div>
+          <div className="p-4">
             <Sparkline values={history} width={320} height={90} />
             {history.length > 1 && (
-              <div className="hint" style={{ marginTop: 8 }}>
+              <p className="mt-2 text-xs text-muted">
                 {history.length} puntos · mín {Math.round(Math.min(...history))} · máx {Math.round(Math.max(...history))}
-              </div>
+                · mejor racha {longestWinStreak(all, id)} victorias
+              </p>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="card">
+        <section className="card">
           <div className="card-head">
-            <h2>Tus mazos</h2>
-            <Link className="btn btn-sm" href={`/mazos/nuevo?player=${id}`}>+ Mazo</Link>
+            <h2 className="text-lg font-bold">Sus mazos</h2>
+            {isMe && <Link className="btn btn-sm" href="/mazos/nuevo">+ Mazo</Link>}
           </div>
           {archs.length ? (
-            <div className="tw">
-              <table>
-                <thead>
-                  <tr><th>Arquetipo</th><th className="num">Usos</th><th>Récord</th><th className="num">%V</th><th className="num">Juegos</th></tr>
-                </thead>
-                <tbody>
-                  {archs.map((a) => (
-                    <tr key={a.archetypeId}>
-                      <td><ArchTag archetype={a.archetype} /></td>
-                      <td className="num">{a.played}</td>
-                      <td><Record w={a.wins} d={a.ties} l={a.losses} /></td>
-                      <td className="num" style={{ color: wrColor(a.winRate), fontWeight: 600 }}>{pct(a.winRate, 0)}</td>
-                      <td className="num" style={{ color: "var(--muted)" }}>{a.gameWins}–{a.gameLosses}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <div className="empty"><p>Sin partidas con mazo asignado.</p></div>}
-        </div>
+            <ul className="divide-y divide-line-soft">
+              {archs.map((a) => (
+                <li key={a.archetypeId} className="flex items-center gap-3 px-4 py-2.5">
+                  <ArchTag archetype={a.archetype} className="min-w-0 flex-1" />
+                  <Record w={a.wins} d={a.ties} l={a.losses} />
+                  <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(a.winRate) }}>
+                    {pct(a.winRate, 0)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="Sin partidas con mazo asignado">
+              {decks.length ? "Asigna el mazo al registrar la partida y aparecerá aquí." : "Aún no ha registrado ningún mazo."}
+            </Empty>
+          )}
+        </section>
       </div>
 
-      <div className="grid g-2" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="card-head"><h2>Enfrentamientos directos</h2></div>
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <section className="card">
+          <div className="card-head"><h2 className="text-lg font-bold">Enfrentamientos directos</h2></div>
           {rivals.length ? (
-            <div className="tw">
-              <table>
-                <thead><tr><th>Rival</th><th className="num">PJ</th><th>Récord</th><th className="num">%V</th><th>Balance</th></tr></thead>
-                <tbody>
-                  {rivals.map((t) => {
-                    const w = (t.winRate ?? 0) * 100;
-                    return (
-                      <tr key={t.opponentId}>
-                        <td><PlayerTag player={snap.playersById.get(t.opponentId)} /></td>
-                        <td className="num">{t.played}</td>
-                        <td><Record w={t.wins} d={t.ties} l={t.losses} /></td>
-                        <td className="num" style={{ color: wrColor(t.winRate), fontWeight: 600 }}>{pct(t.winRate, 0)}</td>
-                        <td style={{ minWidth: 110 }}>
-                          <div className="split">
-                            <i style={{ width: `${w.toFixed(0)}%`, background: "var(--win)" }} />
-                            <i style={{ width: `${(100 - w).toFixed(0)}%`, background: "var(--loss)" }} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ul className="divide-y divide-line-soft">
+              {rivals.map((t) => (
+                <li key={t.opponentId} className="flex items-center gap-3 px-4 py-2.5">
+                  <PlayerTag player={snap.playersById.get(t.opponentId)} size="sm" className="min-w-0 flex-1" />
+                  <Record w={t.wins} d={t.ties} l={t.losses} />
+                  <span className="w-24 flex-none"><SplitBar ratio={t.winRate ?? 0} /></span>
+                  <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(t.winRate) }}>
+                    {pct(t.winRate, 0)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           ) : <Empty title="Sin partidas registradas" />}
-        </div>
+        </section>
 
-        <div className="card">
-          <div className="card-head"><h2>Emparejamientos que te van</h2><span className="hint">mín. 2 partidas</span></div>
-          <div className="card-pad">
-            {matchups.length ? (
-              <>
-                <div className="stack" style={{ gap: 10 }}>
-                  {matchups.slice(0, 7).map((t) => (
-                    <div
-                      key={`${t.mine.id}|${t.theirs.id}`}
-                      className="row"
-                      style={{ justifyContent: "space-between", gap: 10, borderBottom: "1px solid var(--line-soft)", paddingBottom: 9 }}
-                    >
-                      <div className="row" style={{ gap: 6, minWidth: 0 }}>
-                        <Sprites archetype={t.mine} size="sm" />
-                        <span style={{ fontSize: 12.5 }}>{shortName(t.mine.name, 15)}</span>
-                        <span style={{ color: "var(--muted)", fontSize: 11 }}>vs</span>
-                        <Sprites archetype={t.theirs} size="sm" />
-                        <span style={{ fontSize: 12.5 }}>{shortName(t.theirs.name, 15)}</span>
-                      </div>
-                      <span className="num" style={{ fontWeight: 700, color: wrColor(t.winRate) }}>
-                        {pct(t.winRate, 0)} <span className="hint">({t.n})</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {best && worst && best !== worst && (
-                  <div className="hint" style={{ marginTop: 12 }}>
-                    Mejor: <b>{best.mine.name}</b> contra <b>{best.theirs.name}</b>. Peor:{" "}
-                    <b>{worst.mine.name}</b> contra <b>{worst.theirs.name}</b>.
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="hint">
-                Cuando repitas un mismo cruce de arquetipos al menos dos veces, aparecerá aquí.
-              </div>
-            )}
+        <section className="card">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Emparejamientos</h2>
+            <span className="text-xs text-muted">mín. 2 partidas</span>
           </div>
-        </div>
+          {matchups.length ? (
+            <ul className="divide-y divide-line-soft">
+              {matchups.slice(0, 8).map((t) => (
+                <li key={`${t.mine.id}|${t.theirs.id}`} className="flex items-center gap-2 px-4 py-2.5">
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <Sprites archetype={t.mine} size="sm" />
+                    <span className="truncate text-[13px]">{shortName(t.mine.name, 14)}</span>
+                    <span className="flex-none text-[11px] text-muted">vs</span>
+                    <Sprites archetype={t.theirs} size="sm" />
+                    <span className="truncate text-[13px]">{shortName(t.theirs.name, 14)}</span>
+                  </span>
+                  <span className="flex-none font-mono text-sm font-bold tabular" style={{ color: wrColor(t.winRate) }}>
+                    {pct(t.winRate, 0)} <span className="text-xs font-normal text-muted">({t.n})</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="Todavía no hay cruces repetidos">
+              Cuando el mismo cruce de arquetipos se repita dos veces, aparecerá aquí.
+            </Empty>
+          )}
+        </section>
       </div>
 
+      {myTours.length > 0 && (
+        <>
+          <SectionTitle aside={`${myTours.length}`}>Torneos</SectionTitle>
+          <div className="card mb-5 divide-y divide-line-soft">
+            {myTours.map((t) => {
+              const r = t.results.find((x) => x.playerId === id)!;
+              return (
+                <Link key={t.id} href={`/torneos/${t.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                  <span className="w-9 flex-none text-center font-display text-lg font-extrabold tabular">
+                    {r.placement ?? "—"}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{t.name}</span>
+                    <span className="block text-xs text-muted">
+                      {fmtDate(t.date)}{t.playerCount ? ` · ${t.playerCount} jugadores` : ""}
+                    </span>
+                  </span>
+                  {r.cpEarned > 0 && <span className="chip chip-brand tabular">{r.cpEarned} CP</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <SectionTitle aside={`${mine.length} partidas`}>Historial</SectionTitle>
       <div className="card">
-        <div className="card-head"><h2>Historial</h2><span className="hint">{mine.length} partidas</span></div>
         {mine.length ? (
-          <MatchTable>
-            {mine.slice().reverse().map((m) => (
-              <MatchRow
+          <MatchList>
+            {mine.slice().reverse().slice(0, 40).map((m) => (
+              <MatchCard
                 key={m.id}
                 match={m}
                 playerA={snap.playersById.get(m.playerAId)}
-                playerB={snap.playersById.get(m.playerBId)}
+                playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
                 archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
-                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : undefined}
-                compName={m.competitionId ? snap.compsById.get(m.competitionId)?.name : undefined}
+                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : (m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined)}
+                context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
               />
             ))}
-          </MatchTable>
+          </MatchList>
         ) : <Empty title="Sin partidas" />}
       </div>
     </>

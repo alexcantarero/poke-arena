@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // Los tests se ejecutan con `node --experimental-strip-types`, que exige
+    // escribir la extensión .ts en el import. Sin esta opción `next build`
+    // fallaría al tipar tests/.
+    "allowImportingTsExtensions": true,
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],
