@@ -295,6 +295,7 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
         <span className="font-mono">{match.date}</span>
         {context && <><span aria-hidden="true">·</span><span className="truncate">{context}</span></>}
         <span className="flex-1" />
+        {match.tournamentId && match.round > 0 && <span className="chip">R{match.round}</span>}
         <span className="chip">Bo{match.bestOf}</span>
       </div>
 
@@ -303,16 +304,27 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
           <Avatar player={playerA} size="sm" />
           <span className="min-w-0">
             <span className={`block truncate text-sm ${wA ? "font-bold" : "font-medium"}`}>{playerA?.name ?? "—"}</span>
-            {archA && <span className="block truncate text-[11px] text-muted">{archA.name}</span>}
+            {/* El mazo con su sprite y no solo el nombre: en una lista larga se
+                reconoce antes el dibujo que el texto. Lo pedía Alex. */}
+            {archA && (
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted">
+                <Sprites archetype={archA} size="sm" />
+                <span className="truncate">{archA.name}</span>
+              </span>
+            )}
           </span>
         </div>
 
         <div className="flex-none text-center">
           <div className={`font-display text-lg font-extrabold tabular leading-none
             ${wA ? "text-win" : wB ? "text-loss" : "text-tie"}`}>
-            {o.ga}–{o.gb}{o.ties ? `–${o.ties}` : ""}
+            {/* Sin desglose de juegos no hay marcador que enseñar: un «0–0»
+                sería mentira, así que va la letra del resultado. */}
+            {o.declared
+              ? (wA ? "V" : wB ? "D" : "E")
+              : <>{o.ga}–{o.gb}{o.ties ? `–${o.ties}` : ""}</>}
           </div>
-          <div className="mt-1 flex justify-center"><Pips match={match} from="a" /></div>
+          {!o.declared && <div className="mt-1 flex justify-center"><Pips match={match} from="a" /></div>}
         </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right">
@@ -320,7 +332,12 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
             <span className={`block truncate text-sm ${wB ? "font-bold" : "font-medium"}`}>
               {playerB?.name ?? match.opponentName ?? "—"}
             </span>
-            {archB && <span className="block truncate text-[11px] text-muted">{archB.name}</span>}
+            {archB && (
+              <span className="flex min-w-0 items-center justify-end gap-1 text-[11px] text-muted">
+                <span className="truncate">{archB.name}</span>
+                <Sprites archetype={archB} size="sm" />
+              </span>
+            )}
           </span>
           {playerB
             ? <Avatar player={playerB} size="sm" />

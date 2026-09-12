@@ -4,10 +4,11 @@ import { readSession } from "@/lib/auth";
 import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
-  ArchTag, Avatar, Bars, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
-  Record, SectionTitle, Sprites, StreakChip,
+  Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
+  Record, Sprites, StreakChip,
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { HomeCharts } from "@/components/HomeCharts";
 
 export default async function HomePage() {
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
@@ -33,6 +34,52 @@ export default async function HomePage() {
   const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 3);
   const recent = played.slice(-6).reverse();
   const nextTournaments = snap.tournaments.filter((t) => t.date >= todayISO()).slice(-3).reverse();
+
+  /* ---------------------------------------------------------------
+     Datos de los gráficos. Se preparan aquí, en el servidor, para que el
+     componente cliente solo dibuje: así el motor de estadísticas sigue siendo
+     puro y no hay que llevárselo al navegador.
+     --------------------------------------------------------------- */
+
+  // Solo quien ha jugado algo: una línea plana en 1000 no dice nada y encima
+  // gasta un color de la paleta.
+  const eloSeries = snap.players
+    .filter((p) => p.active && (snap.elo.history[p.id]?.length ?? 0) > 1)
+    .map((p) => ({
+      id: p.id,
+      label: p.name,
+      // El color del perfil manda; si es el dorado de marca se deja que la
+      // paleta de series decida, porque la marca no es un dato.
+      color: p.color && p.color.toLowerCase() !== "#f0b429" ? p.color : null,
+      points: (snap.elo.history[p.id] ?? []).map((h) => ({ date: h.date, value: Math.round(h.value) })),
+    }));
+
+  const metaRows = archs.slice(0, 8).map((a) => ({
+    id: a.archetypeId,
+    label: a.archetype?.name ?? a.archetypeId,
+    played: a.played,
+    wins: a.wins,
+    ties: a.ties,
+    losses: a.losses,
+  }));
+  // Los sprites se pintan en el servidor y viajan como nodos ya listos: el
+  // componente cliente no necesita conocer los arquetipos.
+  const metaSprites = Object.fromEntries(
+    archs.slice(0, 8).map((a) => [a.archetypeId, <Sprites key={a.archetypeId} archetype={a.archetype} size="sm" />]),
+  );
+
+  const cpBars = (myCp?.buckets ?? []).map((b) => {
+    const rows = myCp!.rows.filter((r) => r.bucket === b.bucket);
+    return {
+      bucket: b.bucket,
+      label: b.label,
+      total: b.total,
+      dropped: rows.filter((r) => r.excluded).reduce((a, r) => a + r.value, 0),
+      bfl: b.bfl,
+      counting: b.counting,
+      entries: rows.length,
+    };
+  });
 
   return (
     <>
@@ -184,28 +231,15 @@ export default async function HomePage() {
         )}
       </section>
 
-      {archs.length > 0 && (
-        <section className="card mt-4">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Mazos más jugados</h2>
-            <Link className="btn btn-ghost btn-sm" href="/estadisticas">Estadísticas</Link>
-          </div>
-          <div className="p-4">
-            <Bars
-              rows={archs.slice(0, 6).map((a) => ({
-                label: (
-                  <span className="inline-flex min-w-0 items-center gap-1.5">
-                    <Sprites archetype={a.archetype} size="sm" />
-                    <span className="truncate text-[13px]">{a.archetype?.name}</span>
-                  </span>
-                ),
-                value: a.played,
-                right: `${a.played} · ${pct(a.winRate, 0)}`,
-                color: wrColor(a.winRate),
-              }))}
-            />
-          </div>
-        </section>
+      {(eloSeries.length > 0 || metaRows.length > 0 || cpBars.length > 0) && (
+        <HomeCharts
+          elo={eloSeries}
+          eloStart={snap.config.eloStart}
+          meta={metaRows}
+          cp={cpBars}
+          season={myCp?.season ?? snap.config.cpSeason}
+          sprites={metaSprites}
+        />
       )}
     </>
   );

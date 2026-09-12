@@ -1,10 +1,10 @@
 import type {
-  Archetype, Competition, Deck, EventRow, Game, Invite, Match, Player, Settings,
+  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, Player, Settings,
   Tournament, TournamentResult,
 } from "@/db/schema";
 
 export type {
-  Archetype, Competition, Deck, EventRow, Game, Invite, Match, Player, Settings,
+  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, Player, Settings,
   Tournament, TournamentResult,
 };
 
@@ -27,7 +27,17 @@ export type TournamentFull = Tournament & { results: TournamentResult[] };
 
 export type Side = "a" | "b";
 
-export type Outcome = { ga: number; gb: number; ties: number; winner: Side | "tie" };
+/**
+ * Resultado de una serie.
+ *
+ * `declared` es true cuando el resultado se apuntó a mano sin desglosar los
+ * juegos (registro rápido de una ronda de torneo). En ese caso `ga` y `gb` son
+ * 0 porque de verdad no se sabe el marcador, y la interfaz enseña V/E/D en
+ * lugar de un «0–0» que sería mentira.
+ */
+export type Outcome = {
+  ga: number; gb: number; ties: number; winner: Side | "tie"; declared: boolean;
+};
 
 export type StandingRow = {
   playerId: string;

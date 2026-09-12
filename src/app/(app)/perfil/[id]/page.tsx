@@ -12,6 +12,8 @@ import {
   SectionTitle, Sparkline, SplitBar, Sprites,
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { LadderClear, LadderEditor, RankBadge, RankProgress } from "@/components/Ladder";
+import { canManageLeague } from "@/lib/auth";
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,6 +35,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const myTours = snap.tournaments.filter((t) => t.results.some((r) => r.playerId === id));
   const favArch = player.favoriteArchetypeId ? snap.archById.get(player.favoriteArchetypeId) : undefined;
 
+  // El rango del ladder lo cambia cada uno; el de otra persona, un
+  // organizador. La comprobación de verdad está dentro de la Server Action.
+  const me = session ? snap.playersById.get(session.playerId) : undefined;
+  const canEditLadder = Boolean(me && (isMe || canManageLeague(me.role)));
+
   let gw = 0, gl = 0;
   for (const m of mine) {
     const o = outcome(m);
@@ -50,6 +57,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : "Admin"}</span>}
             {isMe && <span className="chip chip-info">eres tú</span>}
+            {player.ladderElo != null && <RankBadge elo={player.ladderElo} size="sm" />}
             <span>Desde {fmtDateLong(player.joined)}</span>
           </p>
           {player.bio && <p className="mt-2 max-w-prose text-sm text-ink-2">{player.bio}</p>}
@@ -227,6 +235,42 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </>
       )}
+
+      {/* --- rango del ladder ---
+          Va justo antes del historial y no arriba a propósito: lo de arriba
+          son los números que la app calcula sola, y esto es un número que se
+          pone a mano. Mezclarlos invitaba a confundir el Elo de la liga con el
+          rango, que es el primer malentendido que iba a haber. */}
+      <SectionTitle aside="lo pones tú">Rango del ladder</SectionTitle>
+      <div className="card mb-6 p-4">
+        {canEditLadder ? (
+          <div className="flex flex-col gap-4">
+            <LadderEditor
+              playerId={player.id}
+              currentElo={player.ladderElo}
+              currentNote={player.ladderNote}
+            />
+            {player.ladderElo != null && <LadderClear playerId={player.id} />}
+          </div>
+        ) : player.ladderElo != null ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <RankBadge elo={player.ladderElo} size="lg" />
+              {player.ladderEloUpdatedAt && (
+                <span className="text-xs text-muted">
+                  actualizado el {fmtDate(player.ladderEloUpdatedAt.toISOString().slice(0, 10))}
+                </span>
+              )}
+            </div>
+            <RankProgress elo={player.ladderElo} />
+            {player.ladderNote && <p className="text-sm text-ink-2">{player.ladderNote}</p>}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            {player.name} no ha puesto su rango todavía.
+          </p>
+        )}
+      </div>
 
       <SectionTitle aside={`${mine.length} partidas`}>Historial</SectionTitle>
       <div className="card">

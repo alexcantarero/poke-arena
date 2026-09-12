@@ -1,6 +1,7 @@
 import { loadSnapshot } from "@/lib/data";
 import {
-  activityByMonth, archetypeStats, firstTurnStats, isInternal, isPlayed, matchupMatrix, seriesShapes,
+  activityByMonth, archetypeStats, firstTurnSeriesStats, firstTurnStats, isInternal, isPlayed,
+  matchupMatrix, seriesShapes,
 } from "@/lib/stats";
 import { MONTHS, pct, wrColor } from "@/lib/format";
 import { Bars, Kpi, PageHead, SectionTitle, Sprites } from "@/components/ui";
@@ -19,6 +20,9 @@ export default async function StatsPage({
 
   const archs = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
   const ft = firstTurnStats(rows);
+  // A nivel de serie. Es la única lectura posible de las rondas de torneo
+  // apuntadas en modo rápido, que tienen turno y resultado pero no desglose.
+  const fts = firstTurnSeriesStats(rows);
   const shapes = seriesShapes(rows);
   const months = activityByMonth(rows);
   const matrix = matchupMatrix(rows, snap.archIndex, 1, snap.archById);
@@ -140,6 +144,13 @@ export default async function StatsPage({
                   <i className="block h-full bg-win" style={{ width: `${(ft.winRate * 100).toFixed(1)}%` }} />
                   <i className="block h-full bg-loss" style={{ width: `${((1 - ft.winRate) * 100).toFixed(1)}%` }} />
                 </div>
+                {fts.n > 0 && fts.winRate != null && (
+                  <p className="mt-3 text-xs text-muted">
+                    Contando series completas en vez de juegos sueltos: {pct(fts.winRate, 1)} de{" "}
+                    {fts.n} partidas las gana quien salió primero. Aquí entran también las rondas
+                    de torneo apuntadas sin desglose, que tienen turno y resultado pero no juegos.
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted">

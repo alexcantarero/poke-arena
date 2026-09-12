@@ -12,18 +12,40 @@ export const DEFAULT_SETTINGS = {
   ptsWin: 3, ptsTie: 1, ptsLoss: 0, eloStart: 1000, eloK: 24,
 };
 
-/** Resultado de una serie a partir de sus juegos. */
+/**
+ * Resultado de una serie.
+ *
+ * Normalmente se cuenta a partir de los juegos. Si no hay juegos pero sí un
+ * `seriesResult` apuntado a mano —el registro rápido de una ronda de torneo—
+ * se usa ese, y el resultado sale marcado como `declared` para que la interfaz
+ * no invente un marcador que nadie ha registrado.
+ *
+ * Los juegos siempre mandan sobre lo declarado: si alguien completa el
+ * desglose después, el marcador pasa a contarse y `seriesResult` deja de
+ * mirarse. Así no hay dos verdades.
+ */
 export function outcome(m: MatchFull): Outcome {
+  if (m.games.length === 0) {
+    const r = m.seriesResult;
+    if (r === "a" || r === "b") return { ga: 0, gb: 0, ties: 0, winner: r, declared: true };
+    if (r === "tie") return { ga: 0, gb: 0, ties: 0, winner: "tie", declared: true };
+    return { ga: 0, gb: 0, ties: 0, winner: "tie", declared: false };
+  }
   let ga = 0, gb = 0, ties = 0;
   for (const g of m.games) {
     if (g.winner === "a") ga++;
     else if (g.winner === "b") gb++;
     else ties++;
   }
-  return { ga, gb, ties, winner: ga > gb ? "a" : gb > ga ? "b" : "tie" };
+  return { ga, gb, ties, winner: ga > gb ? "a" : gb > ga ? "b" : "tie", declared: false };
 }
 
-export const isPlayed = (m: MatchFull) => m.status === "done" && m.games.length > 0;
+/**
+ * Una partida cuenta cuando está cerrada y se sabe cómo acabó: o por sus
+ * juegos, o porque el resultado está declarado.
+ */
+export const isPlayed = (m: MatchFull) =>
+  m.status === "done" && (m.games.length > 0 || m.seriesResult !== null);
 
 /**
  * Una partida es "interna" cuando los dos jugadores están en la liga. Las que
@@ -316,12 +338,36 @@ export function firstTurnStats(matches: MatchFull[]) {
   return { n, winRate: n ? wins / n : null };
 }
 
+/**
+ * Ventaja de empezar, a nivel de SERIE.
+ *
+ * La de arriba mira juego a juego, que es lo correcto para medir el turno 1
+ * en sí. Esta mira rondas completas: «salí primero en la ronda, ¿la gané?».
+ * Es la pregunta que se hace uno en un suizo, y es la única que se puede
+ * responder con las rondas apuntadas en modo rápido, que no tienen desglose.
+ */
+export function firstTurnSeriesStats(matches: MatchFull[]) {
+  let n = 0, wins = 0;
+  for (const m of matches.filter(isPlayed)) {
+    const first = m.games.find((g) => g.number === 1)?.first || m.firstTurn;
+    if (first !== "a" && first !== "b") continue;
+    const o = outcome(m);
+    if (o.winner === "tie") continue;
+    n++;
+    if (o.winner === first) wins++;
+  }
+  return { n, winRate: n ? wins / n : null };
+}
+
 /** Cómo terminan las series: Bo3 2–0, Bo3 2–1, Bo5 3–2… */
 export function seriesShapes(matches: MatchFull[]) {
   const t = new Map<string, number>();
   for (const m of matches.filter(isPlayed)) {
     if (m.bestOf < 2) continue;
     const o = outcome(m);
+    // Sin desglose no hay forma de serie que contar: un 2–0 y un 2–1 son lo
+    // mismo aquí, y meterlos como «0–0» ensuciaría el reparto.
+    if (o.declared) continue;
     const hi = Math.max(o.ga, o.gb), lo = Math.min(o.ga, o.gb);
     const k = `Bo${m.bestOf} ${hi}–${lo}`;
     t.set(k, (t.get(k) ?? 0) + 1);
@@ -445,4 +491,128 @@ export function pairRound(
 export function suggestedRounds(n: number) {
   if (n <= 2) return 1;
   return Math.max(1, Math.ceil(Math.log2(n)));
+}
+
+/* ==================================== rondas de torneo ====
+
+   Un Challenge o una Cup son suizos de varias rondas, y lo que interesa es ir
+   apuntándolas sobre la marcha: rival, mazo del rival, si has salido primero
+   o segundo, y si ganaste, empataste o perdiste.
+
+   Decisión de diseño: **no hay tabla de rondas**. Una ronda es una fila de
+   `matches` con `tournamentId` puesto, `round` con el número y `playerBId`
+   nulo (el rival es de fuera). Los juegos, si se desglosan, van en `games`
+   como en cualquier otra partida.
+
+   El motivo es que así no hay una sola línea de estadística nueva que
+   escribir: la matriz de emparejamientos, el %V por arquetipo y la ventaja de
+   empezar ya leen de `matches` + `games`, y el ranking y el Elo ya ignoran las
+   partidas con `playerBId` nulo. Una tabla aparte habría obligado a duplicar
+   los seis cálculos y a mantenerlos sincronizados para siempre.
+
+   Y esto vive aquí, en el motor de estadísticas, y no en un módulo aparte
+   porque necesita `outcome()`: un fichero suelto tendría que importarlo, y
+   para que las pruebas de `node --experimental-strip-types` lo cargaran haría
+   falta escribir la extensión `.ts` en el import. Ningún otro fichero de
+   `src/` lo hace, y no quería ser el primero con algo que no puedo compilar
+   aquí.
+   ========================================================================= */
+
+/** Lo que se ve de una ronda ya registrada. */
+export type RoundView = {
+  match: MatchFull;
+  round: number;
+  /** Desde el punto de vista del jugador, que siempre es el lado "a". */
+  result: "w" | "l" | "d" | null;
+  /** true si el resultado se apuntó sin desglosar los juegos. */
+  declared: boolean;
+  ga: number;
+  gb: number;
+  /** ¿Salí yo primero en el primer juego? null si no se apuntó. */
+  firstGameOne: boolean | null;
+};
+
+/** El resultado de una ronda, mirándolo desde el lado "a". */
+export function roundResult(m: MatchFull): "w" | "l" | "d" | null {
+  const hasGames = m.games.length > 0;
+  if (!hasGames && !m.seriesResult) return null;
+  const o = outcome(m);
+  if (!hasGames) {
+    return o.winner === "a" ? "w" : o.winner === "b" ? "l" : "d";
+  }
+  // Con juegos, una serie sin mayoría todavía puede estar a medias: un 1–1 en
+  // un Bo3 no es un empate hasta que se declara. El registro rápido lo marca
+  // guardando `seriesResult`; si no está, la ronda sigue abierta.
+  const need = Math.floor(m.bestOf / 2) + 1;
+  if (o.ga >= need) return "w";
+  if (o.gb >= need) return "l";
+  if (m.seriesResult === "a") return "w";
+  if (m.seriesResult === "b") return "l";
+  if (m.seriesResult === "tie") return "d";
+  if (m.games.length >= m.bestOf) {
+    return o.ga > o.gb ? "w" : o.gb > o.ga ? "l" : "d";
+  }
+  return null;
+}
+
+export function toRoundView(m: MatchFull): RoundView {
+  const o = outcome(m);
+  const g1 = m.games.find((g) => g.number === 1);
+  return {
+    match: m,
+    round: m.round,
+    result: roundResult(m),
+    declared: o.declared,
+    ga: o.ga,
+    gb: o.gb,
+    // Los juegos mandan; `firstTurn` es el respaldo del registro rápido.
+    firstGameOne:
+      g1?.first === "a" ? true
+      : g1?.first === "b" ? false
+      : m.firstTurn === "a" ? true
+      : m.firstTurn === "b" ? false
+      : null,
+  };
+}
+
+/** Las rondas de un jugador en un torneo, ordenadas. */
+export function roundsOf(matches: MatchFull[], tournamentId: string, playerId: string): RoundView[] {
+  return matches
+    .filter((m) => m.tournamentId === tournamentId && m.playerAId === playerId && m.playerBId === null)
+    .sort((a, b) => a.round - b.round || a.id.localeCompare(b.id))
+    .map(toRoundView);
+}
+
+export type RoundRecord = {
+  wins: number;
+  losses: number;
+  ties: number;
+  /** Rondas registradas sin resultado todavía. */
+  open: number;
+  /** "3-1-1". */
+  label: string;
+  /** Puntuación de Play! Pokémon: 3 por victoria, 1 por empate. */
+  points: number;
+};
+
+/** El récord del torneo se deriva de las rondas. Nunca se teclea. */
+export function recordOf(rounds: RoundView[]): RoundRecord {
+  const wins = rounds.filter((r) => r.result === "w").length;
+  const losses = rounds.filter((r) => r.result === "l").length;
+  const ties = rounds.filter((r) => r.result === "d").length;
+  return {
+    wins, losses, ties,
+    open: rounds.filter((r) => r.result === null).length,
+    label: `${wins}-${losses}-${ties}`,
+    points: wins * 3 + ties,
+  };
+}
+
+/**
+ * Quién debería empezar el juego siguiente: el que perdió el anterior. Es la
+ * regla real, y sirve para preseleccionar la casilla en el formulario sin
+ * obligar a nadie a pensarlo.
+ */
+export function nextStarter(previousWinner: Side | "tie" | null): Side {
+  return previousWinner === "a" ? "b" : "a";
 }

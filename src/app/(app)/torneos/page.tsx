@@ -1,17 +1,23 @@
+import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { awardsCp, getSeason } from "@/lib/cp";
 import { fmtDate } from "@/lib/format";
 import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle } from "@/components/ui";
+import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Torneos" };
 
 const SCOPE_LABEL: Record<string, string> = { onsite: "Presencial", online: "Online" };
 
-export default async function TournamentsPage() {
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+export default async function TournamentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jugador?: string }>;
+}) {
+  const [snap, session, sp] = await Promise.all([loadSnapshot(), readSession(), searchParams]);
   const season = snap.config.cpSeason;
   const table = getSeason(season);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
@@ -19,6 +25,25 @@ export default async function TournamentsPage() {
 
   const mine = me ? snap.tournaments.filter((t) => t.results.some((r) => r.playerId === me.id)) : [];
   const cpTotalGroup = snap.players.reduce((a, p) => a + playerCp(snap, p.id, season).total, 0);
+
+  /* --- filtro por persona ---
+     Cada uno va a torneos distintos, así que la lista completa mezcla cosas
+     que no te tocan. Es un parámetro de la URL y no un estado de React para
+     que el filtro se pueda compartir por WhatsApp y para que la vuelta atrás
+     del navegador funcione. Lo pedía Alex. */
+  const filterId = sp.jugador && snap.playersById.has(sp.jugador) ? sp.jugador : "all";
+  const filtered = filterId === "all"
+    ? snap.tournaments
+    : snap.tournaments.filter((t) => t.results.some((r) => r.playerId === filterId)
+        || snap.matches.some((m) => m.tournamentId === t.id && m.playerAId === filterId));
+  const filterPlayer = filterId === "all" ? undefined : snap.playersById.get(filterId);
+
+  // Solo se ofrece filtrar por quien de verdad ha ido a algo: una lista de
+  // chips con gente que no tiene torneos es ruido.
+  const playerOptions = snap.players
+    .filter((p) => snap.tournaments.some((t) => t.results.some((r) => r.playerId === p.id))
+      || snap.matches.some((m) => m.tournamentId && m.playerAId === p.id))
+    .map((p) => ({ value: p.id, label: p.name }));
 
   return (
     <>
@@ -75,15 +100,30 @@ export default async function TournamentsPage() {
         </section>
       )}
 
-      <SectionTitle aside={`${snap.tournaments.length} en total`}>Todos los torneos</SectionTitle>
+      <SectionTitle aside={`${filtered.length} de ${snap.tournaments.length}`}>
+        {filterPlayer ? `Torneos de ${filterPlayer.name}` : "Todos los torneos"}
+      </SectionTitle>
 
-      {snap.tournaments.length ? (
+      {playerOptions.length > 1 && (
+        <div className="mb-3">
+          <ScopeTabs
+            basePath="/torneos" param="jugador" current={filterId}
+            options={playerOptions} allLabel="Todos"
+          />
+        </div>
+      )}
+
+      {filtered.length ? (
         <div className="card divide-y divide-line-soft">
-          {snap.tournaments.map((t) => {
+          {filtered.map((t) => {
             const results = t.results;
             const best = results.filter((r) => r.placement != null)
               .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))[0];
             const cp = results.reduce((a, r) => a + r.cpEarned, 0);
+            // Con el filtro puesto interesa el resultado de esa persona, no el
+            // mejor del grupo: es la pregunta que se está haciendo.
+            const own = filterPlayer ? results.find((r) => r.playerId === filterPlayer.id) : undefined;
+            const ownRounds = filterPlayer ? roundsOf(snap.matches, t.id, filterPlayer.id) : [];
             return (
               <Link key={t.id} href={`/torneos/${t.id}`} className="block px-4 py-3 hover:bg-surface-2">
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
@@ -113,7 +153,27 @@ export default async function TournamentsPage() {
                   </span>
                 </div>
 
-                {(best || cp > 0) && (
+                {filterPlayer ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    {own?.placement && (
+                      <span className="chip">
+                        Puesto <b className="tabular">{own.placement}</b>
+                        {t.playerCount ? <span className="text-muted">/{t.playerCount}</span> : null}
+                      </span>
+                    )}
+                    {own && (own.wins || own.losses || own.ties) ? (
+                      <span className="chip font-mono tabular">
+                        {own.wins}–{own.losses}{own.ties ? `–${own.ties}` : ""}
+                      </span>
+                    ) : null}
+                    {ownRounds.length > 0 && (
+                      <span className="chip">{ownRounds.length} ronda(s) apuntada(s)</span>
+                    )}
+                    {own && own.cpEarned > 0 && <span className="chip chip-brand tabular">{own.cpEarned} CP</span>}
+                    {own?.deckId && <ArchTag archetype={snap.archIndex.get(own.deckId)} />}
+                    {own?.prizes && <span className="chip">🎁 {own.prizes}</span>}
+                  </div>
+                ) : (best || cp > 0) ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     {best?.placement && (
                       <span className="chip">
@@ -124,10 +184,16 @@ export default async function TournamentsPage() {
                     {cp > 0 && <span className="chip chip-brand tabular">{cp} CP</span>}
                     {best?.deckId && <ArchTag archetype={snap.archIndex.get(best.deckId)} />}
                   </div>
-                )}
+                ) : null}
               </Link>
             );
           })}
+        </div>
+      ) : filterPlayer ? (
+        <div className="card">
+          <Empty title={`${filterPlayer.name} no ha ido a ningún torneo todavía`}>
+            En cuanto apunte uno aparecerá aquí.
+          </Empty>
         </div>
       ) : (
         <div className="card">

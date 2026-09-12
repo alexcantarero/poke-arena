@@ -53,6 +53,18 @@
   --info: #2a56d8;
   --info-soft: #dde5ff;
 
+  /* rangos del ladder manual — medidos a 4,5:1 sobre este fondo.
+     Plata, oro y platino están más oscuros de lo que uno pondría a ojo
+     justamente porque a ojo no llegaban. Si tocas uno, vuelve a medirlo. */
+  --tier-bronce: #966034;
+  --tier-plata: #5f6b78;
+  --tier-oro: #8a6300;
+  --tier-platino: #16756a;
+  --tier-diamante: #2b64c2;
+  --tier-maestro: #7d3fc0;
+  --tier-granmaestro: #c0392b;
+  --tier-challenger: #0c7189;
+
   /* series de datos — paleta validada para daltonismo sobre este fondo */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -91,6 +103,16 @@
   --tie-soft: #202b45;
   --info: #87a3ff;
   --info-soft: #1a2648;
+
+  /* los mismos ocho rangos, subidos para el fondo oscuro */
+  --tier-bronce: #c08553;
+  --tier-plata: #aab7c4;
+  --tier-oro: #e0ac2b;
+  --tier-platino: #4ec9b7;
+  --tier-diamante: #5f9dff;
+  --tier-maestro: #a97ae8;
+  --tier-granmaestro: #e8695a;
+  --tier-challenger: #37c6e8;
 
   /* mismos siete tonos, escalonados para el fondo oscuro */
   --series-1: #3987e5;
@@ -279,6 +301,51 @@
   .scroll-x {
     @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
   }
+
+  /* --- rangos del ladder ---
+     El color del tier se aplica por `data-tier` y se hereda con `--tier`, así
+     que el chip, la barra y la fila de la clasificación no repiten la lista de
+     colores: solo dicen dónde lo usan.
+
+     El chip lo pone en el texto y el borde, sobre un fondo tintado al 12 %, y
+     no como relleno. Es lo que hace que el contraste dependa solo del par
+     color/página —que es el que está medido— y no de qué texto caiga encima. */
+  [data-tier="bronce"]      { --tier: var(--tier-bronce); }
+  [data-tier="plata"]       { --tier: var(--tier-plata); }
+  [data-tier="oro"]         { --tier: var(--tier-oro); }
+  [data-tier="platino"]     { --tier: var(--tier-platino); }
+  [data-tier="diamante"]    { --tier: var(--tier-diamante); }
+  [data-tier="maestro"]     { --tier: var(--tier-maestro); }
+  [data-tier="granmaestro"] { --tier: var(--tier-granmaestro); }
+  [data-tier="challenger"]  { --tier: var(--tier-challenger); }
+
+  .tier {
+    color: var(--tier);
+    border-color: color-mix(in oklab, var(--tier) 40%, transparent);
+    background: color-mix(in oklab, var(--tier) 12%, transparent);
+  }
+  .tier-bar > div > div { background: var(--tier); }
+  .tier-row { border-left-color: var(--tier); }
+
+  /* --- paneles de pestañas ---
+     Entran por el lado del que vienes. La dirección es lo que quita la
+     sensación de salto; un fundido a secas sigue pareciendo una recarga. */
+  .tab-panel-in,
+  .tab-panel-in-back {
+    animation: tab-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .tab-panel-in-back {
+    animation-name: tab-in-back;
+  }
+}
+
+@keyframes tab-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes tab-in-back {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

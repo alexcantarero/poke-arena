@@ -3,6 +3,9 @@ import { archetypeStats, isPlayed, standings } from "@/lib/stats";
 import { PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
 import { ScopeTabs } from "@/components/ScopeTabs";
+import { LadderTable } from "@/components/Ladder";
+import { ladderStandings } from "@/lib/rank";
+import { readSession } from "@/lib/auth";
 
 export const metadata = { title: "Ranking" };
 
@@ -10,7 +13,7 @@ export default async function RankingPage({
   searchParams,
 }: { searchParams: Promise<{ comp?: string }> }) {
   const { comp = "all" } = await searchParams;
-  const snap = await loadSnapshot();
+  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const played = snap.matches.filter(isPlayed);
   const competition = comp === "all" ? null : snap.compsById.get(comp);
   const scoped = competition ? played.filter((m) => m.competitionId === competition.id) : played;
@@ -38,6 +41,8 @@ export default async function RankingPage({
       topArchName: own[0]?.archetype?.name ?? null,
     };
   });
+
+  const ladder = ladderStandings(snap.players.filter((p) => p.active));
 
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
@@ -94,6 +99,23 @@ export default async function RankingPage({
           </div>
         </section>
       )}
+      {/* --- el ladder ---
+          Es otra clasificación y va aparte de la de arriba, no en una columna
+          más: la de arriba sale de vuestras partidas y esta la escribís
+          vosotros. Meterlas en la misma tabla habría hecho parecer que el
+          rango también se calcula. */}
+      <section className="card mt-4">
+        <div className="card-head">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold">Ladder</h2>
+            <p className="text-xs text-muted">
+              El rango que cada uno se pone a mano. No sale de las partidas.
+            </p>
+          </div>
+          <span className="text-xs text-muted">{ladder.length} con rango</span>
+        </div>
+        <LadderTable rows={ladder} meId={session?.playerId} />
+      </section>
     </>
   );
 }

@@ -42,7 +42,10 @@ export default async function LoginPage() {
       )}
 
       <p className="mt-5 text-center text-sm text-muted">
-        ¿Tienes un enlace de invitación? Ábrelo y te das de alta desde ahí.
+        ¿No tienes cuenta?{" "}
+        <Link href="/registro" className="font-semibold text-ink underline underline-offset-2">
+          Únete con tu código de invitación
+        </Link>
       </p>
       <p className="mt-1 text-center text-sm text-muted">
         <Link href="/" className="underline underline-offset-2">Volver</Link>

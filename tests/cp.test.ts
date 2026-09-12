@@ -36,24 +36,51 @@ test("los alias puntúan como su equivalente y comparten contador", () => {
 });
 
 test("el Best Finish Limit descarta los peores resultados", () => {
-  // Siete League Cups, límite 6: se cae la peor.
+  // Los límites de esta liga son de casa y no los oficiales: 4 Challenges,
+  // 4 Cups y 5 Regionales. Siete League Cups, límite 4: se caen las tres
+  // peores. Si alguien cambia el `bfl` en cp.ts, esta prueba lo avisa.
   const results = [50, 40, 32, 24, 20, 16, 13].map((cp, i) =>
     r({ id: "c" + i, kind: "league_cup", placement: null, cpEarned: cp, cpManual: true }));
   const out = computeCp(2026, results);
-  assert.equal(out.total, 50 + 40 + 32 + 24 + 20 + 16);
-  assert.equal(out.rows.filter((x) => x.excluded).length, 1);
-  assert.equal(out.rows.find((x) => x.excluded)?.cpEarned, 13);
+  assert.equal(out.total, 50 + 40 + 32 + 24);
+  assert.equal(out.rows.filter((x) => x.excluded).length, 3);
+  assert.deepEqual(
+    out.rows.filter((x) => x.excluded).map((x) => x.cpEarned).sort((a, b) => b - a),
+    [20, 16, 13],
+  );
 });
 
-test("Pokémon Cup y League Cup compiten por los mismos seis huecos", () => {
-  const cups = [1, 2, 3, 4, 5, 6].map((i) =>
+test("los límites de casa son 4 Challenges, 4 Cups y 5 Regionales", () => {
+  // Cada contador va por separado: ocho Cups y ocho Challenges no compiten
+  // entre sí. Si algún día se quiere un único cubo de 4 para los dos, se pone
+  // `sharesBflWith: "league_cup"` en `league_challenge` y esta prueba cae.
+  const many = (kind: string, n: number, cp: number) =>
+    Array.from({ length: n }, (_, i) =>
+      r({ id: `${kind}${i}`, kind, placement: null, cpEarned: cp, cpManual: true }));
+
+  for (const season of [2026, 2027]) {
+    const out = computeCp(season, [
+      ...many("league_challenge", 6, 15),
+      ...many("league_cup", 6, 50),
+      ...many("regional", 7, 100),
+    ]);
+    const b = (k: string) => out.buckets.find((x) => x.bucket === k);
+    assert.equal(b("league_challenge")?.bfl, 4, `challenges en ${season}`);
+    assert.equal(b("league_cup")?.bfl, 4, `cups en ${season}`);
+    assert.equal(b("regional")?.bfl, 5, `regionales en ${season}`);
+    assert.equal(out.total, 4 * 15 + 4 * 50 + 5 * 100, `total en ${season}`);
+  }
+});
+
+test("Pokémon Cup y League Cup compiten por los mismos cuatro huecos", () => {
+  const cups = [1, 2, 3, 4].map((i) =>
     r({ id: "lc" + i, kind: "league_cup", placement: 1, playerCount: 40 }));
   const extra = r({ id: "pc1", kind: "pokemon_cup", placement: 1, playerCount: 40 });
   const out = computeCp(2026, [...cups, extra]);
-  assert.equal(out.total, 6 * 50, "el séptimo resultado no debe sumar");
+  assert.equal(out.total, 4 * 50, "el quinto resultado no debe sumar");
   assert.equal(out.rows.filter((x) => x.excluded).length, 1);
   const bucket = out.buckets.find((b) => b.bucket === "league_cup");
-  assert.equal(bucket?.counting, 6);
+  assert.equal(bucket?.counting, 4);
   assert.equal(bucket?.spare, 0);
 });
 
@@ -75,7 +102,8 @@ test("los huecos libres de cada contador se cuentan bien", () => {
   ]);
   const bucket = out.buckets.find((b) => b.bucket === "league_cup");
   assert.equal(bucket?.counting, 2);
-  assert.equal(bucket?.spare, 4);
+  // Cuatro huecos de Cup, dos usados.
+  assert.equal(bucket?.spare, 2);
 });
 
 test("la simulación dice la ganancia real, no la nominal", () => {

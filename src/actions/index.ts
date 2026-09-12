@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  archetypes, competitionPlayers, competitions, decks, events, games, invites, matches,
-  players, settings, tournamentResults, tournaments,
+  archetypes, competitionPlayers, competitions, decks, events, games, invites, ladderEntries,
+  matches, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -18,6 +18,7 @@ import { isIsoDate, newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
 import { cpForPlacement, seasonOfDate } from "@/lib/cp";
 import { pairRound } from "@/lib/stats";
+import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { loadSnapshot } from "@/lib/data";
 import type { FormState } from "@/lib/types";
 
@@ -619,9 +620,26 @@ export async function saveTournament(fd: FormData) {
   redirect(`/torneos/${id}`);
 }
 
+/**
+ * Borrar un torneo: la cabecera, los resultados de todos y las rondas.
+ *
+ * Pide escribir el nombre del torneo. Y borra las rondas a mano, antes que la
+ * cabecera, porque `matches.tournamentId` es ON DELETE SET NULL: sin este
+ * paso, las rondas se quedaban como partidas sin competición y sin torneo
+ * —invisibles en las pantallas, pero vivas en las estadísticas de arquetipo—.
+ * Los resultados sí se van en cascada solos.
+ */
 export async function deleteTournament(fd: FormData) {
   await requireManager();
-  await db.delete(tournaments).where(eq(tournaments.id, str(fd, "id")));
+  const id = str(fd, "id");
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, id)))[0];
+  if (!tour || !confirmed(fd, tour.name)) return;
+
+  // Solo las rondas: son las partidas del torneo contra rivales de fuera. Una
+  // partida entre dos de la liga que además esté etiquetada a este torneo se
+  // conserva, y simplemente se queda sin la etiqueta.
+  await db.delete(matches).where(and(eq(matches.tournamentId, id), isNull(matches.playerBId)));
+  await db.delete(tournaments).where(eq(tournaments.id, id));
   refresh();
   redirect("/torneos");
 }
@@ -811,4 +829,336 @@ export async function saveSettings(fd: FormData) {
   if (existing[0]) await db.update(settings).set(values).where(eq(settings.id, "default"));
   else await db.insert(settings).values({ id: "default", ...values });
   refresh();
+}
+
+/* ============================================================ v0.3.0 ==== */
+
+/* ------------------------------------------------- rondas de un torneo -- */
+
+/**
+ * Registrar una ronda de un torneo de fuera, mientras se juega.
+ *
+ * Una ronda es una fila de `matches` con `tournamentId`, `round` y
+ * `playerBId` nulo. No hay tabla nueva: ver la explicación en
+ * `src/lib/stats.ts`, en la sección de rondas de torneo, que es donde está
+ * el porqué.
+ *
+ * Dos maneras de rellenarla, porque el caso real es estar en el evento con
+ * dos minutos antes de que salgan los emparejamientos:
+ *
+ *   · `mode=quick` — rival, su mazo, salí 1.º o 2.º, y gané/empaté/perdí.
+ *     El resultado se guarda en `matches.seriesResult`. Cuatro toques.
+ *   · `mode=games` — el desglose juego a juego. Es lo que alimenta la
+ *     estadística de ventaja del primer turno, así que merece la pena cuando
+ *     hay tiempo.
+ *
+ * Sin resultado la ronda se guarda abierta y se cierra luego: es justo lo que
+ * pasa cuando apuntas el emparejamiento antes de empezar a jugar.
+ */
+export async function saveTournamentRound(fd: FormData) {
+  const actor = await requireActor();
+
+  const tournamentId = str(fd, "tournamentId");
+  if (!tournamentId) return;
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
+  if (!tour) return;
+
+  // De quién es la ronda. La propia siempre; la de otro solo un organizador.
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!owns(actor, playerId)) return;
+
+  const round = int(fd, "round", 1, 1, 50);
+  const bestOf = [1, 3, 5].includes(tour.bestOf) ? tour.bestOf : 3;
+  const opponentName = str(fd, "opponentName").slice(0, 60);
+  if (!opponentName) return;
+
+  const first = pick(fd, "first", ["", "a", "b"] as const, "");
+  const mode = pick(fd, "mode", ["quick", "games"] as const, "quick");
+
+  // Los juegos: solo del 1 al bestOf, solo con ganador reconocible, y sin
+  // pasarse de la mayoría —un 3-0 en un Bo3 no debe poder guardarse—. Es la
+  // misma comprobación que en `saveMatch`, y por el mismo motivo.
+  const need = Math.ceil(bestOf / 2);
+  const rows: Array<{ number: number; winner: string; first: string; prizesLeft: number | null }> = [];
+  if (mode === "games") {
+    let wonA = 0, wonB = 0;
+    for (let i = 0; i < bestOf; i++) {
+      const winner = str(fd, `g${i}_winner`);
+      if (!["a", "b", "tie"].includes(winner)) continue;
+      if (winner === "a") wonA++;
+      if (winner === "b") wonB++;
+      if (wonA > need || wonB > need) return;
+      rows.push({
+        number: i + 1,
+        winner,
+        first: i === 0 ? first : pick(fd, `g${i}_first`, ["", "a", "b"] as const, ""),
+        prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
+      });
+    }
+  }
+
+  // El resultado declarado. Con desglose solo se guarda cuando hace falta para
+  // desempatar: un 1–1 en un Bo3 es empate si se acabó el tiempo y una ronda a
+  // medias si no, y los juegos apuntados son idénticos en los dos casos.
+  const declared = pick(fd, "result", ["", "a", "b", "tie"] as const, "");
+  let seriesResult: string | null = null;
+  if (mode === "quick") {
+    seriesResult = declared || null;
+  } else {
+    const wonA = rows.filter((r) => r.winner === "a").length;
+    const wonB = rows.filter((r) => r.winner === "b").length;
+    const settled = wonA >= need || wonB >= need;
+    seriesResult = settled ? null : (bool(fd, "timeCalled") ? (wonA > wonB ? "a" : wonB > wonA ? "b" : "tie") : null);
+  }
+
+  const values = {
+    competitionId: null,
+    tournamentId,
+    round,
+    date: tour.date,
+    playerAId: playerId,
+    playerBId: null,
+    opponentName,
+    deckAId: str(fd, "deckAId") || null,
+    deckBId: null,
+    opponentArchetypeId: str(fd, "opponentArchetypeId") || null,
+    bestOf,
+    status: "done" as const,
+    seriesResult,
+    firstTurn: first,
+    note: str(fd, "note").slice(0, 300),
+    createdBy: actor.id,
+  };
+
+  // ¿Ya existe esa ronda? Se actualiza. El índice único de (torneo, jugador,
+  // ronda) impide duplicarla si alguien toca dos veces el botón en el móvil.
+  const existing = (await db.select({ id: matches.id }).from(matches).where(and(
+    eq(matches.tournamentId, tournamentId),
+    eq(matches.playerAId, playerId),
+    eq(matches.round, round),
+  )))[0];
+
+  const id = existing?.id ?? newId("m");
+  if (existing) {
+    await db.update(matches).set(values).where(eq(matches.id, id));
+    await db.delete(games).where(eq(games.matchId, id));
+  } else {
+    await db.insert(matches).values({ id, ...values });
+  }
+  if (rows.length) {
+    await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
+  }
+
+  await syncTournamentRecord(tournamentId, playerId);
+  refresh();
+  redirect(`/torneos/${tournamentId}`);
+}
+
+export async function deleteTournamentRound(fd: FormData) {
+  const actor = await requireActor();
+  const id = str(fd, "id");
+  const row = (await db.select().from(matches).where(eq(matches.id, id)))[0];
+  if (!row || !row.tournamentId) return;
+  if (!owns(actor, row.playerAId)) return;
+
+  await db.delete(matches).where(eq(matches.id, id));
+  await syncTournamentRecord(row.tournamentId, row.playerAId);
+  refresh();
+  redirect(`/torneos/${row.tournamentId}`);
+}
+
+/**
+ * Escribe en `tournament_results` el récord que sale de las rondas.
+ *
+ * El puesto, los CP y los premios NO se tocan: de tus propias rondas no se
+ * puede deducir en qué posición has quedado, así que eso lo sigue metiendo
+ * una persona cuando salga la clasificación final.
+ *
+ * Si todavía no había fila de resultado, se crea: apuntar la primera ronda es
+ * lo que te inscribe en el torneo, sin un paso previo.
+ */
+async function syncTournamentRecord(tournamentId: string, playerId: string) {
+  const rounds = await db.select().from(matches).where(and(
+    eq(matches.tournamentId, tournamentId),
+    eq(matches.playerAId, playerId),
+    isNull(matches.playerBId),
+  )).orderBy(asc(matches.round));
+  if (!rounds.length) return;
+
+  const ids = rounds.map((r) => r.id);
+  const gameRows = ids.length
+    ? await db.select().from(games).where(inArray(games.matchId, ids))
+    : [];
+
+  let wins = 0, losses = 0, ties = 0;
+  for (const m of rounds) {
+    const mine = gameRows.filter((g) => g.matchId === m.id);
+    const need = Math.floor(m.bestOf / 2) + 1;
+    const ga = mine.filter((g) => g.winner === "a").length;
+    const gb = mine.filter((g) => g.winner === "b").length;
+
+    let r: "w" | "l" | "d" | null = null;
+    if (mine.length === 0) {
+      r = m.seriesResult === "a" ? "w" : m.seriesResult === "b" ? "l" : m.seriesResult === "tie" ? "d" : null;
+    } else if (ga >= need) r = "w";
+    else if (gb >= need) r = "l";
+    else if (m.seriesResult === "a") r = "w";
+    else if (m.seriesResult === "b") r = "l";
+    else if (m.seriesResult === "tie") r = "d";
+    else if (mine.length >= m.bestOf) r = ga > gb ? "w" : gb > ga ? "l" : "d";
+
+    if (r === "w") wins++;
+    else if (r === "l") losses++;
+    else if (r === "d") ties++;
+  }
+
+  await db.insert(tournamentResults)
+    .values({ id: newId("tr"), tournamentId, playerId, wins, losses, ties })
+    .onConflictDoUpdate({
+      target: [tournamentResults.tournamentId, tournamentResults.playerId],
+      set: { wins, losses, ties },
+    });
+}
+
+/** Recalcular el récord a mano, por si alguien editó rondas sueltas. */
+export async function refreshTournamentRecord(fd: FormData) {
+  const actor = await requireActor();
+  const tournamentId = str(fd, "tournamentId");
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!tournamentId || !owns(actor, playerId)) return;
+  await syncTournamentRecord(tournamentId, playerId);
+  refresh();
+}
+
+/* --------------------------------------------------------- ladder manual -- */
+
+/**
+ * Poner o cambiar el rango del ladder.
+ *
+ * El rango propio lo cambia cada uno; el de otra persona, solo un
+ * organizador. El rango se acota en el formulario, aquí, y con un CHECK en la
+ * base de datos: tres sitios, porque una Server Action es un endpoint público
+ * y a esta se puede llamar con 99999 desde la consola del navegador.
+ */
+export async function setLadderElo(fd: FormData) {
+  const actor = await requireActor();
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!owns(actor, playerId)) return;
+
+  const raw = maybeNum(fd, "ladderElo");
+  if (raw == null) return;
+  const elo = Math.min(LADDER_MAX, Math.max(LADDER_MIN, Math.round(raw)));
+  const note = str(fd, "ladderNote").slice(0, 200);
+
+  await db.update(players)
+    .set({ ladderElo: elo, ladderEloUpdatedAt: new Date(), ladderNote: note })
+    .where(eq(players.id, playerId));
+
+  // Cada cambio deja historial, que es lo que permite pintar la evolución.
+  await db.insert(ladderEntries).values({
+    id: newId("le"), playerId, elo, note, createdBy: actor.id,
+  });
+
+  refresh();
+  redirect(`/perfil/${playerId}`);
+}
+
+export async function clearLadderElo(fd: FormData) {
+  const actor = await requireActor();
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!owns(actor, playerId)) return;
+  await db.update(players)
+    .set({ ladderElo: null, ladderEloUpdatedAt: new Date(), ladderNote: "" })
+    .where(eq(players.id, playerId));
+  refresh();
+  redirect(`/perfil/${playerId}`);
+}
+
+/* ------------------------------------------------------ zona de riesgo -- */
+
+/**
+ * Compara lo que ha escrito la persona con lo que se espera, sin ser
+ * quisquilloso con mayúsculas ni espacios de más.
+ *
+ * Todos los borrados gordos piden escribir a mano el nombre de lo que se
+ * borra. Es el patrón de GitHub al borrar un repositorio, y está por una
+ * razón concreta: un botón de «borrar torneo» sin fricción se pulsa sin mirar,
+ * y esto no tiene deshacer.
+ */
+function confirmed(fd: FormData, expected: string) {
+  const norm = (x: string) => x.trim().replace(/\s+/g, " ").toLowerCase();
+  return Boolean(expected) && norm(str(fd, "confirm")) === norm(expected);
+}
+
+/**
+ * Vaciar una temporada: sus torneos, las rondas de esos torneos y los
+ * resultados. No toca jugadores, mazos, arquetipos ni la liga interna.
+ */
+export async function wipeSeason(fd: FormData) {
+  const actor = await requireActor();
+  if (!isOwner(actor.role)) return;
+  const season = int(fd, "season", 0, 2000, 2100);
+  if (!season || !confirmed(fd, `borrar temporada ${season}`)) return;
+
+  const rows = await db.select({ id: tournaments.id }).from(tournaments)
+    .where(eq(tournaments.season, season));
+  if (rows.length) {
+    const ids = rows.map((r) => r.id);
+    // Las rondas primero: `matches.tournamentId` es ON DELETE SET NULL, así que
+    // borrar el torneo sin más dejaría partidas huérfanas sin competición ni
+    // torneo, invisibles en todas las pantallas pero contando en el ranking.
+    await db.delete(matches).where(and(inArray(matches.tournamentId, ids), isNull(matches.playerBId)));
+    await db.delete(tournaments).where(inArray(tournaments.id, ids));
+  }
+  refresh();
+  redirect("/torneos");
+}
+
+/**
+ * Borrar todo el historial de juego y quedarse con la gente.
+ *
+ * Sobreviven: jugadores con sus cuentas, mazos y arquetipos. Se van: partidas,
+ * juegos, competiciones, torneos, resultados, eventos y el ladder.
+ */
+export async function resetLeague(fd: FormData) {
+  const actor = await requireActor();
+  if (!isOwner(actor.role)) return;
+  if (!confirmed(fd, "borrar todo el historial")) return;
+
+  await db.delete(matches);          // `games` se va en cascada
+  await db.delete(competitionPlayers);
+  await db.delete(competitions);
+  await db.delete(tournamentResults);
+  await db.delete(tournaments);
+  await db.delete(events);
+  await db.delete(ladderEntries);
+  await db.update(players).set({ ladderElo: null, ladderNote: "" });
+  refresh();
+  redirect("/");
+}
+
+/**
+ * Borrar de verdad a una persona, con todo lo suyo.
+ *
+ * `deletePlayer` desactiva en vez de borrar cuando hay historial, y hace bien:
+ * es lo que mantiene el ranking coherente. Esto es la salida de emergencia
+ * para cuando de verdad quieres que no quede rastro —una cuenta de prueba, un
+ * alta duplicada—, y por eso es solo del propietario y pide el nombre escrito.
+ */
+export async function purgePlayer(fd: FormData) {
+  const actor = await requireActor();
+  if (!isOwner(actor.role)) return;
+  const id = str(fd, "id");
+  if (!id || id === actor.id) return;
+
+  const target = (await db.select().from(players).where(eq(players.id, id)))[0];
+  if (!target || !confirmed(fd, target.name)) return;
+  if (target.role === "owner" && (await ownerCount()) <= 1) return;
+
+  // Sus partidas primero: si no, el ON DELETE de `players` las deja con un
+  // jugador que ya no existe y las clasificaciones dejan de cuadrar.
+  await db.delete(matches).where(or(eq(matches.playerAId, id), eq(matches.playerBId, id)));
+  await db.delete(players).where(eq(players.id, id));
+  refresh();
+  redirect("/ajustes");
 }

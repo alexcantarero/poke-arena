@@ -7,7 +7,8 @@ import { PageHead, SectionTitle } from "@/components/ui";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
-import { saveSettings } from "@/actions";
+import { isOwner } from "@/lib/auth";
+import { purgePlayer, resetLeague, saveSettings, wipeSeason } from "@/actions";
 
 export const metadata = { title: "Ajustes" };
 
@@ -15,12 +16,22 @@ export default async function SettingsPage() {
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   if (!me) redirect("/entrar");
   const manager = canManageLeague(me.role);
+  const owner = isOwner(me.role);
   const invites = manager ? await loadInvites() : [];
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
 
   const played = snap.matches.filter(isPlayed);
   const counts = Object.fromEntries(
     snap.players.map((p) => [p.id, played.filter((m) => sideOf(m, p.id)).length]),
+  );
+
+  // Solo se ofrecen temporadas que de verdad tienen torneos: un desplegable
+  // con años vacíos invita a borrar la equivocada.
+  const seasonsWithTournaments = [...new Set(
+    snap.tournaments.map((t) => t.season).filter((x): x is number => x != null),
+  )].sort((a, b) => b - a);
+  const tournamentsBySeason = Object.fromEntries(
+    seasonsWithTournaments.map((y) => [y, snap.tournaments.filter((t) => t.season === y).length]),
   );
 
   return (
@@ -114,6 +125,116 @@ export default async function SettingsPage() {
       <SectionTitle>Tu cuenta</SectionTitle>
       <PasswordForm />
 
+      {/* ---------------------------------------------------------------
+          Zona de riesgo.
+
+          Todo esto es solo del propietario y todo pide escribir a mano lo que
+          se va a borrar. Es el patrón de GitHub al borrar un repositorio, y
+          está por un motivo concreto: nada de esto tiene deshacer, y un botón
+          sin fricción se pulsa sin leer.
+
+          Va al final de la página y detrás de un `details` por lo mismo: no
+          es algo con lo que uno se tropiece buscando otra cosa.
+          --------------------------------------------------------------- */}
+      {owner && (
+        <>
+          <SectionTitle aside="solo el propietario">Zona de riesgo</SectionTitle>
+          <div className="flex flex-col gap-3">
+
+            {seasonsWithTournaments.length > 0 && (
+              <details className="card border-loss/40">
+                <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold text-loss">
+                  Vaciar una temporada
+                </summary>
+                <form action={wipeSeason} className="flex flex-col gap-3 border-t border-line-soft p-4">
+                  <p className="text-sm text-ink-2">
+                    Borra los torneos de esa temporada, los resultados de todos y las rondas
+                    apuntadas. No toca jugadores, mazos, arquetipos ni la liga interna.
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="label" htmlFor="wipeSeason">Temporada</label>
+                    <select className="input" id="wipeSeason" name="season" defaultValue={seasonsWithTournaments[0]}>
+                      {seasonsWithTournaments.map((y) => (
+                        <option key={y} value={y}>
+                          {y} — {tournamentsBySeason[y]} torneo(s)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="label" htmlFor="wipeConfirm">
+                      Escribe «borrar temporada {seasonsWithTournaments[0]}»
+                    </label>
+                    <input
+                      className="input font-mono text-sm" id="wipeConfirm" name="confirm" required
+                      autoComplete="off" placeholder={`borrar temporada ${seasonsWithTournaments[0]}`}
+                    />
+                    <p className="text-xs text-muted">
+                      Si cambias la temporada de arriba, la frase también cambia: es
+                      «borrar temporada» y el año que hayas elegido.
+                    </p>
+                  </div>
+                  <button className="btn btn-danger" type="submit">Vaciar la temporada</button>
+                </form>
+              </details>
+            )}
+
+            <details className="card border-loss/40">
+              <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold text-loss">
+                Borrar todo el historial
+              </summary>
+              <form action={resetLeague} className="flex flex-col gap-3 border-t border-line-soft p-4">
+                <p className="text-sm text-ink-2">
+                  Empezar de cero manteniendo a la gente. Se van las {played.length} partidas,
+                  las competiciones, los {snap.tournaments.length} torneos, el calendario y el
+                  ladder. Se quedan los jugadores con sus cuentas, sus mazos y los arquetipos.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label" htmlFor="resetConfirm">Escribe «borrar todo el historial»</label>
+                  <input
+                    className="input font-mono text-sm" id="resetConfirm" name="confirm" required
+                    autoComplete="off" placeholder="borrar todo el historial"
+                  />
+                </div>
+                <button className="btn btn-danger" type="submit">Borrar el historial</button>
+              </form>
+            </details>
+
+            <details className="card border-loss/40">
+              <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold text-loss">
+                Borrar una persona del todo
+              </summary>
+              <form action={purgePlayer} className="flex flex-col gap-3 border-t border-line-soft p-4">
+                <p className="text-sm text-ink-2">
+                  Arriba, en «Jugadores», lo normal es <b>desactivar</b>: la persona deja de
+                  aparecer pero su historial sigue ahí y el ranking cuadra. Esto es lo otro —no
+                  queda rastro—, y es para cuentas de prueba o altas duplicadas.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label" htmlFor="purgeId">Quién</label>
+                  <select className="input" id="purgeId" name="id" required defaultValue="">
+                    <option value="" disabled>— elegir —</option>
+                    {snap.players.filter((p) => p.id !== me.id).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {counts[p.id] ?? 0} partida(s)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label" htmlFor="purgeConfirm">Escribe su nombre exacto</label>
+                  <input
+                    className="input" id="purgeConfirm" name="confirm" required
+                    autoComplete="off" placeholder="Nombre tal como aparece arriba"
+                  />
+                </div>
+                <button className="btn btn-danger" type="submit">Borrar a esa persona y todo lo suyo</button>
+              </form>
+            </details>
+          </div>
+        </>
+      )}
+
       <section className="card mt-6 p-4">
         <h2 className="mb-2 text-lg font-bold">Cómo se calcula todo</h2>
         <div className="flex flex-col gap-2 text-sm text-ink-2">
@@ -121,7 +242,9 @@ export default async function SettingsPage() {
           <p><b>%V.</b> Victorias más medio empate, entre partidas jugadas.</p>
           <p><b>Resistencia.</b> Media del % de victorias de tus rivales, con suelo del 25% por rival, como en el reglamento de Play! Pokémon.</p>
           <p><b>Elo.</b> Recalculado en orden cronológico sobre todas las partidas <i>internas</i> de la liga. Las partidas contra gente de fuera no puntúan, porque no habría contra quién compensar.</p>
-          <p><b>Championship Points.</b> Se calculan con la tabla de la temporada y descartando lo que se sale del Best Finish Limit. Las tablas están en <code className="rounded bg-surface-2 px-1 font-mono text-xs">src/lib/cp.ts</code>.</p>
+          <p><b>Championship Points.</b> Se calculan con la tabla de la temporada y descartando lo que se sale del Best Finish Limit. Los límites de esta liga son de casa: <b>4 mejores Challenges, 4 mejores Cups y 5 mejores Regionales</b>. Las tablas están en <code className="rounded bg-surface-2 px-1 font-mono text-xs">src/lib/cp.ts</code>.</p>
+          <p><b>Rango del ladder.</b> Ese número lo pone cada uno en su perfil y no sale de ningún cálculo. Es aparte del Elo justamente para que se vea que son dos cosas distintas.</p>
+          <p><b>Papeles.</b> <i>Jugador</i> gestiona lo suyo: su perfil, sus mazos, sus partidas, sus torneos y su rango. <i>Admin</i> además crea y borra competiciones y torneos, edita las partidas de cualquiera y genera invitaciones. <i>Propietario</i> es el único que reparte papeles, desactiva gente y usa la zona de riesgo.</p>
         </div>
       </section>
     </>

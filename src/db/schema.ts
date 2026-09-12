@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -72,6 +73,14 @@ export const players = pgTable("players", {
   favoriteArchetypeId: text("favorite_archetype_id"),
   /** Nombre de jugador en Play! Pokémon, para casar resultados oficiales. */
   playerTag: text("player_tag"),
+
+  /* --- ladder manual ---
+     El rango que cada uno se pone a mano para picarse, de 1500 (Bronce) a
+     2000 (Challenger). NO es el Elo de la liga: ese lo calcula stats.ts desde
+     las partidas y no se puede tocar. Son dos números distintos a propósito. */
+  ladderElo: integer("ladder_elo"),
+  ladderEloUpdatedAt: timestamp("ladder_elo_updated_at", { withTimezone: true }),
+  ladderNote: text("ladder_note").notNull().default(""),
 
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
@@ -170,6 +179,32 @@ export const matches = pgTable("matches", {
   bestOf: integer("best_of").notNull().default(3),
   /** scheduled · done */
   status: text("status").notNull().default("done"),
+  /**
+   * Resultado de la serie declarado a mano: "a" · "b" · "tie" · null.
+   *
+   * Existe para el registro rápido de rondas de torneo, donde a veces solo se
+   * sabe "esta ronda la gané" y no el desglose juego a juego. Si hay filas en
+   * `games`, manda el desglose y esta columna se ignora: el marcador se sigue
+   * contando, nunca se guarda.
+   *
+   * Y resuelve una ambigüedad que si no es irresoluble: un 1-1 esperando el
+   * tercer juego y un 1-1 con el tiempo agotado tienen los mismos juegos
+   * apuntados, pero uno es una ronda a medias y el otro un empate.
+   */
+  seriesResult: text("series_result"),
+  /**
+   * Quién salió primero en el primer juego: "a" · "b" · "".
+   *
+   * En una ronda de suizo el orden del primer juego lo decide la moneda y es
+   * el dato que se recuerda ("salí primero y perdí igual"); del segundo y el
+   * tercero ya lo decide el resultado anterior. Vive aquí y no solo en
+   * `games.first` porque el registro rápido de una ronda apunta el resultado
+   * de la serie sin desglosar juegos, y entonces no hay ninguna fila de
+   * `games` donde meterlo.
+   *
+   * Si hay juegos, `games[0].first` es la fuente buena y esto es una copia.
+   */
+  firstTurn: text("first_turn").notNull().default(""),
   note: text("note").notNull().default(""),
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -179,6 +214,12 @@ export const matches = pgTable("matches", {
   index("matches_a_idx").on(t.playerAId),
   index("matches_b_idx").on(t.playerBId),
   index("matches_date_idx").on(t.date),
+  // Una ronda de un torneo es única por jugador: evita duplicar la ronda 3 de
+  // un doble toque en el móvil. Parcial, porque las partidas de liga no llevan
+  // torneo y comparten `round` sin problema.
+  uniqueIndex("matches_tour_round_idx")
+    .on(t.tournamentId, t.playerAId, t.round)
+    .where(sql`${t.tournamentId} is not null`),
 ]);
 
 /** Cada juego individual dentro de la serie. Aquí vive el detalle fino. */
@@ -276,6 +317,22 @@ export const tournamentResults = pgTable("tournament_results", {
   index("tr_player_idx").on(t.playerId),
 ]);
 
+/* ------------------------------------------------------- ladder manual --- */
+
+/**
+ * Cada cambio de rango deja una fila aquí. `players.ladderElo` es el valor
+ * actual; esto es el historial, y es lo que permite pintar la evolución.
+ */
+export const ladderEntries = pgTable("ladder_entries", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  elo: integer("elo").notNull(),
+  note: text("note").notNull().default(""),
+  /** Quién lo apuntó: uno mismo, o un organizador corrigiendo. */
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("ladder_player_idx").on(t.playerId)]);
+
 /* ------------------------------------------------------------ eventos --- */
 
 /** Calendario: jornadas, torneos previstos, fechas límite. */
@@ -302,4 +359,5 @@ export type Game = typeof games.$inferSelect;
 export type Tournament = typeof tournaments.$inferSelect;
 export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
+export type LadderEntry = typeof ladderEntries.$inferSelect;
 export type Settings = typeof settings.$inferSelect;

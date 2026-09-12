@@ -33,6 +33,10 @@ export const PUBLIC_PLAYER_COLUMNS = {
   bio: players.bio,
   favoriteArchetypeId: players.favoriteArchetypeId,
   playerTag: players.playerTag,
+  // El rango del ladder sí es público: el sentido es que se vea.
+  ladderElo: players.ladderElo,
+  ladderEloUpdatedAt: players.ladderEloUpdatedAt,
+  ladderNote: players.ladderNote,
   joined: players.joined,
   lastSeenAt: players.lastSeenAt,
   createdAt: players.createdAt,

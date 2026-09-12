@@ -10,6 +10,12 @@
    · El **Best Finish Limit**: de cada tipo de evento solo cuentan tus N
      mejores resultados. Y algunos tipos comparten contador — un Pokémon Cup
      cuenta contra el mismo límite que una League Cup.
+
+     Los límites de esta liga son **de casa**, no los oficiales: 4 mejores
+     Challenges, 4 mejores Cups y 5 mejores Regionales. Se cambian en el campo
+     `bfl` de cada tipo, en las tablas del final. Para que Challenges y Cups
+     compartieran un único cubo de 4, bastaría con poner
+     `"sharesBflWith": "league_cup"` en `league_challenge`.
    · El **kicker**: el valor de CP de un puesto es fijo; lo que depende de la
      asistencia es si ese tramo reparte puntos o no. Un 9.º puesto en una
      League Challenge de 30 personas no cobra, porque ese tramo necesita 48.
@@ -137,6 +143,12 @@ export type CpResultInput = {
 };
 
 export type CpBreakdownRow = CpResultInput & {
+  /**
+   * Los CP que vale el resultado, antes del límite. Es lo que hace falta para
+   * poder enseñar «esto te lo estás dejando fuera»: en un resultado excluido
+   * `counted` es 0 y sin este campo el valor perdido no se puede recuperar.
+   */
+  value: number;
   /** Los CP que de verdad suman al total, ya aplicado el límite. */
   counted: number;
   /** true cuando el resultado se queda fuera por Best Finish Limit. */
@@ -276,7 +288,7 @@ export const CP_2026: CpSeason = {
   "events": {
     "league_challenge": {
       "label": "League Challenge",
-      "bfl": 6,
+      "bfl": 4,
       "sharesBflWith": null,
       "tiers": [
         {
@@ -319,7 +331,7 @@ export const CP_2026: CpSeason = {
     },
     "league_cup": {
       "label": "League Cup",
-      "bfl": 6,
+      "bfl": 4,
       "sharesBflWith": null,
       "tiers": [
         {
@@ -378,7 +390,7 @@ export const CP_2026: CpSeason = {
     },
     "regional": {
       "label": "Regional Championship",
-      "bfl": 6,
+      "bfl": 5,
       "sharesBflWith": null,
       "tiers": [
         {
@@ -566,7 +578,7 @@ export const CP_2027: CpSeason = {
   "events": {
     "league_challenge": {
       "label": "League Challenge",
-      "bfl": 6,
+      "bfl": 4,
       "sharesBflWith": null,
       "tiers": [
         {
@@ -609,7 +621,7 @@ export const CP_2027: CpSeason = {
     },
     "league_cup": {
       "label": "League Cup",
-      "bfl": 6,
+      "bfl": 4,
       "sharesBflWith": null,
       "tiers": [
         {
@@ -668,7 +680,7 @@ export const CP_2027: CpSeason = {
     },
     "regional": {
       "label": "Regional Championship",
-      "bfl": 6,
+      "bfl": 5,
       "sharesBflWith": null,
       "tiers": [
         {

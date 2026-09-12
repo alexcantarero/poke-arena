@@ -3,9 +3,20 @@
 import { useActionState, useState } from "react";
 import { register } from "@/actions";
 
-export function RegisterForm({ token }: { token: string }) {
+export function RegisterForm({
+  token, askForToken = false,
+}: {
+  token: string;
+  /** true en `/registro`, donde el código se escribe a mano. */
+  askForToken?: boolean;
+}) {
   const [state, action, pending] = useActionState(register, null);
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState(token);
+
+  // Se acepta el enlace entero pegado y se queda con la última parte: nadie va
+  // a mirar dónde acaba la URL y dónde empieza el código.
+  const cleanCode = code.trim().replace(/[?#].*$/, "").replace(/\/+$/, "").split("/").pop() ?? "";
 
   // Aviso en vivo: es mucho menos frustrante que descubrirlo al enviar.
   const short = password.length > 0 && password.length < 8;
@@ -13,7 +24,18 @@ export function RegisterForm({ token }: { token: string }) {
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="token" value={token} />
+      {askForToken ? (
+        <div className="flex flex-col gap-1.5">
+          <label className="label" htmlFor="code">Código de invitación</label>
+          <input
+            className="input font-mono text-sm" id="code" required
+            autoComplete="off" autoCapitalize="none" spellCheck={false}
+            value={code} onChange={(e) => setCode(e.target.value)}
+            placeholder="Pega aquí el código o el enlace entero"
+          />
+        </div>
+      ) : null}
+      <input type="hidden" name="token" value={askForToken ? cleanCode : token} />
 
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor="name">Cómo te llamamos</label>
