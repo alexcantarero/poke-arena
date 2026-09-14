@@ -1,6 +1,7 @@
 import type { Archetype } from "@/lib/types";
 import type { Matrix as MatrixData } from "@/lib/stats";
 import { Sprites } from "./ui";
+import { spriteUrl } from "@/lib/pokemon";
 import { clamp } from "@/lib/format";
 
 /**
@@ -9,6 +10,13 @@ import { clamp } from "@/lib/format";
  * La opacidad crece con el número de partidas, a propósito: un 100% de una
  * sola partida se ve pálido y un 60% de doce se ve sólido. Es lo que evita
  * leer ruido como si fuera señal.
+ *
+ * Las cabeceras de columna son el sprite y no el nombre. El nombre en vertical
+ * se comía 96px de alto y aun así no se leía: en una matriz el ojo salta de
+ * casilla a casilla, y para eso el dibujo del Pokémon identifica el mazo mucho
+ * antes que el texto. El nombre sigue estando —en el `title` y en el
+ * `aria-label`—, así que ni se pierde al pasar por encima ni para quien lo lee
+ * con un lector de pantalla.
  */
 export function Matrix({
   data, byId, limit = 10,
@@ -30,14 +38,18 @@ export function Matrix({
             <th className="sticky left-0 z-10 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted">
               Mi mazo \ Rival
             </th>
-            {ids.map((id) => (
-              <th key={id} className="h-24 w-9 p-0 align-bottom">
-                <div className="mx-auto max-h-22 overflow-hidden text-ellipsis whitespace-nowrap pb-1.5 text-[10px] font-semibold text-muted"
-                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                  {byId.get(id)?.name ?? id}
-                </div>
-              </th>
-            ))}
+            {ids.map((id) => {
+              const arch = byId.get(id);
+              const name = arch?.name ?? id;
+              return (
+                <th
+                  key={id} scope="col" title={name} aria-label={name}
+                  className="w-10 p-1 align-bottom font-normal"
+                >
+                  <ColSprite archetype={arch} name={name} />
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -82,5 +94,33 @@ export function Matrix({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * El sprite de la cabecera de columna.
+ *
+ * No usa `Sprites` de ui.tsx porque allí cada imagen lleva su propio `alt` y
+ * su `title`, y aquí el nombre ya va en la celda: repetido sonaría dos veces
+ * en el lector de pantalla. Un arquetipo sin Pokémon —los hay, apuntados a
+ * mano— cae a su inicial para que la columna no quede en blanco.
+ */
+function ColSprite({ archetype, name }: { archetype?: Archetype; name: string }) {
+  if (!archetype?.main) {
+    return (
+      <span className="mx-auto grid size-7 place-items-center rounded-full bg-surface-3 text-[11px] font-semibold text-ink-2" aria-hidden="true">
+        {name.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    <span className="mx-auto flex w-10 items-center justify-center" aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={spriteUrl(archetype.main)} alt="" loading="lazy" className="size-7 flex-none object-contain" />
+      {archetype.secondary && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={spriteUrl(archetype.secondary)} alt="" loading="lazy" className="-ml-2.5 size-5 flex-none object-contain" />
+      )}
+    </span>
   );
 }

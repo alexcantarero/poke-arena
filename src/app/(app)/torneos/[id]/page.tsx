@@ -1,42 +1,105 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { readSession, canManageLeague } from "@/lib/auth";
-import { loadSnapshot } from "@/lib/data";
-import { awardsCp, getSeason } from "@/lib/cp";
+import { canManageLeague } from "@/lib/auth";
+import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
+import { awardsCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong } from "@/lib/format";
 import { firstTurnSeriesStats, recordOf, roundsOf } from "@/lib/stats";
-import { TOURNAMENT_FORMATS } from "@/lib/types";
+import { TOURNAMENT_FORMATS, asStatus } from "@/lib/types";
 import { Empty, Kpi, PageHead, PlayerTag, Record, SectionTitle, Sprites } from "@/components/ui";
-import { TournamentForm } from "@/components/TournamentForm";
+import { TournamentLifecycle } from "@/components/TournamentLifecycle";
+import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { TournamentRounds } from "@/components/TournamentRounds";
 import { deleteTournament, deleteTournamentResult } from "@/actions";
 import { Icon } from "@/components/icons";
 
+/* =========================================================================
+   La ficha del torneo, que es donde se hace el trabajo.
+
+   El orden de la página es el orden en que pasan las cosas, no el orden en
+   que están los datos en la base:
+
+     1. En qué punto está y qué falta        (TournamentLifecycle)
+     2. Tus rondas                           ← lo que abres estando en el evento
+     3. Tu resultado final                   ← se rellena una vez, al acabar
+     4. Cómo le fue al resto del grupo
+     5. Rondas de los demás
+
+   Las rondas van casi lo primero porque el caso real es estar de pie en la
+   tienda con dos minutos entre rondas. Y el formulario de edición de la
+   cabecera ya no está aquí —se fue a /torneos/[id]/editar—: colgando debajo
+   de la información parecía parte de ella.
+   ========================================================================= */
+
 export default async function TournamentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   const t = snap.toursById.get(id);
   if (!t) notFound();
 
   const season = t.season ?? snap.config.cpSeason;
   const table = getSeason(season);
-  const me = session ? snap.playersById.get(session.playerId) : undefined;
-  const myResult = me ? t.results.find((r) => r.playerId === me.id) : undefined;
-  const myDecks = me ? snap.decks.filter((d) => d.playerId === me.id && !d.retired) : [];
+  const status = asStatus(t.status);
   const manager = me ? canManageLeague(me.role) : false;
+  // Mover el estado y editar la cabecera: quien lo creó y los organizadores.
+  const canManage = Boolean(me && (manager || t.createdBy === me.id));
 
+  const myResult = me ? t.results.find((r) => r.playerId === me.id) : undefined;
   const ordered = [...t.results].sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9));
   const totalCp = t.results.reduce((a, r) => a + r.cpEarned, 0);
 
-  // Mis rondas de este torneo. El récord sale de ellas, nunca se teclea.
+  // Mis rondas. El récord sale de ellas, nunca se teclea.
   const myRounds = me ? roundsOf(snap.matches, t.id, me.id) : [];
   const myRecord = recordOf(myRounds);
   const firstTurn = firstTurnSeriesStats(myRounds.map((r) => r.match));
+
+  // Para «con qué jugué yo», los míos y los de la liga. Para «qué llevaba el
+  // rival», todo lo que haya, porque el mazo de otra persona es exactamente lo
+  // que te cruzas en una ronda.
+  const myDecks = me ? deckOptions(snap, me.id, { includeOthers: false }) : [];
+  const rivalDecks = me ? deckOptions(snap, me.id) : [];
+  const archOptions = archetypeOptions(snap);
+  /* El nombre del mazo fijado se resuelve aquí, contra la tabla entera: un mazo
+     retirado no sale en los selectores pero sigue siendo el que se jugó. */
+  const deckName = (id: string | null | undefined) =>
+    id ? snap.decksById.get(id)?.name ?? null : null;
 
   // Quién más ha apuntado rondas, para poder verlas sin poder editarlas.
   const othersWithRounds = snap.matches
     .filter((m) => m.tournamentId === t.id && m.playerBId === null && m.playerAId !== me?.id)
     .reduce<string[]>((acc, m) => (acc.includes(m.playerAId) ? acc : [...acc, m.playerAId]), []);
+
+  const myTier = myResult?.placement != null
+    ? tierFor(season, t.kind, myResult.placement, t.playerCount)
+    : null;
+
+  /* Lo que falta por hacer. Se deduce de los datos y no del estado: un torneo
+     cerrado al que le falte la asistencia sigue teniendo los CP mal. */
+  const steps = [
+    {
+      label: "Falta la asistencia",
+      done: t.playerCount != null && t.playerCount > 0,
+      hint: awardsCp(season, t.kind)
+        ? "Sin ella no se pueden calcular los Championship Points."
+        : "Cuánta gente hubo.",
+      href: `/torneos/${t.id}/editar`,
+    },
+    {
+      label: "No has apuntado ninguna ronda",
+      done: myRounds.length > 0 || !me,
+      hint: "Rival, mazo y resultado de cada ronda. Alimenta la matriz de emparejamientos.",
+    },
+    {
+      label: "Falta tu mazo",
+      done: Boolean(myResult?.deckId || myResult?.archetypeId) || !me,
+      hint: "Con qué jugaste el torneo.",
+    },
+    {
+      label: "Falta tu puesto final",
+      done: myResult?.placement != null || !me,
+      hint: "Es lo que decide los CP.",
+    },
+  ];
 
   return (
     <>
@@ -52,10 +115,24 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         actions={<Link className="btn btn-ghost btn-sm" href="/torneos"><Icon name="back" className="size-4" /> Torneos</Link>}
       />
 
+      <TournamentLifecycle
+        id={t.id}
+        status={status}
+        closedAt={t.closedAt}
+        canManage={canManage}
+        steps={steps}
+        roundsDone={myRounds.length}
+        totalRounds={t.rounds ?? null}
+      />
+
       <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label="Asistencia" value={t.playerCount ?? "—"} note={t.rounds ? `${t.rounds} rondas` : "sin dato"} />
         <Kpi label="Del grupo" value={t.results.length} note="participaron" />
-        <Kpi label="CP repartidos" value={totalCp} note={awardsCp(season, t.kind) ? `temporada ${season}` : "este tipo no da CP"} highlight={totalCp > 0} />
+        <Kpi
+          label="CP repartidos" value={totalCp}
+          note={awardsCp(season, t.kind) ? `temporada ${season}` : "este tipo no da CP"}
+          highlight={totalCp > 0}
+        />
         <Kpi
           label="Mejor puesto"
           value={ordered[0]?.placement ?? "—"}
@@ -63,19 +140,21 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         />
       </div>
 
+      {myTier?.invite && (
+        <p className="card mb-5 flex items-start gap-2.5 border-brand-line bg-brand-soft p-4 text-sm font-semibold text-brand">
+          <Icon name="trophy" className="mt-0.5 size-5 flex-none" />
+          Ese puesto da invitación directa al Campeonato Mundial, al margen de los puntos.
+        </p>
+      )}
+
       {t.url && (
         <a className="btn mb-5 w-full sm:w-auto" href={t.url} target="_blank" rel="noopener noreferrer">
           <Icon name="share" className="size-4" /> Ver el torneo en su web
         </a>
       )}
 
-      {/* ---------------------------------------------------------------
-          Las rondas van PRIMERO, antes de los resultados y del formulario.
-          Es lo que se abre estando en el evento: llegas, acabas la ronda 3 y
-          quieres apuntarla sin bajar por toda la página. El puesto final y los
-          premios se rellenan una vez, al terminar, y por eso van al final.
-          --------------------------------------------------------------- */}
-      {me && (
+      {/* --------------------------- 2. tus rondas --------------------------- */}
+      {me && status !== "draft" && (
         <div className="mb-6">
           <TournamentRounds
             tournamentId={t.id}
@@ -84,11 +163,15 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
             bestOf={t.bestOf}
             rounds={myRounds}
             record={myRecord}
-            archetypes={snap.archetypes}
-            decks={myDecks}
+            rivalDecks={rivalDecks}
+            archetypeOptions={archOptions}
+            myDecks={myDecks}
+            lockedDeckId={myResult?.deckId ?? null}
+            lockedDeckName={deckName(myResult?.deckId)}
+            isMine
             totalRounds={t.rounds ?? null}
             archById={snap.archById}
-            archIndex={snap.archIndex}
+            closed={status === "closed"}
             canEdit
           />
 
@@ -101,40 +184,47 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {othersWithRounds.length > 0 && (
-        <div className="mb-6 flex flex-col gap-3">
-          {othersWithRounds.map((pid) => {
-            const p = snap.playersById.get(pid);
-            const rounds = roundsOf(snap.matches, t.id, pid);
-            return (
-              <TournamentRounds
-                key={pid}
-                tournamentId={t.id}
-                playerId={pid}
-                playerName={p?.name ?? "Alguien"}
-                bestOf={t.bestOf}
-                rounds={rounds}
-                record={recordOf(rounds)}
-                archetypes={snap.archetypes}
-                decks={[]}
-                totalRounds={t.rounds ?? null}
-                archById={snap.archById}
-                archIndex={snap.archIndex}
-                canEdit={manager}
-              />
-            );
-          })}
+      {me && status === "draft" && (
+        <div className="card mb-6">
+          <Empty title="El torneo todavía no ha empezado">
+            Cuando llegue el día, dale a «Empezar el torneo» ahí arriba y podrás ir apuntando
+            las rondas.
+          </Empty>
         </div>
       )}
 
+      {/* ------------------------- 3. tu resultado --------------------------- */}
+      {me && status !== "draft" && (
+        <details className="card mb-6" open={!myResult?.placement}>
+          <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
+            {myResult?.placement ? "Editar tu resultado final" : "Poner tu resultado final"}
+            <span className="text-xs font-normal text-muted">puesto, mazo, CP y premios</span>
+          </summary>
+          <div className="border-t border-line-soft p-4">
+            <TournamentResultForm
+              season={season}
+              tournament={t}
+              result={myResult}
+              deckOptions={myDecks}
+              archetypeOptions={archOptions}
+              roundRecord={myRounds.length ? myRecord : null}
+            />
+          </div>
+        </details>
+      )}
+
+      {/* ---------------------- 4. el resto del grupo ------------------------ */}
       <SectionTitle aside={`${t.results.length} resultados`}>Resultados del grupo</SectionTitle>
 
       {ordered.length ? (
         <div className="card mb-6 divide-y divide-line-soft">
           {ordered.map((r) => {
             const p = snap.playersById.get(r.playerId);
-            const arch = r.deckId ? snap.archIndex.get(r.deckId) : (r.archetypeId ? snap.archById.get(r.archetypeId) : undefined);
+            const arch = r.deckId
+              ? snap.archIndex.get(r.deckId)
+              : (r.archetypeId ? snap.archById.get(r.archetypeId) : undefined);
             const canEdit = me && (r.playerId === me.id || manager);
+            const tier = r.placement != null ? tierFor(season, t.kind, r.placement, t.playerCount) : null;
             return (
               <div key={r.id} className="px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -148,8 +238,8 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
                   </span>
 
                   {/* El mazo va con su sprite, no como un texto debajo del
-                      nombre: es lo que pedía Alex, y de un vistazo se reconoce
-                      antes un Dragapult que la palabra «Dragapult». */}
+                      nombre: de un vistazo se reconoce antes un Dragapult que
+                      la palabra «Dragapult». */}
                   <span className="flex min-w-0 flex-1 items-center gap-2">
                     <Sprites archetype={arch} size="md" />
                     <span className="min-w-0 flex-1">
@@ -168,10 +258,11 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
                   )}
                 </div>
 
-                {(r.prizes || r.dropped) && (
+                {(r.prizes || r.dropped || tier?.invite) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 pl-12 text-xs">
+                    {tier?.invite && <span className="chip chip-brand">Invitación al Mundial</span>}
                     {r.dropped && <span className="chip chip-tie">Se retiró</span>}
-                    {r.prizes && <span className="chip">🎁 {r.prizes}</span>}
+                    {r.prizes && <span className="chip">{r.prizes}</span>}
                   </div>
                 )}
                 {r.notes && <p className="mt-2 pl-12 text-sm text-ink-2">{r.notes}</p>}
@@ -190,30 +281,40 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         <div className="card mb-6"><Empty title="Nadie ha puesto su resultado todavía" /></div>
       )}
 
-      {/* El resultado final va dentro de un `details`: es de rellenar una vez,
-          y desplegado empujaba las rondas fuera de la pantalla en el móvil. */}
-      <details className="card mb-6" open={!myResult}>
-        <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-          {myResult ? "Editar tu resultado final" : "Poner tu resultado final"}
-          <span className="text-xs font-normal text-muted">puesto, CP y premios</span>
-        </summary>
-        <div className="border-t border-line-soft p-4">
-          {myRecord.wins + myRecord.losses + myRecord.ties > 0 && (
-            <p className="mb-4 rounded-lg bg-ground px-3 py-2 text-sm text-ink-2">
-              Tus rondas dan <b className="font-mono tabular">{myRecord.label}</b>, y el récord se
-              recalcula solo desde ahí. Aquí solo hacen falta el puesto, los CP y los premios.
-            </p>
-          )}
-          <TournamentForm
-            season={season}
-            decks={myDecks}
-            archetypes={snap.archetypes}
-            tournament={t}
-            result={myResult}
-            resultOnly
-          />
-        </div>
-      </details>
+      {/* ------------------- 5. rondas de los demás -------------------------- */}
+      {othersWithRounds.length > 0 && (
+        <>
+          <SectionTitle>Rondas de los demás</SectionTitle>
+          <div className="mb-6 flex flex-col gap-3">
+            {othersWithRounds.map((pid) => {
+              const p = snap.playersById.get(pid);
+              const rounds = roundsOf(snap.matches, t.id, pid);
+              const theirResult = t.results.find((r) => r.playerId === pid);
+              return (
+                <TournamentRounds
+                  key={pid}
+                  tournamentId={t.id}
+                  playerId={pid}
+                  playerName={p?.name ?? "Alguien"}
+                  bestOf={t.bestOf}
+                  rounds={rounds}
+                  record={recordOf(rounds)}
+                  rivalDecks={rivalDecks}
+                  archetypeOptions={archOptions}
+                  myDecks={[]}
+                  lockedDeckId={theirResult?.deckId ?? null}
+                  lockedDeckName={deckName(theirResult?.deckId)}
+                  isMine={false}
+                  totalRounds={t.rounds ?? null}
+                  archById={snap.archById}
+                  closed={status === "closed"}
+                  canEdit={manager}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {t.notes && (
         <div className="card mb-6 p-4">

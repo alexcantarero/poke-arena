@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  bflBucket, computeCp, cpForPlacement, awardsCp, seasonOfDate, simulate, type CpResultInput,
+  bflBucket, computeCp, cpForPlacement, awardsCp, seasonOfDate, simulate, tierFor, type CpResultInput,
 } from "../src/lib/cp.ts";
 
 const r = (over: Partial<CpResultInput> & { id: string; kind: string; placement: number | null }): CpResultInput => ({
@@ -118,8 +118,8 @@ test("la simulación dice la ganancia real, no la nominal", () => {
   assert.equal(hueco.gain, 32);
 });
 
-test("la temporada 2027 existe pero está marcada como no confirmada", () => {
-  assert.equal(computeCp(2027, []).confirmed, false);
+test("la temporada 2027 ya tiene cifras confirmadas", () => {
+  assert.equal(computeCp(2027, []).confirmed, true);
   assert.equal(computeCp(2026, []).confirmed, true);
 });
 
@@ -139,4 +139,66 @@ test("la temporada se deduce de la fecha: julio abre la siguiente", () => {
   assert.equal(seasonOfDate("2027-01-10"), 2027);
   assert.equal(seasonOfDate(null), null);
   assert.equal(seasonOfDate("no es una fecha"), null);
+});
+
+/* ------------------------------------------------- temporada 2027 ------ */
+
+test("los kickers de 2027 son los oficiales", () => {
+  // Un 2.º puesto cobra con 4 personas; con 3 no.
+  assert.equal(cpForPlacement(2027, "league_challenge", 2, 4), 12);
+  assert.equal(cpForPlacement(2027, "league_challenge", 2, 3), 0);
+  // Un 5.º-8.º de Challenge necesita 14; de Cup, 17.
+  assert.equal(cpForPlacement(2027, "league_challenge", 5, 14), 8);
+  assert.equal(cpForPlacement(2027, "league_challenge", 5, 13), 0);
+  assert.equal(cpForPlacement(2027, "league_cup", 5, 17), 25);
+  assert.equal(cpForPlacement(2027, "league_cup", 5, 16), 0);
+  // Y los topes de cada tabla.
+  assert.equal(cpForPlacement(2027, "league_cup", 64, 128), 13);
+  assert.equal(cpForPlacement(2027, "regional", 1, 200), 350);
+  assert.equal(cpForPlacement(2027, "international", 1, 900), 500);
+  assert.equal(cpForPlacement(2027, "international", 1024, 2049), 42);
+});
+
+test("regionales e internacionales comparten los cinco huecos", () => {
+  assert.equal(bflBucket(2027, "international"), "regional");
+  assert.equal(bflBucket(2027, "special"), "regional");
+
+  // Seis resultados entre los dos tipos: solo cuentan los cinco mejores.
+  const rows = [
+    r({ id: "1", kind: "international", placement: 1, playerCount: 900 }),   // 500
+    r({ id: "2", kind: "regional", placement: 1, playerCount: 300 }),        // 350
+    r({ id: "3", kind: "regional", placement: 2, playerCount: 300 }),        // 325
+    r({ id: "4", kind: "regional", placement: 3, playerCount: 300 }),        // 300
+    r({ id: "5", kind: "regional", placement: 5, playerCount: 300 }),        // 280
+    r({ id: "6", kind: "regional", placement: 9, playerCount: 300 }),        // 200, fuera
+  ];
+  const out = computeCp(2027, rows);
+  assert.equal(out.total, 500 + 350 + 325 + 300 + 280);
+  assert.equal(out.rows.find((x) => x.id === "6")?.excluded, true);
+});
+
+test("challenges y cups tienen cuatro huecos cada uno, por separado", () => {
+  const bucket = (k: string) => bflBucket(2027, k);
+  assert.equal(bucket("league_challenge"), "league_challenge");
+  assert.equal(bucket("pokemon_challenge"), "league_challenge");
+  assert.equal(bucket("league_cup"), "league_cup");
+  assert.equal(bucket("pokemon_cup"), "league_cup");
+
+  const five = (kind: string, cp: number[]) =>
+    cp.map((_, i) => r({ id: `${kind}${i}`, kind, placement: 1, playerCount: 50 }));
+  const out = computeCp(2027, [...five("league_challenge", [1, 2, 3, 4, 5]), ...five("league_cup", [1, 2, 3, 4, 5])]);
+  // 4 challenges de 15 + 4 cups de 50, y el quinto de cada uno fuera.
+  assert.equal(out.total, 4 * 15 + 4 * 50);
+});
+
+test("el tramo dice si además da invitación al Mundial", () => {
+  assert.equal(tierFor(2027, "regional", 1, 300)?.invite, true);
+  assert.equal(tierFor(2027, "regional", 2, 300)?.invite, false);
+  assert.equal(tierFor(2027, "international", 4, 900)?.invite, true);
+  assert.equal(tierFor(2027, "international", 5, 900)?.invite, false);
+  // El kicker apaga los puntos, no la invitación.
+  const t = tierFor(2027, "league_cup", 5, 10);
+  assert.equal(t?.cp, 0);
+  assert.equal(t?.blockedByKicker, true);
+  assert.equal(t?.needed, 17);
 });

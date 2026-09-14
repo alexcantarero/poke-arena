@@ -25,7 +25,17 @@
    zona, no por umbral, y ese corte solo se conoce al acabar la temporada.
    ========================================================================= */
 
-export type CpTier = { from: number; to: number; cp: number; minPlayers: number };
+export type CpTier = {
+  from: number;
+  to: number;
+  cp: number;
+  minPlayers: number;
+  /**
+   * Este puesto da invitación directa al Mundial, al margen de los puntos.
+   * El campeón de un Regional; el Top 4 completo de un Internacional.
+   */
+  invite?: boolean;
+};
 
 export type CpEventDef = {
   label: string;
@@ -103,6 +113,53 @@ export function bflBucket(season: number, kind: string): string {
 export function awardsCp(season: number, kind: string): boolean {
   const def = resolveEventDef(season, kind);
   return Boolean(def?.tiers && def.tiers.length > 0);
+}
+
+/**
+ * El tramo al que cae un puesto, con el kicker ya resuelto.
+ *
+ * Existe aparte de `cpForPlacement` porque la interfaz necesita explicar el
+ * número, no solo enseñarlo: cuántos CP son, si el tramo está apagado por
+ * falta de gente y cuánta haría falta, y si ese puesto además da invitación
+ * directa al Mundial. Sacar eso de un `number | null` no se puede.
+ */
+export type TierMatch = {
+  tier: CpTier;
+  /** Los CP que se cobran de verdad: 0 si el kicker no llega. */
+  cp: number;
+  /** true cuando el tramo existe pero no hubo asistencia suficiente. */
+  blockedByKicker: boolean;
+  /** Gente que haría falta para que ese tramo pague. */
+  needed: number;
+  /** Ese puesto da plaza para el Mundial al margen de los puntos. */
+  invite: boolean;
+};
+
+export function tierFor(
+  season: number,
+  kind: string,
+  placement: number | null | undefined,
+  playerCount: number | null | undefined,
+): TierMatch | null {
+  if (placement == null || placement < 1) return null;
+  const def = resolveEventDef(season, kind);
+  if (!def?.tiers?.length) return null;
+  const attendance = playerCount ?? 0;
+  for (const tier of def.tiers) {
+    if (placement >= tier.from && placement <= tier.to) {
+      const blocked = tier.minPlayers > 0 && attendance < tier.minPlayers;
+      return {
+        tier,
+        cp: blocked ? 0 : tier.cp,
+        blockedByKicker: blocked,
+        needed: tier.minPlayers,
+        // La invitación va con el puesto, no con el kicker: el campeón de un
+        // Regional entra aunque el tramo de puntos no se hubiera activado.
+        invite: Boolean(tier.invite),
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -549,293 +606,139 @@ export const CP_2026: CpSeason = {
 };
 
 /**
- * Temporada 2027 (TCG, Masters). PROVISIONAL.
+ * Temporada 2027 (TCG, Masters). CONFIRMADA.
  *
- * Se anunció oficialmente que en 2027 suben los CP de los puestos bajos de
- * Regional e International y que cambian los Best Finish Limit, pero las
- * cifras concretas no están publicadas en ninguna fuente accesible: están en
- * championships.pokemon.com, que bloquea el acceso automatizado.
+ * Cifras oficiales de Play! Pokémon para 2027, transcritas de las tablas que
+ * circulan del anuncio de temporada. Dos cosas cambian de verdad respecto a
+ * 2026 y conviene no perderlas de vista:
  *
- * Mientras tanto, estos son los valores de 2026 como marcador de posición, y
- * `confirmed: false` hace que la app lo advierta en pantalla.
+ *   · **Los kickers bajan mucho en los tramos altos.** Un 2.º puesto ahora
+ *     cobra con 4 personas y un 3.º-4.º con 8. Antes hacía falta bastante
+ *     más gente para que esos tramos se activaran, y eso cambia lo que vale
+ *     un Challenge pequeño de tienda.
+ *   · **Regionales e Internacionales comparten Best Finish Limit**: cinco
+ *     resultados entre los dos, no cinco de cada. Un Top 8 de Internacional
+ *     te ocupa un hueco que podría ser de un Regional.
  *
- * PARA ARREGLARLO: abre la página oficial en un navegador normal, copia las
- * tablas y sustituye los números de aquí. No hay que tocar nada más.
+ * Y hay tramos que además dan **invitación directa al Mundial**, al margen
+ * de los puntos: el campeón de un Regional, y el Top 4 completo de un
+ * Internacional. Eso es `invite: true` en el tramo, y la app lo enseña.
+ *
+ * Si Play! Pokémon publica una corrección, se cambian los números de aquí y
+ * ya está: no hay lógica que tocar.
  */
 export const CP_2027: CpSeason = {
-  "season": 2027,
-  "game": "TCG",
-  "division": "masters",
-  "confirmed": false,
-  "source": "https://championships.pokemon.com/en-us/about/2027-season-changes",
-  "invites": {
-    "europe": null,
+  season: 2027,
+  game: "TCG",
+  division: "masters",
+  confirmed: true,
+  source: "Play! Pokémon — estructura de puntos de la temporada 2027",
+  note:
+    "Regionales e Internacionales comparten un único límite de 5 mejores resultados. " +
+    "El campeón de un Regional y el Top 4 de un Internacional tienen invitación directa al Mundial.",
+  invites: {
+    // Top N por zona, no un corte de puntos: solo se sabe al acabar la temporada.
+    europe: null,
     "us-canada": null,
-    "latam": null,
-    "oceania": null,
-    "mesa": null
+    latam: null,
+    oceania: null,
+    mesa: null,
   },
-  "events": {
-    "league_challenge": {
-      "label": "League Challenge",
-      "bfl": 4,
-      "sharesBflWith": null,
-      "tiers": [
-        {
-          "from": 1,
-          "to": 1,
-          "cp": 15,
-          "minPlayers": 0
-        },
-        {
-          "from": 2,
-          "to": 2,
-          "cp": 12,
-          "minPlayers": 0
-        },
-        {
-          "from": 3,
-          "to": 4,
-          "cp": 10,
-          "minPlayers": 0
-        },
-        {
-          "from": 5,
-          "to": 8,
-          "cp": 8,
-          "minPlayers": 24
-        },
-        {
-          "from": 9,
-          "to": 16,
-          "cp": 6,
-          "minPlayers": 48
-        },
-        {
-          "from": 17,
-          "to": 32,
-          "cp": 4,
-          "minPlayers": 100
-        }
-      ]
+  events: {
+    league_challenge: {
+      label: "League Challenge",
+      bfl: 4,
+      tiers: [
+        { from: 1, to: 1, cp: 15, minPlayers: 0 },
+        { from: 2, to: 2, cp: 12, minPlayers: 4 },
+        { from: 3, to: 4, cp: 10, minPlayers: 8 },
+        { from: 5, to: 8, cp: 8, minPlayers: 14 },
+        { from: 9, to: 16, cp: 6, minPlayers: 25 },
+        { from: 17, to: 32, cp: 4, minPlayers: 48 },
+      ],
     },
-    "league_cup": {
-      "label": "League Cup",
-      "bfl": 4,
-      "sharesBflWith": null,
-      "tiers": [
-        {
-          "from": 1,
-          "to": 1,
-          "cp": 50,
-          "minPlayers": 0
-        },
-        {
-          "from": 2,
-          "to": 2,
-          "cp": 40,
-          "minPlayers": 0
-        },
-        {
-          "from": 3,
-          "to": 4,
-          "cp": 32,
-          "minPlayers": 0
-        },
-        {
-          "from": 5,
-          "to": 8,
-          "cp": 24,
-          "minPlayers": 24
-        },
-        {
-          "from": 9,
-          "to": 16,
-          "cp": 20,
-          "minPlayers": 48
-        },
-        {
-          "from": 17,
-          "to": 32,
-          "cp": 16,
-          "minPlayers": 100
-        },
-        {
-          "from": 33,
-          "to": 64,
-          "cp": 13,
-          "minPlayers": 200
-        }
-      ]
+
+    league_cup: {
+      label: "League Cup",
+      bfl: 4,
+      tiers: [
+        { from: 1, to: 1, cp: 50, minPlayers: 0 },
+        { from: 2, to: 2, cp: 40, minPlayers: 4 },
+        { from: 3, to: 4, cp: 32, minPlayers: 8 },
+        { from: 5, to: 8, cp: 25, minPlayers: 17 },
+        { from: 9, to: 16, cp: 20, minPlayers: 48 },
+        { from: 17, to: 32, cp: 16, minPlayers: 80 },
+        { from: 33, to: 64, cp: 13, minPlayers: 128 },
+      ],
     },
-    "pokemon_challenge": {
-      "label": "Pokemon Challenge",
-      "aliasOf": "league_challenge",
-      "sharesBflWith": "league_challenge"
+
+    // Los nombres nuevos de los mismos eventos: puntúan igual y, sobre todo,
+    // gastan del mismo contador de mejores resultados.
+    pokemon_challenge: {
+      label: "Pokémon Challenge",
+      aliasOf: "league_challenge",
+      sharesBflWith: "league_challenge",
     },
-    "pokemon_cup": {
-      "label": "Pokemon Cup",
-      "aliasOf": "league_cup",
-      "sharesBflWith": "league_cup"
+    pokemon_cup: {
+      label: "Pokémon Cup",
+      aliasOf: "league_cup",
+      sharesBflWith: "league_cup",
     },
-    "regional": {
-      "label": "Regional Championship",
-      "bfl": 5,
-      "sharesBflWith": null,
-      "tiers": [
-        {
-          "from": 1,
-          "to": 1,
-          "cp": 350,
-          "minPlayers": 0
-        },
-        {
-          "from": 2,
-          "to": 2,
-          "cp": 325,
-          "minPlayers": 0
-        },
-        {
-          "from": 3,
-          "to": 4,
-          "cp": 300,
-          "minPlayers": 0
-        },
-        {
-          "from": 5,
-          "to": 8,
-          "cp": 280,
-          "minPlayers": 0
-        },
-        {
-          "from": 9,
-          "to": 16,
-          "cp": 200,
-          "minPlayers": 0
-        },
-        {
-          "from": 17,
-          "to": 32,
-          "cp": 160,
-          "minPlayers": 0
-        },
-        {
-          "from": 33,
-          "to": 64,
-          "cp": 120,
-          "minPlayers": 0
-        },
-        {
-          "from": 65,
-          "to": 128,
-          "cp": 80,
-          "minPlayers": 0
-        },
-        {
-          "from": 129,
-          "to": 256,
-          "cp": 60,
-          "minPlayers": 0
-        },
-        {
-          "from": 257,
-          "to": 512,
-          "cp": 40,
-          "minPlayers": 0
-        },
-        {
-          "from": 513,
-          "to": 1024,
-          "cp": 20,
-          "minPlayers": 0
-        }
-      ]
+
+    regional: {
+      label: "Campeonato Regional",
+      bfl: 5,
+      tiers: [
+        { from: 1, to: 1, cp: 350, minPlayers: 0, invite: true },
+        { from: 2, to: 2, cp: 325, minPlayers: 4 },
+        { from: 3, to: 4, cp: 300, minPlayers: 8 },
+        { from: 5, to: 8, cp: 280, minPlayers: 17 },
+        { from: 9, to: 16, cp: 200, minPlayers: 33 },
+        { from: 17, to: 32, cp: 160, minPlayers: 65 },
+        { from: 33, to: 64, cp: 120, minPlayers: 129 },
+        { from: 65, to: 128, cp: 80, minPlayers: 257 },
+        { from: 129, to: 256, cp: 60, minPlayers: 513 },
+        { from: 257, to: 512, cp: 45, minPlayers: 1025 },
+        { from: 513, to: 1024, cp: 22, minPlayers: 2049 },
+      ],
     },
-    "special": {
-      "label": "Special Championship",
-      "aliasOf": "regional",
-      "sharesBflWith": "regional"
+
+    // Un Special Championship reparte como un Regional y cuenta contra el
+    // mismo límite.
+    special: {
+      label: "Special Championship",
+      aliasOf: "regional",
+      sharesBflWith: "regional",
     },
-    "international": {
-      "label": "International Championship",
-      "bfl": 0,
-      "sharesBflWith": null,
-      "tiers": [
-        {
-          "from": 1,
-          "to": 1,
-          "cp": 500,
-          "minPlayers": 0
-        },
-        {
-          "from": 2,
-          "to": 2,
-          "cp": 480,
-          "minPlayers": 0
-        },
-        {
-          "from": 3,
-          "to": 4,
-          "cp": 420,
-          "minPlayers": 0
-        },
-        {
-          "from": 5,
-          "to": 8,
-          "cp": 380,
-          "minPlayers": 0
-        },
-        {
-          "from": 9,
-          "to": 16,
-          "cp": 300,
-          "minPlayers": 0
-        },
-        {
-          "from": 17,
-          "to": 32,
-          "cp": 240,
-          "minPlayers": 0
-        },
-        {
-          "from": 33,
-          "to": 64,
-          "cp": 180,
-          "minPlayers": 0
-        },
-        {
-          "from": 65,
-          "to": 128,
-          "cp": 140,
-          "minPlayers": 0
-        }
-      ]
+
+    international: {
+      label: "Campeonato Internacional",
+      // Comparte los 5 huecos con los Regionales: es el cambio gordo de 2027.
+      sharesBflWith: "regional",
+      bfl: 5,
+      tiers: [
+        { from: 1, to: 1, cp: 500, minPlayers: 0, invite: true },
+        { from: 2, to: 2, cp: 480, minPlayers: 4, invite: true },
+        { from: 3, to: 4, cp: 420, minPlayers: 8, invite: true },
+        { from: 5, to: 8, cp: 380, minPlayers: 17 },
+        { from: 9, to: 16, cp: 300, minPlayers: 33 },
+        { from: 17, to: 32, cp: 240, minPlayers: 65 },
+        { from: 33, to: 64, cp: 180, minPlayers: 129 },
+        { from: 65, to: 128, cp: 140, minPlayers: 257 },
+        { from: 129, to: 256, cp: 100, minPlayers: 513 },
+        { from: 257, to: 512, cp: 85, minPlayers: 1025 },
+        { from: 513, to: 1024, cp: 42, minPlayers: 2049 },
+      ],
     },
-    "worlds": {
-      "label": "World Championships",
-      "bfl": 0,
-      "sharesBflWith": null,
-      "tiers": []
-    },
-    "store": {
-      "label": "Torneo de tienda",
-      "bfl": 0,
-      "sharesBflWith": null,
-      "tiers": []
-    },
-    "online": {
-      "label": "Torneo online",
-      "bfl": 0,
-      "sharesBflWith": null,
-      "tiers": []
-    },
-    "other": {
-      "label": "Otro",
-      "bfl": 0,
-      "sharesBflWith": null,
-      "tiers": []
-    }
-  }
+
+    // El Mundial no reparte CP de temporada: se va a él, no se puntúa para él.
+    worlds: { label: "Campeonato Mundial", bfl: 0, tiers: [] },
+
+    // Los que no son del circuito. Cuentan para vuestras estadísticas, no para CP.
+    store: { label: "Torneo de tienda", bfl: 0, tiers: [] },
+    online: { label: "Torneo online", bfl: 0, tiers: [] },
+    other: { label: "Otro", bfl: 0, tiers: [] },
+  },
 };
 
 /** Temporadas registradas. Añadir una es una línea aquí. */

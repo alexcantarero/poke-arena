@@ -34,6 +34,35 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     ? snap.decks.find((d) => d.playerId === match.playerBId && d.archetypeId === archB.id && d.list)
     : undefined;
   const deckB = deckBExact ?? deckBGuess;
+  const nameB = B?.name ?? match.opponentName ?? "el rival";
+
+  /* Los dos lados del enfrentamiento, con su lista y —esto es lo que faltaba—
+     con el motivo cuando no la hay. Un desplegable que se abre vacío parece
+     una pantalla rota; uno que dice «es de fuera de la liga, de esas partidas
+     se anota el arquetipo y no las 60 cartas» es un dato. */
+  const sides = [
+    {
+      key: "a",
+      name: A?.name ?? "el jugador",
+      deck: deckA,
+      guess: false,
+      missing: deckA
+        ? `«${deckA.name}» no tiene guardada la lista de 60 cartas. Se añade desde la ficha del mazo.`
+        : "Aquí no se anotó con qué mazo jugó. Elígelo abajo, al editar la partida.",
+    },
+    {
+      key: "b",
+      name: nameB,
+      deck: deckB,
+      guess: Boolean(deckBGuess),
+      missing: !match.playerBId
+        ? `${nameB} es de fuera de la liga: de esas partidas se anota el arquetipo, no la lista. No hay ninguna guardada.`
+        : deckB
+          ? `«${deckB.name}» no tiene guardada la lista de 60 cartas.`
+          : "Aquí no se anotó qué mazo llevaba. Elígelo abajo, al editar la partida.",
+    },
+  ];
+
   const o = outcome(match);
   const pending = match.status === "scheduled";
   const context = match.competitionId
@@ -107,25 +136,42 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             <p className="mt-4 rounded-lg bg-ground p-3 text-sm text-ink-2">{match.note}</p>
           )}
 
-          {[deckA, deckB].map((d, i) => d?.list ? (
-            <details key={d.id} className="mt-3 rounded-lg border border-line-soft px-3">
-              <summary className="tap cursor-pointer justify-start text-sm font-semibold">
-                Lista de {i === 0 ? A?.name : (B?.name ?? match.opponentName)}
-                {i === 1 && deckBGuess && (
-                  <span className="text-xs font-normal text-muted">· su mazo de ese arquetipo</span>
-                )}
-              </summary>
-              <div className="border-t border-line-soft py-3">
-                {i === 1 && deckBGuess && (
-                  <p className="mb-3 rounded-lg bg-ground px-3 py-2 text-xs text-ink-2">
-                    En esta partida no se anotó qué mazo llevaba. Esto es «{d.name}», el suyo de
-                    ese arquetipo. Para que salga el de verdad, elígelo abajo al editar la partida.
-                  </p>
-                )}
-                <DeckList list={d.list} listJson={d.listJson} />
-              </div>
-            </details>
-          ) : null)}
+          {/* Las dos listas, cada una detrás de su propio `details`.
+              Que en «Ibai vs. Sara» solo se abriera la de Ibai dejaba a medias
+              justo lo que se mira dos días después: qué llevaba el otro. Van
+              plegadas porque dos listas de sesenta cartas abiertas convierten
+              esta pantalla en un rollo de papel. */}
+          <div className="mt-5 flex flex-col gap-2">
+            {sides.map((s) => (
+              <details key={s.key} className="rounded-lg border border-line-soft px-3">
+                <summary className="tap cursor-pointer justify-start gap-2 text-sm font-semibold">
+                  <span className="truncate">Lista de {s.name}</span>
+                  {s.guess && (
+                    <span className="flex-none text-xs font-normal text-muted">· su mazo de ese arquetipo</span>
+                  )}
+                  {!s.deck?.list && (
+                    <span className="flex-none text-xs font-normal text-muted">· sin registrar</span>
+                  )}
+                </summary>
+                <div className="border-t border-line-soft py-3">
+                  {s.deck?.list ? (
+                    <>
+                      {s.guess && (
+                        <p className="mb-3 rounded-lg bg-ground px-3 py-2 text-xs text-ink-2">
+                          En esta partida no se anotó qué mazo llevaba. Esto es «{s.deck.name}», el
+                          suyo de ese arquetipo. Para que salga el de verdad, elígelo abajo al
+                          editar la partida.
+                        </p>
+                      )}
+                      <DeckList list={s.deck.list} listJson={s.deck.listJson} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted">{s.missing}</p>
+                  )}
+                </div>
+              </details>
+            ))}
+          </div>
         </section>
       )}
 

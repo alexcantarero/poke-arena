@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { saveTournamentRound, deleteTournamentRound } from "@/actions";
-import type { Archetype, Deck, Side } from "@/lib/types";
+import type { Archetype, DeckOption, Side } from "@/lib/types";
+import { archetypeValue } from "@/lib/types";
 import type { RoundView, RoundRecord } from "@/lib/stats";
+import { DeckPicker } from "./DeckPicker";
 import { Sprites } from "./ui";
 import { Icon } from "./icons";
 
@@ -14,11 +16,23 @@ import { Icon } from "./icons";
    que acabas la ronda 3 y tienes dos minutos antes de que salgan los
    emparejamientos siguientes. Por eso lo primero que se ve es el modo rápido
    —rival, su mazo, salí 1.º o 2.º, gané o perdí— y el desglose juego a juego
-   está escondido detrás de una pestaña, para cuando hay tiempo.
+   está detrás de un botón, para cuando hay tiempo.
+
+   Tres cosas que cambiaron y conviene que sigan así:
+
+   · **El mazo del torneo no se pregunta cada ronda.** En un suizo juegas el
+     mismo mazo de la primera a la última, así que se elige una vez —en tu
+     resultado— y las rondas lo heredan. Preguntarlo siete veces era invitar a
+     que la tercera te equivocaras y ensuciar tus propias estadísticas.
+   · **Quién sale primero se marca en cada juego.** Antes se deducía («pierde
+     un juego, empieza el siguiente») y casi siempre acertaba, pero en la mesa
+     pasan concesiones, penalizaciones y reinicios. El dato bueno es el que
+     viste, no el que se deduce.
+   · **Un torneo cerrado no acepta rondas.** Si no, «cerrado» sería un adorno.
 
    Todo son formularios normales: se envían a una Server Action y funcionan
    sin JavaScript. El estado de React solo sirve para lo que de verdad es
-   interactivo (elegir con botones en vez de con desplegables).
+   interactivo.
    ========================================================================= */
 
 type Props = {
@@ -28,31 +42,59 @@ type Props = {
   bestOf: number;
   rounds: RoundView[];
   record: RoundRecord;
-  archetypes: Archetype[];
-  decks: Deck[];
+  /** Mazos que puede haber llevado el rival: todo lo que haya. */
+  rivalDecks: DeckOption[];
+  /** Arquetipos sueltos, para el rival del que solo sabes qué llevaba. */
+  archetypeOptions: DeckOption[];
+  /** Tus mazos, para fijar el del torneo si aún no está. */
+  myDecks: DeckOption[];
+  /** El mazo ya fijado para este torneo, si lo hay. */
+  lockedDeckId: string | null;
+  /** Su nombre, resuelto en el servidor: puede estar retirado y no salir en las listas. */
+  lockedDeckName?: string | null;
+  /** Si estas rondas son de quien está mirando. Decide el título, nada más. */
+  isMine: boolean;
   /** Rondas anunciadas por la organización, si se saben. */
   totalRounds: number | null;
   archById: Map<string, Archetype>;
-  archIndex: Map<string, Archetype | undefined>;
+  /** El torneo está cerrado: se puede mirar, no escribir. */
+  closed: boolean;
   canEdit: boolean;
 };
 
 export function TournamentRounds({
   tournamentId, playerId, playerName, bestOf, rounds, record,
-  archetypes, decks, totalRounds, archById, archIndex, canEdit,
+  rivalDecks, archetypeOptions, myDecks, lockedDeckId, lockedDeckName, isMine,
+  totalRounds, archById, closed, canEdit,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const nextRound = rounds.length ? Math.max(...rounds.map((r) => r.round)) + 1 : 1;
   const finished = totalRounds != null && totalRounds > 0 && nextRound > totalRounds;
+  const writable = canEdit && !closed;
 
   const archOfRound = (r: RoundView) =>
     r.match.opponentArchetypeId ? archById.get(r.match.opponentArchetypeId) : undefined;
+
+  /* El nombre del mazo fijado viene resuelto del servidor: buscarlo en las
+     listas fallaba cuando el mazo estaba retirado, porque los selectores no los
+     ofrecen y el aviso desaparecía aunque el mazo siguiera fijado. */
+  const lockedLabel = lockedDeckId
+    ? lockedDeckName
+      ?? myDecks.find((d) => d.id === lockedDeckId)?.name
+      ?? rivalDecks.find((d) => d.id === lockedDeckId)?.name
+      ?? null
+    : null;
 
   return (
     <section className="card">
       <div className="card-head">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold">Tus rondas</h2>
+          {/* Por identidad, no por permiso: un organizador tiene canEdit sobre
+              las rondas de todos, y el título decía «Tus rondas» en las de los
+              demás — que encima era lo único que identificaba de quién eran. */}
+          <h2 className="text-lg font-bold">
+            {isMine ? "Tus rondas" : `Rondas de ${playerName}`}
+          </h2>
           <p className="text-xs text-muted">
             {record.label} · {record.points} punto{record.points === 1 ? "" : "s"}
             {record.open > 0 ? ` · ${record.open} sin cerrar` : ""}
@@ -63,6 +105,13 @@ export function TournamentRounds({
           {record.wins}–{record.losses}{record.ties ? `–${record.ties}` : ""}
         </span>
       </div>
+
+      {lockedLabel && (
+        <p className="flex items-center gap-2 border-b border-line-soft px-4 py-2 text-xs text-muted">
+          <Icon name="lock" className="size-3.5 flex-none" />
+          {isMine ? "Jugando" : "Jugó"} <b className="font-semibold text-ink-2">{lockedLabel}</b> todo el torneo.
+        </p>
+      )}
 
       {rounds.length > 0 && (
         <ol className="divide-y divide-line-soft">
@@ -113,7 +162,7 @@ export function TournamentRounds({
                     )}
                   </span>
 
-                  {canEdit && (
+                  {writable && (
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm flex-none"
@@ -129,17 +178,18 @@ export function TournamentRounds({
                   <p className="mt-1.5 pl-12 text-xs text-ink-2">{r.match.note}</p>
                 )}
 
-                {open && canEdit && (
+                {open && writable && (
                   <div className="mt-3 flex flex-col gap-2">
                     <RoundForm
                       tournamentId={tournamentId}
                       playerId={playerId}
                       round={r.round}
                       bestOf={bestOf}
-                      archetypes={archetypes}
-                      decks={decks}
+                      rivalDecks={rivalDecks}
+                      archetypeOptions={archetypeOptions}
+                      myDecks={myDecks}
+                      lockedDeckId={lockedDeckId}
                       existing={r}
-                      archIndex={archIndex}
                       onCancel={() => setEditing(null)}
                     />
                     {/* Hermano del formulario de edición, no hijo: un <form>
@@ -160,7 +210,13 @@ export function TournamentRounds({
         </ol>
       )}
 
-      {canEdit ? (
+      {closed ? (
+        rounds.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-muted">
+            Torneo cerrado sin rondas apuntadas.
+          </p>
+        ) : null
+      ) : canEdit ? (
         finished ? (
           <p className="px-4 py-5 text-center text-sm text-muted">
             Tienes las {totalRounds} rondas apuntadas. Si hubo top cut, sigue añadiendo con el
@@ -170,15 +226,17 @@ export function TournamentRounds({
           <div className="border-t border-line-soft p-4">
             <h3 className="mb-3 font-display text-base font-bold">
               Apuntar la ronda {nextRound}
+              {totalRounds ? <span className="ml-1 text-sm font-normal text-muted">de {totalRounds}</span> : null}
             </h3>
             <RoundForm
               tournamentId={tournamentId}
               playerId={playerId}
               round={nextRound}
               bestOf={bestOf}
-              archetypes={archetypes}
-              decks={decks}
-              archIndex={archIndex}
+              rivalDecks={rivalDecks}
+              archetypeOptions={archetypeOptions}
+              myDecks={myDecks}
+              lockedDeckId={lockedDeckId}
             />
           </div>
         )
@@ -200,25 +258,29 @@ const RESULTS = [
 ] as const;
 
 function RoundForm({
-  tournamentId, playerId, round, bestOf, archetypes, decks, existing, archIndex, onCancel,
+  tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
+  lockedDeckId, existing, onCancel,
 }: {
   tournamentId: string;
   playerId: string;
   round: number;
   bestOf: number;
-  archetypes: Archetype[];
-  decks: Deck[];
+  rivalDecks: DeckOption[];
+  archetypeOptions: DeckOption[];
+  myDecks: DeckOption[];
+  lockedDeckId: string | null;
   existing?: RoundView;
-  archIndex: Map<string, Archetype | undefined>;
   onCancel?: () => void;
 }) {
   const m = existing?.match;
   const hasGames = (m?.games.length ?? 0) > 0;
 
+  /* Los mazos registrados primero y los arquetipos después: si tu rival llevaba
+     algo que alguien ya tiene apuntado carta por carta, es mejor eso que el
+     arquetipo a secas. */
+  const rivalOptions = [...rivalDecks, ...archetypeOptions];
+
   const [mode, setMode] = useState<"quick" | "games">(hasGames ? "games" : "quick");
-  const [first, setFirst] = useState<Side | "">(
-    existing?.firstGameOne === true ? "a" : existing?.firstGameOne === false ? "b" : "",
-  );
   const [result, setResult] = useState<string>(
     existing && existing.declared && existing.result
       ? (existing.result === "w" ? "a" : existing.result === "l" ? "b" : "tie")
@@ -229,13 +291,24 @@ function RoundForm({
     m?.games.forEach((g) => { if (g.number - 1 < bestOf) base[g.number - 1] = g.winner; });
     return base;
   });
+  /* Quién salió primero, juego a juego. El primero sale de la moneda; los
+     siguientes vienen rellenados con «empieza quien perdió el anterior», que
+     es la regla, pero se pueden cambiar porque en la mesa no siempre pasa. */
+  const [firsts, setFirsts] = useState<Array<Side | "">>(() => {
+    const base = Array.from({ length: bestOf }, () => "" as Side | "");
+    m?.games.forEach((g) => {
+      if (g.number - 1 < bestOf) base[g.number - 1] = (g.first as Side | "") || "";
+    });
+    if (!base[0] && m?.firstTurn) base[0] = m.firstTurn as Side;
+    return base;
+  });
   const [timeCalled, setTimeCalled] = useState(false);
-  const [opponentArchetypeId, setOpponentArchetypeId] = useState(m?.opponentArchetypeId ?? "");
 
   const need = Math.floor(bestOf / 2) + 1;
   const won = gameWinners.filter((w) => w === "a").length;
   const lost = gameWinners.filter((w) => w === "b").length;
   const settled = won >= need || lost >= need;
+
   // Cuántos juegos tiene sentido enseñar: se acaba en cuanto hay mayoría.
   const visibleGames = (() => {
     let shown = 0, a = 0, b = 0;
@@ -248,20 +321,40 @@ function RoundForm({
     return shown;
   })();
 
-  const oppArch = opponentArchetypeId ? archetypes.find((a) => a.id === opponentArchetypeId) : undefined;
+  const setGameWinner = (i: number, v: string) => {
+    setGameWinners((prev) => {
+      const next = prev.map((w, k) => (k === i ? (w === v ? "" : v) : w));
+      // Al marcar un juego, proponemos quién empieza el siguiente: el que lo
+      // acaba de perder. Solo si aún no se había tocado a mano.
+      setFirsts((f) => {
+        const out = [...f];
+        const winner = next[i];
+        if (winner && i + 1 < bestOf && !out[i + 1]) {
+          out[i + 1] = winner === "a" ? "b" : winner === "b" ? "a" : "";
+        }
+        return out;
+      });
+      return next;
+    });
+  };
+
+  const setFirst = (i: number, v: Side | "") =>
+    setFirsts((prev) => prev.map((x, k) => (k === i ? (x === v ? "" : v) : x)));
 
   return (
     <form action={saveTournamentRound} className="flex flex-col gap-3.5 rounded-xl border border-line-soft bg-ground p-3.5">
       <input type="hidden" name="tournamentId" value={tournamentId} />
       <input type="hidden" name="playerId" value={playerId} />
       <input type="hidden" name="mode" value={mode} />
-      <input type="hidden" name="first" value={first} />
+      {/* Al editar se manda el id de la fila. Sin él, cambiar el número de
+          ronda insertaba una ronda nueva y dejaba la vieja donde estaba. */}
+      {m && <input type="hidden" name="matchId" value={m.id} />}
 
       <div className="grid grid-cols-[5.5rem_1fr] gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor={`round-${round}`}>Ronda</label>
           <input
-            className="input px-2 text-center" id={`round-${round}`} name="round"
+            className="input px-2 text-center tabular" id={`round-${round}`} name="round"
             type="number" min={1} max={50} inputMode="numeric" defaultValue={round}
           />
         </div>
@@ -274,45 +367,41 @@ function RoundForm({
         </div>
       </div>
 
+      {/* Contra qué jugó. En la misma lista van los mazos de la biblioteca
+          —con su lista de 60 cartas, si alguien la apuntó— y los arquetipos
+          sueltos. Es justo para lo que existen los mazos sin dueño: apuntar lo
+          que llevaba el rival sin inventarle una cuenta. */}
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor={`arch-${round}`}>Contra qué mazo</label>
-        <div className="flex items-center gap-2">
-          <Sprites archetype={oppArch} size="md" />
-          <select
-            className="input min-w-0 flex-1" id={`arch-${round}`} name="opponentArchetypeId"
-            value={opponentArchetypeId}
-            onChange={(e) => setOpponentArchetypeId(e.target.value)}
-          >
-            <option value="">— sin anotar —</option>
-            {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-        </div>
+        <DeckPicker
+          id={`arch-${round}`} name="opponentDeck"
+          options={rivalOptions}
+          defaultValue={
+            m?.deckBId ?? (m?.opponentArchetypeId ? archetypeValue(m.opponentArchetypeId) : "")
+          }
+          emptyLabel="— sin anotar —"
+          placeholder="Buscar el mazo del rival"
+        />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="label">Salí</label>
-        <div className="seg w-full">
-          {([["a", "1.º"], ["b", "2.º"], ["", "No me acuerdo"]] as const).map(([v, label]) => (
-            <button key={v || "none"} type="button" data-on={first === v} onClick={() => setFirst(v)}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {decks.length > 0 && (
+      {/* El mazo del torneo: se elige una vez y se queda. */}
+      {lockedDeckId ? (
+        <input type="hidden" name="deckAId" value={lockedDeckId} />
+      ) : myDecks.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor={`deck-${round}`}>Con qué mazo jugaste</label>
-          <select className="input" id={`deck-${round}`} name="deckAId" defaultValue={m?.deckAId ?? (decks[0]?.id ?? "")}>
-            <option value="">— sin anotar —</option>
-            {decks.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}{archIndex.get(d.id) ? ` · ${archIndex.get(d.id)!.name}` : ""}
-              </option>
-            ))}
-          </select>
+          <label className="label" htmlFor={`deck-${round}`}>Con qué mazo juegas el torneo</label>
+          <DeckPicker
+            id={`deck-${round}`} name="deckAId"
+            options={myDecks}
+            defaultValue={m?.deckAId ?? ""}
+            emptyLabel="— sin anotar —"
+            placeholder="Elegir tu mazo"
+          />
+          <p className="text-xs text-muted">
+            Se guarda para todo el torneo: en las rondas siguientes ya no te lo pregunto.
+          </p>
         </div>
-      )}
+      ) : null}
 
       {/* --- resultado: rápido o juego a juego --- */}
       <div className="flex flex-col gap-2">
@@ -327,6 +416,9 @@ function RoundForm({
         {mode === "quick" ? (
           <>
             <input type="hidden" name="result" value={result} />
+            {/* En modo rápido solo se apunta quién empezó el primer juego, que
+                es el que se recuerda: lo decidió la moneda. */}
+            <input type="hidden" name="g0_first" value={firsts[0] ?? ""} />
             <div className="seg w-full">
               {RESULTS.map((r) => (
                 <button
@@ -338,6 +430,22 @@ function RoundForm({
                 </button>
               ))}
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="label">Salí</span>
+              <div className="seg w-full">
+                {([["a", "1.º"], ["b", "2.º"], ["", "No me acuerdo"]] as const).map(([v, label]) => (
+                  <button
+                    key={v || "none"} type="button"
+                    data-on={(firsts[0] ?? "") === v}
+                    onClick={() => setFirsts((f) => f.map((x, k) => (k === 0 ? v : x)))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {!result && (
               <p className="text-xs text-muted">
                 Sin marcar nada la ronda se guarda abierta, y el resultado lo pones al acabar.
@@ -346,36 +454,45 @@ function RoundForm({
             )}
           </>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {Array.from({ length: visibleGames }, (_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-14 flex-none font-display text-sm font-bold text-muted">
-                  Juego {i + 1}
-                </span>
-                <div className="seg min-w-0 flex-1">
-                  {RESULTS.map((r) => (
-                    <button
-                      key={r.v} type="button" className={r.cls}
-                      data-on={gameWinners[i] === r.v}
-                      onClick={() =>
-                        setGameWinners((prev) =>
-                          prev.map((w, k) => (k === i ? (w === r.v ? "" : r.v) : w)),
-                        )
-                      }
-                    >
-                      {r.label}
-                    </button>
-                  ))}
+              <div key={i} className="rounded-lg border border-line-soft bg-surface p-2.5">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="w-14 flex-none font-display text-sm font-bold text-muted">
+                    Juego {i + 1}
+                  </span>
+                  <div className="seg min-w-0 flex-1">
+                    {RESULTS.map((r) => (
+                      <button
+                        key={r.v} type="button" className={r.cls}
+                        data-on={gameWinners[i] === r.v}
+                        onClick={() => setGameWinner(i, r.v)}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Quién salió primero, en este juego. */}
+                <div className="flex items-center gap-2">
+                  <span className="w-14 flex-none text-[11px] font-semibold text-muted">Salí</span>
+                  <div className="seg min-w-0 flex-1 text-[13px]">
+                    {([["a", "1.º"], ["b", "2.º"], ["", "—"]] as const).map(([v, label]) => (
+                      <button
+                        key={v || "none"} type="button"
+                        data-on={(firsts[i] ?? "") === v}
+                        onClick={() => setFirst(i, v)}
+                        aria-label={`Juego ${i + 1}: salí ${label}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <input type="hidden" name={`g${i}_winner`} value={gameWinners[i]} />
-                {i > 0 && (
-                  // Quien pierde un juego empieza el siguiente: se rellena solo
-                  // y se puede cambiar si en la mesa pasó otra cosa.
-                  <input
-                    type="hidden" name={`g${i}_first`}
-                    value={gameWinners[i - 1] === "a" ? "b" : gameWinners[i - 1] === "b" ? "a" : ""}
-                  />
-                )}
+                <input type="hidden" name={`g${i}_first`} value={firsts[i] ?? ""} />
               </div>
             ))}
 
@@ -419,4 +536,3 @@ function RoundForm({
     </form>
   );
 }
-

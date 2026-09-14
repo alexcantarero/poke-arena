@@ -4,6 +4,7 @@ import { currentPlayer, loadInvites, loadPlayerEmails, loadSnapshot } from "@/li
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, SectionTitle } from "@/components/ui";
+import { ArchetypeSync } from "@/components/ArchetypeSync";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
@@ -11,6 +12,13 @@ import { isOwner } from "@/lib/auth";
 import { purgePlayer, resetLeague, saveSettings, wipeSeason } from "@/actions";
 
 export const metadata = { title: "Ajustes" };
+
+/**
+ * Sincronizar el catálogo son varias decenas de llamadas encadenadas a
+ * Limitless y a PokéAPI. Con el límite por defecto de Vercel se quedaba a
+ * medias; 60 segundos es lo máximo del plan gratuito y sobra de largo.
+ */
+export const maxDuration = 60;
 
 export default async function SettingsPage() {
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
@@ -113,6 +121,9 @@ export default async function SettingsPage() {
 
             <button className="btn btn-brand w-full sm:w-auto" type="submit">Guardar ajustes</button>
           </form>
+
+          <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
+          <ArchetypeSync total={snap.archetypes.length} />
 
           <SectionTitle aside={`${snap.players.length} en total`}>Jugadores</SectionTitle>
           <PlayerAdmin

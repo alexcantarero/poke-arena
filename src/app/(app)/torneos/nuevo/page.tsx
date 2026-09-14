@@ -1,21 +1,27 @@
-import { readSession } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { TournamentForm } from "@/components/TournamentForm";
 
 export const metadata = { title: "Nuevo torneo" };
 
+/**
+ * Crear un torneo es crear su cabecera, y nada más.
+ *
+ * El resultado ya no se pide aquí. Iban juntos y parecía que ahorraba un
+ * paso, pero cuando apuntas un torneo todavía no lo has jugado: el formulario
+ * se guardaba siempre a medias y había que volver igualmente. Ahora el ciclo
+ * está partido donde de verdad está partido en la realidad.
+ */
 export default async function NewTournamentPage() {
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
-  const myDecks = session ? snap.decks.filter((d) => d.playerId === session.playerId && !d.retired) : [];
+  const snap = await loadSnapshot();
 
   return (
     <>
       <PageHead
         title="Nuevo torneo"
-        sub="Apunta el torneo y tu resultado de una vez. Si van más del grupo, cada uno añade el suyo después desde la ficha."
+        sub="Primero la cabecera: qué evento es, cuándo y de qué tamaño. Las rondas y el puesto se rellenan después, desde la ficha."
       />
-      <TournamentForm season={snap.config.cpSeason} decks={myDecks} archetypes={snap.archetypes} />
+      <TournamentForm season={snap.config.cpSeason} back="/torneos" />
     </>
   );
 }

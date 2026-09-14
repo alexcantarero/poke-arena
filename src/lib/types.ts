@@ -25,6 +25,94 @@ export type MatchFull = Match & { games: Game[] };
 /** Un torneo con los resultados de la gente del grupo que fue. */
 export type TournamentFull = Tournament & { results: TournamentResult[] };
 
+/* ------------------------------------------------------------- torneos --- */
+
+/**
+ * El ciclo de vida de un torneo, que es lo que ordena el trabajo:
+ *
+ *   borrador → abierto → cerrado
+ *
+ * Se crea la cabecera cuando te apuntas o cuando lo anuncian (borrador), se
+ * abre al empezar el evento y se van metiendo rondas, y se cierra cuando ya
+ * hay puesto final. Cerrado no acepta rondas nuevas — se puede reabrir, pero
+ * hay que decirlo, y esa fricción es justo la que evita tocar sin querer un
+ * torneo de hace tres meses.
+ */
+export const TOURNAMENT_STATUS = {
+  draft: {
+    label: "Borrador",
+    short: "Borrador",
+    hint: "Apuntado, todavía sin jugar",
+    chip: "chip",
+  },
+  open: {
+    label: "En curso",
+    short: "En curso",
+    hint: "Se pueden apuntar rondas",
+    chip: "chip-info",
+  },
+  closed: {
+    label: "Cerrado",
+    short: "Cerrado",
+    hint: "Resultado final puesto",
+    chip: "chip-brand",
+  },
+} as const;
+
+export type TournamentStatus = keyof typeof TOURNAMENT_STATUS;
+
+export const TOURNAMENT_STATUSES = Object.keys(TOURNAMENT_STATUS) as TournamentStatus[];
+
+export const asStatus = (s: string): TournamentStatus =>
+  (TOURNAMENT_STATUSES as string[]).includes(s) ? (s as TournamentStatus) : "open";
+
+/* --------------------------------------------------------------- mazos --- */
+
+/**
+ * Un mazo tal y como lo ve un selector.
+ *
+ * Es plano y serializable a propósito: lo construye el servidor y lo consume
+ * un componente cliente, así que no puede llevar dentro filas de Drizzle ni
+ * mapas. `group` es lo único que decide el orden en el desplegable, y ese
+ * orden es el que hace que elegir mazo desde el móvil sea un gesto y no una
+ * búsqueda.
+ */
+export type DeckOption = {
+  id: string;
+  name: string;
+  archetypeId: string;
+  archetypeName: string;
+  /** Slugs para el sprite. */
+  main: string;
+  secondary: string;
+  type: string;
+  /** fav = favorito tuyo · mine = tuyo · shared = de la liga · other = de otra persona */
+  group: "fav" | "mine" | "shared" | "other";
+  /** Nombre del dueño, solo cuando el mazo es de otra persona. */
+  ownerName?: string;
+  hasList: boolean;
+};
+
+/**
+ * Marca que distingue un arquetipo suelto de un mazo registrado cuando los dos
+ * viajan en la misma lista de un selector.
+ *
+ * Vive aquí y no en `lib/data` porque los selectores son componentes cliente y
+ * `lib/data` es `server-only`: importarlo desde el navegador rompe el build.
+ */
+export const ARCHETYPE_PREFIX = "arch:";
+
+/** Le pone el prefijo a un id de arquetipo, o devuelve "" si no hay. */
+export const archetypeValue = (id: string | null | undefined) =>
+  id ? `${ARCHETYPE_PREFIX}${id}` : "";
+
+export const DECK_GROUP_LABEL: Record<DeckOption["group"], string> = {
+  fav: "Favoritos",
+  mine: "Tuyos",
+  shared: "De la liga",
+  other: "De otra gente",
+};
+
 export type Side = "a" | "b";
 
 /**

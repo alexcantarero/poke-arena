@@ -7,19 +7,26 @@ import { pokeSlug, prettyPokemon, spriteUrl, TYPES, TYPE_KEYS } from "@/lib/poke
 import type { Archetype, Deck, PublicPlayer } from "@/lib/types";
 
 export function DeckForm({
-  deck, players, archetypes, defaultPlayerId, canPickPlayer,
+  deck, players, archetypes, defaultPlayerId, canPickPlayer, back,
 }: {
   deck?: Deck & { archetype?: Archetype };
   players: PublicPlayer[];
   archetypes: Archetype[];
   defaultPlayerId?: string;
   canPickPlayer?: boolean;
+  /** A dónde volver al guardar. Crear un mazo suele ser un desvío. */
+  back?: string;
 }) {
   const [list, setList] = useState(deck?.list ?? "");
   const [main, setMain] = useState(deck?.archetype?.main ?? "");
   const [secondary, setSecondary] = useState(deck?.archetype?.secondary ?? "");
   const [type, setType] = useState(deck?.archetype?.type ?? "colorless");
   const [reuse, setReuse] = useState(deck?.archetypeId ?? "");
+  /* De quién es el mazo. Al editar arranca en lo que ya sea la fila: un mazo
+     sin dueño es de la biblioteca de la liga, y uno con dueño es de alguien. */
+  const [scope, setScope] = useState<"mine" | "shared">(
+    deck ? (deck.playerId ? "mine" : "shared") : "mine",
+  );
 
   const parsed = useMemo(() => (list.trim() ? parseDeckList(list) : null), [list]);
   const suggestion = useMemo(() => (parsed ? suggestArchetype(parsed) : null), [parsed]);
@@ -37,10 +44,24 @@ export function DeckForm({
     <form action={saveDeck} className="flex flex-col gap-4">
       {deck && <input type="hidden" name="id" value={deck.id} />}
       {deck && <input type="hidden" name="created" value={deck.created} />}
+      {back && <input type="hidden" name="back" value={back} />}
+      <input type="hidden" name="scope" value={scope} />
 
       <section className="card p-4">
         <div className="flex flex-col gap-4">
-          {canPickPlayer && (
+          <div className="flex flex-col gap-1.5">
+            <span className="label">De quién es</span>
+            <div className="seg w-full">
+              <button type="button" data-on={scope === "mine"} onClick={() => setScope("mine")}>Mío</button>
+              <button type="button" data-on={scope === "shared"} onClick={() => setScope("shared")}>De la liga</button>
+            </div>
+            <p className="text-sm text-muted">
+              <b>Mío</b> es el mazo que juegas tú; <b>de la liga</b> no es de nadie y lo puede elegir
+              cualquiera, que es lo que hace falta para apuntar el mazo que llevaba un rival.
+            </p>
+          </div>
+
+          {canPickPlayer && scope === "mine" && (
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="playerId">Jugador</label>
               <select className="input" id="playerId" name="playerId" defaultValue={deck?.playerId ?? defaultPlayerId}>

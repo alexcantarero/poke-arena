@@ -199,6 +199,45 @@ export function longestWinStreak(matches: MatchFull[], playerId: string) {
   return best;
 }
 
+export type PlayerRecord = {
+  played: number; wins: number; ties: number; losses: number;
+  gameWins: number; gameLosses: number;
+  winRate: number | null;
+};
+
+/**
+ * El balance personal de alguien sobre las partidas que se le pasen.
+ *
+ * Existe aparte de `standings` porque responde a otra pregunta. La
+ * clasificación es de la liga y deja fuera a los rivales de fuera —no habría
+ * contra quién repartir los puntos ni el Elo—, pero cuando lo que miras es tu
+ * propio perfil esas partidas son tan tuyas como las demás: las rondas de un
+ * Challenge de tienda son media temporada. Así que aquí cuenta todo, y por eso
+ * el filtro de ámbito del perfil puede pasarle el subconjunto que quiera.
+ *
+ * El empate vale media victoria, igual que en la clasificación y que en
+ * Play! Pokémon, para que el porcentaje del perfil y el del ranking no digan
+ * cosas distintas del mismo jugador.
+ */
+export function playerRecord(matches: MatchFull[], playerId: string): PlayerRecord {
+  let wins = 0, ties = 0, losses = 0, gameWins = 0, gameLosses = 0;
+  for (const m of matches.filter(isPlayed)) {
+    const side = sideOf(m, playerId);
+    if (!side) continue;
+    const o = outcome(m);
+    gameWins += side === "a" ? o.ga : o.gb;
+    gameLosses += side === "a" ? o.gb : o.ga;
+    if (o.winner === "tie") ties++;
+    else if (o.winner === side) wins++;
+    else losses++;
+  }
+  const played = wins + ties + losses;
+  return {
+    played, wins, ties, losses, gameWins, gameLosses,
+    winRate: played ? (wins + ties * 0.5) / played : null,
+  };
+}
+
 /* ----------------------------------------------------------- Arquetipos -- */
 
 

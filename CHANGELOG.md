@@ -2,6 +2,111 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.4.0] — 2026-09-14
+
+El ciclo del torneo puesto en orden —crear, editar, rellenar, cerrar—, los mazos convertidos en
+una biblioteca de la liga, y los datos del metagame llegando solos desde Limitless.
+
+### Añadido
+
+**El ciclo de vida del torneo**
+- Un torneo tiene ahora tres estados: **borrador → en curso → cerrado**. Se crea la cabecera
+  cuando te apuntas, se abre el día del evento y se cierra cuando sale la clasificación.
+  Un torneo cerrado no acepta rondas nuevas; reabrirlo es un botón, pero hay que darle.
+- La ficha empieza con **qué falta por hacer**, deducido de los datos y no del estado: la
+  asistencia, tus rondas, tu mazo, tu puesto. Sin esto, un torneo sin puesto podía ser «aún no
+  ha terminado» o «se me olvidó rellenarlo», y son cosas distintas.
+- **Crear y editar están separados del resultado.** Iban en el mismo formulario y parecía que
+  ahorraba un paso, pero cuando apuntas un torneo todavía no lo has jugado. El formulario de
+  edición se fue a su propia pantalla, `/torneos/<id>/editar`.
+- El estado sale también en la lista de torneos, que es desde donde se navega.
+
+**Biblioteca de mazos de la liga**
+- Un mazo puede no ser de nadie: **`decks.player_id` admite nulos**, y sin dueño el mazo es de
+  la liga. Sirve para lo que pedía la lista: apuntar el mazo que llevaba un rival sin tener que
+  inventarle una cuenta.
+- **Favoritos** por jugador (tabla `deck_favorites`). Un favorito no es propiedad: es lo que
+  sale primero en los selectores.
+- **Selector nuevo con buscador y sprite** en todas las pantallas donde se elige mazo. Con
+  sesenta arquetipos, el desplegable nativo del móvil era una columna de sesenta líneas de
+  texto; ahora se ve el dibujo y se puede escribir para filtrar.
+- En una ronda de torneo, el mazo del rival se elige de la misma lista que los arquetipos: si
+  alguien tiene apuntada su lista de 60 cartas, se guarda esa.
+
+**El mazo del torneo se elige una vez**
+- Se pone en tu resultado y **todas las rondas lo heredan**. En un suizo juegas el mismo mazo de
+  la primera a la última; preguntarlo siete veces era invitar a equivocarse a la tercera y
+  ensuciar tus propias estadísticas.
+- Cambiar el mazo en el resultado ahora **baja a las rondas ya apuntadas**.
+
+**Rellenar el resultado de dos maneras**
+- **Récord de tus rondas** (se cuenta solo) o **a mano** (para el torneo de hace tres meses que
+  no vas a reconstruir). No es una preferencia: son dos situaciones distintas.
+- Las **rondas se proponen solas** a partir de la asistencia: un suizo de 32 son 5 rondas.
+
+**Quién sale primero, juego a juego**
+- Antes se marcaba solo en el primer juego y el resto se deducía («pierde uno, empieza el
+  siguiente»). Ahora se marca en cada juego, porque en la mesa hay concesiones, penalizaciones y
+  reinicios, y el dato bueno es el que viste.
+
+**Championship Points de la temporada 2027, confirmados**
+- Las tablas oficiales con sus *kickers* reales: un 2.º puesto cobra con 4 personas y un 3.º-4.º
+  con 8, bastante menos de lo que hacía falta en 2026.
+- **Regionales e Internacionales comparten un único límite de 5 mejores resultados.** Es el
+  cambio gordo del año y la app lo dice donde toca, porque es contraintuitivo.
+- Los tramos que dan **invitación directa al Mundial** —campeón de Regional, Top 4 de
+  Internacional— salen marcados, al margen de los puntos.
+- El CP no se enseña a secas: se explica. Un «0 CP» con el tramo delante —cuántos hacían falta y
+  cuántos hubo— se entiende; solo, parece un error.
+- En el perfil, el desglose por contador: los 4 mejores Challenges, las 4 mejores Cups y los 5
+  mejores Regionales/Internacionales, con los que se quedan fuera marcados.
+
+**Datos del metagame, sin salir de la web**
+- Botón en Ajustes para **traer los arquetipos que falten** desde Limitless. Existía como script
+  (`npm run archetypes:sync`), pero usarlo obligaba a tener el proyecto abierto en un ordenador
+  con Node, así que no se hacía nunca y faltaban mazos —Grimmsnarl, sin ir más lejos—.
+- El catálogo se deduce agregando las clasificaciones de los torneos recientes, **sin clave**: el
+  endpoint oficial de arquetipos la pide, y solo la conceden a proyectos públicos.
+- **El color de cada arquetipo se rellena solo** preguntando el tipo del Pokémon a PokéAPI. Antes
+  entraban todos como incoloros y había que repasarlos a mano uno a uno.
+
+**Perfil**
+- Totales de victorias, derrotas, empates y % de victorias, con **filtro por ámbito**: todo,
+  liga, torneos o amistosos. Mezclarlo todo no decía nada.
+- Las dos listas de una partida se pueden ver, no solo la tuya.
+
+### Cambiado
+
+- La **matriz de emparejamientos** lleva sprites en las cabeceras de columna en vez de texto
+  vertical: de 96 px de alto a menos de la mitad, y se lee de un vistazo.
+- La pantalla de **Mazos** es ahora la biblioteca: pestañas por procedencia y buscador.
+
+### Corregido
+
+- Guardar el resultado de un torneo con un arquetipo elegido **fallaba con un error de servidor**
+  (el id viajaba con un prefijo interno hasta una clave ajena).
+- Apuntar **cualquier ronda nueva** habría fallado: el `ON CONFLICT` apuntaba a un índice parcial
+  sin repetir su predicado, y PostgreSQL descarta esos índices al inferir el árbitro.
+- Editar la cabecera de un torneo **te convertía en su creador**, y el creador original perdía el
+  acceso a cerrarlo y editarlo.
+- Editar una ronda y cambiarle el número **creaba una ronda nueva** en vez de mover la que había,
+  o machacaba la que ocupaba ese número.
+- Apuntar una ronda podía **sobrescribir una partida interna** etiquetada al mismo torneo con el
+  mismo número, borrando al jugador B y sus juegos.
+- Editar un torneo **recalculaba su temporada** desde la fecha y **borraba el país**, aunque el
+  formulario no tuviera esos campos.
+- Corregir la asistencia **no recalculaba los CP guardados**: el perfil decía una cifra y la
+  ficha del torneo otra.
+- Borrar la última ronda dejaba el **récord viejo** para siempre.
+- Borrar un mazo de la biblioteca que estaban usando otros les dejaba los resultados **sin mazo,
+  en silencio**. Ahora se retira en vez de borrarse.
+- Un torneo cerrado **sí aceptaba** borrar rondas y recalcular el récord por una petición directa.
+- El récord podía verse **de dos maneras distintas en la misma pantalla**.
+- Un organizador que editaba un mazo compartido **se lo quedaba**, y el selector de jugador que
+  se le enseñaba no hacía nada.
+- Las rondas de otra persona se titulaban «Tus rondas» para un organizador.
+- La fecha de cierre de un torneo se enseñaba en UTC y no en la zona de la liga.
+
 ## [0.3.0] — 2026-09-10
 
 Apuntar un torneo mientras se juega, en vez de reconstruirlo de memoria al llegar a casa.

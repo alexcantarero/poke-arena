@@ -1,5 +1,6 @@
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
+import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { awardsCp, getSeason } from "@/lib/cp";
@@ -132,6 +133,13 @@ export default async function TournamentsPage({
                   <span>{SCOPE_LABEL[t.scope] ?? t.scope}</span>
                   {t.city && <><span aria-hidden="true">·</span><span className="truncate">{t.city}</span></>}
                   <span className="flex-1" />
+                  {/* El estado, lo primero: un borrador y un torneo en curso
+                      se veían exactamente igual, y saber si a un torneo sin
+                      puesto le falta jugarse o le falta rellenarse es justo
+                      para lo que existe el ciclo. */}
+                  <span className={`chip ${TOURNAMENT_STATUS[asStatus(t.status)].chip}`}>
+                    {TOURNAMENT_STATUS[asStatus(t.status)].short}
+                  </span>
                   <span className="chip">Bo{t.bestOf}</span>
                   {awardsCp(season, t.kind) && <span className="chip chip-brand">CP</span>}
                 </div>

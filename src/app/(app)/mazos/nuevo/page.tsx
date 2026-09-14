@@ -5,9 +5,17 @@ import { DeckForm } from "@/components/DeckForm";
 
 export const metadata = { title: "Nuevo mazo" };
 
+/**
+ * Solo se vuelve a una ruta de esta misma app. `back` llega por la URL, así
+ * que sin esta comprobación cualquiera podría mandar un enlace a
+ * `/mazos/nuevo?back=https://…` y llevarse a alguien fuera al guardar.
+ */
+const safeBack = (v: string | undefined) =>
+  v && v.startsWith("/") && !v.startsWith("//") ? v : undefined;
+
 export default async function NewDeckPage({
   searchParams,
-}: { searchParams: Promise<{ player?: string }> }) {
+}: { searchParams: Promise<{ player?: string; back?: string }> }) {
   const [q, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   return (
@@ -18,6 +26,7 @@ export default async function NewDeckPage({
         archetypes={snap.archetypes}
         defaultPlayerId={q.player ?? session?.playerId}
         canPickPlayer={me ? canManageLeague(me.role) : false}
+        back={safeBack(q.back)}
       />
     </>
   );

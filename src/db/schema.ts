@@ -120,10 +120,22 @@ export const archetypes = pgTable("archetypes", {
   limitlessId: text("limitless_id"),
 });
 
-/** Un mazo concreto de un jugador. Puede llevar la lista completa de 60 cartas. */
+/**
+ * Un mazo. Puede ser de alguien o de la liga entera.
+ *
+ * `playerId` nulo = mazo de la biblioteca compartida: no es de nadie, lo ve y
+ * lo puede elegir cualquiera, y sirve tanto para decir «yo jugué esto» como
+ * para decir «mi rival llevaba esto». Era el punto de la lista de Alex: «crear
+ * mazos sin tener que asignarse a mi perfil… y sobre todo poner que lo usan
+ * los rivales».
+ *
+ * Los mazos que ya existían conservan su dueño, así que nada cambia de sitio.
+ * Para tener los tuyos a mano sin apropiártelos está `deck_favorites`.
+ */
 export const decks = pgTable("decks", {
   id: text("id").primaryKey(),
-  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  /** Nulo = de la biblioteca compartida. */
+  playerId: text("player_id").references(() => players.id, { onDelete: "cascade" }),
   archetypeId: text("archetype_id").notNull().references(() => archetypes.id),
   name: text("name").notNull(),
   list: text("list").notNull().default(""),
@@ -132,7 +144,24 @@ export const decks = pgTable("decks", {
   format: text("format").notNull().default("standard"),
   retired: boolean("retired").notNull().default(false),
   created: date("created").notNull(),
+  /** Quién lo metió. En un mazo compartido es lo único que dice de dónde salió. */
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
 }, (t) => [index("decks_player_idx").on(t.playerId)]);
+
+/**
+ * Mazos marcados como favoritos por alguien.
+ *
+ * Es la lista corta que sale primero en los selectores. Un favorito no implica
+ * propiedad: puedes marcar un mazo compartido sin que deje de ser de todos.
+ */
+export const deckFavorites = pgTable("deck_favorites", {
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  deckId: text("deck_id").notNull().references(() => decks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("deck_fav_unique_idx").on(t.playerId, t.deckId),
+  index("deck_fav_player_idx").on(t.playerId),
+]);
 
 /* --------------------------------------------- competiciones internas --- */
 
@@ -255,6 +284,22 @@ export const tournaments = pgTable("tournaments", {
    * src/data/cp-<temporada>.json, no aquí.
    */
   kind: text("kind").notNull().default("store"),
+  /**
+   * En qué punto del ciclo está: `draft` · `open` · `closed`.
+   *
+   * Es lo que ordena el trabajo. Se crea la cabecera (borrador), se abre
+   * cuando empieza el evento y se van apuntando rondas, y se cierra cuando ya
+   * está el puesto final. Un torneo cerrado no acepta rondas nuevas: es la
+   * diferencia entre «esto todavía se mueve» y «esto ya es historia», y sin
+   * ella no se sabe si un torneo sin puesto es que acabó mal o que falta
+   * rellenarlo.
+   *
+   * `open` por defecto para que los torneos que ya existían sigan
+   * comportándose igual que antes.
+   */
+  status: text("status").notNull().default("open"),
+  /** Cuándo se cerró, para poder decir «cerrado el 3 de marzo». */
+  closedAt: timestamp("closed_at", { withTimezone: true }),
   /** onsite · online */
   scope: text("scope").notNull().default("onsite"),
   /** standard · expanded · glc · limited · other */
@@ -353,6 +398,7 @@ export type Player = typeof players.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type Archetype = typeof archetypes.$inferSelect;
 export type Deck = typeof decks.$inferSelect;
+export type DeckFavorite = typeof deckFavorites.$inferSelect;
 export type Competition = typeof competitions.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type Game = typeof games.$inferSelect;

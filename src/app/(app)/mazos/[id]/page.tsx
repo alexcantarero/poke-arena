@@ -12,7 +12,16 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
 
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const manager = me ? canManageLeague(me.role) : false;
-  if (!me || (deck.playerId !== me.id && !manager)) redirect("/mazos");
+
+  /* Quién puede abrir esto es exactamente quién puede guardarlo: el dueño si
+     el mazo tiene dueño, y si es de la biblioteca compartida, quien lo metió.
+     Compartido quiere decir que lo puede **usar** cualquiera, no que se lo
+     pueda reescribir cualquiera; la comprobación de verdad está en `saveDeck`,
+     esto solo evita enseñar un formulario que el servidor va a rechazar. */
+  const canEdit = Boolean(me) && (
+    manager || (deck.playerId ? deck.playerId === me?.id : deck.createdBy === me?.id)
+  );
+  if (!canEdit) redirect("/mazos");
 
   const archetype = snap.archById.get(deck.archetypeId);
   return (

@@ -13,6 +13,15 @@ export const TZ = "Europe/Madrid";
  */
 export const todayISO = () => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date());
 
+/**
+ * Una fecha con hora, en día de la liga.
+ *
+ * `toISOString()` da UTC, así que algo guardado a las 00:30 de Madrid salía con
+ * la fecha del día anterior. Mismo criterio que `todayISO`.
+ */
+export const isoInLeagueTz = (d: Date) =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(d);
+
 /** ¿Es una fecha ISO real? Filtra tanto la basura como el 2026-02-31. */
 export function isIsoDate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;

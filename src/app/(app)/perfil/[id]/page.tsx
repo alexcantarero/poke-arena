@@ -3,28 +3,66 @@ import { notFound } from "next/navigation";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import {
-  archetypeStats, headToHead, isPlayed, longestWinStreak, outcome, playerMatchups, sideOf, standings,
+  archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, sideOf,
 } from "@/lib/stats";
 import { getSeason } from "@/lib/cp";
+import type { MatchFull } from "@/lib/types";
 import { fmtDate, fmtDateLong, pct, shortName, wrColor } from "@/lib/format";
 import {
-  ArchTag, Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag, Record,
+  ArchTag, Avatar, Empty, Kpi, MatchCard, MatchList, PlayerTag, Record,
   SectionTitle, Sparkline, SplitBar, Sprites,
 } from "@/components/ui";
+import { ScopeTabs } from "@/components/ScopeTabs";
+import { CpBreakdown } from "@/components/CpBreakdown";
 import { Icon } from "@/components/icons";
 import { LadderClear, LadderEditor, RankBadge, RankProgress } from "@/components/Ladder";
 import { canManageLeague } from "@/lib/auth";
 
-export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+/* De dónde salen las cifras de arriba.
+   Mezclar la liga, los torneos de fuera y los amistosos da un número que no
+   responde a ninguna pregunta: el de la liga es el que compite con tus
+   compañeros, el de los torneos es el que te dice cómo vas fuera de casa y el
+   de los amistosos es ruido de pruebas de mazos. Por eso se separan.
+
+   El ámbito viaja en la URL y no en estado de cliente para que el enlace se
+   pueda pasar por el grupo, para que funcione sin JavaScript y para que la
+   flecha de volver del móvil haga lo que uno espera. */
+const SCOPES = {
+  liga: { label: "Liga", test: (m: MatchFull) => m.competitionId !== null },
+  torneos: { label: "Torneos", test: (m: MatchFull) => m.tournamentId !== null },
+  amistosos: {
+    label: "Amistosos",
+    test: (m: MatchFull) => m.competitionId === null && m.tournamentId === null,
+  },
+} as const;
+
+type ScopeKey = keyof typeof SCOPES;
+const isScope = (s: string): s is ScopeKey => (Object.keys(SCOPES) as string[]).includes(s);
+
+export default async function ProfilePage({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ambito?: string }>;
+}) {
+  const [{ id }, q] = await Promise.all([params, searchParams]);
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const player = snap.playersById.get(id);
   if (!player) notFound();
 
+  const scope: ScopeKey | "all" = q.ambito && isScope(q.ambito) ? q.ambito : "all";
+
   const isMe = session?.playerId === id;
   const all = snap.matches.filter(isPlayed);
   const mine = all.filter((m) => sideOf(m, id));
-  const row = standings(all, snap.activePlayerIds, snap.elo.rating, snap.config).find((r) => r.playerId === id);
+  // El filtro manda sobre las cifras y sobre el historial. Los cortes por mazo
+  // y por rival siguen mirándolo todo: con el ámbito puesto en «amistosos» se
+  // quedarían en dos partidas y dejarían de decir nada.
+  const scoped = scope === "all" ? mine : mine.filter(SCOPES[scope].test);
+  // Cuenta las partidas contra gente de fuera de la liga, que la clasificación
+  // deja fuera a propósito pero que para el jugador son suyas igual.
+  const rec = playerRecord(scoped, id);
+  const elo = snap.elo.rating[id] ?? snap.config.eloStart;
   const history = (snap.elo.history[id] ?? []).map((h) => h.value);
   const archs = archetypeStats(mine, snap.archIndex, id, snap.archById);
   const matchups = playerMatchups(all, id, snap.archIndex, 2, snap.archById);
@@ -39,14 +77,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   // organizador. La comprobación de verdad está dentro de la Server Action.
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const canEditLadder = Boolean(me && (isMe || canManageLeague(me.role)));
-
-  let gw = 0, gl = 0;
-  for (const m of mine) {
-    const o = outcome(m);
-    const side = sideOf(m, id);
-    gw += side === "a" ? o.ga : o.gb;
-    gl += side === "a" ? o.gb : o.ga;
-  }
 
   return (
     <>
@@ -76,52 +106,40 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Kpi label="Partidas" value={mine.length} note={row ? `${row.wins}V ${row.ties ? `${row.ties}E ` : ""}${row.losses}D` : "—"} />
-        <Kpi label="% victorias" value={pct(row?.winRate, 0)} note={`juegos ${gw}–${gl}`} highlight={(row?.winRate ?? 0) >= 0.5} />
-        <Kpi label="Elo" value={row?.elo ?? snap.config.eloStart}
-          note={`${(row?.elo ?? snap.config.eloStart) - snap.config.eloStart >= 0 ? "+" : ""}${(row?.elo ?? snap.config.eloStart) - snap.config.eloStart} desde el inicio`} />
-        <Kpi label={`CP ${cp.season}`} value={cp.total} note={cpTable.confirmed ? `${myTours.length} torneos` : "cifras provisionales"} />
+      {/* ------------------------------ balance ------------------------------ */}
+      <ScopeTabs
+        basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel="Todo"
+        options={Object.entries(SCOPES).map(([value, s]) => ({ value, label: s.label }))}
+      />
+
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        <Kpi label="Partidas" value={rec.played} note={`juegos ${rec.gameWins}–${rec.gameLosses}`} />
+        <Kpi label="Victorias" value={rec.wins} />
+        <Kpi label="Derrotas" value={rec.losses} />
+        <Kpi label="Empates" value={rec.ties} />
+        <Kpi
+          label="% victorias" value={pct(rec.winRate, 0)} note="el empate cuenta media"
+          highlight={(rec.winRate ?? 0) >= 0.5}
+        />
       </div>
 
+      <div className="mt-2.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <Kpi label="Elo" value={elo}
+          note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
+        <Kpi label={`CP ${cp.season}`} value={cp.total}
+          note={cpTable.confirmed ? `${myTours.length} torneos` : "cifras provisionales"} />
+      </div>
+
+      {/* El Elo es de toda la liga y los CP son de toda la temporada: filtrarlos
+          por ámbito no querría decir nada, y callárselo dejaría a alguien
+          pensando que el filtro no funciona. */}
+      <p className="mt-2 mb-5 text-xs text-muted">
+        El Elo y los Championship Points no cambian con este filtro: el primero es de toda
+        la liga y los segundos, de toda la temporada.
+      </p>
+
       {/* --------------------------- Championship Points --------------------------- */}
-      {cp.rows.length > 0 && (
-        <section className="card mb-5">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Championship Points</h2>
-            <Link className="btn btn-ghost btn-sm" href="/torneos">Torneos</Link>
-          </div>
-
-          <div className="grid gap-3 border-b border-line-soft p-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cp.buckets.map((b) => (
-              <div key={b.bucket} className="rounded-lg border border-line-soft bg-ground p-3">
-                <div className="truncate text-xs font-semibold text-muted">{b.label}</div>
-                <div className="font-display text-2xl font-extrabold tabular">{b.total}</div>
-                <div className="text-xs text-muted">
-                  {b.bfl > 0 ? `${b.counting}/${b.bfl} huecos` : "sin límite"}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <ul className="divide-y divide-line-soft">
-            {cp.rows.map((r) => (
-              <li key={r.id} className={`flex items-center gap-3 px-4 py-2.5 ${r.excluded ? "opacity-45" : ""}`}>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{r.tournamentName}</span>
-                  <span className="block text-xs text-muted">
-                    {fmtDate(r.date)}{r.placement ? ` · puesto ${r.placement}` : ""}
-                    {r.excluded ? " · fuera por Best Finish Limit" : ""}
-                  </span>
-                </span>
-                <span className="font-mono text-sm font-semibold tabular">
-                  {r.excluded ? <s>{r.cpEarned || 0}</s> : r.counted}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <section className="card">
@@ -140,7 +158,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <section className="card">
           <div className="card-head">
             <h2 className="text-lg font-bold">Sus mazos</h2>
-            {isMe && <Link className="btn btn-sm" href="/mazos/nuevo">+ Mazo</Link>}
+            <div className="flex flex-none items-center gap-2">
+              {scope !== "all" && <span className="text-xs text-muted">todas las partidas</span>}
+              {isMe && <Link className="btn btn-sm" href="/mazos/nuevo">+ Mazo</Link>}
+            </div>
           </div>
           {archs.length ? (
             <ul className="divide-y divide-line-soft">
@@ -164,7 +185,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <section className="card">
-          <div className="card-head"><h2 className="text-lg font-bold">Enfrentamientos directos</h2></div>
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Enfrentamientos directos</h2>
+            {scope !== "all" && <span className="text-xs text-muted">todas las partidas</span>}
+          </div>
           {rivals.length ? (
             <ul className="divide-y divide-line-soft">
               {rivals.map((t) => (
@@ -184,7 +208,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <section className="card">
           <div className="card-head">
             <h2 className="text-lg font-bold">Emparejamientos</h2>
-            <span className="text-xs text-muted">mín. 2 partidas</span>
+            <span className="text-xs text-muted">
+              mín. 2 partidas{scope !== "all" ? " · todas las partidas" : ""}
+            </span>
           </div>
           {matchups.length ? (
             <ul className="divide-y divide-line-soft">
@@ -272,11 +298,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      <SectionTitle aside={`${mine.length} partidas`}>Historial</SectionTitle>
+      <SectionTitle aside={`${scoped.length} de ${mine.length} partidas`}>
+        {scope === "all" ? "Historial" : `Historial · ${SCOPES[scope].label}`}
+      </SectionTitle>
       <div className="card">
-        {mine.length ? (
+        {scoped.length ? (
           <MatchList>
-            {mine.slice().reverse().slice(0, 40).map((m) => (
+            {scoped.slice().reverse().slice(0, 40).map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}
@@ -288,7 +316,16 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               />
             ))}
           </MatchList>
-        ) : <Empty title="Sin partidas" />}
+        ) : scope === "all" ? (
+          <Empty title="Sin partidas" />
+        ) : (
+          <Empty
+            title={`Ninguna partida de ${SCOPES[scope].label.toLowerCase()}`}
+            action={<Link className="btn btn-sm" href={`/perfil/${player.id}`}>Ver todas</Link>}
+          >
+            {mine.length} partidas suyas hay registradas, pero ninguna de este ámbito.
+          </Empty>
+        )}
       </div>
     </>
   );

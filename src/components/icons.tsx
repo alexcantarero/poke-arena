@@ -16,6 +16,11 @@ const P: Record<string, string> = {
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9",
   share: "M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6",
   check: "M4 12.5 9.5 18 20 6",
+  edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
+  star: "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z",
+  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4",
+  lock: "M6 10h12v10H6zM9 10V7a3 3 0 0 1 6 0v3",
+  refresh: "M4 12a8 8 0 0 1 13.7-5.7L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.7 5.7L4 16M4 20v-4h4",
 };
 
 export function Icon({ name, className = "size-5" }: { name: keyof typeof P | string; className?: string }) {

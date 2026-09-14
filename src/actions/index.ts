@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  archetypes, competitionPlayers, competitions, decks, events, games, invites, ladderEntries,
-  matches, players, settings, tournamentResults, tournaments,
+  archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
+  ladderEntries, matches, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -20,6 +20,9 @@ import { cpForPlacement, seasonOfDate } from "@/lib/cp";
 import { pairRound } from "@/lib/stats";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { loadSnapshot } from "@/lib/data";
+import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
+import { energyTypesOf } from "@/lib/sources/pokeapi";
+import { ARCHETYPE_PREFIX, TOURNAMENT_STATUSES } from "@/lib/types";
 import type { FormState } from "@/lib/types";
 
 /* =========================================================================
@@ -79,6 +82,24 @@ const isoDate = (fd: FormData, k: string, dflt: string | null = todayISO()) => {
 
 const bool = (fd: FormData, k: string) => fd.get(k) === "on" || fd.get(k) === "true";
 
+/**
+ * El id que manda un selector de mazo, separado en sus dos formas.
+ *
+ * `DeckPicker` ofrece en la misma lista mazos registrados y arquetipos
+ * sueltos, y los distingue con el prefijo `arch:` (ver `ARCHETYPE_PREFIX` en
+ * lib/data). Aquí hay que deshacer eso antes de tocar la base, porque cada uno
+ * va a una columna distinta y las dos son claves ajenas: guardar `arch:a12` en
+ * `deck_id` es una violación de clave ajena y un error 500.
+ */
+function deckOrArchetype(fd: FormData, k: string): { deckId: string | null; archetypeId: string | null } {
+  const raw = str(fd, k);
+  if (!raw) return { deckId: null, archetypeId: null };
+  if (raw.startsWith(ARCHETYPE_PREFIX)) {
+    return { deckId: null, archetypeId: raw.slice(ARCHETYPE_PREFIX.length) || null };
+  }
+  return { deckId: raw, archetypeId: null };
+}
+
 /** Valor de una lista cerrada, o el primero de la lista. */
 const pick = <T extends string>(fd: FormData, k: string, allowed: readonly T[], dflt: T): T => {
   const v = str(fd, k) as T;
@@ -87,6 +108,22 @@ const pick = <T extends string>(fd: FormData, k: string, allowed: readonly T[], 
 
 function refresh() {
   revalidatePath("/", "layout");
+}
+
+/**
+ * Ruta a la que volver después de guardar, saneada.
+ *
+ * Varios formularios llevan un campo `back` para devolverte a donde estabas
+ * en vez de a la pantalla de siempre. Ese campo llega del navegador, así que
+ * sin filtrar convierte cualquiera de estas acciones en un redirector abierto:
+ * un enlace con `back=https://otra-cosa.example` y alguien acaba fuera de la
+ * app creyendo que sigue dentro. Solo se aceptan rutas internas, y `//` queda
+ * fuera porque el navegador lo lee como otro dominio.
+ */
+function safeBack(fd: FormData, dflt: string): string {
+  const raw = str(fd, "back");
+  if (!raw.startsWith("/") || raw.startsWith("//")) return dflt;
+  return raw.slice(0, 300);
 }
 
 /* ------------------------------------------------------------ permisos -- */
@@ -415,20 +452,49 @@ export async function saveArchetype(fd: FormData) {
 
 /* --------------------------------------------------------------- mazos -- */
 
+/**
+ * ¿Puede este actor tocar este mazo?
+ *
+ * Un mazo de la biblioteca compartida (sin dueño) lo edita quien lo creó y
+ * los organizadores. Que sea de todos significa que todos lo pueden **usar**,
+ * no que todos lo puedan reescribir: si no, el primero que pase te cambia la
+ * lista de debajo de los pies.
+ */
+function canEditDeck(actor: Actor, deck: { playerId: string | null; createdBy: string | null }) {
+  if (canManageLeague(actor.role)) return true;
+  if (deck.playerId) return deck.playerId === actor.id;
+  return deck.createdBy === actor.id;
+}
+
 export async function saveDeck(fd: FormData) {
   const actor = await requireActor();
   const editing = str(fd, "id");
   const list = String(fd.get("list") ?? "");
   const parsed = list.trim() ? parseDeckList(list) : null;
 
+  // `scope` decide de quién es: "shared" lo deja sin dueño, en la biblioteca
+  // de la liga, que es lo que hace falta para apuntar el mazo de un rival sin
+  // tener que inventarle una cuenta.
+  const scope = pick(fd, "scope", ["mine", "shared"] as const, "mine");
+
   // Al editar, el dueño lo dice la fila que ya está guardada, no el formulario:
   // si no, mandando el id de un mazo ajeno te lo apropiabas.
-  let owner = actor.id;
+  let owner: string | null = scope === "shared" ? null : actor.id;
   if (editing) {
     const current = (await db.select().from(decks).where(eq(decks.id, editing)))[0];
-    if (!current || !owns(actor, current.playerId)) return;
-    owner = current.playerId;
-  } else if (canManageLeague(actor.role)) {
+    if (!current || !canEditDeck(actor, current)) return;
+    // Mover un mazo entre «mío» y «de la liga» sí se permite, porque es una
+    // decisión legítima; lo que no se permite es quedárselo de otra persona.
+    if (scope === "shared") {
+      owner = null;
+    } else if (canManageLeague(actor.role)) {
+      // Un organizador sí puede decir de quién es: el selector de jugador que
+      // le enseña el formulario tiene que hacer algo.
+      owner = str(fd, "playerId") || current.playerId || actor.id;
+    } else {
+      owner = current.playerId ?? actor.id;
+    }
+  } else if (scope === "mine" && canManageLeague(actor.role)) {
     owner = str(fd, "playerId") || actor.id;
   }
 
@@ -454,20 +520,76 @@ export async function saveDeck(fd: FormData) {
     created: isoDate(fd, "created") ?? todayISO(),
   };
 
-  if (editing) await db.update(decks).set(values).where(eq(decks.id, editing));
-  else await db.insert(decks).values({ id: newId("d"), ...values });
+  if (editing) {
+    await db.update(decks).set(values).where(eq(decks.id, editing));
+  } else {
+    await db.insert(decks).values({ id: newId("d"), ...values, createdBy: actor.id });
+  }
   refresh();
-  redirect("/mazos");
+  // Volver a donde estabas. Crear un mazo casi siempre es un desvío en mitad
+  // de otra cosa —apuntando una ronda, rellenando un torneo—, y mandar a todo
+  // el mundo a /mazos era perder el hilo.
+  redirect(safeBack(fd, "/mazos"));
 }
 
 export async function deleteDeck(fd: FormData) {
   const actor = await requireActor();
   const id = str(fd, "id");
   const current = (await db.select().from(decks).where(eq(decks.id, id)))[0];
-  if (!current || !owns(actor, current.playerId)) redirect("/mazos");
-  await db.delete(decks).where(eq(decks.id, id));
+  if (!current || !canEditDeck(actor, current)) redirect("/mazos");
+
+  /* Un mazo de la biblioteca lo puede estar usando gente que no eres tú, y las
+     claves ajenas son ON DELETE SET NULL: borrarlo deja las rondas y los
+     resultados de otros sin mazo, en silencio y sin deshacer. Si está en uso
+     se retira en vez de borrarse — sigue en el historial de quien lo jugó y
+     desaparece de los selectores, que es lo que se quería. */
+  const [inResults] = await db.select({ n: sql<number>`count(*)::int` })
+    .from(tournamentResults).where(eq(tournamentResults.deckId, id));
+  const [inMatches] = await db.select({ n: sql<number>`count(*)::int` })
+    .from(matches).where(or(eq(matches.deckAId, id), eq(matches.deckBId, id)));
+  const uses = (inResults?.n ?? 0) + (inMatches?.n ?? 0);
+
+  if (uses > 0) {
+    await db.update(decks).set({ retired: true }).where(eq(decks.id, id));
+  } else {
+    await db.delete(decks).where(eq(decks.id, id));
+  }
   refresh();
   redirect("/mazos");
+}
+
+/**
+ * Marcar o desmarcar un mazo como favorito.
+ *
+ * Un favorito no es propiedad: es solo lo que sale primero en los selectores.
+ * Puedes marcar un mazo de la biblioteca compartida sin que deje de ser de
+ * todos, que es justo para lo que sirve.
+ */
+export async function toggleDeckFavorite(fd: FormData) {
+  const actor = await requireActor();
+  const deckId = str(fd, "deckId");
+  if (!deckId) return;
+
+  const deck = (await db.select({ id: decks.id }).from(decks).where(eq(decks.id, deckId)))[0];
+  if (!deck) return;
+
+  const existing = (await db.select().from(deckFavorites).where(and(
+    eq(deckFavorites.playerId, actor.id),
+    eq(deckFavorites.deckId, deckId),
+  )))[0];
+
+  if (existing) {
+    await db.delete(deckFavorites).where(and(
+      eq(deckFavorites.playerId, actor.id),
+      eq(deckFavorites.deckId, deckId),
+    ));
+  } else {
+    await db.insert(deckFavorites)
+      .values({ playerId: actor.id, deckId })
+      // Dos toques seguidos en el móvil no deben reventar con un 23505.
+      .onConflictDoNothing();
+  }
+  refresh();
 }
 
 /* ------------------------------------------------------------ partidas -- */
@@ -575,8 +697,9 @@ export async function saveTournament(fd: FormData) {
 
   // Editar la cabecera de un torneo recalcula los CP de todos los que fueron,
   // así que solo lo hace quien lo creó o un organizador.
+  let current: typeof tournaments.$inferSelect | undefined;
   if (editing) {
-    const current = (await db.select().from(tournaments).where(eq(tournaments.id, editing)))[0];
+    current = (await db.select().from(tournaments).where(eq(tournaments.id, editing)))[0];
     if (!current) return;
     if (current.createdBy !== actor.id && !canManageLeague(actor.role)) return;
   }
@@ -592,32 +715,199 @@ export async function saveTournament(fd: FormData) {
     endDate: isoDate(fd, "endDate", null),
     venue: str(fd, "venue").slice(0, 120),
     city: str(fd, "city").slice(0, 80),
-    country: str(fd, "country").slice(0, 80),
+    country: fd.has("country") ? str(fd, "country").slice(0, 80) : (current?.country ?? ""),
     organizer: str(fd, "organizer").slice(0, 120),
     url: /^https?:\/\//i.test(str(fd, "url")) ? str(fd, "url").slice(0, 400) : "",
     playerCount: maybeInt(fd, "playerCount", 0, 100000),
     rounds: maybeInt(fd, "rounds", 0, 50),
     topCut: maybeInt(fd, "topCut", 0, 512),
-    // Sin temporada la deducimos de la fecha: julio abre la siguiente.
-    season: maybeInt(fd, "season", 2000, 2100) ?? seasonOfDate(date),
+    /* Sin temporada la deducimos de la fecha: julio abre la siguiente. Pero si
+       el formulario ni siquiera trae el campo —el de editar no lo tiene— se
+       respeta lo que ya hubiera: recalcularlo movía de temporada los CP de un
+       torneo al que alguien le había puesto la suya a mano. */
+    season: fd.has("season")
+      ? (maybeInt(fd, "season", 2000, 2100) ?? seasonOfDate(date))
+      : (current?.season ?? seasonOfDate(date)),
     division: pick(fd, "division", ["masters", "seniors", "juniors"] as const, "masters"),
     notes: str(fd, "notes").slice(0, 1000),
-    createdBy: actor.id,
   };
   if (!values.name) return;
 
-  const id = editing || newId("t");
-  if (editing) await db.update(tournaments).set(values).where(eq(tournaments.id, id));
-  else await db.insert(tournaments).values({ id, ...values });
+  // El estado solo se toca desde el formulario al crear. Después se cambia con
+  // los botones del ciclo (`setTournamentStatus`), porque cerrar un torneo es
+  // una decisión, no un campo más que se guarda sin darte cuenta.
+  const status = editing ? undefined : pick(fd, "status", TOURNAMENT_STATUSES, "open");
 
-  // Si el formulario trae también mi resultado, lo guardo de una vez: es el
-  // caso normal, y ahorra un segundo paso desde el móvil.
-  if (str(fd, "withResult") === "1") {
-    await upsertResult(id, actor.id, fd, values.kind, values.playerCount, values.season);
+  const id = editing || newId("t");
+  if (editing) {
+    await db.update(tournaments).set(values).where(eq(tournaments.id, id));
+  } else {
+    await db.insert(tournaments).values({
+      id, ...values, createdBy: actor.id, status: status ?? "open",
+    });
+  }
+
+  /* Corregir la asistencia o el tipo cambia lo que vale cada puesto, así que
+     los CP guardados se vuelven a calcular. Sin esto, el caso más normal del
+     mundo —«se me olvidó poner cuánta gente hubo»— dejaba el perfil diciendo
+     una cifra y la ficha del torneo otra distinta. Los puestos a mano no se
+     tocan: alguien los puso por algo. */
+  if (editing) {
+    const rows = await db.select().from(tournamentResults)
+      .where(eq(tournamentResults.tournamentId, id));
+    const season = values.season ?? new Date().getFullYear();
+    for (const r of rows) {
+      if (r.cpManual) continue;
+      const cp = cpForPlacement(season, values.kind, r.placement, values.playerCount) ?? 0;
+      if (cp !== r.cpEarned) {
+        await db.update(tournamentResults).set({ cpEarned: cp })
+          .where(eq(tournamentResults.id, r.id));
+      }
+    }
   }
 
   refresh();
   redirect(`/torneos/${id}`);
+}
+
+/**
+ * Mover el torneo por su ciclo: borrador → abierto → cerrado.
+ *
+ * Cerrar es lo único que tiene consecuencia: a partir de ahí no se apuntan
+ * rondas. Se puede reabrir, y por eso no pide confirmación — lo que pide
+ * confirmación es borrar, que sí es irreversible.
+ *
+ * Lo hace quien creó el torneo y los organizadores. Un participante cualquiera
+ * no cierra el torneo de otro: perdería las rondas que a ese otro le faltan
+ * por meter.
+ */
+/**
+ * Del estado en que está, a los que tiene sentido ir.
+ *
+ * No es burocracia: volver a borrador un torneo con quince rondas apuntadas
+ * las esconde de la ficha entera, y los datos se quedan vivos pero sin ninguna
+ * pantalla desde la que verlos. Un camino que solo puede acabar mal es mejor
+ * no tenerlo.
+ */
+const STATUS_FLOW: Record<string, string[]> = {
+  draft: ["open"],
+  open: ["draft", "closed"],
+  closed: ["open"],
+};
+
+export async function setTournamentStatus(fd: FormData) {
+  const actor = await requireActor();
+  const id = str(fd, "id");
+  const status = pick(fd, "status", TOURNAMENT_STATUSES, "open");
+
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, id)))[0];
+  if (!tour) return;
+  if (tour.createdBy !== actor.id && !canManageLeague(actor.role)) return;
+  if (!STATUS_FLOW[tour.status]?.includes(status)) return;
+
+  // Y volver a borrador solo mientras no haya nada apuntado.
+  if (status === "draft") {
+    const [used] = await db.select({ n: sql<number>`count(*)::int` }).from(matches)
+      .where(and(eq(matches.tournamentId, id), isNull(matches.playerBId)));
+    if ((used?.n ?? 0) > 0) return;
+  }
+
+  await db.update(tournaments)
+    .set({ status, closedAt: status === "closed" ? new Date() : null })
+    .where(eq(tournaments.id, id));
+
+  refresh();
+  redirect(`/torneos/${id}`);
+}
+
+/* ------------------------------------------------ catálogo de arquetipos -- */
+
+/**
+ * Traer del metagame los arquetipos que falten, sin salir de la web.
+ *
+ * Es lo mismo que `npm run archetypes:sync`, pero desde Ajustes: para usar el
+ * script hace falta tener el proyecto abierto en un ordenador con Node, y eso
+ * en la práctica significa que no se hace nunca. El catálogo se quedaba viejo
+ * y faltaban mazos —Grimmsnarl, sin ir más lejos—.
+ *
+ * Solo añade y solo pinta lo que está en incoloro. Nunca renombra nada que ya
+ * exista: si le habéis puesto vuestro nombre a un arquetipo, ese se queda.
+ */
+export async function syncArchetypes(_prev: FormState, fd: FormData): Promise<FormState> {
+  const actor = await requireManager();
+  void actor;
+
+  // Ojo con el nombre: `tournaments` a secas taparía la tabla importada arriba.
+  const toScan = int(fd, "tournaments", 20, 5, 40);
+  const minPlayers = int(fd, "minPlayers", 16, 0, 5000);
+
+  let found;
+  try {
+    const res = await fetchArchetypeCatalog({
+      tournaments: toScan,
+      minPlayers,
+      apiKey: process.env.LIMITLESS_API_KEY,
+    });
+    found = res.archetypes;
+  } catch (e) {
+    return {
+      error: `No se ha podido hablar con Limitless: ${e instanceof Error ? e.message : "error de red"}.`,
+    };
+  }
+  if (!found.length) return { error: "Limitless no ha devuelto ningún mazo. Prueba más tarde." };
+
+  const existing = await db.select().from(archetypes);
+  const byLimitlessId = new Set(existing.map((a) => a.limitlessId).filter(Boolean));
+  const byPair = new Set(existing.map((a) => `${a.main}|${a.secondary}`));
+
+  const nuevos = found.filter(
+    (d) => !byLimitlessId.has(d.identifier) && !byPair.has(`${d.main}|${d.secondary}`),
+  );
+  /* Los que se quedaron en incoloro. Se acotan a 40 por pasada porque cada uno
+     es una consulta a PokéAPI y esto corre dentro de una función serverless con
+     límite de tiempo: más vale pintar cuarenta y volver a pulsar que quedarse
+     a medias y no guardar nada. */
+  const sinColor = existing.filter((a) => a.type === "colorless" && a.main).slice(0, 40);
+
+  if (!nuevos.length && !sinColor.length) {
+    return { ok: `El catálogo ya está al día: ${existing.length} arquetipos.` };
+  }
+
+  const types = await energyTypesOf([
+    ...nuevos.map((d) => d.main),
+    ...sinColor.map((a) => a.main),
+  ]);
+
+  if (nuevos.length) {
+    // `onConflictDoNothing` porque el id se trunca a 60 caracteres y dos
+    // identificadores largos podrían chocar: mejor saltarse uno que tirar el
+    // insert entero con un 23505 y no añadir ninguno.
+    await db.insert(archetypes).values(
+      nuevos.map((d) => ({
+        id: `lt-${d.identifier}`.slice(0, 60),
+        name: d.name,
+        main: d.main,
+        secondary: d.secondary,
+        type: types.get(d.main) ?? "colorless",
+        limitlessId: d.identifier,
+      })),
+    ).onConflictDoNothing();
+  }
+
+  let pintados = 0;
+  for (const a of sinColor) {
+    const t = types.get(a.main);
+    if (!t || t === "colorless") continue;
+    await db.update(archetypes).set({ type: t }).where(eq(archetypes.id, a.id));
+    pintados++;
+  }
+
+  refresh();
+  const partes = [
+    nuevos.length ? `${nuevos.length} arquetipo(s) nuevo(s)` : "",
+    pintados ? `${pintados} con el color puesto` : "",
+  ].filter(Boolean);
+  return { ok: `Listo: ${partes.join(" y ")}.` };
 }
 
 /**
@@ -659,15 +949,31 @@ async function upsertResult(
   const auto = cpForPlacement(useSeason, kind, placement, playerCount);
   const cpEarned = cpManual ? int(fd, "cpEarned", 0, 0, 5000) : (auto ?? 0);
 
+  /* Dos maneras de decir qué récord hiciste, y las dos son legítimas:
+     · "rounds": sale de las rondas apuntadas. Es la buena cuando las hay,
+       porque además trae el mazo del rival y alimenta la matriz.
+     · "manual": lo tecleas. Es la única posible cuando vuelves de un torneo
+       viejo y no vas a reconstruir siete rondas de memoria.
+     Con "rounds" ni se tocan las columnas: las lleva `syncTournamentRecord`. */
+  const recordMode = pick(fd, "recordMode", ["manual", "rounds"] as const, "manual");
+  const record = recordMode === "manual"
+    ? {
+      wins: int(fd, "wins", 0, 0, 50),
+      losses: int(fd, "losses", 0, 0, 50),
+      ties: int(fd, "ties", 0, 0, 50),
+    }
+    : null;
+
   const values = {
     tournamentId,
     playerId,
     placement,
-    wins: int(fd, "wins", 0, 0, 50),
-    losses: int(fd, "losses", 0, 0, 50),
-    ties: int(fd, "ties", 0, 0, 50),
-    deckId: str(fd, "deckId") || null,
-    archetypeId: str(fd, "archetypeId") || null,
+    // Los dos selectores mandan ids que pueden venir prefijados.
+    deckId: deckOrArchetype(fd, "deckId").deckId,
+    // Simétrico al de arriba: los dos campos aceptan las dos formas, porque
+    // esto es un endpoint público y lo que llega no lo decide el formulario.
+    archetypeId: deckOrArchetype(fd, "archetypeId").archetypeId
+      ?? deckOrArchetype(fd, "archetypeId").deckId,
     cpEarned,
     cpManual,
     prizes: str(fd, "prizes").slice(0, 300),
@@ -677,12 +983,27 @@ async function upsertResult(
 
   // Upsert de verdad, contra el índice único (torneo, jugador): con select +
   // insert, un doble toque en el móvil provocaba un 23505 sin capturar.
+  const full = record ? { ...values, ...record } : values;
   await db.insert(tournamentResults)
-    .values({ id: newId("tr"), ...values })
+    .values({ id: newId("tr"), ...full })
     .onConflictDoUpdate({
       target: [tournamentResults.tournamentId, tournamentResults.playerId],
-      set: values,
+      set: full,
     });
+
+  /* El mazo del torneo es de todo el torneo, así que baja a las rondas ya
+     apuntadas. Si no, la ficha decía «jugando Dragapult todo el torneo» y las
+     rondas seguían guardadas sin mazo: las estadísticas por arquetipo y la
+     matriz de emparejamientos no las veían, y no había forma de darse cuenta. */
+  if (values.deckId) {
+    await db.update(matches)
+      .set({ deckAId: values.deckId })
+      .where(and(
+        eq(matches.tournamentId, tournamentId),
+        eq(matches.playerAId, playerId),
+        isNull(matches.playerBId),
+      ));
+  }
 }
 
 export async function saveTournamentResult(fd: FormData) {
@@ -697,6 +1018,16 @@ export async function saveTournamentResult(fd: FormData) {
   if (!tour) return;
 
   await upsertResult(tournamentId, targetId, fd, tour.kind, tour.playerCount, tour.season);
+
+  /* Con «de mis rondas», el récord lo pone el contador y no el formulario. Hay
+     que recalcularlo aquí mismo: si no, lo guardado seguía siendo lo que
+     tecleó alguien la última vez, y la pantalla enseñaba dos récords distintos
+     —el de la cabecera de rondas y el de la lista de resultados— a diez
+     centímetros uno del otro. */
+  if (pick(fd, "recordMode", ["manual", "rounds"] as const, "manual") === "rounds") {
+    await syncTournamentRecord(tournamentId, targetId);
+  }
+
   refresh();
   redirect(`/torneos/${tournamentId}`);
 }
@@ -867,13 +1198,35 @@ export async function saveTournamentRound(fd: FormData) {
   const playerId = str(fd, "playerId") || actor.id;
   if (!owns(actor, playerId)) return;
 
+  /* Solo un torneo abierto acepta rondas. Cerrado, porque es el sentido de
+     cerrarlo —si se pudiera seguir escribiendo, «cerrado» sería un adorno—; y
+     en borrador, porque la ficha ni siquiera enseña el formulario, así que una
+     ronda ahí solo puede llegar por un POST a mano. */
+  if (tour.status !== "open") return;
+
   const round = int(fd, "round", 1, 1, 50);
   const bestOf = [1, 3, 5].includes(tour.bestOf) ? tour.bestOf : 3;
   const opponentName = str(fd, "opponentName").slice(0, 60);
   if (!opponentName) return;
 
-  const first = pick(fd, "first", ["", "a", "b"] as const, "");
+  // Quién salió primero en el JUEGO 1. Del resto se encarga `g{i}_first`, que
+  // ahora se marca a mano juego por juego: en la mesa no siempre empieza quien
+  // perdió el anterior (concesiones, penalizaciones, reinicios).
+  const first = pick(fd, "g0_first", ["", "a", "b"] as const, "")
+    || pick(fd, "first", ["", "a", "b"] as const, "");
   const mode = pick(fd, "mode", ["quick", "games"] as const, "quick");
+
+  /* El mazo del torneo se elige UNA vez y no cambia entre rondas: en un suizo
+     juegas el mismo mazo de la primera a la última. Vive en el resultado del
+     torneo, no en la ronda, y desde aquí solo se rellena si aún no estaba. */
+  const existingResult = (await db.select().from(tournamentResults).where(and(
+    eq(tournamentResults.tournamentId, tournamentId),
+    eq(tournamentResults.playerId, playerId),
+  )))[0];
+
+  let deckAId = existingResult?.deckId ?? null;
+  const proposedDeck = str(fd, "deckAId") || null;
+  if (!deckAId && proposedDeck) deckAId = proposedDeck;
 
   // Los juegos: solo del 1 al bestOf, solo con ganador reconocible, y sin
   // pasarse de la mayoría —un 3-0 en un Bo3 no debe poder guardarse—. Es la
@@ -891,7 +1244,9 @@ export async function saveTournamentRound(fd: FormData) {
       rows.push({
         number: i + 1,
         winner,
-        first: i === 0 ? first : pick(fd, `g${i}_first`, ["", "a", "b"] as const, ""),
+        // Cada juego lleva el suyo. Era lo que pedía la lista: «marcar si salí
+        // 1.º o 2.º por cada juego de la ronda», no solo en el primero.
+        first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, i === 0 ? first : ""),
         prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
       });
     }
@@ -911,6 +1266,18 @@ export async function saveTournamentRound(fd: FormData) {
     seriesResult = settled ? null : (bool(fd, "timeCalled") ? (wonA > wonB ? "a" : wonB > wonA ? "b" : "tie") : null);
   }
 
+  /* Qué llevaba el rival. El selector ofrece en la misma lista los mazos de
+     la biblioteca compartida y los arquetipos sueltos: si eliges un mazo se
+     guarda en `deckBId` —y con él la lista de 60 cartas, que es lo que
+     distingue un mazo de un arquetipo—, y si eliges un arquetipo va a
+     `opponentArchetypeId`. Las estadísticas miran primero el mazo y caen al
+     arquetipo, así que las dos formas alimentan la matriz igual. */
+  const rival = deckOrArchetype(fd, "opponentDeck");
+  const rivalDeckId = rival.deckId ?? (str(fd, "deckBId") || null);
+  const rivalArchId = rival.archetypeId
+    ?? deckOrArchetype(fd, "opponentArchetypeId").archetypeId
+    ?? deckOrArchetype(fd, "opponentArchetypeId").deckId;
+
   const values = {
     competitionId: null,
     tournamentId,
@@ -919,9 +1286,9 @@ export async function saveTournamentRound(fd: FormData) {
     playerAId: playerId,
     playerBId: null,
     opponentName,
-    deckAId: str(fd, "deckAId") || null,
-    deckBId: null,
-    opponentArchetypeId: str(fd, "opponentArchetypeId") || null,
+    deckAId,
+    deckBId: rivalDeckId,
+    opponentArchetypeId: rivalArchId,
     bestOf,
     status: "done" as const,
     seriesResult,
@@ -930,26 +1297,61 @@ export async function saveTournamentRound(fd: FormData) {
     createdBy: actor.id,
   };
 
-  // ¿Ya existe esa ronda? Se actualiza. El índice único de (torneo, jugador,
-  // ronda) impide duplicarla si alguien toca dos veces el botón en el móvil.
-  const existing = (await db.select({ id: matches.id }).from(matches).where(and(
-    eq(matches.tournamentId, tournamentId),
-    eq(matches.playerAId, playerId),
-    eq(matches.round, round),
-  )))[0];
+  /* Qué fila se toca. Si el formulario viene de editar, trae el id de la
+     ronda: hay que ir por él y no por el número, porque el número es
+     precisamente lo que se puede estar cambiando —editar la ronda 3 y escribir
+     «4» insertaba una cuarta ronda nueva y dejaba la tercera intacta—.
+     Si no viene id, se busca por (torneo, jugador, ronda), que es el índice
+     único que impide duplicar de un doble toque en el móvil. */
+  const editingId = str(fd, "matchId");
+  const existing = editingId
+    ? (await db.select().from(matches).where(eq(matches.id, editingId)))[0]
+    : (await db.select().from(matches).where(and(
+      eq(matches.tournamentId, tournamentId),
+      eq(matches.playerAId, playerId),
+      eq(matches.round, round),
+      // Una ronda de torneo tiene el rival fuera de la liga. Sin este filtro,
+      // una partida interna etiquetada a este torneo y con el mismo número de
+      // ronda entraba aquí y se sobreescribía con playerBId nulo: el jugador B
+      // desaparecía y sus juegos se borraban, sin deshacer y sin avisar.
+      isNull(matches.playerBId),
+    )))[0];
+
+  // Una ronda que llega por id tiene que ser de este torneo, de este jugador, y
+  // ser una ronda de verdad y no una partida interna.
+  if (existing && (
+    existing.tournamentId !== tournamentId
+    || existing.playerAId !== playerId
+    || existing.playerBId !== null
+  )) return;
 
   const id = existing?.id ?? newId("m");
   if (existing) {
     await db.update(matches).set(values).where(eq(matches.id, id));
     await db.delete(games).where(eq(games.matchId, id));
   } else {
-    await db.insert(matches).values({ id, ...values });
+    /* El índice único puede saltar en una carrera: dos envíos a la vez con el
+       mismo número. Que gane el último en vez de reventar con un 500.
+
+       `targetWhere` no es opcional aquí: `matches_tour_round_idx` es un índice
+       PARCIAL (solo donde `tournament_id` no es nulo), y PostgreSQL descarta
+       los índices parciales al inferir el árbitro de un ON CONFLICT salvo que
+       se repita el predicado. Sin esta línea el error no sería de carrera sino
+       de planificación, y fallaría al apuntar CUALQUIER ronda nueva. */
+    await db.insert(matches).values({ id, ...values })
+      .onConflictDoUpdate({
+        target: [matches.tournamentId, matches.playerAId, matches.round],
+        targetWhere: sql`${matches.tournamentId} is not null`,
+        set: values,
+      });
   }
   if (rows.length) {
     await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
   }
 
-  await syncTournamentRecord(tournamentId, playerId);
+  // Si el mazo del torneo se acaba de elegir aquí, queda fijado en el
+  // resultado: a partir de la ronda siguiente ya viene puesto y bloqueado.
+  await syncTournamentRecord(tournamentId, playerId, existingResult?.deckId ? null : deckAId);
   refresh();
   redirect(`/torneos/${tournamentId}`);
 }
@@ -960,6 +1362,11 @@ export async function deleteTournamentRound(fd: FormData) {
   const row = (await db.select().from(matches).where(eq(matches.id, id)))[0];
   if (!row || !row.tournamentId) return;
   if (!owns(actor, row.playerAId)) return;
+
+  // La misma puerta que al guardar: la ficha esconde el botón en un torneo
+  // cerrado, pero esconder un botón no protege nada.
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, row.tournamentId)))[0];
+  if (tour?.status !== "open") return;
 
   await db.delete(matches).where(eq(matches.id, id));
   await syncTournamentRecord(row.tournamentId, row.playerAId);
@@ -977,13 +1384,29 @@ export async function deleteTournamentRound(fd: FormData) {
  * Si todavía no había fila de resultado, se crea: apuntar la primera ronda es
  * lo que te inscribe en el torneo, sin un paso previo.
  */
-async function syncTournamentRecord(tournamentId: string, playerId: string) {
+async function syncTournamentRecord(
+  tournamentId: string,
+  playerId: string,
+  /** Mazo a fijar, solo cuando el resultado todavía no tenía ninguno. */
+  deckId: string | null = null,
+) {
   const rounds = await db.select().from(matches).where(and(
     eq(matches.tournamentId, tournamentId),
     eq(matches.playerAId, playerId),
     isNull(matches.playerBId),
   )).orderBy(asc(matches.round));
-  if (!rounds.length) return;
+
+  /* Sin rondas, el récord es 0-0-0 y no lo que hubiera antes. Salir sin
+     escribir dejaba el récord viejo para siempre al borrar la última. */
+  if (!rounds.length) {
+    await db.update(tournamentResults)
+      .set({ wins: 0, losses: 0, ties: 0 })
+      .where(and(
+        eq(tournamentResults.tournamentId, tournamentId),
+        eq(tournamentResults.playerId, playerId),
+      ));
+    return;
+  }
 
   const ids = rounds.map((r) => r.id);
   const gameRows = ids.length
@@ -1012,11 +1435,12 @@ async function syncTournamentRecord(tournamentId: string, playerId: string) {
     else if (r === "d") ties++;
   }
 
+  const set = deckId ? { wins, losses, ties, deckId } : { wins, losses, ties };
   await db.insert(tournamentResults)
-    .values({ id: newId("tr"), tournamentId, playerId, wins, losses, ties })
+    .values({ id: newId("tr"), tournamentId, playerId, wins, losses, ties, deckId })
     .onConflictDoUpdate({
       target: [tournamentResults.tournamentId, tournamentResults.playerId],
-      set: { wins, losses, ties },
+      set,
     });
 }
 
@@ -1026,6 +1450,8 @@ export async function refreshTournamentRecord(fd: FormData) {
   const tournamentId = str(fd, "tournamentId");
   const playerId = str(fd, "playerId") || actor.id;
   if (!tournamentId || !owns(actor, playerId)) return;
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
+  if (tour?.status !== "open") return;
   await syncTournamentRecord(tournamentId, playerId);
   refresh();
 }

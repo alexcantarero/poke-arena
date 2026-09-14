@@ -9,12 +9,78 @@ Qué datos de fuera usa Arena, de dónde salen, y qué opciones hay si algún d�
 | Para qué | Fuente | ¿Clave? | ¿Obligatorio? |
 |---|---|---|---|
 | Sprites de los Pokémon del arquetipo | `r2.limitlesstcg.net` | No | No — si falla, se ve un disco de color |
-| Catálogo de arquetipos del metagame | API de Limitless | Normalmente no | No — hay 20 de serie y podéis crear los vuestros |
+| Catálogo de arquetipos del metagame | API de Limitless (`play.limitlesstcg.com/api`) | **No** | No — hay 20 de serie y podéis crear los vuestros |
+| Color (tipo de energía) de cada arquetipo | PokéAPI | No | No — sin él entran como incoloros |
+| Imágenes de cartas de una lista | CDN de Limitless (`tpci`) | No | No — cada carta que no cargue se ve como texto |
 | Listas de mazo | Las pegáis vosotros | — | No |
-| Imágenes de cartas | *no implementado* | — | — |
 
 **Arena funciona entera sin conexión a ninguna de estas fuentes.** Todo lo externo es
 enriquecimiento visual u opcional.
+
+### Qué NO se usa, y por qué
+
+- **RK9.gg** — no tiene API pública, y sus condiciones prohíben expresamente la extracción
+  automatizada de datos «con o sin fines comerciales». El inciso es deliberado y elimina la
+  excusa de «es un proyecto personal». No está ni como respaldo.
+- **pokemontcg.io** — funciona hoy, pero está **deprecada**: no admite registros nuevos y las
+  claves existentes dejan de valer el 1 de marzo de 2027. Sirve para un volcado puntual, no como
+  dependencia. Su sucesora, Scrydex, es de pago por créditos.
+- **TCGdex** — alternativa viva, gratis, sin clave y con español, para imágenes de carta. Es el
+  reemplazo natural el día que el CDN de Limitless cambie de sitio. Requiere mapear el código de
+  set (TWM, MEG…) al identificador de TCGdex, que es el único trabajo pendiente.
+- **JustInBasil** — buen recurso para leer, pero sin API y con la página del metagame sin
+  actualizar desde julio de 2025.
+
+---
+
+## Catálogo de arquetipos: cómo llega Grimmsnarl
+
+El endpoint que uno esperaría —`/api/games/PTCG/decks`, el catálogo maestro con las reglas de
+clasificación— **pide clave**, y Limitless solo las concede a proyectos de cara al público. Una
+liga privada no lo es. Dar por hecho que algún día llegará es tener el catálogo roto para
+siempre, y eso es exactamente lo que pasaba: por eso faltaban mazos.
+
+La vuelta está en `src/lib/sources/limitless.ts`. Estos dos responden **sin clave**:
+
+```
+GET /api/tournaments?game=PTCG&format=STANDARD&limit=20
+GET /api/tournaments/<id>/standings
+```
+
+Y cada fila de una clasificación trae el arquetipo **ya identificado por ellos**:
+
+```json
+{
+  "placing": 2,
+  "record": { "wins": 8, "losses": 2, "ties": 1 },
+  "deck": { "id": "dragapult-blaziken", "name": "Dragapult Blaziken",
+            "icons": ["dragapult", "blaziken"] }
+}
+```
+
+Recorriendo los torneos recientes y agrupando por `deck.id` sale el catálogo entero, y además
+con el número de apariciones, que es el share real del metagame. Se mantiene solo y no depende
+de que nadie os conceda nada.
+
+Se lanza de dos maneras:
+
+- **Desde Ajustes**, con el botón «Actualizar catálogo». Es la que se va a usar.
+- **Desde la terminal**, con `npm run archetypes:sync` (acepta `--tournaments 40`,
+  `--min-players 32` y `--dry` para ver qué haría sin escribir nada).
+
+Las dos hacen lo mismo: **solo añaden**. Nunca renombran un arquetipo que ya exista, porque
+puede que le hayáis puesto vuestro propio nombre —«Festival Lead» en vez de «Dipplin Thwackey»—.
+
+Si algún día conseguís clave, se pone en `LIMITLESS_API_KEY` y el código usa el endpoint oficial
+sin que haya que tocar nada: se intenta primero y se cae al metagame si falla.
+
+### El color de cada arquetipo
+
+Limitless da el nombre y el sprite, pero no el tipo de energía, así que todo entraba como
+«incoloro» y había que repasarlo a mano. `src/lib/sources/pokeapi.ts` le pregunta el tipo del
+Pokémon principal a **PokéAPI** y lo traduce al del TCG. La traducción no es uno a uno porque el
+juego de cartas agrupa: Bicho va con Planta, Fantasma con Psíquico, Veneno con Oscuro, y Tierra
+y Roca con Lucha. Esa tabla es lo único de ese fichero que es una decisión y no un dato.
 
 ---
 

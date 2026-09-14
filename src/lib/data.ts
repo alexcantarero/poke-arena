@@ -2,11 +2,12 @@ import "server-only";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  archetypes, competitionPlayers, competitions, decks, events, games, invites, matches,
-  players, settings, tournamentResults, tournaments,
+  archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
+  matches, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
+import { ARCHETYPE_PREFIX } from "./types";
 import type {
-  Game, MatchFull, PublicPlayer, Settings, TournamentFull, TournamentResult,
+  DeckOption, Game, MatchFull, PublicPlayer, Settings, TournamentFull, TournamentResult,
 } from "./types";
 import { deckArchetypeIndex, eloTable } from "./stats";
 import { computeCp, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
@@ -80,6 +81,8 @@ export async function loadSnapshot() {
     db.select().from(tournaments).orderBy(desc(tournaments.date)),
   ]);
 
+  const favRows = await db.select().from(deckFavorites);
+
   const matchIds = matchRows.map((m) => m.id);
   const tourIds = tourRows.map((t) => t.id);
 
@@ -132,6 +135,14 @@ export async function loadSnapshot() {
     else resultsByPlayer.set(r.playerId, [r]);
   }
 
+  // Favoritos por jugador, para que los selectores enseñen primero lo de cada uno.
+  const favoriteDecks = new Map<string, Set<string>>();
+  for (const f of favRows) {
+    const set = favoriteDecks.get(f.playerId);
+    if (set) set.add(f.deckId);
+    else favoriteDecks.set(f.playerId, new Set([f.deckId]));
+  }
+
   const elo = eloTable(matchesFull, playerRows, config);
 
   return {
@@ -151,9 +162,82 @@ export async function loadSnapshot() {
     archIndex,
     playersOfComp,
     resultsByPlayer,
+    favoriteDecks,
     elo,
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };
+}
+
+/**
+ * Los mazos que se le pueden ofrecer a alguien, en el orden en que los quiere.
+ *
+ * Favoritos primero, después los suyos, después los de la biblioteca de la
+ * liga y al final los de otra gente. El orden importa más de lo que parece:
+ * en el móvil, entre rondas, la diferencia entre acertar a la primera y tener
+ * que buscar es la diferencia entre apuntar la ronda y no apuntarla.
+ *
+ * `includeOthers` en false deja fuera los mazos de otras personas, que es lo
+ * que quieres al decir «con qué jugué yo» y lo que NO quieres al decir «qué
+ * llevaba mi rival».
+ */
+export function deckOptions(
+  snap: Snapshot,
+  playerId: string | null | undefined,
+  { includeOthers = true, includeRetired = false } = {},
+): DeckOption[] {
+  const favs = playerId ? snap.favoriteDecks.get(playerId) ?? new Set<string>() : new Set<string>();
+
+  const rows = snap.decks
+    .filter((d) => includeRetired || !d.retired)
+    .map((d): DeckOption | null => {
+      const mine = playerId != null && d.playerId === playerId;
+      const shared = d.playerId == null;
+      if (!mine && !shared && !includeOthers) return null;
+
+      const group: DeckOption["group"] =
+        favs.has(d.id) ? "fav" : mine ? "mine" : shared ? "shared" : "other";
+
+      const arch = snap.archById.get(d.archetypeId);
+      return {
+        id: d.id,
+        name: d.name,
+        archetypeId: d.archetypeId,
+        archetypeName: arch?.name ?? "",
+        main: arch?.main ?? "",
+        secondary: arch?.secondary ?? "",
+        type: arch?.type ?? "colorless",
+        group,
+        ownerName: group === "other"
+          ? snap.playersById.get(d.playerId as string)?.name ?? undefined
+          : undefined,
+        hasList: Boolean(d.list && d.list.trim()),
+      };
+    })
+    .filter((x): x is DeckOption => x !== null);
+
+  const rank: Record<DeckOption["group"], number> = { fav: 0, mine: 1, shared: 2, other: 3 };
+  return rows.sort((a, b) => rank[a.group] - rank[b.group] || a.name.localeCompare(b.name, "es"));
+}
+
+/**
+ * Los arquetipos como opciones de mazo, para cuando no hay lista que elegir.
+ *
+ * Un arquetipo no es un mazo, pero en un selector se comporta igual y ahorra
+ * tener dos desplegables donde basta uno. Se distinguen por el `id`, que lleva
+ * el prefijo `arch:`.
+ */
+export function archetypeOptions(snap: Snapshot): DeckOption[] {
+  return snap.archetypes.map((a) => ({
+    id: `${ARCHETYPE_PREFIX}${a.id}`,
+    name: a.name,
+    archetypeId: a.id,
+    archetypeName: a.name,
+    main: a.main,
+    secondary: a.secondary,
+    type: a.type,
+    group: "shared" as const,
+    hasList: false,
+  }));
 }
 
 export function compPlayers(snap: Snapshot, compId: string) {

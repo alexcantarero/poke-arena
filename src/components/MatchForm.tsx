@@ -75,8 +75,6 @@ export function MatchForm({
     return a >= need || b >= need;
   };
 
-  const decksOf = (pid: string) => decks.filter((d) => d.playerId === pid && !d.retired);
-
   return (
     <form action={saveMatch} className="flex flex-col gap-4">
       {match && <input type="hidden" name="id" value={match.id} />}
@@ -118,7 +116,7 @@ export function MatchForm({
             <label className="label" htmlFor="deckAId">Su mazo</label>
             <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
               <option value="">— sin asignar —</option>
-              {decksOf(aId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <DeckOptions decks={decks} playerId={aId} />
             </select>
           </div>
 
@@ -161,7 +159,7 @@ export function MatchForm({
                 <label className="label" htmlFor="deckBId">Su mazo</label>
                 <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
                   <option value="">— sin asignar —</option>
-                  {decksOf(bId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <DeckOptions decks={decks} playerId={bId} />
                 </select>
               </div>
             </>
@@ -304,5 +302,28 @@ export function MatchForm({
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * Los mazos que se le pueden asignar a un jugador.
+ *
+ * Los suyos primero y, en un grupo aparte, los de la biblioteca compartida
+ * —los de `playerId` nulo—. Estos últimos no son de nadie y existen justo
+ * para esto: poder decir qué llevaba alguien sin tener que apropiarse el mazo
+ * ni inventarle una cuenta al rival.
+ */
+function DeckOptions({ decks, playerId }: { decks: Deck[]; playerId: string }) {
+  const own = decks.filter((d) => d.playerId === playerId && !d.retired);
+  const shared = decks.filter((d) => d.playerId == null && !d.retired);
+  return (
+    <>
+      {own.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+      {shared.length > 0 && (
+        <optgroup label="De la liga">
+          {shared.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </optgroup>
+      )}
+    </>
   );
 }
