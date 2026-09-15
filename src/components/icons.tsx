@@ -21,6 +21,8 @@ const P: Record<string, string> = {
   search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4",
   lock: "M6 10h12v10H6zM9 10V7a3 3 0 0 1 6 0v3",
   refresh: "M4 12a8 8 0 0 1 13.7-5.7L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.7 5.7L4 16M4 20v-4h4",
+  close: "M6 6l12 12M18 6 6 18",
+  alert: "M12 3 2 20h20zM12 9v5m0 3h.01",
 };
 
 export function Icon({ name, className = "size-5" }: { name: keyof typeof P | string; className?: string }) {

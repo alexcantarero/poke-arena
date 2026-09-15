@@ -138,8 +138,10 @@ export default async function ProfilePage({
         la liga y los segundos, de toda la temporada.
       </p>
 
-      {/* --------------------------- Championship Points --------------------------- */}
-      {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
+      {/* Evolución del Elo, mazos, enfrentamientos directos y emparejamientos
+          van primero: son las cifras vivas de cómo juegas. El desglose de CP
+          —que no cambia partida a partida— va después, más abajo, para que el
+          perfil abra con lo más visual. */}
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <section className="card">
@@ -236,6 +238,9 @@ export default async function ProfilePage({
           )}
         </section>
       </div>
+
+      {/* --------------------------- Championship Points --------------------------- */}
+      {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
 
       {myTours.length > 0 && (
         <>

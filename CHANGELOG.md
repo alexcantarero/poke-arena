@@ -2,6 +2,82 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.5.0] — 2026-09-15
+
+Dos bugs de verdad arreglados, el mazo del torneo también por arquetipo suelto, la hora y el
+precio del torneo, y un primer paso hacia el cuadro final: cada ronda ya sabe si es suizo o
+top cut, y de qué fase.
+
+### Añadido
+
+**Hora de inicio y precio de entrada**
+- Al crear o editar un torneo, junto a la fecha y la asistencia.
+- El precio se guarda en céntimos (`entry_fee_cents`); se escribe en euros y se redondea solo.
+
+**El mazo del torneo, también solo por arquetipo**
+- Bloquear el mismo mazo para todo el torneo ya funcionaba; ahora funciona igual eligiendo
+  solo el arquetipo, sin tener la lista de 60 cartas registrada. El selector de "con qué
+  mazo juegas el torneo" ofrece las dos cosas en la misma lista, igual que ya pasaba con el
+  mazo del rival.
+- Columna nueva, `matches.archetype_a_id`, con el mismo patrón que `opponent_archetype_id`
+  ya tenía para el lado del rival.
+
+**Cada ronda sabe su fase**
+- Suizo, o el nombre de la ronda del top cut —Cuartos, Semifinal, Final— según cuántas
+  rondas de suizo se anunciaron y de qué tamaño es el corte. Se ve junto al número de ronda
+  y en el encabezado de "Apuntar la ronda".
+- Es solo la etiqueta, calculada (`roundStage()` en `src/lib/stats.ts`): no separa todavía
+  day 1 de day 2 en un torneo con corte de asistencia a mitad. Queda anotado en "pendiente".
+
+**Snackbar de feedback**
+- Aviso al crear, guardar, cerrar o borrar un torneo, y al guardar o borrar una ronda:
+  "Torneo creado.", "Ronda 3 guardada.", "Torneo cerrado."… El mensaje viaja en la URL del
+  redirect (`?flash=tipo:mensaje`, `src/lib/flash.ts`) porque una Server Action que hace
+  `redirect()` no tiene ningún otro sitio donde dejarlo, y se limpia solo de la URL para que
+  recargar o volver atrás no lo repita.
+- Cubre las acciones tocadas en esta versión; el resto queda documentado en
+  `IMPLEMENTAR-v0.5.0.md` para extenderlo con el mismo patrón.
+
+**Dos estadísticas nuevas**
+- **Cuota de metagame** (`metaShare`): qué % de las apariciones en mesa es cada arquetipo,
+  contando cada lado de cada partida por separado.
+- **Rendimiento por número de ronda** (`performanceByRoundNumber`): tu % de victorias en la
+  ronda 1, en la 2, en la 3… para ver si flaqueas tarde o remontas.
+
+**League Cup y League Challenge, sin el alias en el desplegable**
+- "Pokémon Cup" y "Pokémon Challenge" ya no se pueden elegir al crear un torneo: puntúan
+  exactamente igual que League Cup y League Challenge (siguen siendo alias en
+  `src/lib/cp.ts`) y tenerlos por separado era la confusión. Los torneos que ya existieran
+  con esos tipos se migran a su equivalente.
+
+### Cambiado
+
+- En el perfil, la **evolución del Elo, los mazos, los enfrentamientos directos y los
+  emparejamientos** suben antes que el desglose de Championship Points: son las cifras que
+  cambian partida a partida, y el perfil abre con eso en vez de con un número que solo se
+  mueve una vez por torneo.
+
+### Corregido
+
+- **Editar una ronda y ponerle el número de otra que ya existía reventaba contra la base de
+  datos** (`matches_tour_round_idx`, el índice único de torneo+jugador+ronda). Ahora las dos
+  rondas se intercambian: la que editas ocupa el número nuevo y la que estaba ahí se queda
+  con el que tú dejaste libre.
+- **Un juego marcado como empate no cortaba la ronda.** Los juegos siguientes se seguían
+  pudiendo rellenar, y hacía falta marcar además "se acabó el tiempo" para que la ronda se
+  resolviera. Ahora el empate basta por sí solo: los juegos de después desaparecen y la
+  ronda se decide por mayoría de juegos ganados hasta ese punto (o empate si van iguales).
+
+### Base de datos
+
+`npm run db:push` aplica las columnas nuevas. Los CHECK y la limpieza de datos no salen del
+esquema de Drizzle y están en `drizzle/0003_v0_5_0.sql`, que es idempotente.
+
+- `tournaments`: `start_time`, `entry_fee_cents`.
+- `matches`: `archetype_a_id`.
+- Los torneos con `kind = 'pokemon_challenge'` o `'pokemon_cup'` se migran a
+  `league_challenge`/`league_cup`.
+
 ## [0.4.0] — 2026-09-14
 
 El ciclo del torneo puesto en orden —crear, editar, rellenar, cerrar—, los mazos convertidos en

@@ -17,6 +17,7 @@ import { parseDeckList, suggestArchetype } from "@/lib/decklist";
 import { isIsoDate, newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
 import { cpForPlacement, seasonOfDate } from "@/lib/cp";
+import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { loadSnapshot } from "@/lib/data";
@@ -81,6 +82,22 @@ const isoDate = (fd: FormData, k: string, dflt: string | null = todayISO()) => {
 };
 
 const bool = (fd: FormData, k: string) => fd.get(k) === "on" || fd.get(k) === "true";
+
+/** "HH:MM" en 24h, o null. Igual de estricto que `isoDate`: una hora rara no debe llegar a la columna. */
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const timeOfDay = (fd: FormData, k: string): string | null => {
+  const raw = str(fd, k);
+  return HHMM.test(raw) ? raw : null;
+};
+
+/** Precio de entrada, en céntimos. Lo que se teclea es en euros ("5", "5,50" o "5.50"). */
+const priceCents = (fd: FormData, k: string): number | null => {
+  const raw = str(fd, k).replace(",", ".");
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+};
 
 /**
  * El id que manda un selector de mazo, separado en sus dos formas.
@@ -686,8 +703,13 @@ export async function deleteMatch(fd: FormData) {
 
 /* ------------------------------------------------------------- torneos -- */
 
+// "pokemon_challenge"/"pokemon_cup" ya no se pueden elegir al crear o editar:
+// puntúan exactamente igual que "league_challenge"/"league_cup" (son alias en
+// cp.ts) y tenerlos como opción aparte era la confusión que señalaba Alex.
+// `pick()` cae a "store" si llega cualquier otra cosa, así que un formulario
+// viejo en caché que aún los mandara simplemente no los aceptaría.
 const TOURNAMENT_KINDS = [
-  "league_challenge", "league_cup", "pokemon_challenge", "pokemon_cup", "regional",
+  "league_challenge", "league_cup", "regional",
   "special", "international", "worlds", "store", "online", "other",
 ] as const;
 
@@ -713,6 +735,8 @@ export async function saveTournament(fd: FormData) {
     bestOf: int(fd, "bestOf", 3, 1, 5),
     date,
     endDate: isoDate(fd, "endDate", null),
+    startTime: timeOfDay(fd, "startTime"),
+    entryFeeCents: priceCents(fd, "entryFee"),
     venue: str(fd, "venue").slice(0, 120),
     city: str(fd, "city").slice(0, 80),
     country: fd.has("country") ? str(fd, "country").slice(0, 80) : (current?.country ?? ""),
@@ -767,7 +791,7 @@ export async function saveTournament(fd: FormData) {
   }
 
   refresh();
-  redirect(`/torneos/${id}`);
+  redirect(withFlash(`/torneos/${id}`, "ok", editing ? "Torneo guardado." : "Torneo creado."));
 }
 
 /**
@@ -817,7 +841,12 @@ export async function setTournamentStatus(fd: FormData) {
     .where(eq(tournaments.id, id));
 
   refresh();
-  redirect(`/torneos/${id}`);
+  const STATUS_MESSAGE: Record<string, string> = {
+    draft: "Torneo vuelto a borrador.",
+    open: tour.status === "draft" ? "Torneo empezado." : "Torneo reabierto.",
+    closed: "Torneo cerrado.",
+  };
+  redirect(withFlash(`/torneos/${id}`, "ok", STATUS_MESSAGE[status] ?? "Torneo actualizado."));
 }
 
 /* ------------------------------------------------ catálogo de arquetipos -- */
@@ -931,7 +960,7 @@ export async function deleteTournament(fd: FormData) {
   await db.delete(matches).where(and(eq(matches.tournamentId, id), isNull(matches.playerBId)));
   await db.delete(tournaments).where(eq(tournaments.id, id));
   refresh();
-  redirect("/torneos");
+  redirect(withFlash("/torneos", "ok", `Torneo «${tour.name}» borrado.`));
 }
 
 async function upsertResult(
@@ -1224,9 +1253,18 @@ export async function saveTournamentRound(fd: FormData) {
     eq(tournamentResults.playerId, playerId),
   )))[0];
 
-  let deckAId = existingResult?.deckId ?? null;
-  const proposedDeck = str(fd, "deckAId") || null;
-  if (!deckAId && proposedDeck) deckAId = proposedDeck;
+  /* El mazo propio también se puede fijar solo por arquetipo, sin lista de 60
+     cartas: el selector ofrece las dos cosas en la misma lista —igual que ya
+     pasaba con el mazo del rival— y `deckOrArchetype` deshace el prefijo
+     "arch:" antes de que cualquiera de los dos ids toque una columna que no
+     es la suya. */
+  let deckAId: string | null = existingResult?.deckId ?? null;
+  let archetypeAId: string | null = existingResult?.archetypeId ?? null;
+  if (!deckAId && !archetypeAId) {
+    const proposed = deckOrArchetype(fd, "deckAId");
+    deckAId = proposed.deckId;
+    archetypeAId = proposed.archetypeId;
+  }
 
   // Los juegos: solo del 1 al bestOf, solo con ganador reconocible, y sin
   // pasarse de la mayoría —un 3-0 en un Bo3 no debe poder guardarse—. Es la
@@ -1249,6 +1287,13 @@ export async function saveTournamentRound(fd: FormData) {
         first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, i === 0 ? first : ""),
         prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
       });
+      /* Un juego empatado corta la ronda ahí mismo: en la mesa un empate sale
+         del reloj, y del reloj no se juega un juego más. El cliente ya deja
+         de mandar campos de juegos posteriores (`visibleGames` en
+         TournamentRounds), pero esto es la comprobación de verdad — una
+         Server Action es un endpoint público y no se fía de qué campos decide
+         mandar el formulario. */
+      if (winner === "tie") break;
     }
   }
 
@@ -1262,8 +1307,18 @@ export async function saveTournamentRound(fd: FormData) {
   } else {
     const wonA = rows.filter((r) => r.winner === "a").length;
     const wonB = rows.filter((r) => r.winner === "b").length;
+    const hasTieGame = rows.some((r) => r.winner === "tie");
     const settled = wonA >= need || wonB >= need;
-    seriesResult = settled ? null : (bool(fd, "timeCalled") ? (wonA > wonB ? "a" : wonB > wonA ? "b" : "tie") : null);
+    seriesResult = settled
+      ? null
+      // Un juego marcado como empate decide la ronda él solo, sin necesidad de
+      // marcar además «se acabó el tiempo»: es la misma situación, vista desde
+      // el juego en vez de desde el reloj. Sin desglose de empate, se sigue
+      // necesitando el checkbox para la ambigüedad de siempre (1-1 esperando
+      // el tercer juego frente a 1-1 con el tiempo agotado).
+      : hasTieGame
+        ? (wonA > wonB ? "a" : wonB > wonA ? "b" : "tie")
+        : (bool(fd, "timeCalled") ? (wonA > wonB ? "a" : wonB > wonA ? "b" : "tie") : null);
   }
 
   /* Qué llevaba el rival. El selector ofrece en la misma lista los mazos de
@@ -1287,6 +1342,7 @@ export async function saveTournamentRound(fd: FormData) {
     playerBId: null,
     opponentName,
     deckAId,
+    archetypeAId,
     deckBId: rivalDeckId,
     opponentArchetypeId: rivalArchId,
     bestOf,
@@ -1327,7 +1383,35 @@ export async function saveTournamentRound(fd: FormData) {
 
   const id = existing?.id ?? newId("m");
   if (existing) {
-    await db.update(matches).set(values).where(eq(matches.id, id));
+    /* Editar el número de ronda puede llevarla a un hueco que ya ocupa otra:
+       editar la ronda 2 para ponerle un 1 cuando la 1 ya existe. Un UPDATE
+       directo revienta contra `matches_tour_round_idx` a mitad de la
+       sentencia, porque el índice es real y no se puede aplazar hasta el
+       final de la transacción.
+
+       Se resuelve como un intercambio, en tres pasos con un número de ronda
+       centinela (-1) que ninguna ronda de verdad usa —siempre son >= 1—: la
+       que estorba se aparta, la que se edita ocupa el hueco, y la que se
+       apartó se queda con el número que la primera dejó libre. El resultado
+       es que las dos rondas cambian de número entre sí, que es justo lo que
+       alguien renumerando esperaría que pasara. */
+    if (existing.round !== round) {
+      const clash = (await db.select().from(matches).where(and(
+        eq(matches.tournamentId, tournamentId),
+        eq(matches.playerAId, playerId),
+        eq(matches.round, round),
+        isNull(matches.playerBId),
+      )))[0];
+      if (clash && clash.id !== id) {
+        await db.update(matches).set({ round: -1 }).where(eq(matches.id, clash.id));
+        await db.update(matches).set(values).where(eq(matches.id, id));
+        await db.update(matches).set({ round: existing.round }).where(eq(matches.id, clash.id));
+      } else {
+        await db.update(matches).set(values).where(eq(matches.id, id));
+      }
+    } else {
+      await db.update(matches).set(values).where(eq(matches.id, id));
+    }
     await db.delete(games).where(eq(games.matchId, id));
   } else {
     /* El índice único puede saltar en una carrera: dos envíos a la vez con el
@@ -1349,11 +1433,17 @@ export async function saveTournamentRound(fd: FormData) {
     await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
   }
 
-  // Si el mazo del torneo se acaba de elegir aquí, queda fijado en el
-  // resultado: a partir de la ronda siguiente ya viene puesto y bloqueado.
-  await syncTournamentRecord(tournamentId, playerId, existingResult?.deckId ? null : deckAId);
+  // Si el mazo (o el arquetipo) del torneo se acaba de elegir aquí, queda
+  // fijado en el resultado: a partir de la ronda siguiente ya viene puesto y
+  // bloqueado.
+  const justLocked = !(existingResult?.deckId || existingResult?.archetypeId);
+  await syncTournamentRecord(
+    tournamentId, playerId,
+    justLocked ? deckAId : null,
+    justLocked ? archetypeAId : null,
+  );
   refresh();
-  redirect(`/torneos/${tournamentId}`);
+  redirect(withFlash(`/torneos/${tournamentId}`, "ok", `Ronda ${round} guardada.`));
 }
 
 export async function deleteTournamentRound(fd: FormData) {
@@ -1371,7 +1461,7 @@ export async function deleteTournamentRound(fd: FormData) {
   await db.delete(matches).where(eq(matches.id, id));
   await syncTournamentRecord(row.tournamentId, row.playerAId);
   refresh();
-  redirect(`/torneos/${row.tournamentId}`);
+  redirect(withFlash(`/torneos/${row.tournamentId}`, "ok", "Ronda borrada."));
 }
 
 /**
@@ -1389,6 +1479,8 @@ async function syncTournamentRecord(
   playerId: string,
   /** Mazo a fijar, solo cuando el resultado todavía no tenía ninguno. */
   deckId: string | null = null,
+  /** Arquetipo a fijar, cuando lo que se fija es solo el arquetipo y no un mazo. */
+  archetypeId: string | null = null,
 ) {
   const rounds = await db.select().from(matches).where(and(
     eq(matches.tournamentId, tournamentId),
@@ -1435,9 +1527,13 @@ async function syncTournamentRecord(
     else if (r === "d") ties++;
   }
 
-  const set = deckId ? { wins, losses, ties, deckId } : { wins, losses, ties };
+  const set = deckId
+    ? { wins, losses, ties, deckId }
+    : archetypeId
+      ? { wins, losses, ties, archetypeId }
+      : { wins, losses, ties };
   await db.insert(tournamentResults)
-    .values({ id: newId("tr"), tournamentId, playerId, wins, losses, ties, deckId })
+    .values({ id: newId("tr"), tournamentId, playerId, wins, losses, ties, deckId, archetypeId })
     .onConflictDoUpdate({
       target: [tournamentResults.tournamentId, tournamentResults.playerId],
       set,

@@ -203,6 +203,15 @@ export const matches = pgTable("matches", {
   opponentName: text("opponent_name"),
   deckAId: text("deck_a_id").references(() => decks.id, { onDelete: "set null" }),
   deckBId: text("deck_b_id").references(() => decks.id, { onDelete: "set null" }),
+  /**
+   * Tu propio arquetipo, cuando lo que jugaste no tiene mazo registrado.
+   *
+   * Mismo patrón que `opponentArchetypeId`, pero para tu lado: "bloquear el
+   * mismo mazo para todo el torneo" tenía que funcionar también eligiendo
+   * solo el arquetipo, sin lista de 60 cartas. Mutuamente excluyente con
+   * `deckAId` — o uno o el otro, nunca los dos.
+   */
+  archetypeAId: text("archetype_a_id").references(() => archetypes.id, { onDelete: "set null" }),
   /** Arquetipo del rival externo, que no tiene mazo registrado en la app. */
   opponentArchetypeId: text("opponent_archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
   bestOf: integer("best_of").notNull().default(3),
@@ -308,6 +317,10 @@ export const tournaments = pgTable("tournaments", {
   bestOf: integer("best_of").notNull().default(3),
   date: date("date").notNull(),
   endDate: date("end_date"),
+  /** "HH:MM" en 24h, hora local del evento. Nulo si no se sabe. */
+  startTime: text("start_time"),
+  /** Precio de la entrada, en céntimos (500 = 5,00 €). Nulo si no se sabe o fue gratis sin anotar. */
+  entryFeeCents: integer("entry_fee_cents"),
   /** Tienda, sede o plataforma online. */
   venue: text("venue").notNull().default(""),
   city: text("city").notNull().default(""),

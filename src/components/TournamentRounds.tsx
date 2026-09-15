@@ -5,6 +5,7 @@ import { saveTournamentRound, deleteTournamentRound } from "@/actions";
 import type { Archetype, DeckOption, Side } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
 import type { RoundView, RoundRecord } from "@/lib/stats";
+import { roundStage } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
 import { Sprites } from "./ui";
 import { Icon } from "./icons";
@@ -56,6 +57,8 @@ type Props = {
   isMine: boolean;
   /** Rondas anunciadas por la organización, si se saben. */
   totalRounds: number | null;
+  /** Tamaño del top cut, si se sabe. Junto con totalRounds da el nombre de cada fase. */
+  topCut: number | null;
   archById: Map<string, Archetype>;
   /** El torneo está cerrado: se puede mirar, no escribir. */
   closed: boolean;
@@ -65,7 +68,7 @@ type Props = {
 export function TournamentRounds({
   tournamentId, playerId, playerName, bestOf, rounds, record,
   rivalDecks, archetypeOptions, myDecks, lockedDeckId, lockedDeckName, isMine,
-  totalRounds, archById, closed, canEdit,
+  totalRounds, topCut, archById, closed, canEdit,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const nextRound = rounds.length ? Math.max(...rounds.map((r) => r.round)) + 1 : 1;
@@ -82,6 +85,7 @@ export function TournamentRounds({
     ? lockedDeckName
       ?? myDecks.find((d) => d.id === lockedDeckId)?.name
       ?? rivalDecks.find((d) => d.id === lockedDeckId)?.name
+      ?? archetypeOptions.find((d) => d.id === lockedDeckId)?.name
       ?? null
     : null;
 
@@ -121,18 +125,27 @@ export function TournamentRounds({
             return (
               <li key={r.match.id} className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`grid size-9 flex-none place-items-center rounded-lg font-display text-sm font-extrabold
-                      ${r.result === "w" ? "bg-win-soft text-win"
-                        : r.result === "l" ? "bg-loss-soft text-loss"
-                        : r.result === "d" ? "bg-tie-soft text-tie"
-                        : "border border-dashed border-line text-muted"}`}
-                    title={
-                      r.result === "w" ? "Ganada" : r.result === "l" ? "Perdida"
-                      : r.result === "d" ? "Empatada" : "Sin cerrar"
-                    }
-                  >
-                    R{r.round}
+                  <span className="flex flex-none flex-col items-center gap-0.5">
+                    <span
+                      className={`grid size-9 flex-none place-items-center rounded-lg font-display text-sm font-extrabold
+                        ${r.result === "w" ? "bg-win-soft text-win"
+                          : r.result === "l" ? "bg-loss-soft text-loss"
+                          : r.result === "d" ? "bg-tie-soft text-tie"
+                          : "border border-dashed border-line text-muted"}`}
+                      title={
+                        r.result === "w" ? "Ganada" : r.result === "l" ? "Perdida"
+                        : r.result === "d" ? "Empatada" : "Sin cerrar"
+                      }
+                    >
+                      R{r.round}
+                    </span>
+                    {/* Solo se etiqueta el top cut: en el suizo, "Suizo" en
+                        cada fila no dice nada que "R3" no diga ya. */}
+                    {roundStage(r.round, totalRounds, topCut).kind === "cut" && (
+                      <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-brand">
+                        {roundStage(r.round, totalRounds, topCut).label}
+                      </span>
+                    )}
                   </span>
 
                   <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -224,9 +237,12 @@ export function TournamentRounds({
           </p>
         ) : (
           <div className="border-t border-line-soft p-4">
-            <h3 className="mb-3 font-display text-base font-bold">
+            <h3 className="mb-3 flex flex-wrap items-center gap-1.5 font-display text-base font-bold">
               Apuntar la ronda {nextRound}
-              {totalRounds ? <span className="ml-1 text-sm font-normal text-muted">de {totalRounds}</span> : null}
+              {totalRounds ? <span className="text-sm font-normal text-muted">de {totalRounds}</span> : null}
+              {roundStage(nextRound, totalRounds, topCut).kind === "cut" && (
+                <span className="chip chip-brand text-[10px]">{roundStage(nextRound, totalRounds, topCut).label}</span>
+              )}
             </h3>
             <RoundForm
               tournamentId={tournamentId}
@@ -279,6 +295,9 @@ function RoundForm({
      algo que alguien ya tiene apuntado carta por carta, es mejor eso que el
      arquetipo a secas. */
   const rivalOptions = [...rivalDecks, ...archetypeOptions];
+  /* Lo mismo para tu propio mazo: si todavía no tienes la lista de 60 cartas
+     registrada, puedes fijar el torneo solo con el arquetipo. */
+  const ownOptions = [...myDecks, ...archetypeOptions];
 
   const [mode, setMode] = useState<"quick" | "games">(hasGames ? "games" : "quick");
   const [result, setResult] = useState<string>(
@@ -309,17 +328,23 @@ function RoundForm({
   const lost = gameWinners.filter((w) => w === "b").length;
   const settled = won >= need || lost >= need;
 
-  // Cuántos juegos tiene sentido enseñar: se acaba en cuanto hay mayoría.
+  // Cuántos juegos tiene sentido enseñar: se acaba en cuanto hay mayoría, o en
+  // cuanto un juego se marca como empate —viene del reloj, y del reloj no se
+  // juega uno más—.
   const visibleGames = (() => {
     let shown = 0, a = 0, b = 0;
     for (let i = 0; i < bestOf; i++) {
       shown++;
-      if (gameWinners[i] === "a") a++;
-      if (gameWinners[i] === "b") b++;
-      if (a >= need || b >= need) break;
+      const w = gameWinners[i];
+      if (w === "a") a++;
+      else if (w === "b") b++;
+      if (w === "tie" || a >= need || b >= need) break;
     }
     return shown;
   })();
+
+  /** ¿Ya hay un juego empatado entre los que se enseñan? Decide la ronda él solo. */
+  const decidedByTie = gameWinners.slice(0, visibleGames).includes("tie");
 
   const setGameWinner = (i: number, v: string) => {
     setGameWinners((prev) => {
@@ -384,21 +409,24 @@ function RoundForm({
         />
       </div>
 
-      {/* El mazo del torneo: se elige una vez y se queda. */}
+      {/* El mazo del torneo: se elige una vez y se queda. También se puede
+          fijar solo el arquetipo, si todavía no tienes la lista registrada:
+          el selector ofrece las dos cosas en la misma lista. */}
       {lockedDeckId ? (
         <input type="hidden" name="deckAId" value={lockedDeckId} />
-      ) : myDecks.length > 0 ? (
+      ) : ownOptions.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor={`deck-${round}`}>Con qué mazo juegas el torneo</label>
           <DeckPicker
             id={`deck-${round}`} name="deckAId"
-            options={myDecks}
-            defaultValue={m?.deckAId ?? ""}
+            options={ownOptions}
+            defaultValue={m?.deckAId ?? (m?.archetypeAId ? archetypeValue(m.archetypeAId) : "")}
             emptyLabel="— sin anotar —"
-            placeholder="Elegir tu mazo"
+            placeholder="Elegir tu mazo, o solo el arquetipo"
           />
           <p className="text-xs text-muted">
-            Se guarda para todo el torneo: en las rondas siguientes ya no te lo pregunto.
+            Se guarda para todo el torneo: en las rondas siguientes ya no te lo pregunto. Puedes
+            elegir un mazo con lista o solo el arquetipo si todavía no lo tienes registrado.
           </p>
         </div>
       ) : null}
@@ -496,7 +524,7 @@ function RoundForm({
               </div>
             ))}
 
-            {!settled && gameWinners.some(Boolean) && (
+            {!settled && !decidedByTie && gameWinners.some(Boolean) && (
               <label className="inline-flex items-center gap-2 text-sm">
                 <input
                   type="checkbox" name="timeCalled" className="size-4"
@@ -508,9 +536,11 @@ function RoundForm({
             <p className="text-xs text-muted">
               {settled
                 ? `Ronda ${won > lost ? "ganada" : "perdida"} ${won}–${lost}.`
-                : gameWinners.some(Boolean)
-                  ? `${won}–${lost} y todavía sin decidir. Marca «se acabó el tiempo» si la ronda terminó así.`
-                  : "Marca cada juego. En cuanto haya mayoría, el resto desaparece."}
+                : decidedByTie
+                  ? `Un juego empatado corta la ronda aquí: queda ${won > lost ? "ganada" : lost > won ? "perdida" : "en empate"} ${won}–${lost}.`
+                  : gameWinners.some(Boolean)
+                    ? `${won}–${lost} y todavía sin decidir. Marca «se acabó el tiempo» si la ronda terminó así.`
+                    : "Marca cada juego. En cuanto haya mayoría o un empate, el resto desaparece."}
             </p>
           </div>
         )}

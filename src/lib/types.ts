@@ -174,9 +174,19 @@ export const DIVISIONS = {
   juniors: "Juniors",
 } as const;
 
-/** Cómo se agrupan los tipos de torneo en los desplegables. */
+/**
+ * Cómo se agrupan los tipos de torneo en los desplegables.
+ *
+ * `pokemon_challenge` y `pokemon_cup` NO salen aquí a propósito: puntúan
+ * exactamente igual que `league_challenge` y `league_cup` (son alias en
+ * `src/lib/cp.ts`), así que tenerlos como opciones aparte del mismo tipo de
+ * evento solo era confuso. Se retiran del desplegable con la v0.5.0; los
+ * torneos que ya existieran con esos tipos se migraron a su equivalente en
+ * `drizzle/0003_v0_5_0.sql`. El alias se queda en `cp.ts` sin más: no hace
+ * daño y es la red de seguridad si algún dato viejo se cuela.
+ */
 export const TOURNAMENT_KIND_GROUPS: Array<{ group: string; kinds: string[] }> = [
-  { group: "Oficiales que dan CP", kinds: ["league_challenge", "league_cup", "pokemon_challenge", "pokemon_cup", "regional", "special", "international", "worlds"] },
+  { group: "Oficiales que dan CP", kinds: ["league_challenge", "league_cup", "regional", "special", "international", "worlds"] },
   { group: "Otros", kinds: ["store", "online", "other"] },
 ];
 

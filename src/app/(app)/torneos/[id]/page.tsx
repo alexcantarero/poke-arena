@@ -5,7 +5,7 @@ import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/li
 import { awardsCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong } from "@/lib/format";
 import { firstTurnSeriesStats, recordOf, roundsOf } from "@/lib/stats";
-import { TOURNAMENT_FORMATS, asStatus } from "@/lib/types";
+import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
 import { Empty, Kpi, PageHead, PlayerTag, Record, SectionTitle, Sprites } from "@/components/ui";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
@@ -59,10 +59,20 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
   const myDecks = me ? deckOptions(snap, me.id, { includeOthers: false }) : [];
   const rivalDecks = me ? deckOptions(snap, me.id) : [];
   const archOptions = archetypeOptions(snap);
-  /* El nombre del mazo fijado se resuelve aquí, contra la tabla entera: un mazo
-     retirado no sale en los selectores pero sigue siendo el que se jugó. */
-  const deckName = (id: string | null | undefined) =>
-    id ? snap.decksById.get(id)?.name ?? null : null;
+  /* El mazo fijado se resuelve aquí, contra la tabla entera: un mazo retirado
+     no sale en los selectores pero sigue siendo el que se jugó. Y puede no
+     haber mazo en absoluto: "bloquear el mismo mazo para todo el torneo"
+     también funciona fijando solo el arquetipo, sin lista de 60 cartas. Las
+     dos cosas viajan en el mismo valor —con el prefijo "arch:" cuando es solo
+     arquetipo— porque así el mismo campo de formulario (`deckAId`) sirve para
+     las dos, sin duplicar el picker ni la Server Action. */
+  const lockValueOf = (r?: { deckId: string | null; archetypeId: string | null }) =>
+    r?.deckId ?? (r?.archetypeId ? archetypeValue(r.archetypeId) : null);
+  const lockLabelOf = (r?: { deckId: string | null; archetypeId: string | null }) => {
+    if (r?.deckId) return snap.decksById.get(r.deckId)?.name ?? null;
+    if (r?.archetypeId) return snap.archById.get(r.archetypeId)?.name ?? null;
+    return null;
+  };
 
   // Quién más ha apuntado rondas, para poder verlas sin poder editarlas.
   const othersWithRounds = snap.matches
@@ -107,9 +117,11 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         title={t.name}
         sub={
           <>
-            {table.events[t.kind]?.label ?? t.kind} · {fmtDateLong(t.date)} · Bo{t.bestOf} ·{" "}
+            {table.events[t.kind]?.label ?? t.kind} · {fmtDateLong(t.date)}
+            {t.startTime ? ` · ${t.startTime}` : ""} · Bo{t.bestOf} ·{" "}
             {TOURNAMENT_FORMATS[t.format as keyof typeof TOURNAMENT_FORMATS] ?? t.format}
             {t.venue ? ` · ${t.venue}` : ""}{t.city ? `, ${t.city}` : ""}
+            {t.entryFeeCents != null ? ` · ${(t.entryFeeCents / 100).toFixed(2).replace(".", ",")} €` : ""}
           </>
         }
         actions={<Link className="btn btn-ghost btn-sm" href="/torneos"><Icon name="back" className="size-4" /> Torneos</Link>}
@@ -166,10 +178,11 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
             rivalDecks={rivalDecks}
             archetypeOptions={archOptions}
             myDecks={myDecks}
-            lockedDeckId={myResult?.deckId ?? null}
-            lockedDeckName={deckName(myResult?.deckId)}
+            lockedDeckId={lockValueOf(myResult)}
+            lockedDeckName={lockLabelOf(myResult)}
             isMine
             totalRounds={t.rounds ?? null}
+            topCut={t.topCut ?? null}
             archById={snap.archById}
             closed={status === "closed"}
             canEdit
@@ -302,10 +315,11 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
                   rivalDecks={rivalDecks}
                   archetypeOptions={archOptions}
                   myDecks={[]}
-                  lockedDeckId={theirResult?.deckId ?? null}
-                  lockedDeckName={deckName(theirResult?.deckId)}
+                  lockedDeckId={lockValueOf(theirResult)}
+                  lockedDeckName={lockLabelOf(theirResult)}
                   isMine={false}
                   totalRounds={t.rounds ?? null}
+                  topCut={t.topCut ?? null}
                   archById={snap.archById}
                   closed={status === "closed"}
                   canEdit={manager}

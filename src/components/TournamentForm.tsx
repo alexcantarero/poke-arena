@@ -132,12 +132,36 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
               <input className="input" id="date" name="date" type="date" defaultValue={tournament?.date ?? todayISO()} />
             </div>
             <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="startTime">Hora de inicio</label>
+              <input
+                className="input" id="startTime" name="startTime" type="time"
+                defaultValue={tournament?.startTime ?? ""}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="playerCount">Cuánta gente</label>
               <input
                 className="input" id="playerCount" name="playerCount" type="number" min={1} inputMode="numeric"
                 value={playerCount} onChange={(e) => setPlayerCount(e.target.value)}
                 placeholder="32"
               />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="entryFee">Precio de entrada</label>
+              <div className="input items-center gap-1.5 px-2.5">
+                <input
+                  className="w-full bg-transparent outline-none" id="entryFee" name="entryFee"
+                  type="number" min={0} step="0.01" inputMode="decimal"
+                  defaultValue={
+                    tournament?.entryFeeCents != null ? (tournament.entryFeeCents / 100).toString() : ""
+                  }
+                  placeholder="5"
+                />
+                <span className="flex-none text-sm text-muted">€</span>
+              </div>
             </div>
           </div>
 

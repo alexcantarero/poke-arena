@@ -253,7 +253,11 @@ export function archetypesOfMatch(
   index: Map<string, Archetype | undefined>,
   archById?: Map<string, Archetype>,
 ): { a: Archetype | undefined; b: Archetype | undefined } {
-  const a = m.deckAId ? index.get(m.deckAId) : undefined;
+  // El mazo con lista manda; sin él, se cae al arquetipo suelto que se haya
+  // anotado. Mismo patrón en los dos lados: `archetypeAId` es al jugador lo
+  // que `opponentArchetypeId` ya era al rival de fuera de la liga.
+  let a = m.deckAId ? index.get(m.deckAId) : undefined;
+  if (!a && m.archetypeAId) a = archById?.get(m.archetypeAId);
   let b = m.deckBId ? index.get(m.deckBId) : undefined;
   if (!b && !m.playerBId && m.opponentArchetypeId) b = archById?.get(m.opponentArchetypeId);
   return { a, b };
@@ -654,4 +658,129 @@ export function recordOf(rounds: RoundView[]): RoundRecord {
  */
 export function nextStarter(previousWinner: Side | "tie" | null): Side {
   return previousWinner === "a" ? "b" : "a";
+}
+
+/* ============================================== fase de la ronda ====
+
+   En qué momento del torneo cae una ronda: suizo, o cuadro final con su
+   nombre de eliminatoria (Cuartos, Semifinal, Final…). Solo mira números —
+   cuántas rondas de suizo se anunciaron y de qué tamaño es el top cut—, así
+   que no hace falta ninguna tabla nueva ni marcar nada a mano ronda a ronda.
+
+   Lo que NO hace: no distingue day 1 de day 2 en un torneo con corte de
+   asistencia a mitad, porque eso depende de cuántos pasan el corte y hoy no
+   se guarda. Con eso se puede seguir apuntando rondas sin problema —solo que
+   todas aparecen como «Suizo»—; el día que se quiera separar, hace falta un
+   campo nuevo (algo como `tournaments.day1_rounds`) y no una cuenta.
+   ========================================================================= */
+
+export type RoundStage = {
+  kind: "swiss" | "cut";
+  /** "Suizo", o el nombre de la ronda eliminatoria: "Cuartos", "Final"… */
+  label: string;
+};
+
+const CUT_STAGE_NAMES = ["Final", "Semifinal", "Cuartos", "Octavos", "Dieciseisavos"];
+
+/**
+ * Fase de una ronda dentro del torneo.
+ *
+ * Rondas 1..swissRounds son suizo. Las siguientes son el top cut, contadas
+ * desde el final: la última jugada es la Final, la anterior la Semifinal, y
+ * así hacia atrás. `topCut` decide cuántas rondas de eliminatoria caben
+ * (un top 8 son 3: cuartos, semi, final); sin él, o si la ronda cae más allá
+ * de las que salen, se llama solo «Top cut» en vez de inventar un nombre.
+ */
+export function roundStage(
+  round: number,
+  swissRounds: number | null | undefined,
+  topCut: number | null | undefined,
+): RoundStage {
+  const swiss = swissRounds ?? 0;
+  if (!swiss || round <= swiss) return { kind: "swiss", label: "Suizo" };
+
+  const cutRounds = topCut && topCut > 1 ? Math.ceil(Math.log2(topCut)) : 0;
+  const posFromEnd = swiss + cutRounds - round; // 0 = la última ronda, la Final
+  const label = cutRounds > 0 && posFromEnd >= 0 && posFromEnd < CUT_STAGE_NAMES.length
+    ? CUT_STAGE_NAMES[posFromEnd]
+    : "Top cut";
+  return { kind: "cut", label };
+}
+
+/* ==================================================== cuota de metagame ====
+
+   Qué se está jugando, no quién gana con ello — eso ya lo dice
+   `archetypeStats`. Cada lado de cada partida cuenta por separado: si dos
+   Dragapult se cruzan, suma dos, porque la pregunta es «cuánto se ve este
+   mazo en mesa», no «cuántos jugadores distintos lo llevan».
+   ========================================================================= */
+
+export type MetaShareRow = {
+  archetypeId: string;
+  archetype: Archetype;
+  n: number;
+  /** De 0 a 1. Sobre el total de apariciones contadas, no sobre partidas. */
+  share: number;
+};
+
+export function metaShare(
+  matches: MatchFull[],
+  index: Map<string, Archetype | undefined>,
+  archById?: Map<string, Archetype>,
+  /** Solo partidas desde esta fecha (inclusive), en ISO. Sin ella, todo el histórico. */
+  sinceISO?: string,
+): MetaShareRow[] {
+  const table = new Map<string, { archetype: Archetype; n: number }>();
+  let total = 0;
+  for (const m of matches.filter(isPlayed)) {
+    if (sinceISO && m.date < sinceISO) continue;
+    const { a, b } = archetypesOfMatch(m, index, archById);
+    for (const arch of [a, b]) {
+      if (!arch) continue;
+      total++;
+      const row = table.get(arch.id);
+      if (row) row.n++;
+      else table.set(arch.id, { archetype: arch, n: 1 });
+    }
+  }
+  return [...table.entries()]
+    .map(([archetypeId, r]) => ({ archetypeId, archetype: r.archetype, n: r.n, share: total ? r.n / total : 0 }))
+    .sort((x, y) => y.n - x.n);
+}
+
+/* ======================================= rendimiento por número de ronda ====
+
+   ¿Flaqueas en las rondas tardías de un suizo largo, o remontas? Solo mira
+   rondas de torneo —las que tienen tournamentId puesto—, porque son las
+   únicas donde el número de ronda significa lo mismo entre un torneo y otro;
+   la "jornada" de una liga interna es otra cosa.
+   ========================================================================= */
+
+export type RoundNumberRow = {
+  round: number;
+  played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number | null;
+};
+
+export function performanceByRoundNumber(matches: MatchFull[], playerId: string): RoundNumberRow[] {
+  const table = new Map<number, { wins: number; losses: number; ties: number }>();
+  for (const m of matches) {
+    if (!m.tournamentId || m.playerAId !== playerId) continue;
+    const r = roundResult(m);
+    if (r == null) continue;
+    const row = table.get(m.round) ?? { wins: 0, losses: 0, ties: 0 };
+    if (r === "w") row.wins++;
+    else if (r === "l") row.losses++;
+    else row.ties++;
+    table.set(m.round, row);
+  }
+  return [...table.entries()]
+    .map(([round, r]) => {
+      const played = r.wins + r.losses + r.ties;
+      return { round, played, ...r, winRate: played ? (r.wins + r.ties * 0.5) / played : null };
+    })
+    .sort((a, b) => a.round - b.round);
 }
