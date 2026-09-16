@@ -1,22 +1,63 @@
 import { loadSnapshot } from "@/lib/data";
 import {
-  activityByMonth, archetypeStats, firstTurnSeriesStats, firstTurnStats, isInternal, isPlayed,
-  matchupMatrix, seriesShapes,
+  activityByMonth, archetypeStats, archetypesOfMatch, firstTurnSeriesStats, firstTurnStats,
+  isInternal, isPlayed, matchupMatrix, seriesShapes,
 } from "@/lib/stats";
+import {
+  applyMatchFilter, describeFilter, filterToQuery, isFiltered, parseMatchFilter,
+  type FilterIndex,
+} from "@/lib/filters";
+import { COMPETITION_KINDS, TOURNAMENT_FORMATS } from "@/lib/types";
+import { getSeason } from "@/lib/cp";
 import { MONTHS, pct, wrColor } from "@/lib/format";
-import { Bars, Kpi, PageHead, SectionTitle, Sprites } from "@/components/ui";
+import { Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
-import { ScopeTabs } from "@/components/ScopeTabs";
+import { FilterPanel } from "@/components/FilterPanel";
+import { SourceTabs } from "@/components/statistics/SourceTabs";
+import { GlobalMeta } from "@/components/statistics/GlobalMeta";
+import { ArchetypeChart } from "@/components/statistics/Charts";
 
 export const metadata = { title: "Estadísticas" };
 
+/**
+ * Estadísticas, con tres fuentes y filtros que filtran.
+ *
+ * Lo que cambia respecto a antes:
+ *
+ * · Se puede mirar **tu liga**, el **metagame mundial** o **los dos a la vez**.
+ *   La comparación es el punto: un mazo que en el mundo gana el 55% y en
+ *   vuestra liga el 30% dice algo que ninguno de los dos números dice solo.
+ * · Los filtros de fecha y de tipo **funcionan**. Antes estaban puestos pero
+ *   no tocaban lo que se pintaba; ahora las reglas están en
+ *   `src/lib/filters.ts` y son las mismas que usa Resultados.
+ *
+ * Lo local sale del snapshot, que ya está en memoria, así que se ve al
+ * instante. Lo mundial son varias llamadas a Limitless y tarda segundos, por
+ * eso lo pide un componente cliente aparte en vez de bloquear la página.
+ */
 export default async function StatsPage({
   searchParams,
-}: { searchParams: Promise<{ comp?: string; arch?: string }> }) {
-  const { comp = "all", arch } = await searchParams;
+}: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const q = await searchParams;
   const snap = await loadSnapshot();
+
+  const fuenteRaw = Array.isArray(q.fuente) ? q.fuente[0] : q.fuente;
+  const fuente: "local" | "global" | "both" =
+    fuenteRaw === "global" || fuenteRaw === "both" ? fuenteRaw : "local";
+
+  const filter = parseMatchFilter(q);
+  const index: FilterIndex = {
+    tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
+    tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
+    archetypesOf: (m) => {
+      const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      return [a?.id, b?.id];
+    },
+  };
+
   const all = snap.matches.filter(isPlayed);
-  const rows = comp === "all" ? all : all.filter((m) => m.competitionId === comp);
+  const rows = applyMatchFilter(all, filter, index);
 
   const archs = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
   const ft = firstTurnStats(rows);
@@ -31,20 +72,77 @@ export default async function StatsPage({
   const bo: Record<number, number> = { 1: 0, 3: 0, 5: 0 };
   for (const m of rows) bo[m.bestOf] = (bo[m.bestOf] ?? 0) + 1;
 
-  const focus = arch ? snap.archById.get(arch) : undefined;
-  const focusRow = arch ? archs.find((a) => a.archetypeId === arch) : undefined;
+  const season = snap.config.cpSeason;
+  const table = getSeason(season);
+  const kindLabel = (k: string) => table.events[k]?.label ?? k;
+
+  const focus = filter.archetypeId ? snap.archById.get(filter.archetypeId) : undefined;
+  const focusRow = filter.archetypeId
+    ? archs.find((a) => a.archetypeId === filter.archetypeId)
+    : undefined;
+
+  // Lo que se le pasa al bloque mundial: los mismos filtros, y los arquetipos
+  // de la liga ya calculados para poder cruzarlos.
+  const query = filterToQuery(filter).toString();
+  const localRows = archs.map((a) => ({
+    id: a.archetypeId,
+    name: a.archetype?.name ?? a.archetypeId,
+    main: a.archetype?.main ?? "",
+    secondary: a.archetype?.secondary ?? "",
+    type: a.archetype?.type ?? "colorless",
+    played: a.played,
+    wins: a.wins,
+    losses: a.losses,
+    ties: a.ties,
+    winRate: a.winRate,
+    share: rows.length ? a.played / (rows.length * 2) : 0,
+  }));
+
+  const resumen = describeFilter(filter, {
+    tournament: (id) => snap.toursById.get(id)?.name,
+    competition: (id) => snap.compsById.get(id)?.name,
+    archetype: (id) => snap.archById.get(id)?.name,
+    player: (id) => snap.playersById.get(id)?.name,
+    kind: kindLabel,
+  });
 
   return (
     <>
       <PageHead
         title="Estadísticas"
-        sub="Sobre las partidas registradas. Las que no llevan mazo en los dos lados cuentan para el ranking, pero no para la matriz."
+        sub={
+          isFiltered(filter)
+            ? `${rows.length} de ${all.length} partidas · ${resumen}`
+            : "Sobre las partidas registradas. Las que no llevan mazo en los dos lados cuentan para el ranking, pero no para la matriz."
+        }
       />
 
-      <ScopeTabs
-        basePath="/estadisticas" param="comp" current={comp}
-        options={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
+      <SourceTabs current={fuente} query={query} />
+
+      <FilterPanel
+        action="/estadisticas"
+        filter={filter}
+        show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format"]}
+        keep={fuente === "local" ? {} : { fuente }}
+        tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
+        competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
+        tournamentKinds={[...new Set(snap.tournaments.map((t) => t.kind))]
+          .map((k) => ({ value: k, label: kindLabel(k) }))}
+        competitionKinds={Object.entries(COMPETITION_KINDS)
+          .map(([v, d]) => ({ value: v, label: d.short }))}
+        archetypes={snap.archetypes.map((a) => ({ value: a.id, label: a.name }))}
+        players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
+        formats={Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => ({ value: v, label: l }))}
       />
+
+      {fuente !== "local" && (
+        <GlobalMeta
+          mode={fuente === "both" ? "both" : "global"}
+          local={localRows}
+          days={filter.preset === "90d" ? 90 : filter.preset === "365d" ? 365 : 30}
+          query={query}
+        />
+      )}
 
       {focus && focusRow && (
         <section className="card mt-4 p-4">
@@ -102,6 +200,24 @@ export default async function StatsPage({
           </div>
         </section>
       </div>
+
+      {archs.filter((a) => a.played >= 2).length > 1 && (
+        <section className="card mt-4 p-4">
+          <h2 className="mb-1 text-lg font-bold">Victorias por arquetipo</h2>
+          <p className="mb-3 text-xs text-muted">
+            Los más jugados de tu liga, con el filtro que tengas puesto.
+          </p>
+          <ArchetypeChart
+            mode="local"
+            rows={archs.filter((a) => a.played >= 2).map((a) => ({
+              id: a.archetypeId,
+              name: a.archetype?.name ?? a.archetypeId,
+              local: a.winRate,
+              played: a.played,
+            }))}
+          />
+        </section>
+      )}
 
       <section className="card mt-4">
         <div className="card-head">

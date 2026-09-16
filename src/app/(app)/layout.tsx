@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav, Sidebar } from "@/components/Nav";
@@ -5,6 +6,7 @@ import { Wordmark } from "@/components/Wordmark";
 import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Icon } from "@/components/icons";
+import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { logout } from "@/actions";
@@ -68,6 +70,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <BottomNav meId={me.id} />
+
+      {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
+          Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una
+          Server Action en la URL justo antes de redirigir, así que tiene que
+          haber alguien escuchando en CUALQUIER página a la que se redirija.
+
+          Existía desde la v0.5.0 pero no estaba montado en ningún sitio, que
+          es exactamente por qué no aparecía nunca.
+
+          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin él
+          `next build` falla al prerenderizar. */}
+      <Suspense fallback={null}>
+        <Snackbar />
+      </Suspense>
     </div>
   );
 }

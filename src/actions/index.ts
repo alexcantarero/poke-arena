@@ -318,12 +318,14 @@ export async function createInvite(fd: FormData) {
     createdBy: actor.id,
   });
   refresh();
+  redirect(withFlash("/ajustes", "ok", "Invitación creada. Copia el enlace y mándalo."));
 }
 
 export async function revokeInvite(fd: FormData) {
   await requireManager();
   await db.update(invites).set({ revoked: true }).where(eq(invites.token, str(fd, "token")));
   refresh();
+  redirect(withFlash("/ajustes", "ok", "Invitación anulada."));
 }
 
 /* ----------------------------------------------------------- jugadores -- */
@@ -546,7 +548,7 @@ export async function saveDeck(fd: FormData) {
   // Volver a donde estabas. Crear un mazo casi siempre es un desvío en mitad
   // de otra cosa —apuntando una ronda, rellenando un torneo—, y mandar a todo
   // el mundo a /mazos era perder el hilo.
-  redirect(safeBack(fd, "/mazos"));
+  redirect(withFlash(safeBack(fd, "/mazos"), "ok", editing ? "Mazo guardado." : "Mazo creado."));
 }
 
 export async function deleteDeck(fd: FormData) {
@@ -572,7 +574,14 @@ export async function deleteDeck(fd: FormData) {
     await db.delete(decks).where(eq(decks.id, id));
   }
   refresh();
-  redirect("/mazos");
+  // Retirar y borrar no son lo mismo, y el aviso lo dice: si el mazo estaba en
+  // uso no ha desaparecido, y quien le dé a «borrar» tiene que enterarse.
+  redirect(withFlash(
+    "/mazos", "ok",
+    uses > 0
+      ? `«${current.name}» está en uso en ${uses} sitio(s): se ha retirado en vez de borrarse.`
+      : `Mazo «${current.name}» borrado.`,
+  ));
 }
 
 /**
@@ -685,7 +694,7 @@ export async function saveMatch(fd: FormData) {
   }
   await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
   refresh();
-  redirect("/resultados");
+  redirect(withFlash("/resultados", "ok", editing ? "Partida guardada." : "Partida registrada."));
 }
 
 export async function deleteMatch(fd: FormData) {
@@ -698,7 +707,7 @@ export async function deleteMatch(fd: FormData) {
   if (!mine && !canManageLeague(actor.role)) redirect("/resultados");
   await db.delete(matches).where(eq(matches.id, id));
   refresh();
-  redirect("/resultados");
+  redirect(withFlash("/resultados", "ok", "Partida borrada."));
 }
 
 /* ------------------------------------------------------------- torneos -- */
@@ -1058,7 +1067,7 @@ export async function saveTournamentResult(fd: FormData) {
   }
 
   refresh();
-  redirect(`/torneos/${tournamentId}`);
+  redirect(withFlash(`/torneos/${tournamentId}`, "ok", "Resultado guardado."));
 }
 
 export async function deleteTournamentResult(fd: FormData) {
@@ -1105,9 +1114,15 @@ export async function saveCompetition(fd: FormData) {
 
 export async function deleteCompetition(fd: FormData) {
   await requireManager();
-  await db.delete(competitions).where(eq(competitions.id, str(fd, "id")));
+  const id = str(fd, "id");
+  const comp = (await db.select({ name: competitions.name }).from(competitions)
+    .where(eq(competitions.id, id)))[0];
+  await db.delete(competitions).where(eq(competitions.id, id));
   refresh();
-  redirect("/competiciones");
+  redirect(withFlash(
+    "/competiciones", "ok",
+    comp ? `Competición «${comp.name}» borrada.` : "Competición borrada.",
+  ));
 }
 
 export async function createPairings(fd: FormData) {
@@ -1189,6 +1204,7 @@ export async function saveSettings(fd: FormData) {
   if (existing[0]) await db.update(settings).set(values).where(eq(settings.id, "default"));
   else await db.insert(settings).values({ id: "default", ...values });
   refresh();
+  redirect(withFlash("/ajustes", "ok", "Ajustes guardados."));
 }
 
 /* ============================================================ v0.3.0 ==== */

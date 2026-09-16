@@ -73,6 +73,17 @@
   --series-5: #e87ba4;
   --series-6: #008300;
   --series-7: #4a3aa7;
+
+  /* De dónde viene el dato. Es lo que hace legible la pantalla de
+     estadísticas cuando se comparan las dos fuentes: el mismo azul de siempre
+     para lo vuestro, el naranja para el metagame mundial, y el morado solo
+     para la diferencia entre ambos. Tres colores y ninguno más. */
+  --source-local: #2a78d6;
+  --source-local-soft: #dde8fa;
+  --source-global: #d9622a;
+  --source-global-soft: #fbe6da;
+  --source-diff: #6d4fc4;
+  --source-diff-soft: #e8e2fa;
 }
 
 [data-theme="dark"] {
@@ -122,6 +133,13 @@
   --series-5: #d55181;
   --series-6: #008300;
   --series-7: #9085e9;
+
+  --source-local: #5f9fe8;
+  --source-local-soft: #14263f;
+  --source-global: #e8824c;
+  --source-global-soft: #35200f;
+  --source-diff: #a08fe8;
+  --source-diff-soft: #241a3d;
 }
 
 @theme inline {
@@ -159,12 +177,62 @@
   --color-series-6: var(--series-6);
   --color-series-7: var(--series-7);
 
+  --color-source-local: var(--source-local);
+  --color-source-local-soft: var(--source-local-soft);
+  --color-source-global: var(--source-global);
+  --color-source-global-soft: var(--source-global-soft);
+  --color-source-diff: var(--source-diff);
+  --color-source-diff-soft: var(--source-diff-soft);
+
   --font-display: "Saira Condensed", "Arial Narrow", Impact, sans-serif;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* alto de la barra inferior del móvil, para reservar hueco al final del scroll */
   --spacing-nav: 4.75rem;
+
+  /* ---------------------------------------------------------------------
+     Puente con shadcn/ui.
+
+     shadcn genera sus componentes contra un juego fijo de nombres
+     (--background, --card, --primary, --border…). Si se dejan con los valores
+     que trae de fábrica, la app acaba con dos estéticas: la de Arena en las
+     pantallas de siempre y la gris de shadcn en las nuevas.
+
+     Así que no se copian sus colores: se apuntan a los de Arena. Un
+     `<Card>` de shadcn queda del mismo color que una `.card` de aquí, y
+     cambiar la paleta sigue siendo tocar una línea arriba del todo.
+
+     Van dentro de `@theme inline` y no en `:root` porque aquí ya heredan del
+     tema activo: la misma variable sirve para claro y para oscuro sin
+     repetirla. */
+  --color-background: var(--ground);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-accent: var(--surface-3);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--loss);
+  --color-destructive-foreground: var(--on-brand);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--info);
+  --color-muted-foreground: var(--muted);
+
+  /* La serie de la gráfica, que es lo que usa el componente `chart`. */
+  --color-chart-1: var(--series-1);
+  --color-chart-2: var(--series-2);
+  --color-chart-3: var(--series-3);
+  --color-chart-4: var(--series-4);
+  --color-chart-5: var(--series-5);
+
+  --radius: 0.75rem;
 }
 
 @layer base {

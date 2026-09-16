@@ -192,3 +192,50 @@ export const TOURNAMENT_KIND_GROUPS: Array<{ group: string; kinds: string[] }> =
 
 /** Resultado de un formulario que usa `useActionState`. */
 export type FormState = { error?: string; ok?: string } | null;
+
+
+/* ------------------------------------------------- estadísticas (API) --- */
+
+/**
+ * Un arquetipo con sus números, venga de donde venga.
+ *
+ * La misma forma para la liga y para el metagame mundial, a propósito: así la
+ * pantalla los pinta con el mismo componente y compararlos es restar dos
+ * campos, no reconciliar dos estructuras distintas.
+ *
+ * Vive aquí y no junto al endpoint porque lo consumen componentes cliente, y
+ * un fichero de ruta no es sitio del que importar.
+ */
+export type ArchetypeRow = {
+  id: string;
+  name: string;
+  main: string;
+  secondary: string;
+  type: string;
+  played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number | null;
+  share: number;
+};
+
+export type StatsPayload = {
+  local?: {
+    archetypes: ArchetypeRow[];
+    matches: number;
+    players: number;
+  };
+  global?: {
+    archetypes: ArchetypeRow[];
+    tournaments: number;
+    entries: number;
+    days: number;
+    fetchedAt: string;
+    /** Torneos que no respondieron. Si es alto, la foto está coja. */
+    failed: number;
+    /** La API de Limitless no filtra por país; la pantalla tiene que decirlo. */
+    worldwideOnly: true;
+  };
+  error?: string;
+};

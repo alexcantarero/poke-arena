@@ -222,3 +222,149 @@ export async function fetchArchetypeCatalog(opts: SyncOptions = {}): Promise<{
   if (official?.length) return { source: "catalog", archetypes: official };
   return { source: "meta", archetypes: await buildMetaCatalog(opts) };
 }
+
+/* =========================================================================
+   El metagame mundial, para poder comparar.
+
+   Hasta ahora de Limitless solo se sacaba el catálogo de nombres. Esto saca
+   además **cómo le va a cada mazo**: cuánto se juega y cuánto gana. Es lo que
+   permite poner al lado «en tu liga Dragapult gana el 61%» y «en el mundo,
+   el 54%», que es la comparación que de verdad dice algo — si tu porcentaje
+   con un mazo se despega mucho del global, o lo estás jugando muy bien, o te
+   estás cruzando con rivales que no saben la matchup.
+
+   Un aviso sobre lo que NO se puede hacer: **la API no filtra por país.** El
+   documento del que salió esto daba por hecho un `?country=ES`; está
+   comprobado que ese parámetro se ignora en silencio y devuelve el listado
+   mundial igual. Así que esto es meta mundial y la interfaz lo dice; fingir
+   un filtro que no filtra sería peor que no tenerlo.
+   ========================================================================= */
+
+/** Cómo le va a un arquetipo en el metagame mundial. */
+export type MetaRow = {
+  identifier: string;
+  name: string;
+  main: string;
+  secondary: string;
+  /** Listas contadas. */
+  entries: number;
+  /** Cuota: qué parte de todas las listas es este mazo (0–1). */
+  share: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  /** % de victorias, contando el empate como media victoria. 0–1. */
+  winRate: number | null;
+  /** Puesto medio, para distinguir «se juega mucho» de «se gana mucho». */
+  avgPlacement: number | null;
+};
+
+export type MetaSnapshot = {
+  rows: MetaRow[];
+  /** Torneos de los que sale. */
+  tournaments: number;
+  /** Listas contadas en total. */
+  entries: number;
+  /** Ventana mirada, en días. */
+  days: number;
+  format: string;
+  /** Cuándo se calculó, para poder decir «hace 2 h». */
+  fetchedAt: string;
+  /** Lo que no ha respondido. Si es alto, la foto está coja y hay que decirlo. */
+  failed: number;
+};
+
+export type MetaOptions = {
+  /** Ventana en días hacia atrás. */
+  days?: number;
+  /** Cuántos torneos mirar como mucho. */
+  limit?: number;
+  minPlayers?: number;
+  format?: string;
+  apiKey?: string;
+};
+
+/**
+ * Foto del metagame mundial de los últimos días.
+ *
+ * Se recorre en tandas por lo mismo de siempre: en serie son demasiados
+ * viajes encadenados para una función serverless, y de golpe es martillear a
+ * un servicio gratuito. Los torneos que no responden se cuentan en `failed`
+ * en vez de tumbar la llamada — con veinte torneos, perder uno no cambia la
+ * foto, pero perder quince sí, y por eso el número se enseña.
+ */
+export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSnapshot> {
+  const { days = 30, limit = 20, minPlayers = 16, format = "STANDARD", apiKey } = opts;
+
+  const desde = Date.now() - days * 86400000;
+  const list = (await fetchTournaments({ limit, format, apiKey }))
+    .filter((t) => (t.players ?? 0) >= minPlayers)
+    .filter((t) => {
+      const d = Date.parse(t.date);
+      return Number.isFinite(d) ? d >= desde : true;
+    });
+
+  const acc = new Map<string, MetaRow & { placements: number[] }>();
+  let entries = 0;
+  let failed = 0;
+
+  const BATCH = 4;
+  for (let i = 0; i < list.length; i += BATCH) {
+    const chunk = list.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(chunk.map((t) => fetchStandings(t.id, apiKey)));
+    failed += settled.filter((r) => r.status === "rejected").length;
+
+    for (const res of settled) {
+      if (res.status !== "fulfilled") continue;
+      for (const row of res.value) {
+        const deck = row.deck;
+        if (!deck?.id || !deck.name) continue;
+        const icons = Array.isArray(deck.icons) ? deck.icons : [];
+        const main = icons[0] ?? "";
+        if (!main) continue;
+
+        entries++;
+        let cur = acc.get(deck.id);
+        if (!cur) {
+          cur = {
+            identifier: deck.id, name: deck.name, main, secondary: icons[1] ?? "",
+            entries: 0, share: 0, wins: 0, losses: 0, ties: 0,
+            winRate: null, avgPlacement: null, placements: [],
+          };
+          acc.set(deck.id, cur);
+        }
+        cur.entries++;
+        cur.wins += row.record?.wins ?? 0;
+        cur.losses += row.record?.losses ?? 0;
+        cur.ties += row.record?.ties ?? 0;
+        if (typeof row.placing === "number" && row.placing > 0) cur.placements.push(row.placing);
+      }
+    }
+  }
+
+  const rows: MetaRow[] = [...acc.values()].map((r) => {
+    const jugadas = r.wins + r.losses + r.ties;
+    const { placements, ...rest } = r;
+    return {
+      ...rest,
+      share: entries ? r.entries / entries : 0,
+      // El empate cuenta media victoria, igual que en el ranking de la liga.
+      winRate: jugadas ? (r.wins + r.ties / 2) / jugadas : null,
+      avgPlacement: placements.length
+        ? placements.reduce((a, b) => a + b, 0) / placements.length
+        : null,
+    };
+  });
+
+  rows.sort((a, b) => b.share - a.share || a.name.localeCompare(b.name));
+
+  return {
+    rows,
+    tournaments: list.length,
+    entries,
+    days,
+    format,
+    fetchedAt: new Date().toISOString(),
+    failed,
+  };
+}

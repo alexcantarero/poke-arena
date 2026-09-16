@@ -1,42 +1,80 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { loadSnapshot } from "@/lib/data";
-import { isPlayed } from "@/lib/stats";
+import { archetypesOfMatch, isPlayed } from "@/lib/stats";
+import {
+  applyMatchFilter, describeFilter, isFiltered, parseMatchFilter, type FilterIndex,
+} from "@/lib/filters";
+import { COMPETITION_KINDS, TOURNAMENT_FORMATS } from "@/lib/types";
+import { getSeason } from "@/lib/cp";
 import { Empty, MatchCard, MatchList, PageHead } from "@/components/ui";
-import { Filters } from "@/components/Filters";
+import { FilterPanel } from "@/components/FilterPanel";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Resultados" };
 
+/**
+ * Resultados, con filtros de verdad.
+ *
+ * Antes solo se podía filtrar por competición, y la petición era poder
+ * filtrar también por torneo — que es donde se juega casi todo. Ahora las
+ * reglas viven en `src/lib/filters.ts` y las comparte con Estadísticas, así
+ * que arreglar un filtro lo arregla en los dos sitios.
+ */
 export default async function ResultsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ comp?: string; player?: string; arch?: string; bo?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = await searchParams;
   const snap = await loadSnapshot();
-  const all = snap.matches.filter(isPlayed).slice().reverse();
-  const pending = snap.matches.filter((m) => m.status === "scheduled" && (!q.comp || m.competitionId === q.comp));
+  const filter = parseMatchFilter(q);
 
-  const archOf = (m: (typeof all)[number], side: "a" | "b") => {
-    if (side === "a") return m.deckAId ? snap.archIndex.get(m.deckAId) : undefined;
-    if (m.deckBId) return snap.archIndex.get(m.deckBId);
-    return m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined;
+  const index: FilterIndex = {
+    tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
+    tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
+    archetypesOf: (m) => {
+      const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      return [a?.id, b?.id];
+    },
   };
 
-  const rows = all.filter((m) => {
-    if (q.comp && m.competitionId !== q.comp) return false;
-    if (q.player && m.playerAId !== q.player && m.playerBId !== q.player) return false;
-    if (q.bo && String(m.bestOf) !== q.bo) return false;
-    if (q.arch && archOf(m, "a")?.id !== q.arch && archOf(m, "b")?.id !== q.arch) return false;
-    return true;
+  const played = snap.matches.filter(isPlayed);
+  const rows = applyMatchFilter(played, filter, index).slice().reverse();
+
+  // Las pendientes respetan el filtro de competición y de torneo, que es lo
+  // único que tiene sentido en algo que aún no se ha jugado.
+  const pending = snap.matches.filter((m) =>
+    m.status === "scheduled"
+    && (!filter.competitionId || m.competitionId === filter.competitionId)
+    && (!filter.tournamentId || m.tournamentId === filter.tournamentId));
+
+  const season = snap.config.cpSeason;
+  const table = getSeason(season);
+  const kindLabel = (k: string) => table.events[k]?.label ?? k;
+
+  const archOf = (m: (typeof played)[number], side: "a" | "b") => {
+    const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+    return side === "a" ? a : b;
+  };
+
+  const resumen = describeFilter(filter, {
+    tournament: (id) => snap.toursById.get(id)?.name,
+    competition: (id) => snap.compsById.get(id)?.name,
+    archetype: (id) => snap.archById.get(id)?.name,
+    player: (id) => snap.playersById.get(id)?.name,
+    kind: kindLabel,
   });
 
   return (
     <>
       <PageHead
         title="Resultados"
-        sub={`${rows.length} de ${all.length} partidas.`}
+        sub={
+          isFiltered(filter)
+            ? `${rows.length} de ${played.length} partidas · ${resumen}`
+            : `${played.length} partidas.`
+        }
         actions={
           <Link className="btn btn-brand hidden md:inline-flex" href="/partidas/nueva">
             <Icon name="plus" className="size-4" /> Registrar
@@ -44,17 +82,20 @@ export default async function ResultsPage({
         }
       />
 
-      <Suspense fallback={<div className="card mb-4 h-20 animate-pulse" />}>
-        <Filters
-          basePath="/resultados"
-          fields={[
-            { name: "comp", label: "Competición", placeholder: "Todas", options: snap.competitions.map((c) => ({ value: c.id, label: c.name })) },
-            { name: "player", label: "Jugador", placeholder: "Todos", options: snap.players.map((p) => ({ value: p.id, label: p.name })) },
-            { name: "arch", label: "Arquetipo", placeholder: "Todos", options: snap.archetypes.map((a) => ({ value: a.id, label: a.name })) },
-            { name: "bo", label: "Formato", placeholder: "Todos", options: [{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }] },
-          ]}
-        />
-      </Suspense>
+      <FilterPanel
+        action="/resultados"
+        filter={filter}
+        show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format"]}
+        tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
+        competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
+        tournamentKinds={[...new Set(snap.tournaments.map((t) => t.kind))]
+          .map((k) => ({ value: k, label: kindLabel(k) }))}
+        competitionKinds={Object.entries(COMPETITION_KINDS)
+          .map(([v, d]) => ({ value: v, label: d.short }))}
+        archetypes={snap.archetypes.map((a) => ({ value: a.id, label: a.name }))}
+        players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
+        formats={Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => ({ value: v, label: l }))}
+      />
 
       {pending.length > 0 && (
         <section className="card mb-4">
@@ -89,12 +130,18 @@ export default async function ResultsPage({
                 playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
                 archA={archOf(m, "a")}
                 archB={archOf(m, "b")}
-                context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
+                context={m.competitionId
+                  ? snap.compsById.get(m.competitionId)?.name
+                  : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
               />
             ))}
           </MatchList>
         ) : (
-          <Empty title="Ninguna partida con estos filtros">Prueba a quitar alguno.</Empty>
+          <Empty title="Ninguna partida con estos filtros">
+            {isFiltered(filter)
+              ? <><a className="underline underline-offset-2" href="/resultados">Quítalos</a> y vuelve a mirar.</>
+              : "Registra la primera y aparecerá aquí."}
+          </Empty>
         )}
       </div>
     </>

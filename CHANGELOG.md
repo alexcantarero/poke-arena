@@ -2,6 +2,79 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.6.0] — 2026-09-16
+
+El snackbar por fin aparece, los filtros filtran, y las estadísticas pueden mirarse contra el
+metagame mundial en vez de solo contra vosotros mismos.
+
+### Corregido
+
+- **El snackbar no salía nunca.** El componente existía desde la v0.5.0 y seis acciones ya
+  dejaban su mensaje, pero **no estaba montado en ninguna parte**: faltaba ponerlo en el layout.
+  Era eso y nada más. Ahora vive en `src/app/(app)/layout.tsx`, dentro de un `<Suspense>`
+  —obligatorio, porque usa `useSearchParams` y sin él `next build` falla al prerenderizar—.
+- Los filtros de **fecha y tipo en Estadísticas** estaban puestos pero no tocaban lo que se
+  pintaba.
+
+### Añadido
+
+**Avisos en todas las acciones**
+- Crear y guardar mazos, borrarlos (con su matiz: si el mazo estaba en uso se **retira** en vez
+  de borrarse, y ahora el aviso lo dice), registrar y borrar partidas, guardar el resultado de
+  un torneo, ajustes, invitaciones creadas y anuladas, competiciones borradas.
+
+**Filtros de verdad, y los mismos en todas partes**
+- Las reglas viven en `src/lib/filters.ts` y las comparten Resultados, Estadísticas y el
+  endpoint de la API. Antes cada pantalla tenía la suya y arreglar una no arreglaba la otra.
+- Se puede filtrar por: de dónde sale la partida (liga / torneos / amistosos), **rango de
+  fechas** (atajos de 30, 90 y 365 días, o dos fechas a mano), **torneo concreto**, **tipo de
+  torneo**, competición concreta, tipo de competición, arquetipo, jugador y formato.
+- **Resultados ya filtra por torneo**, que era la petición.
+- Todo por URL: el enlace se puede compartir, la vuelta atrás del navegador funciona, y el
+  panel se envía de una vez en lugar de recargar a cada toque de un desplegable.
+
+**Estadísticas: tu liga, el mundo, o los dos**
+- Selector de fuente: **Tu liga · Meta mundial · Comparar**.
+- El metagame mundial sale de Limitless agregando las clasificaciones de los torneos recientes:
+  cuánto se juega cada mazo y cuánto gana, sin clave.
+- En modo comparación, **dónde os separáis del mundo**: los arquetipos cuya tasa de victorias
+  en vuestra liga más se aleja de la global. Es la lectura que sirve para preparar un torneo.
+- **Aviso honesto**: la API de Limitless **no filtra por país**. Está comprobado que el
+  parámetro se ignora y devuelve el listado mundial igual, así que el meta es mundial y la
+  pantalla lo dice. No hay selector de región que prometa un filtro inexistente.
+- Lo local sale al instante (ya está en memoria); lo mundial tarda unos segundos y se pide
+  aparte para no bloquear la pantalla.
+
+**Gráficas con Recharts**
+- Victorias por arquetipo (dos series en modo comparación) y cuota de uso. Los colores salen de
+  variables CSS, así que el modo oscuro también funciona en las gráficas.
+
+**Simulador de manos y mulligan**
+- En la ficha de un mazo con lista: porcentaje **exacto** de mulligan, probabilidad de abrir con
+  una carta concreta, y tiradas de 100 / 1.000 / 10.000 manos con la última mano en imágenes.
+- Las probabilidades se **calculan**, no se simulan: tienen fórmula cerrada y simularlas sería
+  cambiar una respuesta exacta por una aproximada. La simulación está para ver manos de verdad.
+- El barajado es Fisher-Yates, y hay una prueba que lo verifica: el atajo de
+  `sort(() => Math.random() - 0.5)` no reparte uniforme, y aquí lo que se mide es justo el azar.
+- **Lo que la lista no dice**: una decklist pegada no marca qué Pokémon son Básicos. Se estima
+  con una heurística y **se deja corregir a mano**, porque de ese número depende todo el
+  porcentaje. Decirlo mal sería dar una cifra con pinta de exacta y equivocada.
+- 15 pruebas nuevas (59 en total).
+
+**Datos de carta (pokemontcg.io)**
+- Cliente nuevo para buscar cartas y sus imágenes, con la advertencia metida en el propio
+  fichero: esa API está **deprecada**, no admite claves nuevas y las existentes mueren el
+  1 de marzo de 2027. Nada de la app depende de que responda; las imágenes de las listas
+  siguen saliendo del CDN de Limitless, que no gasta cuota.
+
+### Dependencias
+
+Esta versión **necesita `npm install`** antes de compilar. Nuevas: `recharts` (3.10.1, ya
+compatible con React 19), `lucide-react` (1.46.0), `class-variance-authority`, `cn` y
+`tw-animate-css`. Queda además preparado shadcn/ui —`components.json`, `src/lib/utils.ts` y el
+puente de paleta en `globals.css`— para poder añadir sus componentes con una orden, y con los
+colores de Arena en vez de los suyos.
+
 ## [0.5.0] — 2026-09-15
 
 Dos bugs de verdad arreglados, el mazo del torneo también por arquetipo suelto, la hora y el
