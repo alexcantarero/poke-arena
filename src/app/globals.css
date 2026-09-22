@@ -84,6 +84,19 @@
   --source-global-soft: #fbe6da;
   --source-diff: #6d4fc4;
   --source-diff-soft: #e8e2fa;
+
+  /* Elevación. Tres alturas y ninguna más: una tarjeta quieta, una tarjeta
+     que el dedo o el ratón está tocando, y una capa que flota sobre todo
+     (el aviso de abajo, un menú). Con la sombra en variables, el tema oscuro
+     puede usar sombras más duras —sobre fondo oscuro una sombra suave no se
+     ve— sin que ninguna pantalla se entere. */
+  --shadow-1: 0 1px 2px rgb(13 21 38 / 0.05), 0 1px 3px rgb(13 21 38 / 0.06);
+  --shadow-2: 0 4px 10px -2px rgb(13 21 38 / 0.10), 0 2px 5px -2px rgb(13 21 38 / 0.06);
+  --shadow-3: 0 16px 36px -10px rgb(13 21 38 / 0.24), 0 4px 12px -4px rgb(13 21 38 / 0.12);
+
+  /* El gris que se mueve mientras algo carga. */
+  --skeleton: #dde4f1;
+  --skeleton-shine: #eef2f9;
 }
 
 [data-theme="dark"] {
@@ -140,6 +153,16 @@
   --source-global-soft: #35200f;
   --source-diff: #a08fe8;
   --source-diff-soft: #241a3d;
+
+  /* Sobre fondo oscuro una sombra suave no existe: se sube la opacidad y se
+     añade un filo claro arriba, que es lo que de verdad separa una tarjeta
+     del fondo cuando no hay luz que proyectar. */
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  --shadow-2: 0 6px 14px -4px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-3: 0 20px 44px -12px rgb(0 0 0 / 0.75), inset 0 1px 0 rgb(255 255 255 / 0.05);
+
+  --skeleton: #1a2439;
+  --skeleton-shine: #24314c;
 }
 
 @theme inline {
@@ -259,6 +282,34 @@
     outline-offset: 2px;
     border-radius: 0.375rem;
   }
+
+  /* El texto seleccionado con el color de la marca. Es un detalle de dos
+     líneas y es de las cosas que más separan una web cuidada de una plantilla. */
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 26%, transparent);
+    color: var(--ink);
+  }
+
+  /* La barra de desplazamiento, del color del tema. Sin esto, en modo oscuro
+     aparece una barra blanca de sistema en mitad de la página y canta mucho.
+     `scrollbar-gutter` reserva su hueco siempre, así que al pasar de una
+     pantalla corta a una larga el contenido no se desplaza 15px de golpe. */
+  html {
+    scrollbar-gutter: stable;
+    scrollbar-color: var(--line) transparent;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border: 3px solid var(--ground);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Ninguna imagen se sale de su hueco. Las de carta y los sprites vienen de
+     CDNs de terceros con tamaños que no controlamos. */
+  img, svg, video { max-width: 100%; }
 }
 
 /* Números que se leen en columna, uno debajo de otro. Va como @utility para
@@ -278,6 +329,43 @@
   align-items: center;
   justify-content: center;
   gap: calc(var(--spacing) * 2);
+}
+
+/* El hueco al final del scroll en móvil: el alto de la barra inferior MÁS la
+   barra de gestos del sistema. Con solo `pb-nav`, en un iPhone la última fila
+   de cualquier lista se queda debajo de la rayita de abajo. */
+@utility pb-nav-safe {
+  padding-bottom: calc(var(--spacing-nav) + env(safe-area-inset-bottom));
+}
+
+/* Hueco para la muesca. El padding que tendría de todas formas va en
+   `--safe-extra` y se suma, en vez de sustituirlo: en un navegador sin muesca
+   `env()` vale 0 y si no, el elemento se quedaría pegado al borde. */
+@utility safe-top {
+  padding-top: calc(env(safe-area-inset-top) + var(--safe-extra, 0px));
+}
+
+/* Lo que se enseña mientras el dato viene. No es un "cargando…" centrado: es
+   la forma que va a tener el contenido, del tamaño que va a tener. La
+   diferencia es que la página no pega un salto cuando llega. */
+@utility skeleton {
+  background-image: linear-gradient(
+    100deg,
+    var(--skeleton) 30%,
+    var(--skeleton-shine) 48%,
+    var(--skeleton) 66%
+  );
+  background-size: 300% 100%;
+  animation: skeleton 1.25s ease-in-out infinite;
+  border-radius: 0.5rem;
+  color: transparent;
+  user-select: none;
+}
+
+/* El acuse de recibo del dedo. En el móvil no hay `hover`, así que si al
+   tocar no se hunde nada la app parece que no ha recibido el toque. */
+@utility press {
+  transition: transform 120ms ease, background-color 120ms ease;
 }
 
 @layer components {
@@ -300,7 +388,22 @@
   }
 
   .card {
-    @apply rounded-2xl border border-line bg-surface shadow-sm;
+    @apply rounded-2xl border border-line bg-surface;
+    box-shadow: var(--shadow-1);
+  }
+  /* Una tarjeta en la que se puede pulsar. Sube un pelo con el ratón y se
+     hunde con el dedo: son 2px, y son los que hacen que se lea como un botón
+     y no como un cuadro decorativo. */
+  .card-link {
+    @apply press block;
+  }
+  .card-link:hover {
+    box-shadow: var(--shadow-2);
+    transform: translateY(-2px);
+  }
+  .card-link:active {
+    box-shadow: var(--shadow-1);
+    transform: translateY(0) scale(0.995);
   }
   .card-head {
     @apply flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3 sm:px-5;
@@ -405,6 +508,82 @@
   .tab-panel-in-back {
     animation-name: tab-in-back;
   }
+
+  /* --- fuente del dato ---
+     Los mismos tres colores del sistema, ya montados en chip, para no repetir
+     `style={{ background: "var(--source-…)" }}` por media app. */
+  .chip-local  { @apply border-transparent; background: var(--source-local-soft);  color: var(--source-local); }
+  .chip-global { @apply border-transparent; background: var(--source-global-soft); color: var(--source-global); }
+  .chip-diff   { @apply border-transparent; background: var(--source-diff-soft);   color: var(--source-diff); }
+
+  /* --- barra inferior del móvil ---
+     La pestaña activa lleva una pastilla detrás del icono, no solo el color.
+     El color solo se pierde en cuanto la pantalla está a pleno sol, que es
+     justo donde se usa esto: en un torneo, de pie, con el móvil en la mano. */
+  .nav-tab {
+    @apply press relative flex min-h-14 flex-col items-center justify-center gap-0.5
+           rounded-xl text-[10px] font-semibold text-muted;
+  }
+  .nav-tab[data-on="true"] {
+    @apply text-brand;
+    background: color-mix(in oklab, var(--brand) 12%, transparent);
+  }
+  .nav-tab:active { transform: scale(0.94); }
+
+  /* Lo mismo en la barra lateral, pero en vertical: un filo de marca a la
+     izquierda del elemento activo. */
+  .nav-side[data-on="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--brand);
+  }
+
+  /* --- cabecera de pantalla ---
+     El degradado de marca sobre el título. Se apaga solo si el navegador no
+     sabe recortar el fondo al texto. */
+  .title-grad {
+    background: linear-gradient(100deg, var(--ink) 30%, var(--brand) 140%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* --- el aviso de abajo ---
+     La posición no puede ir en el `style` del componente: en escritorio tiene
+     que despegarse de la esquina derecha y un estilo en línea gana a
+     cualquier clase, así que la media query no podría corregirlo. Aquí sí. */
+  .snackbar {
+    bottom: calc(var(--spacing-nav) + env(safe-area-inset-bottom) + 0.75rem);
+    box-shadow: var(--shadow-3);
+    animation: rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @media (min-width: 48rem) {
+    .snackbar { bottom: 1.25rem; }
+  }
+
+  /* Un "cargando" de verdad, para cuando no hay forma que imitar. */
+  .spinner {
+    @apply inline-block rounded-full border-2 border-line;
+    border-top-color: var(--brand);
+    animation: spin 700ms linear infinite;
+  }
+}
+
+@keyframes skeleton {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @keyframes tab-in {

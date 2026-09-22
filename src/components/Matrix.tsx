@@ -31,11 +31,22 @@ export function Matrix({
   }
 
   return (
-    <div className="overflow-x-auto">
+    /* `overscroll-x-contain` es lo que arregla la matriz en el móvil: sin
+       ello, al llegar al final del desplazamiento lateral el gesto se lo
+       queda el navegador y se va a la página anterior. Con diez columnas eso
+       pasa cada dos por tres.
+
+       El borde derecho de la primera columna se pinta con una sombra y no con
+       un `border`, para que se vea que la columna flota por encima de lo que
+       pasa por debajo y no que la tabla tiene una raya más. */
+    <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
       <table className="border-collapse text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted">
+            <th
+              className="sticky left-0 z-10 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted"
+              style={{ boxShadow: "6px 0 8px -8px rgb(0 0 0 / 0.35)" }}
+            >
               Mi mazo \ Rival
             </th>
             {ids.map((id) => {
@@ -57,7 +68,10 @@ export function Matrix({
             const rowArch = byId.get(rowId);
             return (
               <tr key={rowId}>
-                <td className="sticky left-0 z-10 max-w-44 truncate border-y border-line-soft bg-surface px-2 py-1">
+                <td
+                  className="sticky left-0 z-10 max-w-44 truncate border-y border-line-soft bg-surface px-2 py-1"
+                  style={{ boxShadow: "6px 0 8px -8px rgb(0 0 0 / 0.35)" }}
+                >
                   <span className="inline-flex min-w-0 items-center gap-1.5">
                     <Sprites archetype={rowArch} size="sm" />
                     <span className="truncate">{rowArch?.name ?? rowId}</span>

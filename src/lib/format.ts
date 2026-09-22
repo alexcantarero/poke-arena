@@ -80,3 +80,31 @@ export function newId(prefix: string) {
   counter = (counter + 1) % 1000;
   return `${prefix}-${Date.now().toString(36)}${counter.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
+
+
+/**
+ * Orden de agenda: lo que viene primero, y lo pasado después.
+ *
+ * El orden natural de una lista de torneos no es «el más nuevo arriba». Un
+ * torneo del mes que viene importa más que el de la semana pasada, y el de
+ * la semana pasada más que el de hace un año. Así que:
+ *
+ *   1. Primero los que aún no han pasado, **del más cercano al más lejano**.
+ *   2. Después los ya jugados, del más reciente al más antiguo.
+ *
+ * Con fecha de hoy incluida en el primer grupo: un torneo que es hoy es lo
+ * primero que uno quiere ver.
+ *
+ * `today` se pasa como argumento en vez de leerlo dentro para que la función
+ * siga siendo pura y se pueda probar sin tocar el reloj.
+ */
+export function byAgenda<T extends { date: string }>(today: string) {
+  return (a: T, b: T): number => {
+    const futuroA = a.date >= today;
+    const futuroB = b.date >= today;
+    if (futuroA !== futuroB) return futuroA ? -1 : 1;
+    // Los de delante, ascendente: el más cercano primero.
+    // Los de detrás, descendente: el más reciente primero.
+    return futuroA ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+  };
+}

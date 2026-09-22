@@ -55,7 +55,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* --------------------------------- móvil -------------------------------- */}
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface/95 px-4 py-2 backdrop-blur md:hidden">
+        {/* `viewportFit: "cover"` en el layout raíz hace que la web pinte por
+            debajo de la muesca; sin `safe-top`, en un iPhone el título queda
+            medio tapado. `--safe-extra` es el padding que tendría de todas
+            formas, porque en un móvil sin muesca `env()` vale 0. */}
+        <header
+          className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface/95 px-4 pb-2 backdrop-blur md:hidden"
+          style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
+        >
           <Wordmark name={snap.config.name} compact />
           <div className="flex-1" />
           <ThemeToggle />
@@ -64,7 +71,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl px-4 pb-nav pt-4 sm:px-6 md:pb-10 md:pt-6">
+        <main className="mx-auto w-full max-w-5xl px-4 pb-nav-safe pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
       </div>

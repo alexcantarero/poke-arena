@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
 import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
-import { awardsCp, getSeason, tierFor } from "@/lib/cp";
+import { awardsCp, effectiveCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong } from "@/lib/format";
 import { firstTurnSeriesStats, recordOf, roundsOf } from "@/lib/stats";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
 import { Empty, Kpi, PageHead, PlayerTag, Record, SectionTitle, Sprites } from "@/components/ui";
+import { AttendanceForm } from "@/components/AttendanceForm";
+import { CutOutlook } from "@/components/CutOutlook";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { TournamentRounds } from "@/components/TournamentRounds";
@@ -46,7 +48,14 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
 
   const myResult = me ? t.results.find((r) => r.playerId === me.id) : undefined;
   const ordered = [...t.results].sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9));
-  const totalCp = t.results.reduce((a, r) => a + r.cpEarned, 0);
+  /* Los CP se calculan aquí y NO se leen de la columna `cp_earned`.
+     Esa columna es una caché que se rellena al guardar; si la asistencia se
+     corrige por cualquier otro camino, se queda vieja y la ficha enseñaba una
+     cifra distinta de la del perfil —que sí recalcula—. Con `effectiveCp` las
+     dos pantallas no pueden discrepar nunca. */
+  const cpDe = (r: { placement: number | null; cpEarned: number; cpManual: boolean }) =>
+    effectiveCp(season, t.kind, r, t.playerCount);
+  const totalCp = t.results.reduce((a, r) => a + cpDe(r), 0);
 
   // Mis rondas. El récord sale de ellas, nunca se teclea.
   const myRounds = me ? roundsOf(snap.matches, t.id, me.id) : [];
@@ -159,6 +168,36 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         </p>
       )}
 
+      {/* La asistencia va lo primero cuando falta: es lo que desbloquea los
+          CP de todo el mundo, y mientras no esté, el resto de la ficha miente
+          por omisión. Cuando está puesta y nadie pierde puntos, no se pinta. */}
+      <AttendanceForm
+        tournamentId={t.id}
+        season={season}
+        kind={t.kind}
+        playerCount={t.playerCount ?? null}
+        rounds={t.rounds ?? null}
+        topCut={t.topCut ?? null}
+        results={t.results}
+        nameOf={(id) => snap.playersById.get(id)?.name ?? "Alguien"}
+        canEdit={canManage}
+      />
+
+      {/* Entre ronda y ronda, lo que se quiere saber es qué hace falta para
+          entrar. Va antes que las rondas y no después: mientras el torneo está
+          abierto es lo primero que se mira, y cuando ya está cerrado deja de
+          enseñarse solo. */}
+      {me && status === "open" && (
+        <CutOutlook
+          season={season}
+          kind={t.kind}
+          playerCount={t.playerCount}
+          swissRounds={t.rounds}
+          topCut={t.topCut}
+          record={myRecord}
+        />
+      )}
+
       {t.url && (
         <a className="btn mb-5 w-full sm:w-auto" href={t.url} target="_blank" rel="noopener noreferrer">
           <Icon name="share" className="size-4" /> Ver el torneo en su web
@@ -264,9 +303,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
                   </span>
 
                   {(r.wins || r.losses || r.ties) ? <Record w={r.wins} d={r.ties} l={r.losses} /> : null}
-                  {r.cpEarned > 0 && (
+                  {cpDe(r) > 0 && (
                     <span className="chip chip-brand tabular">
-                      {r.cpEarned} CP{r.cpManual ? "*" : ""}
+                      {cpDe(r)} CP{r.cpManual ? "*" : ""}
                     </span>
                   )}
                 </div>

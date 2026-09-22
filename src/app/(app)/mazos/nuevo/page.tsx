@@ -2,6 +2,7 @@ import { readSession, canManageLeague } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { DeckForm } from "@/components/DeckForm";
+import { CardSearch } from "@/components/CardSearch";
 
 export const metadata = { title: "Nuevo mazo" };
 
@@ -20,7 +21,7 @@ export default async function NewDeckPage({
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   return (
     <>
-      <PageHead title="Nuevo mazo" sub="Lo mínimo es el Pokémon principal. La lista completa se puede pegar luego." />
+      <PageHead title="Nuevo mazo" sub="Lo mínimo es el Pokémon principal. La lista completa se puede pegar luego." back={{ href: "/mazos", label: "Mazos" }} />
       <DeckForm
         players={snap.players}
         archetypes={snap.archetypes}
@@ -28,6 +29,18 @@ export default async function NewDeckPage({
         canPickPlayer={me ? canManageLeague(me.role) : false}
         back={safeBack(q.back)}
       />
+
+      {/* Aquí es donde de verdad se echa de menos: estás copiando una lista a
+          mano y te falta el set de dos cartas. */}
+      <details className="card mt-4">
+        <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
+          Buscar cartas
+          <span className="text-xs font-normal text-muted">set y número</span>
+        </summary>
+        <div className="border-t border-line-soft p-4">
+          <CardSearch />
+        </div>
+      </details>
     </>
   );
 }

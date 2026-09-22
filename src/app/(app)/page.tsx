@@ -84,6 +84,7 @@ export default async function HomePage() {
   return (
     <>
       <PageHead
+        gradient
         title={snap.config.name}
         sub={`${snap.config.season} · ${snap.activePlayerIds.length} jugadores · ${played.length} partidas`}
         actions={
@@ -94,17 +95,23 @@ export default async function HomePage() {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-        <Kpi label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
+        <Kpi icon="results" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
         <Kpi
           highlight
+          icon="trophy"
           label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
           value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
           note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)}` : "sin datos"}
         />
         {mine
-          ? <Kpi label="Tú" value={pct(mine.winRate, 0)} note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`} />
-          : <Kpi label="Arquetipos" value={archs.length} note="vistos en la liga" />}
+          ? <Kpi
+              icon="user"
+              tone={mine.winRate != null && mine.winRate >= 0.5 ? "win" : "neutral"}
+              label="Tú" value={pct(mine.winRate, 0)} note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`}
+            />
+          : <Kpi icon="deck" label="Arquetipos" value={archs.length} note="vistos en la liga" />}
         <Kpi
+          icon="star"
           label="Tus CP"
           value={myCp ? myCp.total : "—"}
           note={myCp ? `temporada ${myCp.season}${myCp.confirmed ? "" : " · provisional"}` : "sin torneos"}

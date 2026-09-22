@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  bflBucket, computeCp, cpForPlacement, awardsCp, seasonOfDate, simulate, tierFor, type CpResultInput,
+  bflBucket, computeCp, cpForPlacement, awardsCp, effectiveCp, explainCp, seasonOfDate,
+  simulate, tierFor, type CpResultInput,
 } from "../src/lib/cp.ts";
 
 const r = (over: Partial<CpResultInput> & { id: string; kind: string; placement: number | null }): CpResultInput => ({
@@ -201,4 +202,65 @@ test("el tramo dice si además da invitación al Mundial", () => {
   assert.equal(t?.cp, 0);
   assert.equal(t?.blockedByKicker, true);
   assert.equal(t?.needed, 17);
+});
+
+/* ================= la asistencia que se rellena después (v0.9.0) ========= */
+
+const res = (placement: number | null, over: Partial<{ cpEarned: number; cpManual: boolean }> = {}) =>
+  ({ placement, cpEarned: 0, cpManual: false, ...over });
+
+test("sin asistencia, un puesto con kicker no puntúa", () => {
+  // 15.º en un League Challenge: el tramo 9-16 da 6 CP pero pide 25 personas.
+  assert.equal(effectiveCp(2027, "league_challenge", res(15), null), 0);
+});
+
+test("al poner la asistencia, el mismo resultado pasa a valer lo suyo", () => {
+  // Es literalmente el caso de «me tendría que haber llevado 6».
+  assert.equal(effectiveCp(2027, "league_challenge", res(15), 25), 6);
+  assert.equal(effectiveCp(2027, "league_challenge", res(15), 40), 6);
+});
+
+test("con gente de menos sigue siendo cero, y eso no es un fallo", () => {
+  assert.equal(effectiveCp(2027, "league_challenge", res(15), 24), 0);
+});
+
+test("un CP puesto a mano no lo pisa nadie", () => {
+  assert.equal(effectiveCp(2027, "league_challenge", res(15, { cpEarned: 99, cpManual: true }), null), 99);
+  assert.equal(effectiveCp(2027, "league_challenge", res(15, { cpEarned: 99, cpManual: true }), 40), 99);
+});
+
+test("effectiveCp no se fía de la columna cuando no es manual", () => {
+  // La columna dice 0 (se guardó sin asistencia) pero ahora hay 25 personas.
+  assert.equal(effectiveCp(2027, "league_challenge", res(15, { cpEarned: 0 }), 25), 6);
+});
+
+test("explainCp distingue los tres motivos de un cero", () => {
+  const sinAsistencia = explainCp(2027, "league_challenge", res(15), null);
+  assert.equal(sinAsistencia.kind, "no-attendance");
+  if (sinAsistencia.kind === "no-attendance") {
+    assert.equal(sinAsistencia.wouldBe, 6);
+    assert.equal(sinAsistencia.needs, 25);
+  }
+
+  const pocaGente = explainCp(2027, "league_challenge", res(15), 20);
+  assert.equal(pocaGente.kind, "kicker");
+  if (pocaGente.kind === "kicker") {
+    assert.equal(pocaGente.have, 20);
+    assert.equal(pocaGente.needs, 25);
+    assert.equal(pocaGente.wouldBe, 6);
+  }
+
+  assert.equal(explainCp(2027, "league_challenge", res(null), 40).kind, "no-placement");
+  assert.equal(explainCp(2027, "store", res(1), 40).kind, "no-cp");
+});
+
+test("el primer puesto no depende de la asistencia: su kicker es cero", () => {
+  assert.equal(effectiveCp(2027, "league_challenge", res(1), null), 15);
+  assert.equal(explainCp(2027, "league_challenge", res(1), null).kind, "ok");
+});
+
+test("las tablas de 2026 y 2027 no son la misma, y por eso importa la temporada", () => {
+  // 5.º en un Challenge: en 2027 pide 14 personas y en 2026 pedía 24.
+  assert.equal(effectiveCp(2027, "league_challenge", res(5), 20), 8);
+  assert.equal(effectiveCp(2026, "league_challenge", res(5), 20), 0);
 });

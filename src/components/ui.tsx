@@ -4,6 +4,18 @@ import type { Archetype, MatchFull, PublicPlayer, Side } from "@/lib/types";
 import { prettyPokemon, spriteUrl, typeOf } from "@/lib/pokemon";
 import { outcome } from "@/lib/stats";
 import { clamp, pct } from "@/lib/format";
+import { Icon } from "./icons";
+
+/* `Kpi` y los esqueletos viven en `primitives.tsx` y se reexportan aquí.
+   
+   No es manía de ordenar: este fichero importa `outcome` de `@/lib/stats`
+   para pintar una partida, y `lib/stats` son ochocientas líneas. Un
+   componente de cliente que solo quisiera un `Kpi` se llevaría todo eso al
+   navegador. Separados, se lleva lo que usa. Las pantallas que ya importaban
+   de aquí siguen funcionando igual. */
+export {
+  Kpi, Skeleton, SkeletonText, SkeletonCard, SkeletonRows, PageSkeleton,
+} from "./primitives";
 
 /* Piezas compartidas por todas las pantallas. Todas pensadas para que
    funcionen igual de bien en 375px de ancho que en un monitor. */
@@ -163,43 +175,59 @@ export function StreakChip({ kind, n }: { kind: string; n: number }) {
 
 /* ----------------------------------------------------------- estructura -- */
 
+/**
+ * La cabecera de una pantalla.
+ *
+ * `back` solo se pinta en móvil, y a propósito: en escritorio está la barra
+ * lateral con la sección marcada, así que un "volver" ahí sobra. En el móvil
+ * no hay barra lateral y la pantalla de detalle —una partida, un mazo, un
+ * torneo— es un callejón sin salida si no la pones.
+ */
 export function PageHead({
-  title, sub, actions,
-}: { title: string; sub?: ReactNode; actions?: ReactNode }) {
+  title, sub, actions, back, gradient,
+}: {
+  title: string;
+  sub?: ReactNode;
+  actions?: ReactNode;
+  back?: { href: string; label: string };
+  /** Degradado de tinta a marca en el título. Solo para la portada: si lo
+      lleva cada pantalla deja de significar nada. */
+  gradient?: boolean;
+}) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-3xl font-extrabold leading-none sm:text-4xl">{title}</h1>
-        {sub && <p className="mt-2 max-w-prose text-sm text-muted">{sub}</p>}
+    <div className="mb-5">
+      {back && (
+        <Link
+          href={back.href}
+          className="mb-2 -ml-1 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-ink md:hidden"
+        >
+          <Icon name="back" className="size-4" />
+          {back.label}
+        </Link>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className={`text-3xl font-extrabold leading-none sm:text-4xl ${gradient ? "title-grad" : ""}`}>
+            {title}
+          </h1>
+          {sub && <p className="mt-2 max-w-prose text-sm text-muted">{sub}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
-  );
-}
-
-export function Kpi({
-  label, value, note, highlight,
-}: { label: string; value: ReactNode; note?: ReactNode; highlight?: boolean }) {
-  const long = typeof value === "string" && value.length > 11;
-  return (
-    <div className={`rounded-xl border p-3 sm:p-4 ${highlight
-      ? "border-brand-line bg-linear-to-br from-brand-soft to-surface"
-      : "border-line bg-surface"}`}>
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{label}</div>
-      <div className={`font-display font-extrabold tabular leading-none ${long ? "mt-1.5 text-lg" : "mt-1 text-3xl"}
-        ${highlight ? "text-brand" : ""}`}>
-        {value}
-      </div>
-      {note && <div className="mt-1 truncate text-xs text-muted">{note}</div>}
     </div>
   );
 }
 
 export function Empty({
-  title, children, action,
-}: { title: string; children?: ReactNode; action?: ReactNode }) {
+  title, children, action, icon,
+}: { title: string; children?: ReactNode; action?: ReactNode; icon?: string }) {
   return (
     <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+      {icon && (
+        <span className="grid size-12 place-items-center rounded-2xl border border-line-soft bg-surface-2 text-muted">
+          <Icon name={icon} className="size-6" />
+        </span>
+      )}
       <h3 className="font-display text-xl font-bold text-ink-2">{title}</h3>
       {children && <p className="max-w-[46ch] text-sm text-muted">{children}</p>}
       {action}

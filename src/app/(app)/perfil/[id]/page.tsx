@@ -5,7 +5,7 @@ import { readSession } from "@/lib/auth";
 import {
   archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, sideOf,
 } from "@/lib/stats";
-import { getSeason } from "@/lib/cp";
+import { effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import type { MatchFull } from "@/lib/types";
 import { fmtDate, fmtDateLong, pct, shortName, wrColor } from "@/lib/format";
 import {
@@ -259,7 +259,13 @@ export default async function ProfilePage({
                       {fmtDate(t.date)}{t.playerCount ? ` · ${t.playerCount} jugadores` : ""}
                     </span>
                   </span>
-                  {r.cpEarned > 0 && <span className="chip chip-brand tabular">{r.cpEarned} CP</span>}
+                  {/* Calculado, no leído de la columna: si alguien corrige la
+                      asistencia del torneo, esto cambia solo. */}
+                  {effectiveCp(t.season ?? seasonOfDate(t.date) ?? cp.season, t.kind, r, t.playerCount) > 0 && (
+                    <span className="chip chip-brand tabular">
+                      {effectiveCp(t.season ?? seasonOfDate(t.date) ?? cp.season, t.kind, r, t.playerCount)} CP
+                    </span>
+                  )}
                 </Link>
               );
             })}

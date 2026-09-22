@@ -34,6 +34,18 @@ export const settings = pgTable("settings", {
   ptsLoss: integer("pts_loss").notNull().default(0),
   eloStart: integer("elo_start").notNull().default(1000),
   eloK: integer("elo_k").notNull().default(24),
+  /**
+   * Qué partidas mueven el Elo: `all` · `competitive` · `tournaments`.
+   *
+   * La petición era «que los amistosos no cuenten». En la app hay tres clases
+   * de partida —competición interna, torneo de fuera y suelta— así que la
+   * lectura literal («solo torneos») dejaría el ranking casi vacío en una liga
+   * que juega sobre todo sus propias jornadas. Por eso el valor por defecto es
+   * `competitive`: cuenta liga y torneos, y deja fuera los amistosos, que es
+   * lo que se pedía. `tournaments` existe para quien quiera la versión
+   * estricta.
+   */
+  eloScope: text("elo_scope").notNull().default("competitive"),
   /** Zona de clasificación, para el panel de ruta al Mundial. */
   ratingZone: text("rating_zone").notNull().default("europe"),
   /** Si está abierta, cualquiera con el enlace de invitación puede darse de alta. */
@@ -398,12 +410,72 @@ export const events = pgTable("events", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   date: date("date").notNull(),
+  /** Última jornada, para los eventos de dos o tres días. */
+  endDate: date("end_date"),
   /** round · tourney · deadline · other */
   kind: text("kind").notNull().default("round"),
+  /**
+   * Tipo de evento de Play! Pokémon, cuando lo hay: `regional`,
+   * `international`, `league_cup`… Es lo que decide el **color** en el
+   * calendario y lo que se puede filtrar.
+   *
+   * Aparte de `kind` y no en su lugar: `kind` dice qué clase de cosa es para
+   * la liga (una jornada, una fecha límite) y esto dice qué clase de torneo
+   * es en el circuito. Una jornada de liga no es ninguno de los dos tipos de
+   * torneo, y un Regional al que no va nadie del grupo no es una jornada.
+   */
+  tournamentKind: text("tournament_kind").notNull().default(""),
+  /** "Frankfurt, Alemania". Texto libre: no hay tabla de ciudades. */
+  location: text("location").notNull().default(""),
+  /** Enlace a la página oficial del evento, si la hay. */
+  url: text("url").notNull().default(""),
   competitionId: text("competition_id").references(() => competitions.id, { onDelete: "set null" }),
   tournamentId: text("tournament_id").references(() => tournaments.id, { onDelete: "set null" }),
   note: text("note").notNull().default(""),
 });
+
+/* --------------------------------------------------- Pokémon TCG Live --- */
+
+/**
+ * Partidas jugadas en el cliente de Pokémon TCG Live.
+ *
+ * Tabla aparte de `matches`, y no una columna más, por dos razones:
+ *
+ * · **No son verificables.** Una partida de la liga la han visto dos
+ *   personas; esta la apunta una sola y contra un desconocido. Mezclarlas
+ *   metería en el ranking y en el Elo un dato que nadie puede contrastar.
+ * · **No tienen la misma forma.** Aquí no hay `playerBId`, ni mazo con lista,
+ *   ni competición, ni ronda. Encajarlas en `matches` habría dejado media
+ *   tabla a null y una condición nueva en cada consulta.
+ *
+ * El mazo se guarda como **texto** y no como referencia a `archetypes`: lo
+ * que uno escribe en su hoja no tiene por qué existir en el catálogo, y
+ * rechazar una fila por eso sería perder el dato para ganar una integridad
+ * que aquí no sirve para nada.
+ */
+export const ptcgLiveMatches = pgTable("ptcg_live_matches", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  /** Tal y como lo escribió quien lo importó. */
+  myDeck: text("my_deck").notNull(),
+  opponentDeck: text("opponent_deck").notNull().default(""),
+  opponentName: text("opponent_name").notNull().default(""),
+  /** w · l · d */
+  result: text("result").notNull(),
+  gamesWon: integer("games_won"),
+  gamesLost: integer("games_lost"),
+  format: text("format").notNull().default(""),
+  /**
+   * Lo que impide importar dos veces la misma partida.
+   *
+   * Es la clave en claro y no un hash: hace lo mismo —la columna es única—
+   * y además se puede leer cuando algo no cuadra. Un hash aquí solo
+   * escondería el problema. Se compone en `src/lib/ptcglive.ts`.
+   */
+  dedupeKey: text("dedupe_key").notNull().unique(),
+  importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("live_player_idx").on(t.playerId)]);
 
 /* ------------------------------------------------------------- tipos --- */
 
@@ -420,3 +492,4 @@ export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type LadderEntry = typeof ladderEntries.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
+export type PtcgLiveMatch = typeof ptcgLiveMatches.$inferSelect;

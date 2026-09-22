@@ -51,12 +51,16 @@ export function Snackbar() {
 
   if (!flash || !visible) return null;
 
+  /* `snackbar` (globals.css) pone la altura: por encima de la barra inferior
+     Y de la barra de gestos del móvil, y pegado abajo del todo en escritorio.
+     Con un `bottom-20` a secas, en un iPhone el aviso se solapaba con las
+     pestañas justo cuando más se mira: al guardar algo. */
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-md items-start gap-2.5 rounded-xl
-        border p-3 shadow-lg md:inset-x-auto md:bottom-5 md:right-5
+      className={`snackbar fixed inset-x-3 z-50 mx-auto flex max-w-md items-start gap-2.5 rounded-xl
+        border p-3 md:inset-x-auto md:right-5
         ${flash.kind === "error" ? "border-loss/40 bg-loss-soft" : "border-win/40 bg-win-soft"}`}
     >
       <Icon

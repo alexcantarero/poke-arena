@@ -31,6 +31,11 @@ export const MATCH_SCOPES = {
   all: "Todo",
   league: "Liga",
   tournament: "Torneos",
+  /* `onsite` y `online` parten los torneos por dónde se juegan, que es la
+     distinción que de verdad se pide en el ranking: un torneo presencial y
+     uno online no se comparan igual. La columna es `tournaments.scope`. */
+  onsite: "Presenciales",
+  online: "Online",
   casual: "Amistosos",
 } as const;
 
@@ -180,6 +185,8 @@ export type FilterIndex = {
   tournamentKind: Map<string, string>;
   /** Formato de cada torneo, por id. */
   tournamentFormat: Map<string, string>;
+  /** Dónde se juega cada torneo —`onsite` u `online`—, por id. */
+  tournamentScope: Map<string, string>;
   /** Tipo de cada competición, por id. */
   competitionKind: Map<string, string>;
   /** Los dos arquetipos de cada partida, por id de partida. */
@@ -203,6 +210,13 @@ export function applyMatchFilter(
     if (f.scope === "league" && !m.competitionId) return false;
     if (f.scope === "tournament" && !m.tournamentId) return false;
     if (f.scope === "casual" && (m.competitionId || m.tournamentId)) return false;
+    if (f.scope === "onsite" || f.scope === "online") {
+      if (!m.tournamentId) return false;
+      // Un torneo sin `scope` guardado es presencial: es el valor por
+      // defecto de la columna y lo que eran todos antes de que existiera.
+      const donde = index.tournamentScope.get(m.tournamentId) || "onsite";
+      if (donde !== f.scope) return false;
+    }
 
     /* fecha — comparación de cadenas, ver la cabecera */
     if (f.from && m.date < f.from) return false;

@@ -188,6 +188,75 @@ export function cpForPlacement(
   return 0;
 }
 
+/**
+ * Los CP que vale un resultado **ahora mismo**.
+ *
+ * Esto es el arreglo de fondo del problema de «puse la asistencia después y
+ * me sigue saliendo 0».
+ *
+ * La columna `cp_earned` de la base es una **caché**, no la verdad. Se
+ * rellena al guardar y se recalcula al editar el torneo, pero cualquier
+ * camino que cambie el tipo o la asistencia sin pasar por ahí la deja vieja,
+ * y entonces el perfil —que recalcula— y la ficha del torneo —que leía la
+ * columna— decían cosas distintas. Eso es exactamente lo que se veía.
+ *
+ * Con esto, **ninguna pantalla vuelve a leer la columna directamente**: se
+ * calcula del tipo, el puesto y la asistencia de ahora. La columna sigue
+ * existiendo porque es lo que se exporta y lo que se corrige a mano, pero ya
+ * no puede desincronizarse de lo que se ve.
+ *
+ * `cpManual` manda siempre: si alguien tecleó el número, lo tecleó por algo.
+ */
+export function effectiveCp(
+  season: number,
+  kind: string,
+  result: { placement: number | null; cpEarned: number; cpManual: boolean },
+  playerCount: number | null | undefined,
+): number {
+  if (result.cpManual) return result.cpEarned;
+  return cpForPlacement(season, kind, result.placement, playerCount) ?? 0;
+}
+
+/**
+ * Por qué un resultado da los CP que da. Para poder explicarlo en pantalla
+ * en vez de enseñar un cero sin más.
+ *
+ * Los tres motivos de un cero son siempre los mismos, y el importante es el
+ * del medio: el tramo existe, el puesto encaja, pero no hubo bastante gente
+ * para activarlo. Eso no es un fallo de la app.
+ */
+export type CpReason =
+  | { kind: "manual"; cp: number }
+  | { kind: "ok"; cp: number }
+  | { kind: "no-placement" }
+  | { kind: "no-attendance"; wouldBe: number; needs: number }
+  | { kind: "kicker"; cp: 0; needs: number; have: number; wouldBe: number }
+  | { kind: "no-cp" };
+
+export function explainCp(
+  season: number,
+  kind: string,
+  result: { placement: number | null; cpEarned: number; cpManual: boolean },
+  playerCount: number | null | undefined,
+): CpReason {
+  if (result.cpManual) return { kind: "manual", cp: result.cpEarned };
+
+  const def = resolveEventDef(season, kind);
+  if (!def?.tiers?.length) return { kind: "no-cp" };
+  if (result.placement == null || result.placement < 1) return { kind: "no-placement" };
+
+  const tier = def.tiers.find((t) => result.placement! >= t.from && result.placement! <= t.to);
+  if (!tier) return { kind: "ok", cp: 0 };
+
+  if (tier.minPlayers > 0 && playerCount == null) {
+    return { kind: "no-attendance", wouldBe: tier.cp, needs: tier.minPlayers };
+  }
+  if (tier.minPlayers > 0 && (playerCount ?? 0) < tier.minPlayers) {
+    return { kind: "kicker", cp: 0, needs: tier.minPlayers, have: playerCount ?? 0, wouldBe: tier.cp };
+  }
+  return { kind: "ok", cp: tier.cp };
+}
+
 export type CpResultInput = {
   id: string;
   kind: string;

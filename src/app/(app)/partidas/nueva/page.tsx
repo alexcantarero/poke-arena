@@ -9,7 +9,7 @@ export default async function NewMatchPage() {
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   return (
     <>
-      <PageHead title="Registrar partida" sub="Se guarda en cuanto alguien llega al número de juegos necesario." />
+      <PageHead title="Registrar partida" sub="Se guarda en cuanto alguien llega al número de juegos necesario." back={{ href: "/resultados", label: "Resultados" }} />
       <MatchForm
         players={snap.players}
         decks={snap.decks}

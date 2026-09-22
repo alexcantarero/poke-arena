@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadInvites, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
-import { isPlayed, sideOf } from "@/lib/stats";
+import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, SectionTitle } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
+import { hasPokemonTcgKey } from "@/lib/sources/pokemontcg";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
@@ -26,6 +27,9 @@ export default async function SettingsPage() {
   const manager = canManageLeague(me.role);
   const owner = isOwner(me.role);
   const invites = manager ? await loadInvites() : [];
+  // Solo el booleano. La clave en sí no sale nunca de la variable de entorno.
+  const tcgKey = hasPokemonTcgKey();
+  const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
 
   const played = snap.matches.filter(isPlayed);
@@ -91,6 +95,23 @@ export default async function SettingsPage() {
               </div>
             </div>
 
+            {/* Qué partidas mueven el Elo. Cambiarlo no migra nada: el Elo se
+                recalcula entero desde las partidas en cada carga, así que el
+                ranking sale distinto en la siguiente pantalla y se puede
+                volver atrás cuando se quiera. */}
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="s-eloScope">Qué partidas mueven el Elo</label>
+              <select className="input" id="s-eloScope" name="eloScope" defaultValue={eloScope}>
+                {Object.entries(ELO_SCOPES).map(([v, d]) => (
+                  <option key={v} value={v}>{d.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted">
+                {ELO_SCOPES[eloScope].hint} El ranking se recalcula solo; no se pierde nada y
+                se puede deshacer.
+              </p>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <label className="label" htmlFor="s-cpSeason">Temporada de Championship Points</label>
@@ -124,6 +145,33 @@ export default async function SettingsPage() {
 
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />
+
+          {/* Saber en qué estado están las fuentes de fuera evita la pregunta
+              de «¿por qué no me sale el metagame mundial?» a la tercera vez.
+              No se enseña ninguna clave, solo si la hay. */}
+          <div className="card mt-3 p-4 text-sm">
+            <p className="label mb-2">Fuentes externas</p>
+            <ul className="flex flex-col gap-2">
+              <li className="flex items-start gap-2">
+                <span className="chip chip-global mt-0.5 flex-none">Limitless</span>
+                <span className="min-w-0 text-ink-2">
+                  Torneos y clasificaciones. Funciona <b>sin clave</b>: de ahí salen el catálogo
+                  de arquetipos y el metagame mundial de Estadísticas.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className={`chip mt-0.5 flex-none ${tcgKey ? "chip-win" : ""}`}>pokemontcg.io</span>
+                <span className="min-w-0 text-ink-2">
+                  Datos de carta para el buscador del editor de mazos.{" "}
+                  {tcgKey
+                    ? "Hay clave configurada, así que el límite de peticiones es alto."
+                    : "Sin clave: 1.000 peticiones al día y 30 por minuto, de sobra para la liga."}{" "}
+                  <b>Esta API está deprecada</b> y deja de funcionar el 1 de marzo de 2027; ese
+                  día se cambia por TCGdex y no se nota en ninguna pantalla.
+                </span>
+              </li>
+            </ul>
+          </div>
 
           <SectionTitle aside={`${snap.players.length} en total`}>Jugadores</SectionTitle>
           <PlayerAdmin

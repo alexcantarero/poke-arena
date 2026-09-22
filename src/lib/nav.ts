@@ -10,6 +10,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/estadisticas", label: "Estadísticas", icon: "stats" },
   { href: "/mazos", label: "Mazos", icon: "deck" },
   { href: "/competiciones", label: "Competiciones", icon: "cup" },
+  { href: "/topdecks", label: "Top Decks", icon: "globe" },
+  { href: "/live", label: "TCG Live", icon: "card" },
   { href: "/ajustes", label: "Ajustes", icon: "cog" },
 ];
 

@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import { archetypeStats, isPlayed, standings } from "@/lib/stats";
+import { applyMatchFilter, EMPTY_FILTER, MATCH_SCOPES, type FilterIndex, type MatchScope } from "@/lib/filters";
+import { seasonOfDate } from "@/lib/cp";
 import { PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
 import { ScopeTabs } from "@/components/ScopeTabs";
@@ -9,14 +12,55 @@ import { readSession } from "@/lib/auth";
 
 export const metadata = { title: "Ranking" };
 
+/* Lo que se puede mirar por separado, en el orden en que se ofrece. `all`
+   sale aparte, como los demás «todo» de la app. */
+const AMBITOS: MatchScope[] = ["league", "onsite", "online", "casual"];
+
 export default async function RankingPage({
   searchParams,
-}: { searchParams: Promise<{ comp?: string }> }) {
-  const { comp = "all" } = await searchParams;
+}: { searchParams: Promise<{ comp?: string; ambito?: string; temporada?: string }> }) {
+  const q = await searchParams;
+  const comp = q.comp ?? "all";
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const played = snap.matches.filter(isPlayed);
+
+  /* --- ámbito ---
+     Petición del 19/09: poder mirar el ranking contando solo los amistosos,
+     solo los torneos presenciales de la temporada, solo los online o solo la
+     liga interna. Las reglas son las mismas que en Resultados y Estadísticas
+     —`src/lib/filters.ts`—, así que un ámbito quiere decir lo mismo en las
+     tres pantallas. */
+  const ambito: MatchScope = (AMBITOS as string[]).includes(q.ambito ?? "")
+    ? (q.ambito as MatchScope)
+    : "all";
+  const soloTemporada = q.temporada === "1";
+
+  const index: FilterIndex = {
+    tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
+    tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    tournamentScope: new Map(snap.tournaments.map((t) => [t.id, t.scope])),
+    competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
+    // Aquí no se filtra por arquetipo, así que esto no llega a llamarse
+    // nunca. Va vacío en vez de montar el índice de arquetipos entero para
+    // nada.
+    archetypesOf: () => [],
+  };
+
   const competition = comp === "all" ? null : snap.compsById.get(comp);
-  const scoped = competition ? played.filter((m) => m.competitionId === competition.id) : played;
+  let scoped = competition ? played.filter((m) => m.competitionId === competition.id) : played;
+  if (ambito !== "all") {
+    scoped = applyMatchFilter(scoped, { ...EMPTY_FILTER, scope: ambito }, index);
+  }
+
+  /* La temporada de Play! Pokémon no es el año natural: empieza en julio y se
+     nombra por el año en que termina, y eso ya lo sabe `seasonOfDate`. Se
+     filtra por la fecha de la partida y no por `tournaments.season`, para que
+     el corte valga también para las de liga y las amistosas, que no tienen
+     torneo del que sacar la temporada. */
+  if (soloTemporada) {
+    scoped = scoped.filter((m) => seasonOfDate(m.date) === snap.config.cpSeason);
+  }
+
   const ids = competition ? compPlayers(snap, competition.id) : snap.activePlayerIds;
   const table = standings(scoped, ids, snap.elo.rating, snap.config);
 
@@ -46,6 +90,20 @@ export default async function RankingPage({
 
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
+  /** La URL de ahora con un parámetro cambiado. `null` lo quita. */
+  const hrefCon = (cambios: Record<string, string | null>) => {
+    const sp = new URLSearchParams();
+    const base: Record<string, string | null> = {
+      comp: comp === "all" ? null : comp,
+      ambito: ambito === "all" ? null : ambito,
+      temporada: soloTemporada ? "1" : null,
+      ...cambios,
+    };
+    for (const [k, v] of Object.entries(base)) if (v) sp.set(k, v);
+    const qs = sp.toString();
+    return qs ? `/ranking?${qs}` : "/ranking";
+  };
+
   return (
     <>
       <PageHead
@@ -64,7 +122,41 @@ export default async function RankingPage({
         param="comp"
         current={comp}
         options={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
+        keep={{ ambito: ambito === "all" ? null : ambito, temporada: soloTemporada ? "1" : null }}
       />
+
+      {/* Segunda fila: de dónde salen las partidas que cuentan. Son enlaces y
+          no un desplegable, por lo mismo que el resto de filtros de la app:
+          el estado va en la URL, se puede compartir y funciona sin JS. */}
+      <div className="scroll-x mt-2 flex gap-2 pb-1">
+        {(["all", ...AMBITOS] as MatchScope[]).map((v) => (
+          <Link
+            key={v}
+            href={hrefCon({ ambito: v === "all" ? null : v })}
+            aria-current={ambito === v ? "page" : undefined}
+            className={`chip flex-none ${ambito === v ? "chip-brand" : ""}`}
+          >
+            {MATCH_SCOPES[v]}
+          </Link>
+        ))}
+        <Link
+          href={hrefCon({ temporada: soloTemporada ? null : "1" })}
+          aria-current={soloTemporada ? "page" : undefined}
+          className={`chip flex-none ${soloTemporada ? "chip-info" : ""}`}
+        >
+          Temporada {snap.config.cpSeason}
+        </Link>
+      </div>
+
+      {(ambito !== "all" || soloTemporada) && (
+        <p className="mt-2 text-xs text-muted">
+          {scoped.length === 0
+            ? "Con este filtro no queda ninguna partida, así que la tabla sale a cero."
+            : `${scoped.length} partida${scoped.length === 1 ? "" : "s"}: ${
+                ambito === "all" ? "todas" : MATCH_SCOPES[ambito].toLowerCase()
+              }${soloTemporada ? `, temporada ${snap.config.cpSeason}` : ""}. El Elo y los CP no cambian con este filtro: son globales.`}
+        </p>
+      )}
 
       <div className="mt-4">
         <RankingTable rows={rows} />

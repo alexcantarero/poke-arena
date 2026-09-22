@@ -2,6 +2,264 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.9.0] — 2026-09-21
+
+El arreglo de los CP que no aparecían, el calendario en color y el orden de los torneos.
+**Toca la base de datos**: cuatro columnas nuevas en `events`.
+
+### Corregido
+
+**Los CP que seguían a cero después de poner la asistencia**
+- La causa, y no era la que parecía: el recálculo **ya existía** —`saveTournament` rehacía los
+  CP al editar un torneo—, pero **tres pantallas leían la columna `cp_earned` en crudo** en
+  vez de calcular. Esa columna es una caché que se rellena al guardar; cualquier camino que
+  cambiara la asistencia sin pasar por el formulario de editar la dejaba vieja, y entonces el
+  perfil —que sí recalcula— y la ficha del torneo decían cifras distintas.
+- Ahora hay `effectiveCp()` en `src/lib/cp.ts` y **ninguna pantalla lee la columna**: la lista
+  de torneos, la ficha y el perfil calculan del tipo, el puesto y la asistencia de ahora. Ya
+  no pueden discrepar. La columna sigue existiendo como caché y para los valores puestos a
+  mano, que mandan siempre.
+- El recálculo al guardar se ha sacado a un ayudante, `recalcTournamentCp()`, para que lo
+  usen los dos caminos que existen ahora.
+
+### Añadido
+
+**«¿Cuánta gente hubo?» en la ficha del torneo**
+- Un campo y un botón, ahí donde se mira, en vez de enterrado en el formulario de editar con
+  otros veinte campos. Eso es lo que hacía que no se rellenara nunca. Lleva también rondas
+  suizas y top cut, que alimentan el «Camino al corte».
+- Y lo que de verdad cambia el comportamiento: **dice cuántos CP se está dejando cada uno**.
+  «Falta la asistencia» se ignora; «Ibai se está dejando 6 CP» no. Con el nombre, el puesto,
+  el 0 → 6 y la gente que haría falta.
+- Cuando la asistencia está puesta y nadie pierde puntos, el panel **no se pinta**. Que
+  desaparezca es la señal de que está todo bien.
+- `explainCp()` distingue los tres motivos de un cero: sin puesto, sin asistencia, o el
+  kicker que no llega. El del medio es el que confunde a todo el mundo y ahora se explica.
+
+**El calendario, en color y filtrable**
+- Cada tipo de evento tiene su color, de la paleta de series de `globals.css` —la que está
+  validada para daltonismo y tiene versión clara y oscura—. Mundial, Internacional, Regional,
+  Special Event, Cup, Challenge, tienda, online.
+- **Filtro por tipo**, por URL como el resto: el enlace se comparte y la vuelta atrás
+  funciona. Solo salen los tipos que de verdad hay; ofrecer «Mundial» sin ninguno es ruido.
+- Los eventos de **varios días** ocupan varios días. Un Regional es sábado y domingo, y hasta
+  ahora solo salía el sábado.
+- La agenda de la derecha incluye ahora también los torneos apuntados, con enlace a su ficha,
+  y ordena por cercanía.
+
+**Los eventos oficiales de Europa de la temporada 2027**
+- Botón en el calendario (para organizadores): mete de una vez los diez Regionales, Special
+  Events y el Internacional de Europa.
+- La lista está **escrita a mano** en `src/data/eventos-europa.ts`, con sus fuentes al lado.
+  No se consulta ninguna web: para diez eventos al año no hace falta, y con las webs de las
+  que salen no sería correcto.
+- Idempotente: cada evento lleva un id fijo, así que se puede pulsar las veces que haga
+  falta, y corregir el fichero y volver a importar.
+- Donde las fuentes no coinciden, se dice. El Internacional de Europa va marcado como «fecha
+  por confirmar»: Serebii da 19–21 de febrero y PokéBeach da 13–15, que resulta ser
+  exactamente la fecha del Internacional de 2026.
+
+### Cambiado
+
+**El orden de la lista de torneos**
+- Antes salía el más nuevo arriba, que para un histórico está bien pero no para esta
+  pantalla. Ahora es orden de agenda: **primero lo que viene, del más cercano al más lejano**;
+  detrás lo ya jugado, del más reciente al más antiguo. Lo de hoy, lo primero de todo.
+- Cada fila lleva «en 3 días» / «hace 2 semanas», que con este orden es lo que de verdad la
+  sitúa, y el título dice cuántos hay por delante.
+- El comparador es `byAgenda(hoy)` en `src/lib/format.ts`: puro, con la fecha de hoy como
+  argumento para poder probarlo sin tocar el reloj.
+
+### Base de datos
+
+- `events.end_date`, `events.tournament_kind`, `events.location`, `events.url`. Las cuatro con
+  valor por defecto, así que lo que ya existe no se toca.
+- `npm run db:push`, o `drizzle/0005_v0_9_0.sql` a mano. Idempotente.
+
+### Pruebas
+
+- 118 en total (106 antes, 12 nuevas): el caso «15.º con 25 personas son 6 CP» está ahora
+  escrito como prueba, junto con los tres motivos de un cero, el respeto al valor manual, la
+  diferencia entre las tablas de 2026 y 2027, y el orden de agenda.
+
+## [0.8.0] — 2026-09-21
+
+Lo que quedaba pendiente de `CAMBIOS (6).docx` y de los tres paquetes del 19 y el 20 de
+septiembre. **Esta versión toca la base de datos**: hay que aplicar la migración antes de
+desplegar.
+
+### Añadido
+
+**Camino al corte** — la petición del 19/09
+- En la ficha de un torneo abierto, entre ronda y ronda: con tu récord, las rondas que quedan
+  y la gente que hay, qué hace falta para entrar en el top cut. Con el reparto de empates,
+  porque un 3-1-1 no son los mismos puntos que un 4-1.
+- La línea de corte **se calcula, no se copia de una tabla**. En un suizo el número de gente
+  con k victorias sigue una binomial, así que sumando de arriba abajo sale cuántos caben por
+  encima de cada marca. Con 32 personas, 5 rondas y top 8 da: entra el 4-1, el 3-2 es burbuja.
+  Que es lo que pasa de verdad. La aritmética y sus límites están explicados en
+  `src/lib/cut.ts`.
+- Debajo, lo que da cada puesto **con la asistencia de ese torneo**, con el kicker aplicado.
+  Los tramos que no llegan al mínimo de gente salen en gris a 0 CP, que es lo que pasa y lo
+  que confunde a todo el mundo la primera vez.
+- No se enseña si falta la asistencia o el número de rondas: sin esos dos datos no hay línea
+  que estimar, y una cuenta inventada sería peor que nada.
+
+**Pokémon TCG Live** — la petición del 19/09
+- Pantalla nueva con tu historial del cliente: importar, ver cómo va cada mazo y contra qué
+  estás perdiendo.
+- **TCG Live no tiene API, ni exportación, ni la va a tener.** Así que es un importador de
+  texto pegado, escrito para tragar lo que la gente apunta de verdad: comas, punto y coma o
+  tabuladores (pegar desde una hoja de cálculo funciona tal cual), con cabecera o sin ella,
+  fechas en tres formatos, y `V/D/E`, `W/L/D` o el marcador. Si hay marcador y letra y no
+  cuadran, manda el marcador.
+- La previsualización se calcula en el navegador mientras escribes, con el mismo parser; lo
+  que se guarda sale de volver a interpretarlo en el servidor.
+- Volver a pegar la hoja entera no duplica nada. La clave de deduplicación se guarda **en
+  claro** y no como hash: hace lo mismo y además se puede leer cuando algo no cuadra.
+- Estas partidas **no entran** en el ranking, el Elo ni los CP: las apunta una sola persona y
+  contra desconocidos, así que no son verificables. Van a su propia tabla.
+
+**Top Decks** — del paquete del 20/09
+- Pantalla nueva: los mazos más jugados del mundo, con cuota de metagame, % de victorias,
+  **% de listas que llegan a top 4**, victorias de torneo y el mejor resultado de la ventana.
+- El top 4 es la columna que justifica la pantalla: distingue un mazo que gana rondas de uno
+  que cierra torneos, y eso ni la cuota ni el %V lo dicen.
+- Marca cuáles de esos mazos tenéis ya dados de alta en vuestro catálogo.
+- Filtros de formato y de ventana (14 / 30 / 90 días). Solo torneos de 16 personas para
+  arriba: por debajo son ruido.
+- Sale de la API pública de Limitless. **El paquete de origen proponía Express + Prisma +
+  cron jobs**; nada de eso hace falta, porque el cliente de Limitless ya existe y la caché ya
+  estaba puesta en los `fetch`.
+
+### Cambiado
+
+**El Elo deja de contar los amistosos** — `ELO-SOLO-TORNEOS.md`
+- Ajuste nuevo en Ajustes con tres valores. Por defecto **liga y torneos**.
+- Por qué no «solo torneos», que era lo que pedía el documento al pie de la letra: en Arena
+  una partida puede ser de competición interna, de torneo, o suelta. Excluir la liga interna
+  dejaría el Elo alimentado solo por los eventos a los que va cada uno por su cuenta —pocos y
+  no todos—, y el ranking se quedaría plano. Lo que se pidió fue que no contaran los
+  amistosos, y eso es exactamente lo que hace el valor por defecto. «Solo torneos» sigue
+  estando para quien quiera la versión estricta.
+- No hay nada que migrar: el Elo se recalcula entero desde las partidas en cada carga, así que
+  el cambio se ve en la siguiente pantalla y se deshace igual de rápido.
+
+**«Victorias por arquetipo» con sprites** — la petición del 16/09
+- El eje X de la gráfica lleva ahora el dibujo del Pokémon en vez del nombre recortado a doce
+  caracteres. Es la misma decisión que ya se tomó en la matriz: «Marnie's Grimmsnarl ex»
+  girado 35 grados ocupaba 56 píxeles de alto y seguía sin leerse. El nombre sigue en el
+  globito y en el recuadro de la barra.
+- La gráfica de cuota hace lo mismo, con sprite y nombre, que en vertical sí cabe.
+
+**Filtro de ámbito en el Ranking** — la petición del 19/09
+- Fila nueva de filtros: Todo · Liga · Presenciales · Online · Amistosos, más un interruptor
+  de «Temporada 2027». Por URL, como el resto: se comparte y la flecha de atrás funciona.
+- Los ámbitos salen de `src/lib/filters.ts`, los mismos que Resultados y Estadísticas, así que
+  «presencial» quiere decir lo mismo en las tres pantallas. Dos ámbitos nuevos —`onsite` y
+  `online`— que parten los torneos por `tournaments.scope`.
+
+### Base de datos
+
+- `settings.elo_scope` (texto, por defecto `competitive`).
+- Tabla `ptcg_live_matches`, con índice por jugador y `dedupe_key` única.
+- `npm run db:push`, o `drizzle/0004_v0_8_0.sql` a mano. Es idempotente.
+
+### Pruebas
+
+- 106 en total (59 antes, 47 nuevas): 22 de la calculadora de corte y 25 del importador de
+  TCG Live. Incluyen el caso de manual —32 personas, 5 rondas, top 8— que es el que valida
+  el modelo entero de la línea de corte.
+
+## [0.7.0] — 2026-09-21
+
+La versión de la capa visual. Ninguna pantalla cambia de sitio; lo que cambia es cómo se
+comporta mientras carga, cómo se rompe cuando se rompe, y cómo se maneja con el dedo.
+
+### Añadido
+
+**Se ve algo mientras carga**
+- Esqueletos de carga con la forma del contenido, no un «cargando» centrado: uno por defecto
+  para todo el grupo `(app)` y tres a medida —Estadísticas, Ranking, Resultados y Torneos—.
+  Importa más de lo que parece: en Vercel y Neon gratis, la primera consulta después de un
+  rato despierta la base de datos y tarda uno o dos segundos. Antes eso era una pantalla en
+  blanco, que se lee como una web rota.
+- El bloque del metagame mundial ya no enseña dos barras grises: enseña el hueco exacto de
+  las cuatro cifras y la gráfica que van a salir, así que al llegar el dato no salta nada.
+
+**Pantallas de error propias**
+- `error.tsx` con botón de **reintentar** de verdad —vuelve a renderizar solo esa parte del
+  árbol, sin recargar—, que es lo que hace falta cuando el fallo es la base de datos
+  despertándose. Enseña el `digest` para poder buscarlo en los registros de Vercel, y **no**
+  el mensaje del error: un mensaje de una consulta puede llevar dentro nombres de tabla.
+- `not-found.tsx` en dos sitios: uno para una URL que no existe y otro para algo que existía
+  y se ha borrado.
+- `global-error.tsx`, el de último recurso, el único fichero de la app que pinta su propio
+  `<html>` y lleva los colores escritos a mano, porque cuando se muestra ya no hay hoja de
+  estilos que valga.
+
+**Buscador de cartas**
+- En el editor de mazos, nuevo y existente: escribes «dragapult» y salen las cartas con su
+  set, su número y su imagen, y un toque copia la línea de decklist ya formateada
+  —`1 Dragapult ex TWM 130`—, que es justo donde se cuelan las erratas al escribirla a mano.
+- Va contra `pokemontcg.io` a través de `/api/cards`, detrás de la sesión para que nadie use
+  el despliegue de la liga como proxy gratis. Espera 400 ms a que dejes de teclear y cancela
+  la petición anterior, porque sin clave el límite son 30 peticiones por minuto.
+- Si la API no responde, el buscador lo dice en una línea y ya está: es una ayuda, no un
+  requisito. Nada de lo demás depende de ella.
+
+**Cifras del metagame mundial**
+- Cuatro KPIs nuevos encima de las gráficas de Estadísticas cuando la fuente es mundial o
+  comparación: torneos y listas mirados, mazo más jugado, victorias medias **ponderadas por
+  número de listas** —sin ponderar, un mazo con tres apariciones pesaría lo mismo que uno con
+  cuatrocientas— y, en modo comparar, el mayor desvío entre vuestra liga y el mundo.
+
+**En Ajustes**
+- Un panel de **fuentes externas** que dice, sin enseñar ninguna clave, si hay clave
+  configurada para cada API y qué pasa si no la hay. Incluye la fecha en la que pokemontcg.io
+  deja de funcionar: 1 de marzo de 2027.
+
+### Cambiado
+
+**Móvil**
+- La pestaña activa de la barra inferior lleva **pastilla**, no solo color. A pleno sol el
+  color se pierde; la forma no. Y esto se usa de pie, en un torneo, con el móvil en la mano.
+- La cabecera respeta la **muesca** y el contenido respeta la **barra de gestos**: antes, con
+  `viewportFit: "cover"`, en un iPhone el título quedaba medio tapado y la última fila de
+  cualquier lista caía debajo de la rayita de abajo.
+- El aviso de abajo (snackbar) sube por encima de las dos cosas. Antes se solapaba con las
+  pestañas justo cuando más se mira: al guardar algo.
+- La **matriz de emparejamientos** ya no dispara el «atrás» del navegador al deslizarla hasta
+  el final, y la primera columna se ve flotar sobre el resto en vez de parecer una raya más.
+- Botón de **volver** en las pantallas de detalle que no lo tenían (mazo, mazo nuevo, partida
+  nueva, torneo nuevo, tu perfil). Solo en móvil: en escritorio está la barra lateral.
+
+**Escritorio**
+- Barra de desplazamiento del color del tema, con su hueco reservado siempre para que el
+  contenido no salte 15 px al pasar de una página corta a una larga.
+- Texto seleccionado con el color de la marca.
+- Las tarjetas pulsables se levantan con el ratón y se hunden con el dedo.
+
+**Por dentro**
+- Tres niveles de **sombra en variables** (`--shadow-1/2/3`), con valores distintos en claro y
+  en oscuro: sobre fondo oscuro una sombra suave no existe, así que allí son más duras y
+  llevan un filo claro arriba.
+- `Kpi` acepta `tone` e `icon`, y una `delta` en puntos con su flecha. Los tonos son los
+  mismos tres colores de fuente que usan las gráficas —azul lo vuestro, naranja el mundo,
+  morado la diferencia—, para no tener que aprender dos leyendas.
+- **`src/components/primitives.tsx`**: `Kpi` y los esqueletos se han sacado de `ui.tsx` a un
+  fichero sin dependencias. `ui.tsx` importa `lib/stats` (ochocientas líneas) para pintar una
+  partida, y un componente de cliente que solo quisiera un `Kpi` se lo llevaba entero al
+  navegador. `ui.tsx` los reexporta, así que ninguna pantalla existente cambia.
+- `Icon` acepta `style`, y hay seis iconos nuevos.
+
+### Documentación
+
+- **README reescrito** para la v0.7.0, absorbiendo el apéndice de la v0.5.0 —que se borra— y
+  con tabla de variables de entorno, estructura de carpetas al día y una sección sobre cómo
+  está montado el diseño.
+- `.env.example` documenta las dos variables opcionales de fuentes externas.
+
 ## [0.6.0] — 2026-09-16
 
 El snackbar por fin aparece, los filtros filtran, y las estadísticas pueden mirarse contra el

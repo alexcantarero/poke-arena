@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { StatsPayload, ArchetypeRow } from "@/lib/types";
 import { spriteUrl } from "@/lib/pokemon";
+import { Skeleton } from "@/components/primitives";
 import { ArchetypeChart, ShareChart, type ChartRow } from "./Charts";
+import { KPICards } from "./KPICards";
 
 /* =========================================================================
    El metagame mundial, y la comparación con el vuestro.
@@ -72,6 +74,11 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
       return {
         id: g.id,
         name: g.name,
+        // Limitless devuelve los iconos del arquetipo; si el cruce con la liga
+        // ha encontrado pareja, se prefieren los de ella, que son los que se
+        // ven en el resto de la app.
+        main: l?.main || g.main,
+        secondary: l?.secondary || g.secondary,
         global: g.winRate,
         local: l?.winRate ?? null,
         share: g.share,
@@ -81,13 +88,28 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
   }, [data, local]);
 
   if (cargando) {
+    /* El hueco tiene la forma de lo que va a llegar —cuatro cifras y una
+       gráfica— y no un "cargando" centrado. Cuando llegue el dato no salta
+       nada de sitio, que es todo el objetivo. */
     return (
-      <div className="card mb-6 p-4">
-        <div className="mb-3 h-4 w-48 animate-pulse rounded bg-surface-2" />
-        <div className="h-64 animate-pulse rounded-lg bg-surface-2" />
-        <p className="mt-3 text-xs text-muted">
-          Pidiéndole a Limitless los torneos de los últimos {days} días. Tarda unos segundos.
-        </p>
+      <div role="status" aria-live="polite">
+        <span className="sr-only">Cargando el metagame mundial…</span>
+        <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="card p-3 sm:p-4">
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="mt-2 h-7 w-20" />
+              <Skeleton className="mt-2 h-3 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="card mb-6 p-4">
+          <Skeleton className="mb-3 h-4 w-48" />
+          <Skeleton className="h-64 w-full" />
+          <p className="mt-3 text-xs text-muted">
+            Pidiéndole a Limitless los torneos de los últimos {days} días. Tarda unos segundos.
+          </p>
+        </div>
       </div>
     );
   }
@@ -107,6 +129,8 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
 
   return (
     <>
+      <KPICards mode={mode} data={data} rows={filas} />
+
       <section className="card mb-4 border-source-global/40 bg-source-global-soft p-4">
         <h2 className="font-display text-lg font-bold">Metagame mundial</h2>
         <p className="mt-1 text-sm text-ink-2">

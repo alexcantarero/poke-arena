@@ -5,6 +5,7 @@ import { PageHead } from "@/components/ui";
 import { DeckForm } from "@/components/DeckForm";
 import { DeckList } from "@/components/DeckList";
 import { MulliganSim } from "@/components/MulliganSim";
+import { CardSearch } from "@/components/CardSearch";
 
 export default async function EditDeckPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,13 +29,26 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
   const archetype = snap.archById.get(deck.archetypeId);
   return (
     <>
-      <PageHead title={deck.name} sub={archetype?.name} />
+      <PageHead title={deck.name} sub={archetype?.name} back={{ href: "/mazos", label: "Mazos" }} />
       <DeckForm
         deck={{ ...deck, archetype }}
         players={snap.players}
         archetypes={snap.archetypes}
         canPickPlayer={manager}
       />
+
+      {/* El buscador va SIEMPRE, con lista o sin ella: es justo cuando no hay
+          lista todavía cuando más falta hace. Cerrado por defecto, como todo
+          lo de esta pantalla que no es el formulario. */}
+      <details className="card mt-4">
+        <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
+          Buscar cartas
+          <span className="text-xs font-normal text-muted">set y número</span>
+        </summary>
+        <div className="border-t border-line-soft p-4">
+          <CardSearch />
+        </div>
+      </details>
 
       {/* El simulador va detrás de un desplegable y debajo del formulario: se
           abre cuando se quiere probar el mazo, no cada vez que se entra a

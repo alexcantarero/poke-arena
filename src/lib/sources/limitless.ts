@@ -257,7 +257,26 @@ export type MetaRow = {
   winRate: number | null;
   /** Puesto medio, para distinguir «se juega mucho» de «se gana mucho». */
   avgPlacement: number | null;
+
+  /* --- añadido en la v0.8.0, para la pantalla de Top Decks ---
+     Salen del mismo recorrido que lo de arriba, sin una llamada más: la
+     clasificación ya trae el puesto de cada lista, así que contarlos es
+     gratis. La cuota dice cuánto se juega un mazo y el %V cuánto gana de
+     media; esto dice si además **cierra** torneos, que no es lo mismo. */
+
+  /** Listas que acabaron entre las cuatro primeras. */
+  top4: number;
+  /** Listas que acabaron entre las ocho primeras. */
+  top8: number;
+  /** Veces que ganó el torneo. */
+  firsts: number;
+  /** El mejor resultado de la ventana mirada. */
+  best: { tournament: string; date: string; placing: number } | null;
 };
+
+/** Qué parte de las listas de ese mazo llegó al top 4. 0–1, o null sin datos. */
+export const top4Rate = (r: Pick<MetaRow, "entries" | "top4">): number | null =>
+  r.entries ? r.top4 / r.entries : null;
 
 export type MetaSnapshot = {
   rows: MetaRow[];
@@ -305,6 +324,8 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
     });
 
   const acc = new Map<string, MetaRow & { placements: number[] }>();
+  /** Nombre y fecha de cada torneo, para poder decir de dónde sale el mejor puesto. */
+  const porId = new Map(list.map((t) => [t.id, t]));
   let entries = 0;
   let failed = 0;
 
@@ -314,8 +335,12 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
     const settled = await Promise.allSettled(chunk.map((t) => fetchStandings(t.id, apiKey)));
     failed += settled.filter((r) => r.status === "rejected").length;
 
-    for (const res of settled) {
-      if (res.status !== "fulfilled") continue;
+    // `allSettled` conserva el orden, así que el índice empareja cada
+    // resultado con su torneo. Hace falta para saber de qué evento sale un
+    // puesto sin pedir nada más.
+    settled.forEach((res, k) => {
+      if (res.status !== "fulfilled") return;
+      const torneo = porId.get(chunk[k].id);
       for (const row of res.value) {
         const deck = row.deck;
         if (!deck?.id || !deck.name) continue;
@@ -330,6 +355,7 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
             identifier: deck.id, name: deck.name, main, secondary: icons[1] ?? "",
             entries: 0, share: 0, wins: 0, losses: 0, ties: 0,
             winRate: null, avgPlacement: null, placements: [],
+            top4: 0, top8: 0, firsts: 0, best: null,
           };
           acc.set(deck.id, cur);
         }
@@ -337,9 +363,18 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
         cur.wins += row.record?.wins ?? 0;
         cur.losses += row.record?.losses ?? 0;
         cur.ties += row.record?.ties ?? 0;
-        if (typeof row.placing === "number" && row.placing > 0) cur.placements.push(row.placing);
+        const puesto = row.placing;
+        if (typeof puesto === "number" && puesto > 0) {
+          cur.placements.push(puesto);
+          if (puesto <= 8) cur.top8++;
+          if (puesto <= 4) cur.top4++;
+          if (puesto === 1) cur.firsts++;
+          if (torneo && (!cur.best || puesto < cur.best.placing)) {
+            cur.best = { tournament: torneo.name, date: torneo.date, placing: puesto };
+          }
+        }
       }
-    }
+    });
   }
 
   const rows: MetaRow[] = [...acc.values()].map((r) => {

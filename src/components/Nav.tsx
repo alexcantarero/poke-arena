@@ -24,7 +24,8 @@ export function Sidebar({ meId }: { meId: string }) {
           key={it.href}
           href={it.href}
           aria-current={isActive(it.href) ? "page" : undefined}
-          className={`tap justify-start rounded-lg px-3 text-sm font-medium transition-colors
+          data-on={isActive(it.href) ? "true" : "false"}
+          className={`nav-side tap relative justify-start rounded-lg px-3 text-sm font-medium transition-colors
             ${isActive(it.href)
               ? "bg-surface-3 font-semibold text-ink"
               : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
@@ -58,8 +59,9 @@ export function BottomNav({ meId }: { meId: string }) {
           <Link
             href="/partidas/nueva"
             aria-label="Registrar partida"
-            className="-mt-5 flex size-14 items-center justify-center rounded-full border-4 border-ground
-                       bg-brand text-on-brand shadow-lg active:scale-95"
+            className="press -mt-5 flex size-14 items-center justify-center rounded-full border-4 border-ground
+                       bg-brand text-on-brand active:scale-95"
+            style={{ boxShadow: "var(--shadow-3)" }}
           >
             <Icon name="plus" className="size-7" />
           </Link>
@@ -72,13 +74,23 @@ export function BottomNav({ meId }: { meId: string }) {
   );
 }
 
+/**
+ * Una pestaña de la barra inferior.
+ *
+ * La activa no cambia solo de color: lleva una pastilla tenue detrás. El
+ * color solo se pierde en cuanto la pantalla está a pleno sol, y esto se usa
+ * de pie, en un torneo, con el móvil en la mano. La forma sí se ve.
+ *
+ * La pastilla, el hundido al tocar y el color están en `.nav-tab`
+ * (globals.css), para que se toquen en un sitio y no en cuatro.
+ */
 function Tab({ item, active }: { item: Item; active: boolean }) {
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-semibold
-        ${active ? "text-brand" : "text-muted"}`}
+      data-on={active ? "true" : "false"}
+      className="nav-tab"
     >
       <Icon name={item.icon} className="size-6" />
       <span className="leading-none">{item.label}</span>

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
-import { awardsCp, getSeason } from "@/lib/cp";
-import { fmtDate } from "@/lib/format";
+import { awardsCp, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
+import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
 import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle } from "@/components/ui";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
@@ -38,6 +38,15 @@ export default async function TournamentsPage({
     : snap.tournaments.filter((t) => t.results.some((r) => r.playerId === filterId)
         || snap.matches.some((m) => m.tournamentId === t.id && m.playerAId === filterId));
   const filterPlayer = filterId === "all" ? undefined : snap.playersById.get(filterId);
+
+  /* --- el orden ---
+     La base los devuelve del más nuevo al más viejo, que para un histórico
+     está bien pero para esta pantalla no: lo que se quiere ver arriba es el
+     torneo que viene. Primero lo que está por jugar, del más cercano al más
+     lejano; detrás lo ya jugado, del más reciente al más antiguo. */
+  const today = todayISO();
+  const ordenados = [...filtered].sort(byAgenda(today));
+  const proximos = ordenados.filter((t) => t.date >= today).length;
 
   // Solo se ofrece filtrar por quien de verdad ha ido a algo: una lista de
   // chips con gente que no tiene torneos es ruido.
@@ -101,7 +110,11 @@ export default async function TournamentsPage({
         </section>
       )}
 
-      <SectionTitle aside={`${filtered.length} de ${snap.tournaments.length}`}>
+      <SectionTitle
+        aside={proximos > 0
+          ? `${proximos} por delante · ${filtered.length} de ${snap.tournaments.length}`
+          : `${filtered.length} de ${snap.tournaments.length}`}
+      >
         {filterPlayer ? `Torneos de ${filterPlayer.name}` : "Todos los torneos"}
       </SectionTitle>
 
@@ -114,13 +127,19 @@ export default async function TournamentsPage({
         </div>
       )}
 
-      {filtered.length ? (
+      {ordenados.length ? (
         <div className="card divide-y divide-line-soft">
-          {filtered.map((t) => {
+          {ordenados.map((t) => {
             const results = t.results;
             const best = results.filter((r) => r.placement != null)
               .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))[0];
-            const cp = results.reduce((a, r) => a + r.cpEarned, 0);
+            /* Calculado del tipo, el puesto y la asistencia de ahora, no
+               leído de `cp_earned`. Esa columna es una caché y puede
+               quedarse vieja; así la lista, la ficha y el perfil dicen
+               siempre lo mismo. */
+            const tSeason = t.season ?? seasonOfDate(t.date) ?? season;
+            const cpDe = (r: typeof results[number]) => effectiveCp(tSeason, t.kind, r, t.playerCount);
+            const cp = results.reduce((a, r) => a + cpDe(r), 0);
             // Con el filtro puesto interesa el resultado de esa persona, no el
             // mejor del grupo: es la pregunta que se está haciendo.
             const own = filterPlayer ? results.find((r) => r.playerId === filterPlayer.id) : undefined;
@@ -129,6 +148,12 @@ export default async function TournamentsPage({
               <Link key={t.id} href={`/torneos/${t.id}`} className="block px-4 py-3 hover:bg-surface-2">
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
                   <span className="font-mono">{fmtDate(t.date)}</span>
+                  {/* «en 3 días» / «hace 2 semanas»: con el orden de agenda es
+                      lo que de verdad sitúa cada fila. */}
+                  <span aria-hidden="true">·</span>
+                  <span className={t.date >= today ? "font-semibold text-brand" : ""}>
+                    {relDays(t.date)}
+                  </span>
                   <span aria-hidden="true">·</span>
                   <span>{SCOPE_LABEL[t.scope] ?? t.scope}</span>
                   {t.city && <><span aria-hidden="true">·</span><span className="truncate">{t.city}</span></>}
@@ -177,7 +202,7 @@ export default async function TournamentsPage({
                     {ownRounds.length > 0 && (
                       <span className="chip">{ownRounds.length} ronda(s) apuntada(s)</span>
                     )}
-                    {own && own.cpEarned > 0 && <span className="chip chip-brand tabular">{own.cpEarned} CP</span>}
+                    {own && cpDe(own) > 0 && <span className="chip chip-brand tabular">{cpDe(own)} CP</span>}
                     {own?.deckId && <ArchTag archetype={snap.archIndex.get(own.deckId)} />}
                     {own?.prizes && <span className="chip">🎁 {own.prizes}</span>}
                   </div>

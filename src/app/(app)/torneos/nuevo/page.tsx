@@ -20,6 +20,7 @@ export default async function NewTournamentPage() {
       <PageHead
         title="Nuevo torneo"
         sub="Primero la cabecera: qué evento es, cuándo y de qué tamaño. Las rondas y el puesto se rellenan después, desde la ficha."
+        back={{ href: "/torneos", label: "Torneos" }}
       />
       <TournamentForm season={snap.config.cpSeason} back="/torneos" />
     </>

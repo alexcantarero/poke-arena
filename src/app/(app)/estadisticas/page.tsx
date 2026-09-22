@@ -49,6 +49,7 @@ export default async function StatsPage({
   const index: FilterIndex = {
     tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
     tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    tournamentScope: new Map(snap.tournaments.map((t) => [t.id, t.scope])),
     competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
     archetypesOf: (m) => {
       const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
@@ -161,11 +162,15 @@ export default async function StatsPage({
         </section>
       )}
 
+      {/* Estas cuatro son de VUESTRA liga, siempre, mire uno la fuente que
+          mire. Van en azul —el color de «local» en todo el sistema— para que
+          no se confundan con las de arriba, que son del mundo y salen en
+          naranja cuando hay fuente mundial elegida. */}
       <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Kpi label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
-        <Kpi label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
-        <Kpi label="Gana quien empieza" value={pct(ft.winRate, 1)} note={`${ft.n} juegos anotados`} highlight={(ft.winRate ?? 0) > 0.55} />
-        <Kpi label="Formato" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
+        <Kpi tone="local" icon="database" label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
+        <Kpi tone="local" icon="deck" label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
+        <Kpi label="Gana quien empieza" icon="star" value={pct(ft.winRate, 1)} note={`${ft.n} juegos anotados`} highlight={(ft.winRate ?? 0) > 0.55} />
+        <Kpi label="Formato" icon="results" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
           note={`Bo1 ${bo[1] ?? 0} · Bo3 ${bo[3] ?? 0} · Bo5 ${bo[5] ?? 0}`} />
       </div>
 
@@ -212,6 +217,10 @@ export default async function StatsPage({
             rows={archs.filter((a) => a.played >= 2).map((a) => ({
               id: a.archetypeId,
               name: a.archetype?.name ?? a.archetypeId,
+              // Los sprites del eje salen de aquí: sin ellos la gráfica cae al
+              // nombre corto, que es lo que había antes.
+              main: a.archetype?.main ?? "",
+              secondary: a.archetype?.secondary ?? "",
               local: a.winRate,
               played: a.played,
             }))}

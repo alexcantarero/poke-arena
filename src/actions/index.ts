@@ -6,7 +6,7 @@ import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, matches, players, settings, tournamentResults, tournaments,
+  ladderEntries, matches, players, ptcgLiveMatches, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -14,13 +14,15 @@ import {
   writeSession,
 } from "@/lib/auth";
 import { parseDeckList, suggestArchetype } from "@/lib/decklist";
+import { parseLiveHistory } from "@/lib/ptcglive";
+import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
 import { isIsoDate, newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
 import { cpForPlacement, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
-import { pairRound } from "@/lib/stats";
+import { asEloScope, pairRound } from "@/lib/stats";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
-import { loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
 import { energyTypesOf } from "@/lib/sources/pokeapi";
 import { ARCHETYPE_PREFIX, TOURNAMENT_STATUSES } from "@/lib/types";
@@ -781,26 +783,121 @@ export async function saveTournament(fd: FormData) {
   }
 
   /* Corregir la asistencia o el tipo cambia lo que vale cada puesto, así que
-     los CP guardados se vuelven a calcular. Sin esto, el caso más normal del
-     mundo —«se me olvidó poner cuánta gente hubo»— dejaba el perfil diciendo
-     una cifra y la ficha del torneo otra distinta. Los puestos a mano no se
-     tocan: alguien los puso por algo. */
+     los CP guardados se vuelven a calcular. */
   if (editing) {
-    const rows = await db.select().from(tournamentResults)
-      .where(eq(tournamentResults.tournamentId, id));
-    const season = values.season ?? new Date().getFullYear();
-    for (const r of rows) {
-      if (r.cpManual) continue;
-      const cp = cpForPlacement(season, values.kind, r.placement, values.playerCount) ?? 0;
-      if (cp !== r.cpEarned) {
-        await db.update(tournamentResults).set({ cpEarned: cp })
-          .where(eq(tournamentResults.id, r.id));
-      }
-    }
+    await recalcTournamentCp(id, {
+      kind: values.kind,
+      playerCount: values.playerCount,
+      season: values.season ?? seasonOfDate(date) ?? undefined,
+    });
   }
 
   refresh();
   redirect(withFlash(`/torneos/${id}`, "ok", editing ? "Torneo guardado." : "Torneo creado."));
+}
+
+/**
+ * Volver a calcular los CP guardados de un torneo.
+ *
+ * Se llama desde dos sitios: al guardar el torneo editado y al poner la
+ * asistencia desde su ficha. Vive aparte porque el caso más normal del mundo
+ * —«se me olvidó apuntar cuánta gente hubo»— tiene que arreglarse desde
+ * cualquiera de los dos caminos, y tener la cuenta escrita dos veces es
+ * garantía de que un día solo se arregle uno.
+ *
+ * Los resultados con el CP puesto a mano no se tocan nunca: alguien escribió
+ * ese número por algo, y machacarlo con la tabla sería perder información.
+ *
+ * Devuelve cuántas filas ha cambiado, para poder decirlo en el aviso.
+ */
+async function recalcTournamentCp(
+  tournamentId: string,
+  t: { kind: string; playerCount: number | null; season?: number },
+): Promise<number> {
+  const rows = await db.select().from(tournamentResults)
+    .where(eq(tournamentResults.tournamentId, tournamentId));
+  if (!rows.length) return 0;
+
+  // Sin temporada explícita se deduce de la fecha del torneo, nunca del año
+  // natural: en septiembre el año natural es 2026 y la temporada es 2027, y
+  // las dos tablas tienen kickers distintos.
+  let season = t.season;
+  if (season == null) {
+    const [row] = await db.select({ date: tournaments.date, season: tournaments.season })
+      .from(tournaments).where(eq(tournaments.id, tournamentId));
+    season = row?.season ?? seasonOfDate(row?.date) ?? new Date().getFullYear();
+  }
+
+  let cambiadas = 0;
+  for (const r of rows) {
+    if (r.cpManual) continue;
+    const cp = cpForPlacement(season, t.kind, r.placement, t.playerCount) ?? 0;
+    if (cp !== r.cpEarned) {
+      await db.update(tournamentResults).set({ cpEarned: cp })
+        .where(eq(tournamentResults.id, r.id));
+      cambiadas++;
+    }
+  }
+  return cambiadas;
+}
+
+/**
+ * Poner (o corregir) la asistencia de un torneo desde su propia ficha.
+ *
+ * EL PROBLEMA QUE RESUELVE
+ * ------------------------
+ * Un torneo se crea días antes y nadie sabe cuánta gente irá hasta que se
+ * cierra el registro. Después, con el evento ya jugado, hay que volver y
+ * apuntarla — y el sitio donde estaba ese campo era el formulario de editar,
+ * con otros veinte campos al lado. El resultado práctico era que no se
+ * rellenaba nunca, y sin asistencia el kicker deja los tramos bajos a cero:
+ * un 15.º puesto que valía 6 CP aparecía como 0.
+ *
+ * Esto es un campo y un botón en la ficha del torneo. Nada más.
+ *
+ * Y sí, **recalcula**: el mismo ayudante que usa el formulario de editar.
+ * Los CP con el número puesto a mano se respetan.
+ */
+export async function setTournamentAttendance(fd: FormData) {
+  const actor = await currentPlayer();
+  if (!actor) redirect("/entrar");
+
+  const id = str(fd, "id");
+  if (!id) redirect(withFlash("/torneos", "error", "Falta el torneo."));
+
+  const [t] = await db.select().from(tournaments).where(eq(tournaments.id, id));
+  if (!t) redirect(withFlash("/torneos", "error", "Ese torneo ya no existe."));
+
+  // La comprobación de permiso va aquí y no en la pantalla: una Server Action
+  // es un endpoint público y esconder el formulario no protege nada.
+  if (t.createdBy !== actor.id && !canManageLeague(actor.role)) {
+    redirect(withFlash(`/torneos/${id}`, "error", "Esto solo lo cambia quien creó el torneo o un organizador."));
+  }
+
+  const playerCount = maybeInt(fd, "playerCount", 1, 100000);
+  const rounds = fd.has("rounds") ? maybeInt(fd, "rounds", 1, 50) : t.rounds;
+  const topCut = fd.has("topCut") ? maybeInt(fd, "topCut", 0, 512) : t.topCut;
+
+  await db.update(tournaments)
+    .set({ playerCount, rounds, topCut })
+    .where(eq(tournaments.id, id));
+
+  const cambiadas = await recalcTournamentCp(id, {
+    kind: t.kind,
+    playerCount,
+    season: t.season ?? seasonOfDate(t.date) ?? undefined,
+  });
+
+  refresh();
+  redirect(withFlash(
+    `/torneos/${id}`,
+    "ok",
+    playerCount == null
+      ? "Asistencia borrada."
+      : cambiadas > 0
+        ? `Asistencia: ${playerCount}. Se han recalculado los CP de ${cambiadas} resultado${cambiadas === 1 ? "" : "s"}.`
+        : `Asistencia: ${playerCount}. Los CP no cambian con esa cifra.`,
+  ));
 }
 
 /**
@@ -1137,7 +1234,10 @@ export async function createPairings(fd: FormData) {
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
   if (comp.rounds > 0 && nextRound > comp.rounds) return;
 
-  const { pairs } = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config);
+  const { pairs } = pairRound(comp.kind, ids, inComp, snap.elo.rating, {
+    ...snap.config,
+    eloScope: asEloScope(snap.config.eloScope),
+  });
   if (!pairs.length) return;
 
   await db.insert(matches).values(
@@ -1166,7 +1266,15 @@ export async function saveEvent(fd: FormData) {
   const values = {
     title: str(fd, "title").slice(0, 120),
     date: isoDate(fd, "date") ?? todayISO(),
+    endDate: isoDate(fd, "endDate", null),
     kind: str(fd, "kind") || "round",
+    // Vacío es válido: una jornada de la liga no es ningún tipo de torneo
+    // del circuito. El color del calendario cae entonces al de `kind`.
+    tournamentKind: CALENDAR_EVENT_KINDS.includes(str(fd, "tournamentKind"))
+      ? str(fd, "tournamentKind")
+      : "",
+    location: str(fd, "location").slice(0, 120),
+    url: /^https?:\/\//i.test(str(fd, "url")) ? str(fd, "url").slice(0, 400) : "",
     competitionId: str(fd, "competitionId") || null,
     tournamentId: str(fd, "tournamentId") || null,
     note: str(fd, "note").slice(0, 500),
@@ -1175,6 +1283,73 @@ export async function saveEvent(fd: FormData) {
   if (editing) await db.update(events).set(values).where(eq(events.id, id));
   else await db.insert(events).values({ id, ...values });
   refresh();
+  redirect(withFlash("/calendario", "ok", editing ? "Evento guardado." : "Evento añadido."));
+}
+
+/** Los tipos de torneo que el calendario sabe colorear. */
+const CALENDAR_EVENT_KINDS: string[] = [
+  "league_challenge", "league_cup", "regional",
+  "special", "international", "worlds", "store", "online", "other",
+];
+
+/**
+ * Meter en el calendario los eventos oficiales de Europa.
+ *
+ * La lista está escrita a mano en `src/data/eventos-europa.ts`, con sus
+ * fuentes y con marca en los que no coinciden entre ellas. **No hay ninguna
+ * llamada automática a ninguna web**: ni hace falta para diez eventos al año
+ * ni sería correcto con las webs de las que salen.
+ *
+ * Es idempotente: cada evento lleva un id fijo, así que volver a pulsarlo
+ * actualiza los que ya están en vez de duplicarlos. Eso permite corregir la
+ * lista del fichero y volver a importar sin limpiar nada antes.
+ *
+ * Lo que NO hace: borrar. Si alguien quitó del calendario un evento que no le
+ * interesaba, volver a importar no se lo devuelve a la cara... bueno, sí se
+ * lo devuelve, porque el id vuelve a no existir y se inserta. Es el precio de
+ * que sea idempotente sin llevar una tabla de «borrados a propósito», y para
+ * diez eventos al año compensa.
+ */
+export async function importEuropeanEvents() {
+  await requireManager();
+
+  const existentes = new Set(
+    (await db.select({ id: events.id }).from(events)
+      .where(inArray(events.id, EVENTOS_EUROPA_2027.map((e) => e.id))))
+      .map((r) => r.id),
+  );
+
+  let nuevos = 0;
+  let actualizados = 0;
+
+  for (const e of EVENTOS_EUROPA_2027) {
+    const values = {
+      title: e.title,
+      date: e.date,
+      endDate: e.endDate ?? null,
+      kind: "tourney",
+      tournamentKind: e.tournamentKind,
+      location: e.location,
+      url: e.url ?? "",
+      competitionId: null,
+      tournamentId: null,
+      note: e.confirmar ? "Fecha por confirmar: las fuentes no coinciden." : "",
+    };
+    if (existentes.has(e.id)) {
+      await db.update(events).set(values).where(eq(events.id, e.id));
+      actualizados++;
+    } else {
+      await db.insert(events).values({ id: e.id, ...values });
+      nuevos++;
+    }
+  }
+
+  refresh();
+  redirect(withFlash(
+    "/calendario",
+    "ok",
+    `Eventos de Europa ${TEMPORADA_EVENTOS}: ${nuevos} nuevo(s) y ${actualizados} actualizado(s).`,
+  ));
 }
 
 export async function deleteEvent(fd: FormData) {
@@ -1196,6 +1371,11 @@ export async function saveSettings(fd: FormData) {
     ptsLoss: int(fd, "ptsLoss", 0, 0, 100),
     eloStart: int(fd, "eloStart", 1000, 100, 4000),
     eloK: int(fd, "eloK", 24, 1, 100),
+    // Cualquier otra cosa cae en el valor recomendado en vez de romper: el
+    // campo viene de un desplegable, pero un formulario se puede manipular.
+    eloScope: ["all", "competitive", "tournaments"].includes(str(fd, "eloScope"))
+      ? str(fd, "eloScope")
+      : "competitive",
     ratingZone: str(fd, "ratingZone") || "europe",
     registrationOpen: bool(fd, "registrationOpen"),
     updatedAt: new Date(),
@@ -1699,4 +1879,104 @@ export async function purgePlayer(fd: FormData) {
   await db.delete(players).where(eq(players.id, id));
   refresh();
   redirect("/ajustes");
+}
+
+
+/* ============================================ Pokémon TCG Live (v0.8.0) ==== */
+
+/**
+ * Importar partidas del cliente de Pokémon TCG Live desde texto pegado.
+ *
+ * Tres cosas que esta acción hace a propósito:
+ *
+ * · **Vuelve a interpretar el texto en el servidor.** La pantalla ya lo
+ *   analiza mientras se escribe para poder enseñar la previsualización, pero
+ *   eso es una comodidad del navegador: lo que se guarda sale de analizar
+ *   aquí el texto original. Una Server Action es un endpoint público y lo
+ *   que llegue de fuera no se guarda por las buenas.
+ * · **Solo se importa para uno mismo.** El `playerId` sale de la cookie, no
+ *   del formulario. Si viniera del formulario, cualquiera podría llenar de
+ *   partidas el historial de otro.
+ * · **Los duplicados no son un error.** Quien vuelve a pegar su hoja entera
+ *   para añadir las cuatro partidas de ayer está haciendo lo normal. Las
+ *   repetidas se descartan en silencio y el aviso dice cuántas.
+ */
+export async function importLiveMatches(fd: FormData) {
+  const me = await currentPlayer();
+  if (!me) redirect("/entrar");
+
+  const texto = String(fd.get("texto") ?? "");
+  if (!texto.trim()) {
+    redirect(withFlash("/live", "error", "No has pegado nada."));
+  }
+
+  const { rows, problems, duplicatesInPaste } = parseLiveHistory(texto, me.id);
+  if (!rows.length) {
+    redirect(withFlash("/live", "error",
+      problems.length
+        ? `No se ha podido leer ninguna línea. La primera falla porque ${problems[0].why}.`
+        : "No se ha podido leer ninguna línea."));
+  }
+
+  // Qué hay ya, de las que vienen. Se pregunta solo por estas claves y no se
+  // trae el historial entero: con dos temporadas de partidas la diferencia se
+  // nota, y aquí no hace falta nada más.
+  const claves = rows.map((r) => r.dedupeKey);
+  const existentes = new Set(
+    (await db
+      .select({ k: ptcgLiveMatches.dedupeKey })
+      .from(ptcgLiveMatches)
+      .where(inArray(ptcgLiveMatches.dedupeKey, claves))
+    ).map((r) => r.k),
+  );
+
+  const nuevas = rows.filter((r) => !existentes.has(r.dedupeKey));
+  if (nuevas.length) {
+    await db.insert(ptcgLiveMatches).values(nuevas.map((r) => ({
+      id: newId("live"),
+      playerId: me.id,
+      date: r.date,
+      myDeck: r.myDeck.slice(0, 120),
+      opponentDeck: r.opponentDeck.slice(0, 120),
+      opponentName: r.opponent.slice(0, 80),
+      result: r.result,
+      gamesWon: r.gamesWon,
+      gamesLost: r.gamesLost,
+      format: r.format.slice(0, 40),
+      dedupeKey: r.dedupeKey,
+    })));
+  }
+
+  const repetidas = rows.length - nuevas.length + duplicatesInPaste;
+  const partes = [`${nuevas.length} partida${nuevas.length === 1 ? "" : "s"} importada${nuevas.length === 1 ? "" : "s"}`];
+  if (repetidas > 0) partes.push(`${repetidas} ya estaban`);
+  if (problems.length > 0) partes.push(`${problems.length} línea(s) sin entender`);
+
+  refresh();
+  redirect(withFlash("/live", nuevas.length ? "ok" : "error", `${partes.join(" · ")}.`));
+}
+
+/** Borrar una partida importada. Solo las propias. */
+export async function deleteLiveMatch(fd: FormData) {
+  const me = await currentPlayer();
+  if (!me) redirect("/entrar");
+  const id = str(fd, "id");
+  if (!id) redirect(withFlash("/live", "error", "Falta la partida."));
+
+  // El `and` con el playerId es la comprobación de permiso, no un filtro:
+  // sin él, un id ajeno borraría la partida de otro.
+  await db.delete(ptcgLiveMatches)
+    .where(and(eq(ptcgLiveMatches.id, id), eq(ptcgLiveMatches.playerId, me.id)));
+
+  refresh();
+  redirect(withFlash("/live", "ok", "Partida borrada."));
+}
+
+/** Vaciar el historial propio. Pide confirmación en la pantalla. */
+export async function clearLiveMatches() {
+  const me = await currentPlayer();
+  if (!me) redirect("/entrar");
+  await db.delete(ptcgLiveMatches).where(eq(ptcgLiveMatches.playerId, me.id));
+  refresh();
+  redirect(withFlash("/live", "ok", "Historial de TCG Live vaciado."));
 }

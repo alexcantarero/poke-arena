@@ -23,12 +23,27 @@ const P: Record<string, string> = {
   refresh: "M4 12a8 8 0 0 1 13.7-5.7L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.7 5.7L4 16M4 20v-4h4",
   close: "M6 6l12 12M18 6 6 18",
   alert: "M12 3 2 20h20zM12 9v5m0 3h.01",
+  // Añadidos en la v0.7.0, para la pantalla de estadísticas y el buscador de
+  // cartas. Mismo trazo y misma rejilla de 24 que el resto.
+  globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z",
+  database: "M12 7c4.4 0 8-1.1 8-2.5S16.4 2 12 2 4 3.1 4 4.5 7.6 7 12 7ZM4 4.5v15C4 20.9 7.6 22 12 22s8-1.1 8-2.5v-15M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5",
+  compare: "M12 3v18M7 7 3 11l4 4M17 17l4-4-4-4",
+  card: "M4 6h11v14H4zM17 8h3v12H8",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3.2 2",
+  wifi: "M2.5 9a15 15 0 0 1 19 0M5.5 12.5a10 10 0 0 1 13 0M8.5 16a5.5 5.5 0 0 1 7 0M12 19.5h.01",
 };
 
-export function Icon({ name, className = "size-5" }: { name: keyof typeof P | string; className?: string }) {
+export function Icon({
+  name, className = "size-5", style,
+}: {
+  name: keyof typeof P | string;
+  className?: string;
+  /** Para teñirlo con una variable del tema sin inventarse una clase. */
+  style?: React.CSSProperties;
+}) {
   return (
     <svg
-      className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
     >
       <path d={P[name] ?? P.more} />

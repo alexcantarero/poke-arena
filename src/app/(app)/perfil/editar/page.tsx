@@ -14,7 +14,7 @@ export default async function EditProfilePage() {
 
   return (
     <>
-      <PageHead title="Tu perfil" sub="Cómo te ven los demás dentro de la liga." />
+      <PageHead title="Tu perfil" sub="Cómo te ven los demás dentro de la liga." back={{ href: "/mas", label: "Más" }} />
       <ProfileForm player={me} archetypes={snap.archetypes} />
     </>
   );

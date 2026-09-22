@@ -10,7 +10,67 @@ import type {
 
 export const DEFAULT_SETTINGS = {
   ptsWin: 3, ptsTie: 1, ptsLoss: 0, eloStart: 1000, eloK: 24,
+  eloScope: "competitive" as EloScope,
 };
+
+/* =========================================================================
+   Qué partidas mueven el Elo.
+
+   `competitive` es el valor por defecto y merece una explicación, porque no
+   es lo que decía la petición al pie de la letra.
+
+   Lo que se pidió fue «que los amistosos no cuenten». En Arena una partida
+   puede ser de tres clases: de una competición interna (una jornada de la
+   liga), de un torneo de fuera, o suelta. La lectura literal —solo torneos—
+   dejaría el ranking de la liga alimentado únicamente por los eventos a los
+   que va cada uno por su cuenta, que son pocos y no los juegan todos: el Elo
+   de la liga se quedaría plano y sin sentido.
+
+   Así que `competitive` cuenta lo que se juega en serio —liga y torneos— y
+   deja fuera lo que se pidió dejar fuera. `tournaments` está para quien
+   quiera la versión estricta, y `all` para volver al comportamiento de antes.
+   Se elige en Ajustes.
+
+   El Elo se recalcula entero en cada carga a partir de las partidas, así que
+   cambiar esto no migra nada: el ranking sale distinto en la siguiente
+   pantalla y se puede volver atrás cuando se quiera.
+   ========================================================================= */
+
+export type EloScope = "all" | "competitive" | "tournaments";
+
+export const ELO_SCOPES: Record<EloScope, { label: string; hint: string }> = {
+  all: {
+    label: "Todas las partidas",
+    hint: "Liga, torneos y amistosos. Es como funcionaba hasta la v0.8.0.",
+  },
+  competitive: {
+    label: "Liga y torneos",
+    hint: "Los amistosos no mueven el Elo. Es lo recomendado.",
+  },
+  tournaments: {
+    label: "Solo torneos",
+    hint: "Ni la liga interna cuenta. Deja el ranking muy quieto si jugáis pocos torneos.",
+  },
+};
+
+/**
+ * De texto suelto a ámbito válido.
+ *
+ * La columna de la base es `text`, así que lo que llega aquí es un string
+ * cualquiera. Cualquier valor que no reconozcamos cae en el recomendado en
+ * vez de reventar: una fila vieja sin la columna, o alguien tocando la base a
+ * mano, no puede dejar el ranking sin calcular.
+ */
+export function asEloScope(v: string | null | undefined): EloScope {
+  return v === "all" || v === "tournaments" || v === "competitive" ? v : "competitive";
+}
+
+/** ¿Esta partida mueve el Elo con el ámbito elegido? */
+export function countsForElo(m: MatchFull, scope: EloScope): boolean {
+  if (scope === "all") return true;
+  if (scope === "tournaments") return Boolean(m.tournamentId);
+  return Boolean(m.tournamentId || m.competitionId);
+}
 
 /**
  * Resultado de una serie.
@@ -76,7 +136,7 @@ function byDate(a: MatchFull, b: MatchFull) {
 export function eloTable(
   allMatches: MatchFull[],
   players: PublicPlayer[],
-  cfg: Pick<Settings, "eloStart" | "eloK"> = DEFAULT_SETTINGS,
+  cfg: Pick<Settings, "eloStart" | "eloK"> & { eloScope?: string | null } = DEFAULT_SETTINGS,
 ) {
   const rating: Record<string, number> = {};
   const history: Record<string, { date: string; value: number }[]> = {};
@@ -88,7 +148,15 @@ export function eloTable(
   };
   for (const p of players) touch(p.id);
 
-  for (const m of allMatches.filter(isPlayed).filter(isInternal).sort(byDate)) {
+  const scope = asEloScope(cfg.eloScope);
+  const elegibles = allMatches
+    .filter(isPlayed)
+    // Elo es entre dos personas de la liga: contra alguien de fuera no hay
+    // rating del rival con el que compararse.
+    .filter(isInternal)
+    .filter((m) => countsForElo(m, scope));
+
+  for (const m of elegibles.sort(byDate)) {
     if (!m.playerBId) continue;
     touch(m.playerAId); touch(m.playerBId);
     const o = outcome(m);

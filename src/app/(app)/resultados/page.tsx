@@ -32,6 +32,7 @@ export default async function ResultsPage({
   const index: FilterIndex = {
     tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
     tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    tournamentScope: new Map(snap.tournaments.map((t) => [t.id, t.scope])),
     competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
     archetypesOf: (m) => {
       const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
