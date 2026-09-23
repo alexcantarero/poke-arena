@@ -8,9 +8,23 @@ import type {
    reutilizar (por ejemplo desde un script o desde un test).
    ========================================================================= */
 
+/**
+ * Los ajustes por defecto, para las funciones que se llaman sin configuración
+ * (las pruebas, sobre todo).
+ *
+ * `eloScope` va tipado como `string` y no como `EloScope` a propósito. Este
+ * objeto hace de sustituto de `Settings`, y allí la columna es `text`, o sea
+ * `string`. Si aquí se pusiera el tipo estrecho, cualquier función que tome
+ * `cfg = DEFAULT_SETTINGS` sin anotar el parámetro heredaría `EloScope` y
+ * entonces pasarle `snap.config` —que trae `string`— dejaría de compilar. Es
+ * exactamente lo que rompió el build de la v0.8.0 en `pairRound`.
+ *
+ * El estrechamiento se hace donde toca: en `asEloScope()`, al usarlo.
+ */
 export const DEFAULT_SETTINGS = {
   ptsWin: 3, ptsTie: 1, ptsLoss: 0, eloStart: 1000, eloK: 24,
-  eloScope: "competitive" as EloScope,
+  eloScope: "competitive" as string,
+  eloSince: null as string | null,
 };
 
 /* =========================================================================
@@ -136,7 +150,11 @@ function byDate(a: MatchFull, b: MatchFull) {
 export function eloTable(
   allMatches: MatchFull[],
   players: PublicPlayer[],
-  cfg: Pick<Settings, "eloStart" | "eloK"> & { eloScope?: string | null } = DEFAULT_SETTINGS,
+  cfg: Pick<Settings, "eloStart" | "eloK"> & {
+    eloScope?: string | null;
+    /** ISO. Las partidas anteriores a este día no cuentan. */
+    eloSince?: string | null;
+  } = DEFAULT_SETTINGS,
 ) {
   const rating: Record<string, number> = {};
   const history: Record<string, { date: string; value: number }[]> = {};
@@ -149,12 +167,18 @@ export function eloTable(
   for (const p of players) touch(p.id);
 
   const scope = asEloScope(cfg.eloScope);
+  const desde = cfg.eloSince || null;
+
   const elegibles = allMatches
     .filter(isPlayed)
     // Elo es entre dos personas de la liga: contra alguien de fuera no hay
     // rating del rival con el que compararse.
     .filter(isInternal)
-    .filter((m) => countsForElo(m, scope));
+    .filter((m) => countsForElo(m, scope))
+    /* La fecha de corte. Es lo que hace de «reset»: no se borra ninguna
+       partida, simplemente se empieza a contar desde aquí. Quitar la fecha
+       devuelve el Elo de antes tal cual, porque nunca se perdió nada. */
+    .filter((m) => !desde || m.date >= desde);
 
   for (const m of elegibles.sort(byDate)) {
     if (!m.playerBId) continue;
@@ -567,7 +591,12 @@ export function pairRound(
   playerIds: string[],
   playedMatches: MatchFull[],
   elo: Record<string, number> = {},
-  cfg = DEFAULT_SETTINGS,
+  /* Anotado y no inferido del valor por defecto: `pairRound` solo se lo pasa
+     a `standings`, así que lo que necesita son estos cuatro campos y nada
+     más. Sin la anotación, TypeScript deducía el tipo del objeto por defecto
+     —con todos sus campos y sus tipos literales— y pasarle `snap.config`
+     dejaba de compilar. */
+  cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = DEFAULT_SETTINGS,
 ) {
   const seen = new Set<string>();
   for (const m of playedMatches.filter(isPlayed)) {

@@ -266,11 +266,56 @@
     background: var(--ground);
     color: var(--ink);
     font-family: var(--font-sans);
-    /* Evita el zoom automático de iOS al enfocar un campo: nunca menos de 16px. */
     font-size: 16px;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
+  }
+
+  /* =====================================================================
+     Nada puede ensanchar la página.
+
+     Esto es lo que arreglaba el «al alejar el zoom, la barra de arriba sale
+     cortada». Si un solo elemento —una tabla ancha, un nombre larguísimo, un
+     `min-w` -  se sale por la derecha, el documento se hace más ancho que la
+     ventana. Y entonces pasan dos cosas a la vez: aparece scroll horizontal,
+     y la cabecera `sticky`, que solo mide el ancho de la ventana, deja de
+     cubrir la parte de la derecha. Se ve exactamente como una barra cortada.
+
+     `clip` y no `hidden`: `hidden` crea un contexto de desplazamiento y
+     rompe `position: sticky` de los hijos, que es justo lo que se quiere
+     conservar. `clip` recorta sin crear ese contexto.
+
+     Ojo: esto tapa el síntoma en toda la app, pero si algún día algo se sale
+     de verdad, se queda recortado en silencio. Los sitios donde el contenido
+     ES ancho a propósito —la matriz, las tablas— llevan su propio
+     `overflow-x-auto` y siguen desplazándose con el dedo.
+     ===================================================================== */
+  html, body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* =====================================================================
+     El zoom de iOS al enfocar un campo.
+
+     Safari en iPhone hace zoom automático sobre cualquier `input`, `select`
+     o `textarea` cuyo tamaño de letra sea **menor de 16px**, y después no
+     vuelve solo: te deja la página ampliada, con la cabecera medio fuera.
+     Eso es lo que pasaba al tocar el buscador de mazos o el cuadro de la
+     lista, que iban a 14px.
+
+     Con `!important` y a propósito: las utilidades de Tailwind (`text-sm`)
+     ganan a un selector de elemento, así que sin él esto no haría nada. Va
+     limitado a punteros gruesos —dedos— para no tocar el escritorio, donde
+     un campo pequeño a veces es justo lo que se quiere.
+     ===================================================================== */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
   h1, h2, h3 {
     font-family: var(--font-display);
@@ -294,9 +339,14 @@
      aparece una barra blanca de sistema en mitad de la página y canta mucho.
      `scrollbar-gutter` reserva su hueco siempre, así que al pasar de una
      pantalla corta a una larga el contenido no se desplaza 15px de golpe. */
-  html {
-    scrollbar-gutter: stable;
-    scrollbar-color: var(--line) transparent;
+  /* El hueco reservado para la barra de desplazamiento solo tiene sentido
+     donde hay barra: en el móvil es una franja muerta a la derecha que
+     estrecha el contenido sin motivo. */
+  @media (pointer: fine) {
+    html {
+      scrollbar-gutter: stable;
+      scrollbar-color: var(--line) transparent;
+    }
   }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -310,6 +360,12 @@
   /* Ninguna imagen se sale de su hueco. Las de carta y los sprites vienen de
      CDNs de terceros con tamaños que no controlamos. */
   img, svg, video { max-width: 100%; }
+
+  /* Lo mismo para lo que trae texto largo sin espacios: una URL pegada en
+     una nota, o el nombre de una carta en `font-mono`. Sin esto, una sola
+     línea larga ensancha la página entera. */
+  pre, code { max-width: 100%; overflow-wrap: anywhere; }
+  table { max-width: 100%; }
 }
 
 /* Números que se leen en columna, uno debajo de otro. Va como @utility para
@@ -407,6 +463,12 @@
   }
   .card-head {
     @apply flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3 sm:px-5;
+  }
+  /* El primer hijo de una cabecera es siempre el título, y un título largo
+     sin `min-width: 0` no se deja truncar: empuja y ensancha la tarjeta. Es
+     la causa más común de que en el móvil aparezca scroll lateral. */
+  .card-head > :first-child {
+    min-width: 0;
   }
 
   .label {

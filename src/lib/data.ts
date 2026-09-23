@@ -3,14 +3,13 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  matches, players, ptcgLiveMatches, settings, tournamentResults, tournaments,
+  matches, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
 import type {
   DeckOption, Game, MatchFull, PublicPlayer, Settings, TournamentFull, TournamentResult,
 } from "./types";
 import { deckArchetypeIndex, eloTable } from "./stats";
-import { parseResult } from "./ptcglive";
 import { computeCp, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
 
@@ -55,6 +54,7 @@ const DEFAULT_SETTINGS: Settings = {
   ptsWin: 3, ptsTie: 1, ptsLoss: 0,
   eloStart: 1000, eloK: 24,
   eloScope: "competitive",
+  eloSince: null,
   ratingZone: "europe",
   registrationOpen: true,
   updatedAt: new Date(),
@@ -309,25 +309,4 @@ export async function loadPlayerEmails(): Promise<Record<string, string>> {
 /** Invitaciones vigentes. Solo se cargan cuando hacen falta (pantalla de ajustes). */
 export async function loadInvites() {
   return db.select().from(invites).orderBy(desc(invites.createdAt));
-}
-
-
-/**
- * El historial de TCG Live de una persona, del más nuevo al más viejo.
- *
- * Aparte del snapshot a propósito: solo lo pide su pantalla, y en el resto de
- * la app estas partidas no pintan nada. Meterlo en `loadSnapshot` habría
- * cargado el historial de todo el mundo en cada petición de cualquier
- * pantalla, que es justo lo contrario de lo que conviene.
- */
-export async function loadLiveMatches(playerId: string) {
-  const rows = await db.select().from(ptcgLiveMatches)
-    .where(eq(ptcgLiveMatches.playerId, playerId))
-    .orderBy(desc(ptcgLiveMatches.date), desc(ptcgLiveMatches.importedAt));
-
-  return rows.map((row) => {
-    const result = parseResult(row.result);
-    if (!result) throw new Error(`Resultado inválido en la partida TCG Live ${row.id}`);
-    return { ...row, result };
-  });
 }

@@ -156,12 +156,23 @@ export function Pips({ match, from }: { match: MatchFull; from: Side }) {
   );
 }
 
+/**
+ * Un récord, en el orden en que se dice: **victorias – derrotas – empates**.
+ *
+ * Ojo con esto, que es la fuente de confusión número uno: aquí se escribía
+ * V–E–D, y en Pokémon —y en cualquier torneo— se dice y se escribe V–D–E.
+ * Un «3–1» siempre quiere decir tres victorias y una derrota. Los nombres de
+ * los parámetros siguen siendo `w`, `d` (draws) y `l` para no tocar las seis
+ * pantallas que lo usan; lo que cambia es el orden en que se pintan.
+ *
+ * El empate solo aparece si lo hay: un «3–1–0» es ruido.
+ */
 export function Record({ w, d, l }: { w: number; d: number; l: number }) {
   return (
-    <span className="font-mono text-[13px] font-medium whitespace-nowrap">
+    <span className="font-mono text-[13px] font-medium whitespace-nowrap" title="Victorias–derrotas–empates">
       <b className="text-win">{w}</b>
-      {d > 0 && <>–<span className="text-tie">{d}</span></>}
       –<span className="text-loss">{l}</span>
+      {d > 0 && <>–<span className="text-tie">{d}</span></>}
     </span>
   );
 }

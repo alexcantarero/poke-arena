@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
+import { byPlayer, type PlacementRow } from "@/lib/tournamentStats";
+import { getSeason } from "@/lib/cp";
+import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { readSession } from "@/lib/auth";
-import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
+import { archetypeStats, isInternal, isPlayed, outcome, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
   Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
@@ -10,8 +13,10 @@ import {
 import { Icon } from "@/components/icons";
 import { HomeCharts } from "@/components/HomeCharts";
 
-export default async function HomePage() {
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+export default async function HomePage({
+  searchParams,
+}: { searchParams: Promise<{ tipo?: string }> }) {
+  const [q, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
   const played = snap.matches.filter(isPlayed);
   const pending = snap.matches.filter((m) => m.status === "scheduled");
 
@@ -81,6 +86,62 @@ export default async function HomePage() {
     };
   });
 
+  /* --------------------------------------------------------------
+     Conversión en torneos: de cada diez veces que vas, cuántas llegas.
+
+     Es otra pregunta distinta a la del ranking. El ranking dice quién gana
+     más partidas; esto dice quién convierte. Hay gente que gana muchas
+     rondas y se queda en la burbuja.
+
+     El filtro por tipo de torneo va por URL, como el resto de la app: el
+     enlace se comparte y la vuelta atrás funciona.
+     -------------------------------------------------------------- */
+  const tiposConTorneos = [...new Set(snap.tournaments.map((t) => t.kind))];
+  const tipo = q.tipo && tiposConTorneos.includes(q.tipo) ? q.tipo : "";
+  const cpTable = getSeason(snap.config.cpSeason);
+
+  const placements: PlacementRow[] = snap.tournaments
+    .filter((t) => !tipo || t.kind === tipo)
+    .flatMap((t) => t.results.map((r) => ({
+      playerId: r.playerId,
+      archetypeId: r.archetypeId
+        ?? (r.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null),
+      placement: r.placement ?? null,
+      date: t.date,
+      kind: t.kind,
+      playerCount: t.playerCount ?? null,
+      topCut: t.topCut ?? null,
+    })));
+
+  /* El %V y las victorias de partidas salen de las rondas de torneo, no de
+     los puestos: son dos cosas distintas y conviene verlas juntas. */
+  const rondas = played.filter((m) => m.tournamentId)
+    .filter((m) => !tipo || snap.toursById.get(m.tournamentId as string)?.kind === tipo);
+
+  const conversion: ConvRow[] = [...byPlayer(placements).entries()]
+    .map(([playerId, stats]) => {
+      const p = snap.playersById.get(playerId);
+      const mias = rondas.filter((m) => m.playerAId === playerId);
+      const ganadas = mias.filter((m) => outcome(m).winner === "a").length;
+      const perdidas = mias.filter((m) => outcome(m).winner === "b").length;
+      const empatadas = mias.length - ganadas - perdidas;
+      return {
+        ...stats,
+        id: playerId,
+        label: p?.name ?? "—",
+        icon: <Avatar player={p} size="sm" />,
+        href: `/perfil/${playerId}`,
+        matchWins: ganadas,
+        matchWinRate: mias.length ? (ganadas + empatadas / 2) / mias.length : null,
+      };
+    })
+    .sort((a, b) =>
+      (b.cutRate ?? -1) - (a.cutRate ?? -1)
+      || (b.top4Rate ?? -1) - (a.top4Rate ?? -1)
+      || b.entries - a.entries);
+
+  const tipoHref = (k: string) => (k ? `/?tipo=${k}` : "/");
+
   return (
     <>
       <PageHead
@@ -117,6 +178,51 @@ export default async function HomePage() {
           note={myCp ? `temporada ${myCp.season}${myCp.confirmed ? "" : " · provisional"}` : "sin torneos"}
         />
       </div>
+
+      {/* --------------------- conversión en torneos --------------------- */}
+      {conversion.length > 0 && (
+        <section className="card mb-4">
+          <div className="card-head">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Conversión en torneos</h2>
+              <p className="text-xs text-muted">
+                De cada vez que vais, cuántas llegáis al corte. No es lo mismo que ganar
+                rondas.
+              </p>
+            </div>
+            <span className="flex-none text-xs text-muted">{placements.length} resultados</span>
+          </div>
+
+          {tiposConTorneos.length > 1 && (
+            <div className="scroll-x flex gap-2 px-4 pt-3">
+              <Link href={tipoHref("")} aria-current={!tipo ? "page" : undefined}
+                className={`chip flex-none ${!tipo ? "chip-brand" : ""}`}>
+                Todos
+              </Link>
+              {tiposConTorneos.map((k) => (
+                <Link key={k} href={tipoHref(k)} aria-current={tipo === k ? "page" : undefined}
+                  className={`chip flex-none ${tipo === k ? "chip-brand" : ""}`}>
+                  {cpTable.events[k]?.label ?? k}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-2">
+            <ConversionTable
+              rows={conversion}
+              matchColumns
+              empty="Nadie tiene todavía un puesto apuntado en un torneo de este tipo."
+            />
+          </div>
+
+          <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
+            <b>%Cut</b> se calcula solo sobre los torneos que tenían top cut: un Challenge sin
+            corte no cuenta como corte fallado, y por eso a veces sale un guion en vez de un
+            cero. <b>%V</b> y <b>V</b> son de partidas, no de torneos.
+          </p>
+        </section>
+      )}
 
       {pending.length > 0 && (
         <section className="card mb-4">

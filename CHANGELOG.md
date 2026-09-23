@@ -2,6 +2,137 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.10.0] — 2026-09-23
+
+Medallas, conversión a top cut y una limpieza. **Toca la base de datos**: una columna nueva y
+una tabla que desaparece.
+
+### Añadido
+
+**Medallas de gimnasio**
+- Nueve medallas, con bronce, plata y oro cada una, en el perfil. Se calculan solas de lo que
+  ya hay: partidas, victorias, racha, arquetipos distintos, listas guardadas, torneos, cortes,
+  CP y rondas anotadas con el turno inicial. Nadie las concede y nadie las quita.
+- **Se ven todas, ganadas o no**, con lo que falta debajo: «te faltan 2 victorias». Una
+  vitrina con huecos es la mitad de la gracia; una que además dice qué falta es lo que hace
+  que alguien registre la partida.
+- Ninguna depende de los demás. En un grupo de cinco, una medalla por ser el primero del
+  ranking es una alegría y cuatro frustraciones: todo se mide contra uno mismo.
+
+**Conversión: cuántas veces que vas, llegas**
+- Motor nuevo en `src/lib/tournamentStats.ts` con cuatro cifras —conversión al top cut,
+  top 8, top 4 y torneos ganados— y sus pruebas.
+- **El denominador del corte va aparte**, y es el detalle que hace que el número signifique
+  algo: la conversión solo se calcula sobre torneos que **tenían** top cut. Un Challenge de
+  12 personas sin corte no cuenta como corte fallado. Cuando no hay nada que medir sale un
+  guion, no un cero: «todavía no hay dato» y «cero por ciento» no son lo mismo.
+
+**En Inicio: ranking de conversión**
+- Tabla nueva con %Cut, %Top 8, %Top 4, %Ganados, %V de partidas y victorias, por jugador,
+  con **filtro por tipo de torneo** por URL. En móvil son tarjetas: seis columnas de
+  porcentajes en 375px no se leen.
+
+**En Estadísticas: qué mazos llegan al corte**
+- La misma tabla por arquetipo, respetando los filtros que ya había arriba, y debajo una
+  gráfica de la conversión **mes a mes**.
+- Por mes y no por torneo a propósito: con un punto por torneo cada valor es un 0% o un 100%
+  y la línea es un electrocardiograma. Los meses sin torneos no se rellenan con ceros, que
+  dibujaría caídas que no han pasado.
+
+**En el perfil: mejores resultados**
+- Los cuatro mejores puestos, como los que salen debajo del nombre en el stream. A igual
+  puesto manda el torneo más grande: un top 8 de 300 personas no es un top 8 de 20.
+- Encima, las cuatro cifras de conversión de esa persona.
+
+**Reiniciar el Elo**
+- Ajuste **«Contar el Elo desde»** y un botón de «empezar de cero hoy».
+- No borra nada, y esto importa: el Elo no está guardado en la base, se recalcula desde las
+  partidas en cada carga. Poner una fecha hace que todos vuelvan al Elo inicial y se
+  reconstruya desde ahí; quitarla devuelve el ranking anterior exactamente como estaba.
+
+### Corregido
+
+- **El ranking no enseñaba el avatar.** La tabla recibía `avatarKind` y `avatarValue` y **no
+  los usaba**: pintaba un círculo con la inicial, así que quien tenía un Pokémon o una foto no
+  la veía. Es una pantalla de cliente —ordena sin recargar— e importar el `Avatar` se llevaría
+  `lib/stats` y `lib/pokemon` al navegador, así que el avatar se pinta en el servidor y viaja
+  ya hecho, como ya hacían las gráficas de la portada.
+- **El récord se escribía V–E–D y se dice V–D–E.** Un «3–1» son tres victorias y una derrota.
+  Cambiado en el componente `Record` —y con él en las seis pantallas que lo usan— y en la
+  tabla del ranking. El empate solo aparece cuando lo hay.
+
+**Móvil**
+- **El zoom al enfocar un campo.** Safari en iPhone amplía solo en cuanto un `input`, `select`
+  o `textarea` baja de 16px, y luego no vuelve. El cuadro de la lista y el buscador de mazos
+  iban a 14px. Ahora todos los campos van a 16px en pantallas táctiles.
+- **La barra de arriba cortada al alejar el zoom.** La causa era el desbordamiento horizontal:
+  basta con que un elemento se salga por la derecha para que el documento sea más ancho que la
+  ventana, y entonces la cabecera `sticky` —que solo mide el ancho de la ventana— deja de
+  cubrir la derecha. Se ve como una barra cortada. Ahora `html` y `body` recortan con
+  `overflow-x: clip`, que a diferencia de `hidden` no rompe el `sticky` de los hijos. Lo que
+  es ancho a propósito —la matriz, las tablas— sigue desplazándose con el dedo.
+- El teclado ya no empuja la cabecera fuera de la pantalla (`interactiveWidget`).
+- La barra de desplazamiento reservada solo se aplica donde hay ratón; en el móvil era una
+  franja muerta que estrechaba el contenido.
+- Los títulos largos de las tarjetas ya no ensanchan la página.
+
+### Quitado
+
+- **Pokémon TCG Live.** Fuera la pantalla, el importador, las acciones, las pruebas, la
+  entrada del menú y la tabla. La razón es la que dio Ibai y es buena: TCG Live no tiene
+  ninguna forma de exportar el historial de partidas, así que lo único posible era teclearlo a
+  mano, y eso no lo hace nadie dos semanas seguidas. Mejor no tenerlo que tenerlo vacío.
+
+### Base de datos
+
+- `settings.elo_since` (fecha, nula = desde el principio).
+- `DROP TABLE ptcg_live_matches`. **Irreversible**: si habías importado algo y lo quieres,
+  sácalo antes.
+- `npm run db:push`, o `drizzle/0006_v0_10_0.sql` a mano.
+
+### Pruebas
+
+- 113 en total: 24 nuevas del motor de conversión y de las medallas; fuera las 25 del
+  importador de TCG Live.
+
+## [0.9.1] — 2026-09-22
+
+Arreglo del build. La v0.9.0 no compilaba.
+
+### Corregido
+
+- **`pairRound` dejó de compilar al pasarle `snap.config`.** La culpa es de cómo se añadió
+  `eloScope` en la v0.8.0: se puso en `DEFAULT_SETTINGS` con el tipo estrecho
+  (`"competitive" as EloScope`), y `pairRound` toma `cfg = DEFAULT_SETTINGS` **sin anotar el
+  parámetro**, así que TypeScript le dedujo ese tipo. `snap.config` trae `eloScope: string`
+  —la columna es `text`— y `string` no es asignable a `EloScope`.
+
+  Dos arreglos, porque uno solo tapa el síntoma:
+  - `DEFAULT_SETTINGS.eloScope` pasa a ser `string`. Es lo correcto: ese objeto hace de
+    sustituto de `Settings`, y allí la columna es `text`. El estrechamiento se hace donde
+    toca, en `asEloScope()`.
+  - `pairRound` anota su `cfg` explícitamente con los cuatro campos que de verdad usa, en vez
+    de heredar el tipo del valor por defecto. Un parámetro que se infiere de un objeto
+    literal es una trampa esperando a que alguien añada un campo.
+
+- **Los ejes con sprites, escritos de otra forma.** `tick={<TickSpriteX …/>}` pasaba un
+  elemento con props propias donde Recharts declara «elemento SVG o función que devuelve
+  uno». Ahora va como función —`tick={(props) => <TickSpriteX {...props} …/>}`— y los dos
+  componentes de tick devuelven `<g />` en vez de `null` cuando no hay fila. No cambia nada de
+  lo que se ve.
+
+- **Las pruebas del corte ya no dependen de que `assert.ok` estreche el tipo.** Eso funciona
+  solo si TypeScript ve la firma `asserts value` de `@types/node`, y `next build` también
+  tipa la carpeta `tests/`. Hay un ayudante `noNulo()` que comprueba y devuelve el valor ya
+  no nulo.
+
+### Nota
+
+Aquí no se puede ejecutar `npm run build`: el registro de npm está capado en este entorno y
+no hay forma de instalar `next`, `drizzle-orm` ni `@types/react`. Sin esos tipos, un `tsc`
+local ve medio proyecto como `unknown` y estos tres fallos quedaban escondidos entre el ruido.
+Lo que sí se ejecuta y se ejecutó: las 118 pruebas y el comprobador estático de imports.
+
 ## [0.9.0] — 2026-09-21
 
 El arreglo de los CP que no aparecían, el calendario en color y el orden de los torneos.

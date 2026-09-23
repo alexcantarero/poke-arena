@@ -1,6 +1,6 @@
 # Arena — liga privada de Pokémon TCG
 
-**v0.9.0**
+**v0.10.0**
 
 Web para llevar vuestra liga entre amigos: ranking con Elo y resistencia, resultados juego a
 juego, calendario, estadísticas de metagame —las vuestras y las del mundo— con matriz de
@@ -10,7 +10,7 @@ crecer.
 
 ```
 Inicio · Ranking · Resultados · Calendario · Estadísticas · Torneos
-Mazos · Competiciones · Top Decks · TCG Live · Perfil · Ajustes
+Mazos · Competiciones · Top Decks · Perfil · Ajustes
 ```
 
 | | |
@@ -30,6 +30,10 @@ Mazos · Competiciones · Top Decks · TCG Live · Perfil · Ajustes
 
 ## Qué hay de nuevo
 
+- **v0.10.0** — **medallas de gimnasio** en el perfil, **conversión a top cut** por jugador
+  (Inicio) y por mazo (Estadísticas) con gráfica mes a mes, **mejores resultados** al estilo
+  del stream, reinicio del Elo por fecha de corte, el récord en V–D–E, el avatar en el
+  ranking, y el zoom del móvil arreglado. Fuera TCG Live. **Toca la base de datos.**
 - **v0.9.0** — arreglados los **CP que no aparecían** al poner la asistencia tarde (ninguna
   pantalla lee ya la columna en crudo), campo de asistencia en la propia ficha del torneo que
   dice cuántos CP se está dejando cada uno, **calendario en color** y filtrable por tipo con
@@ -139,7 +143,6 @@ src/
       ranking/ resultados/ calendario/ estadisticas/ torneos/
       perfil/[id]/ mazos/ competiciones/ partidas/ mas/ ajustes/
       topdecks/             el metagame mundial, para elegir mazo
-      live/                 tu historial de Pokémon TCG Live
   components/
     ui.tsx                  piezas con datos: jugador, arquetipo, partida, barras
     primitives.tsx          piezas sin dependencias: Kpi y esqueletos (las usa el cliente)
@@ -148,6 +151,9 @@ src/
     MulliganSim.tsx         simulador de manos
     CardSearch.tsx          buscador de cartas
     AttendanceForm.tsx      la asistencia del torneo, y qué CP desbloquea
+    BadgeCase.tsx           la vitrina de medallas del perfil
+    BestFinishes.tsx        los cuatro mejores puestos, como en el stream
+    ConversionTable.tsx     la tabla de conversión, para gente y para mazos
     CutOutlook.tsx          qué te hace falta para entrar en el top cut
     LiveImport.tsx          pegar el historial de TCG Live
     Matrix.tsx              matriz de emparejamientos
@@ -160,9 +166,10 @@ src/
   lib/
     stats.ts                motor de estadísticas (funciones puras)
     filters.ts              el motor de filtros, compartido por pantallas y API
+    badges.ts               las medallas y sus escalones
     calendar.ts             los colores del calendario, uno por tipo de torneo
+    tournamentStats.ts      conversión a top cut, top 8, top 4 y torneos ganados
     cut.ts                  la línea de corte de un suizo, estimada con la binomial
-    ptcglive.ts             el importador de historiales de TCG Live
     mulligan.ts             probabilidad hipergeométrica y barajado Fisher-Yates
     cp.ts                   Championship Points: tablas por temporada y Best Finish Limit
     decklist.ts             importador de listas PTCG Live / PTCGO / Limitless
@@ -179,7 +186,7 @@ src/
 scripts/
   sync-archetypes.ts        trae el catálogo de arquetipos desde Limitless
   create-invite.ts          genera el enlace de la primera invitación
-tests/                      cp, rank, rounds, mulligan, cut, ptcglive y v0_5_0 — 118 pruebas
+tests/                      cp, rank, rounds, mulligan, cut, badges, conversión y v0_5_0 — 113 pruebas
 docs/                       esta documentación
 ```
 
@@ -193,6 +200,8 @@ docs/                       esta documentación
 | Cambiar los colores del calendario | `src/lib/calendar.ts` |
 | Actualizar los eventos oficiales de Europa | `src/data/eventos-europa.ts`, y volver a importar |
 | Corregir la asistencia de un torneo ya creado | La propia ficha del torneo: recalcula sola |
+| Cambiar las medallas o sus escalones | `src/lib/badges.ts` |
+| Reiniciar el Elo | Ajustes → «Contar el Elo desde» |
 | Cambiar colores, sombras, tipografías, espaciados | `src/app/globals.css` |
 | Cambiar el aspecto de un KPI o de un esqueleto de carga | `src/components/primitives.tsx` |
 | Cambiar lo que se ve mientras carga una pantalla | el `loading.tsx` de esa carpeta |
@@ -240,7 +249,7 @@ npm run db:seed              # datos de ejemplo
 npm run db:seed -- --empty   # solo configuración y arquetipos, sin partidas inventadas
 npm run archetypes:sync      # traer arquetipos desde Limitless
 npm run invite               # generar un enlace de invitación desde la terminal
-npm test                     # 118 pruebas: CP, ranking, rondas, mulligan, corte, TCG Live y v0.5.0
+npm test                     # 113 pruebas: CP, ranking, rondas, mulligan, corte, medallas y conversión
 npm run ui:add <componente>  # añadir un componente de shadcn/ui (ver abajo)
 ```
 
@@ -270,7 +279,11 @@ Conviene tenerlo escrito, porque son preguntas que vuelven:
 
 - **Pokémon TCG Live no tiene API ni exportación.** No hay forma automática de bajarse tus
   partidas del cliente, y cualquier documento que prometa una integración está prometiendo
-  algo que no existe. Por eso la pantalla de TCG Live importa texto pegado.
+  algo que no existe. En la v0.8.0 hubo un importador de texto pegado; se retiró en la
+  v0.10.0 porque teclear el historial a mano no lo sostiene nadie.
+- **El Elo no está guardado en la base.** Se recalcula desde las partidas en cada carga, así
+  que no hay un número que poner a cero. «Reiniciarlo» es poner una fecha de corte en Ajustes,
+  y quitarla lo devuelve todo.
 - **La API de Limitless no filtra por país.** El parámetro se ignora y devuelve el listado
   mundial igual. El metagame que se ve es mundial y la pantalla lo dice con esas palabras, en
   vez de poner un selector de región que no haría nada.

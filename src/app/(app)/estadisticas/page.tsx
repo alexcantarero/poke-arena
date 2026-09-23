@@ -16,6 +16,9 @@ import { FilterPanel } from "@/components/FilterPanel";
 import { SourceTabs } from "@/components/statistics/SourceTabs";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { ArchetypeChart } from "@/components/statistics/Charts";
+import { ConversionChart } from "@/components/statistics/ConversionChart";
+import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
+import { byArchetype, overTime, type PlacementRow } from "@/lib/tournamentStats";
 
 export const metadata = { title: "Estadísticas" };
 
@@ -98,6 +101,51 @@ export default async function StatsPage({
     winRate: a.winRate,
     share: rows.length ? a.played / (rows.length * 2) : 0,
   }));
+
+  /* --------------------------------------------------------------
+     Rendimiento por mazo en torneos.
+
+     Ojo a la diferencia con «Uso del metagame» y «Rendimiento», que están
+     más abajo: aquellas miran PARTIDAS —cuánto se juega un mazo y cuántas
+     rondas gana— y esta mira TORNEOS —con cuántos llega al corte—. Un mazo
+     puede ganar muchas rondas y no cerrar nunca, y al revés.
+
+     Se respeta el filtro de tipo de torneo del panel de arriba, que es el
+     que ya existe, en vez de inventar otro filtro distinto al lado.
+     -------------------------------------------------------------- */
+  const placements: PlacementRow[] = snap.tournaments
+    .filter((t) => !filter.tournamentKind || t.kind === filter.tournamentKind)
+    .filter((t) => !filter.tournamentId || t.id === filter.tournamentId)
+    .filter((t) => !filter.from || t.date >= filter.from)
+    .filter((t) => !filter.to || t.date <= filter.to)
+    .flatMap((t) => t.results.map((r) => ({
+      playerId: r.playerId,
+      archetypeId: r.archetypeId
+        ?? (r.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null),
+      placement: r.placement ?? null,
+      date: t.date,
+      kind: t.kind,
+      playerCount: t.playerCount ?? null,
+      topCut: t.topCut ?? null,
+    })));
+
+  const porMazo: ConvRow[] = [...byArchetype(placements).entries()]
+    .map(([archetypeId, stats]) => {
+      const a = snap.archById.get(archetypeId);
+      return {
+        ...stats,
+        id: archetypeId,
+        label: a?.name ?? archetypeId,
+        icon: <Sprites archetype={a} size="sm" />,
+        href: `/estadisticas?arch=${archetypeId}`,
+      };
+    })
+    .sort((a, b) =>
+      (b.cutRate ?? -1) - (a.cutRate ?? -1)
+      || (b.top4Rate ?? -1) - (a.top4Rate ?? -1)
+      || b.entries - a.entries);
+
+  const evolucion = overTime(placements);
 
   const resumen = describeFilter(filter, {
     tournament: (id) => snap.toursById.get(id)?.name,
@@ -226,6 +274,43 @@ export default async function StatsPage({
             }))}
           />
         </section>
+      )}
+
+      {/* -------------------- rendimiento en torneos por mazo ------------------- */}
+      {placements.length > 0 && (
+        <>
+          <section className="card mt-4">
+            <div className="card-head">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold">Qué mazos llegan al corte</h2>
+                <p className="text-xs text-muted">
+                  Esto mira <b>torneos</b>, no partidas: con qué mazo se entra en el top cut.
+                </p>
+              </div>
+              <span className="flex-none text-xs text-muted">{porMazo.length} mazos</span>
+            </div>
+            <ConversionTable
+              rows={porMazo}
+              empty="Ningún resultado de torneo tiene el mazo apuntado todavía."
+            />
+            <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
+              <b>%Cut</b> sale solo de los torneos que tenían top cut, así que un guion quiere
+              decir «no había nada que convertir», no un cero. Usa los filtros de arriba para
+              recortar por tipo de torneo o por fechas.
+            </p>
+          </section>
+
+          {evolucion.length > 1 && (
+            <section className="card mt-4 p-4">
+              <h2 className="mb-1 text-lg font-bold">Conversión mes a mes</h2>
+              <p className="mb-3 text-xs text-muted">
+                Todos los resultados del grupo juntos, agrupados por mes. Los meses sin
+                torneos no salen: rellenarlos con ceros dibujaría caídas que no han pasado.
+              </p>
+              <ConversionChart points={evolucion} />
+            </section>
+          )}
+        </>
       )}
 
       <section className="card mt-4">

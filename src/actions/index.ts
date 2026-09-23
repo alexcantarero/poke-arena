@@ -6,7 +6,7 @@ import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, matches, players, ptcgLiveMatches, settings, tournamentResults, tournaments,
+  ladderEntries, matches, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -14,13 +14,12 @@ import {
   writeSession,
 } from "@/lib/auth";
 import { parseDeckList, suggestArchetype } from "@/lib/decklist";
-import { parseLiveHistory } from "@/lib/ptcglive";
 import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
 import { isIsoDate, newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
 import { cpForPlacement, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
-import { asEloScope, pairRound } from "@/lib/stats";
+import { pairRound } from "@/lib/stats";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
@@ -1234,10 +1233,7 @@ export async function createPairings(fd: FormData) {
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
   if (comp.rounds > 0 && nextRound > comp.rounds) return;
 
-  const { pairs } = pairRound(comp.kind, ids, inComp, snap.elo.rating, {
-    ...snap.config,
-    eloScope: asEloScope(snap.config.eloScope),
-  });
+  const { pairs } = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config);
   if (!pairs.length) return;
 
   await db.insert(matches).values(
@@ -1284,6 +1280,42 @@ export async function saveEvent(fd: FormData) {
   else await db.insert(events).values({ id, ...values });
   refresh();
   redirect(withFlash("/calendario", "ok", editing ? "Evento guardado." : "Evento añadido."));
+}
+
+/**
+ * Empezar el Elo de cero desde hoy.
+ *
+ * No borra nada: pone la fecha de corte a hoy, y a partir de ahí `eloTable`
+ * ignora lo anterior. Todos vuelven al Elo inicial y se reconstruye con las
+ * partidas nuevas.
+ *
+ * Es reversible desde Ajustes quitando la fecha, porque las partidas siguen
+ * exactamente donde estaban. Por eso esto no pide confirmación: lo que pide
+ * confirmación es lo que no se puede deshacer.
+ */
+export async function resetElo() {
+  await requireManager();
+  const hoy = todayISO();
+
+  const existing = await db.select().from(settings).where(eq(settings.id, "default"));
+  if (existing[0]) {
+    await db.update(settings).set({ eloSince: hoy, updatedAt: new Date() })
+      .where(eq(settings.id, "default"));
+  } else {
+    await db.insert(settings).values({ id: "default", eloSince: hoy });
+  }
+
+  refresh();
+  redirect(withFlash("/ajustes", "ok", `Elo reiniciado: solo cuentan las partidas desde el ${hoy}.`));
+}
+
+/** Volver a contar el Elo desde el principio. */
+export async function clearEloReset() {
+  await requireManager();
+  await db.update(settings).set({ eloSince: null, updatedAt: new Date() })
+    .where(eq(settings.id, "default"));
+  refresh();
+  redirect(withFlash("/ajustes", "ok", "El Elo vuelve a contar todas las partidas."));
 }
 
 /** Los tipos de torneo que el calendario sabe colorear. */
@@ -1376,6 +1408,9 @@ export async function saveSettings(fd: FormData) {
     eloScope: ["all", "competitive", "tournaments"].includes(str(fd, "eloScope"))
       ? str(fd, "eloScope")
       : "competitive",
+    // Vacío = desde el principio. `isoDate` con null por defecto ya rechaza
+    // cualquier cosa que no sea una fecha de verdad.
+    eloSince: isoDate(fd, "eloSince", null),
     ratingZone: str(fd, "ratingZone") || "europe",
     registrationOpen: bool(fd, "registrationOpen"),
     updatedAt: new Date(),
@@ -1879,104 +1914,4 @@ export async function purgePlayer(fd: FormData) {
   await db.delete(players).where(eq(players.id, id));
   refresh();
   redirect("/ajustes");
-}
-
-
-/* ============================================ Pokémon TCG Live (v0.8.0) ==== */
-
-/**
- * Importar partidas del cliente de Pokémon TCG Live desde texto pegado.
- *
- * Tres cosas que esta acción hace a propósito:
- *
- * · **Vuelve a interpretar el texto en el servidor.** La pantalla ya lo
- *   analiza mientras se escribe para poder enseñar la previsualización, pero
- *   eso es una comodidad del navegador: lo que se guarda sale de analizar
- *   aquí el texto original. Una Server Action es un endpoint público y lo
- *   que llegue de fuera no se guarda por las buenas.
- * · **Solo se importa para uno mismo.** El `playerId` sale de la cookie, no
- *   del formulario. Si viniera del formulario, cualquiera podría llenar de
- *   partidas el historial de otro.
- * · **Los duplicados no son un error.** Quien vuelve a pegar su hoja entera
- *   para añadir las cuatro partidas de ayer está haciendo lo normal. Las
- *   repetidas se descartan en silencio y el aviso dice cuántas.
- */
-export async function importLiveMatches(fd: FormData) {
-  const me = await currentPlayer();
-  if (!me) redirect("/entrar");
-
-  const texto = String(fd.get("texto") ?? "");
-  if (!texto.trim()) {
-    redirect(withFlash("/live", "error", "No has pegado nada."));
-  }
-
-  const { rows, problems, duplicatesInPaste } = parseLiveHistory(texto, me.id);
-  if (!rows.length) {
-    redirect(withFlash("/live", "error",
-      problems.length
-        ? `No se ha podido leer ninguna línea. La primera falla porque ${problems[0].why}.`
-        : "No se ha podido leer ninguna línea."));
-  }
-
-  // Qué hay ya, de las que vienen. Se pregunta solo por estas claves y no se
-  // trae el historial entero: con dos temporadas de partidas la diferencia se
-  // nota, y aquí no hace falta nada más.
-  const claves = rows.map((r) => r.dedupeKey);
-  const existentes = new Set(
-    (await db
-      .select({ k: ptcgLiveMatches.dedupeKey })
-      .from(ptcgLiveMatches)
-      .where(inArray(ptcgLiveMatches.dedupeKey, claves))
-    ).map((r) => r.k),
-  );
-
-  const nuevas = rows.filter((r) => !existentes.has(r.dedupeKey));
-  if (nuevas.length) {
-    await db.insert(ptcgLiveMatches).values(nuevas.map((r) => ({
-      id: newId("live"),
-      playerId: me.id,
-      date: r.date,
-      myDeck: r.myDeck.slice(0, 120),
-      opponentDeck: r.opponentDeck.slice(0, 120),
-      opponentName: r.opponent.slice(0, 80),
-      result: r.result,
-      gamesWon: r.gamesWon,
-      gamesLost: r.gamesLost,
-      format: r.format.slice(0, 40),
-      dedupeKey: r.dedupeKey,
-    })));
-  }
-
-  const repetidas = rows.length - nuevas.length + duplicatesInPaste;
-  const partes = [`${nuevas.length} partida${nuevas.length === 1 ? "" : "s"} importada${nuevas.length === 1 ? "" : "s"}`];
-  if (repetidas > 0) partes.push(`${repetidas} ya estaban`);
-  if (problems.length > 0) partes.push(`${problems.length} línea(s) sin entender`);
-
-  refresh();
-  redirect(withFlash("/live", nuevas.length ? "ok" : "error", `${partes.join(" · ")}.`));
-}
-
-/** Borrar una partida importada. Solo las propias. */
-export async function deleteLiveMatch(fd: FormData) {
-  const me = await currentPlayer();
-  if (!me) redirect("/entrar");
-  const id = str(fd, "id");
-  if (!id) redirect(withFlash("/live", "error", "Falta la partida."));
-
-  // El `and` con el playerId es la comprobación de permiso, no un filtro:
-  // sin él, un id ajeno borraría la partida de otro.
-  await db.delete(ptcgLiveMatches)
-    .where(and(eq(ptcgLiveMatches.id, id), eq(ptcgLiveMatches.playerId, me.id)));
-
-  refresh();
-  redirect(withFlash("/live", "ok", "Partida borrada."));
-}
-
-/** Vaciar el historial propio. Pide confirmación en la pantalla. */
-export async function clearLiveMatches() {
-  const me = await currentPlayer();
-  if (!me) redirect("/entrar");
-  await db.delete(ptcgLiveMatches).where(eq(ptcgLiveMatches.playerId, me.id));
-  refresh();
-  redirect(withFlash("/live", "ok", "Historial de TCG Live vaciado."));
 }

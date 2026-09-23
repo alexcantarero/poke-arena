@@ -46,6 +46,19 @@ export const settings = pgTable("settings", {
    * estricta.
    */
   eloScope: text("elo_scope").notNull().default("competitive"),
+  /**
+   * Fecha de corte del Elo: las partidas anteriores no cuentan.
+   *
+   * Es la forma de «resetear» el Elo sin borrar nada. El Elo no está
+   * guardado en ninguna parte —se recalcula desde las partidas en cada
+   * carga—, así que no hay un número que poner a cero: lo que se hace es
+   * decirle desde cuándo mirar. Todos vuelven al Elo inicial y a partir de
+   * ahí se construye de nuevo.
+   *
+   * Nula por defecto, que quiere decir «desde el principio». Y reversible:
+   * se quita la fecha y vuelve todo, porque las partidas siguen ahí.
+   */
+  eloSince: date("elo_since"),
   /** Zona de clasificación, para el panel de ruta al Mundial. */
   ratingZone: text("rating_zone").notNull().default("europe"),
   /** Si está abierta, cualquiera con el enlace de invitación puede darse de alta. */
@@ -434,49 +447,6 @@ export const events = pgTable("events", {
   note: text("note").notNull().default(""),
 });
 
-/* --------------------------------------------------- Pokémon TCG Live --- */
-
-/**
- * Partidas jugadas en el cliente de Pokémon TCG Live.
- *
- * Tabla aparte de `matches`, y no una columna más, por dos razones:
- *
- * · **No son verificables.** Una partida de la liga la han visto dos
- *   personas; esta la apunta una sola y contra un desconocido. Mezclarlas
- *   metería en el ranking y en el Elo un dato que nadie puede contrastar.
- * · **No tienen la misma forma.** Aquí no hay `playerBId`, ni mazo con lista,
- *   ni competición, ni ronda. Encajarlas en `matches` habría dejado media
- *   tabla a null y una condición nueva en cada consulta.
- *
- * El mazo se guarda como **texto** y no como referencia a `archetypes`: lo
- * que uno escribe en su hoja no tiene por qué existir en el catálogo, y
- * rechazar una fila por eso sería perder el dato para ganar una integridad
- * que aquí no sirve para nada.
- */
-export const ptcgLiveMatches = pgTable("ptcg_live_matches", {
-  id: text("id").primaryKey(),
-  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
-  date: date("date").notNull(),
-  /** Tal y como lo escribió quien lo importó. */
-  myDeck: text("my_deck").notNull(),
-  opponentDeck: text("opponent_deck").notNull().default(""),
-  opponentName: text("opponent_name").notNull().default(""),
-  /** w · l · d */
-  result: text("result").notNull(),
-  gamesWon: integer("games_won"),
-  gamesLost: integer("games_lost"),
-  format: text("format").notNull().default(""),
-  /**
-   * Lo que impide importar dos veces la misma partida.
-   *
-   * Es la clave en claro y no un hash: hace lo mismo —la columna es única—
-   * y además se puede leer cuando algo no cuadra. Un hash aquí solo
-   * escondería el problema. Se compone en `src/lib/ptcglive.ts`.
-   */
-  dedupeKey: text("dedupe_key").notNull().unique(),
-  importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("live_player_idx").on(t.playerId)]);
-
 /* ------------------------------------------------------------- tipos --- */
 
 export type Player = typeof players.$inferSelect;
@@ -492,4 +462,3 @@ export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type LadderEntry = typeof ladderEntries.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
-export type PtcgLiveMatch = typeof ptcgLiveMatches.$inferSelect;
