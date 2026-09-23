@@ -142,7 +142,11 @@ export default async function CalendarPage({
             <Link className="btn btn-sm px-3" href={mesHref(prev.y, prev.m)} aria-label="Mes anterior">
               <Icon name="back" className="size-4" />
             </Link>
-            <span className="min-w-32 text-center font-display text-lg font-bold capitalize">{MONTHS[month]} {year}</span>
+            {/* Más estrecho en el móvil: con 320px de ancho, 8rem aquí más los
+                tres botones dejaba la fila sin sitio. */}
+            <span className="min-w-24 text-center font-display text-base font-bold capitalize sm:min-w-32 sm:text-lg">
+              {MONTHS[month]} {year}
+            </span>
             <Link className="btn btn-sm px-3" href={mesHref(next.y, next.m)} aria-label="Mes siguiente">
               <Icon name="back" className="size-4 rotate-180" />
             </Link>

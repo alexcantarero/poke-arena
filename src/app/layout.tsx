@@ -14,8 +14,15 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Sin maximumScale: bloquear el zoom rompe la accesibilidad en móvil.
+  // Sin maximumScale: bloquear el zoom rompe la accesibilidad en móvil. Quien
+  // necesite ampliar tiene que poder. Lo que se evita es que el navegador
+  // amplíe SOLO, y eso se arregla con el tamaño de los campos (globals.css),
+  // no capando el gesto.
   viewportFit: "cover",
+  /* Cuando sale el teclado, que se encoja el contenido en vez de que el
+     navegador desplace toda la ventana. Sin esto, al escribir en un campo de
+     abajo la cabecera fija se va hacia arriba y desaparece. */
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#eff2f8" },
     { media: "(prefers-color-scheme: dark)", color: "#080e1c" },

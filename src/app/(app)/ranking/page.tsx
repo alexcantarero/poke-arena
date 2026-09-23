@@ -3,7 +3,7 @@ import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import { archetypeStats, isPlayed, standings } from "@/lib/stats";
 import { applyMatchFilter, EMPTY_FILTER, MATCH_SCOPES, type FilterIndex, type MatchScope } from "@/lib/filters";
 import { seasonOfDate } from "@/lib/cp";
-import { PageHead, PlayerTag, Sparkline } from "@/components/ui";
+import { Avatar, PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { LadderTable } from "@/components/Ladder";
@@ -73,9 +73,11 @@ export default async function RankingPage({
     return {
       playerId: r.playerId,
       name: p?.name ?? "—",
-      color: p?.color ?? "#888",
-      avatarKind: p?.avatarKind ?? "none",
-      avatarValue: p?.avatarValue ?? "",
+      // El avatar se pinta aquí, en el servidor, y viaja ya hecho: la tabla
+      // es un componente de cliente y así no se lleva `lib/pokemon` entero
+      // al navegador solo para resolver un sprite.
+      avatar: <Avatar player={p} size="md" />,
+      avatarSm: <Avatar player={p} size="sm" />,
       played: r.played, wins: r.wins, ties: r.ties, losses: r.losses,
       points: r.points, winRate: r.winRate, resistance: r.resistance,
       diff: r.diff, elo: r.elo,

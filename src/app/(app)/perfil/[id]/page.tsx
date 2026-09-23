@@ -14,6 +14,9 @@ import {
 } from "@/components/ui";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { CpBreakdown } from "@/components/CpBreakdown";
+import { BadgeCase } from "@/components/BadgeCase";
+import { BestFinishes } from "@/components/BestFinishes";
+import { bestFinishes, convStats, type PlacementRow } from "@/lib/tournamentStats";
 import { Icon } from "@/components/icons";
 import { LadderClear, LadderEditor, RankBadge, RankProgress } from "@/components/Ladder";
 import { canManageLeague } from "@/lib/auth";
@@ -77,6 +80,49 @@ export default async function ProfilePage({
   // organizador. La comprobación de verdad está dentro de la Server Action.
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const canEditLadder = Boolean(me && (isMe || canManageLeague(me.role)));
+
+  /* --- torneos: conversión, mejores puestos y medallas ---
+     Las tres cosas salen de la misma lista de resultados, así que se arma
+     una vez. `topCut` y `playerCount` vienen del torneo, no del resultado:
+     lo que decide si un 5.º puesto fue entrar en el corte es el tamaño del
+     corte de ESE torneo. */
+  const placements: PlacementRow[] = myTours.map((t) => {
+    const r = t.results.find((x) => x.playerId === id);
+    return {
+      playerId: id,
+      archetypeId: r?.archetypeId
+        ?? (r?.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null),
+      placement: r?.placement ?? null,
+      date: t.date,
+      kind: t.kind,
+      playerCount: t.playerCount ?? null,
+      topCut: t.topCut ?? null,
+    };
+  });
+  const conv = convStats(placements);
+  const mejores = bestFinishes(placements, 4);
+
+  /* Las medallas se calculan sobre TODO, no sobre el ámbito elegido: si al
+     tocar la pestaña «Amistosos» se te apagaran las medallas, la vitrina
+     dejaría de significar nada. */
+  const total = playerRecord(mine, id);
+
+  const badgeInput = {
+    played: total.played,
+    wins: total.wins,
+    bestStreak: longestWinStreak(all, id),
+    archetypes: archs.length,
+    decksWithList: decks.filter((d) => d.list.trim().length > 0).length,
+    tournaments: conv.entries,
+    cuts: conv.cut,
+    tournamentWins: conv.wins,
+    bestPlacement: mejores[0]?.placement ?? null,
+    cp: cp.total,
+    // `firstTurn` es texto y vacío cuando no se apuntó, no null.
+    roundsWithTurn: snap.matches.filter(
+      (m) => m.tournamentId && m.playerAId === id && Boolean(m.firstTurn),
+    ).length,
+  };
 
   return (
     <>
@@ -238,6 +284,25 @@ export default async function ProfilePage({
           )}
         </section>
       </div>
+
+      {/* ------------------------- torneos: lo que se enseña ------------------------ */}
+      {placements.length > 0 && (
+        <BestFinishes
+          rows={mejores}
+          stats={conv}
+          season={cp.season}
+          nameOf={(k) => cpTable.events[k]?.label ?? k}
+          archOf={(a) => (a ? snap.archById.get(a) : undefined)}
+          tournamentOf={(d, k) =>
+            myTours.find((t) => t.date === d && t.kind === k)?.name ?? "Torneo"}
+          hrefOf={(d, k) => {
+            const t = myTours.find((x) => x.date === d && x.kind === k);
+            return t ? `/torneos/${t.id}` : undefined;
+          }}
+        />
+      )}
+
+      <BadgeCase input={badgeInput} owner={player.name} />
 
       {/* --------------------------- Championship Points --------------------------- */}
       {cp.rows.length > 0 && <CpBreakdown cp={cp} />}

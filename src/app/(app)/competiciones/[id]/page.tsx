@@ -7,7 +7,6 @@ import {
   pairRound,
   standings,
   suggestedRounds,
-  asEloScope,
 } from "@/lib/stats";
 import { pct, wrColor } from "@/lib/format";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
@@ -44,10 +43,7 @@ export default async function CompetitionPage({
   const pending = inComp.filter((m) => m.status === "scheduled");
   const table = standings(played, ids, snap.elo.rating, snap.config);
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
-  const preview = pairRound(comp.kind, ids, played, snap.elo.rating, {
-    ...snap.config,
-    eloScope: asEloScope(snap.config.eloScope),
-  });
+  const preview = pairRound(comp.kind, ids, played, snap.elo.rating, snap.config);
   const kind =
     COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
 

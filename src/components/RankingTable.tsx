@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
 
 export type RankRow = {
   playerId: string;
   name: string;
-  color: string;
-  avatarKind: string;
-  avatarValue: string;
+  /**
+   * El avatar ya pintado, que llega desde el servidor.
+   *
+   * Antes esta tabla recibía `avatarKind` y `avatarValue` y **no los usaba**:
+   * dibujaba un círculo con la inicial, así que quien tenía un Pokémon o una
+   * foto de perfil no la veía en el ranking. Y es una pantalla de cliente
+   * —ordena sin recargar—, así que importar el `Avatar` de `ui.tsx` se
+   * llevaría `lib/stats` y `lib/pokemon` enteros al navegador.
+   *
+   * La solución es la misma que ya usaban las gráficas de la portada: el
+   * servidor pinta el avatar y manda el nodo hecho. Van dos tamaños porque
+   * la tarjeta del móvil y la fila de la tabla no usan el mismo, y estirar
+   * uno con CSS deja el sprite borroso.
+   */
+  avatar: ReactNode;
+  avatarSm: ReactNode;
   played: number; wins: number; ties: number; losses: number;
   points: number; winRate: number | null; resistance: number | null;
   diff: number; elo: number; cp: number;
@@ -63,14 +76,11 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
             <Link href={`/perfil/${r.playerId}`} className="flex items-center gap-3 px-3 py-3 hover:bg-surface-2">
               <span className={`w-6 flex-none text-center font-display text-xl font-extrabold tabular
                 ${i === 0 && sort.key === "points" ? "text-brand" : "text-muted"}`}>{i + 1}</span>
-              <span className="grid size-9 flex-none place-items-center rounded-full font-display font-extrabold text-[#0d1424]"
-                style={{ background: r.color }}>
-                {r.name.slice(0, 1).toUpperCase()}
-              </span>
+              <span className="flex-none">{r.avatar}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{r.name}</span>
                 <span className="block truncate text-xs text-muted">
-                  {r.wins}–{r.ties ? `${r.ties}–` : ""}{r.losses} · {r.played} partidas
+                  {r.wins}–{r.losses}{r.ties ? `–${r.ties}` : ""} · {r.played} partidas
                   {r.topArchName ? ` · ${r.topArchName}` : ""}
                 </span>
               </span>
@@ -116,13 +126,13 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                   ${i === 0 && sort.key === "points" ? "text-brand" : "text-muted"}`}>{i + 1}</td>
                 <td>
                   <Link href={`/perfil/${r.playerId}`} className="inline-flex items-center gap-2 hover:text-info">
-                    <span className="grid size-7 flex-none place-items-center rounded-full text-[11px] font-display font-extrabold text-[#0d1424]"
-                      style={{ background: r.color }}>{r.name.slice(0, 1).toUpperCase()}</span>
+                    <span className="flex-none">{r.avatarSm}</span>
                     <span className="font-semibold">{r.name}</span>
                   </Link>
                 </td>
                 <td className="font-mono text-[13px]">
-                  <b className="text-win">{r.wins}</b>{r.ties ? <>–<span className="text-tie">{r.ties}</span></> : null}–<span className="text-loss">{r.losses}</span>
+                  {/* V–D–E, como se dice: un «3–1» son tres victorias y una derrota. */}
+                  <b className="text-win">{r.wins}</b>–<span className="text-loss">{r.losses}</span>{r.ties ? <>–<span className="text-tie">{r.ties}</span></> : null}
                 </td>
                 <td className="text-right font-semibold tabular">{r.points}</td>
                 <td className="text-right font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</td>

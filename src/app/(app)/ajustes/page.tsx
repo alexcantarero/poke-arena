@@ -10,7 +10,8 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
-import { purgePlayer, resetLeague, saveSettings, wipeSeason } from "@/actions";
+import { clearEloReset, purgePlayer, resetElo, resetLeague, saveSettings, wipeSeason } from "@/actions";
+import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Ajustes" };
 
@@ -99,17 +100,28 @@ export default async function SettingsPage() {
                 recalcula entero desde las partidas en cada carga, así que el
                 ranking sale distinto en la siguiente pantalla y se puede
                 volver atrás cuando se quiera. */}
-            <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="s-eloScope">Qué partidas mueven el Elo</label>
-              <select className="input" id="s-eloScope" name="eloScope" defaultValue={eloScope}>
-                {Object.entries(ELO_SCOPES).map(([v, d]) => (
-                  <option key={v} value={v}>{d.label}</option>
-                ))}
-              </select>
-              <p className="text-xs text-muted">
-                {ELO_SCOPES[eloScope].hint} El ranking se recalcula solo; no se pierde nada y
-                se puede deshacer.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="s-eloScope">Qué partidas mueven el Elo</label>
+                <select className="input" id="s-eloScope" name="eloScope" defaultValue={eloScope}>
+                  {Object.entries(ELO_SCOPES).map(([v, d]) => (
+                    <option key={v} value={v}>{d.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted">{ELO_SCOPES[eloScope].hint}</p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="s-eloSince">Contar el Elo desde</label>
+                <input
+                  className="input" id="s-eloSince" name="eloSince" type="date"
+                  defaultValue={snap.config.eloSince ?? ""}
+                />
+                <p className="text-xs text-muted">
+                  Vacío = desde el principio. Es la forma de reiniciar el Elo sin borrar
+                  ninguna partida.
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -142,6 +154,41 @@ export default async function SettingsPage() {
 
             <button className="btn btn-brand w-full sm:w-auto" type="submit">Guardar ajustes</button>
           </form>
+
+          {/* --- reiniciar el Elo ---
+              Va fuera del formulario de ajustes y no dentro: son acciones, no
+              campos, y meter un botón que cambia el ranking entre dos inputs
+              es pedir que alguien lo pulse sin querer. */}
+          <div className="card mb-6 p-4">
+            <p className="label mb-2">Reiniciar el Elo</p>
+            <p className="mb-3 text-sm text-muted">
+              {snap.config.eloSince
+                ? <>Ahora mismo el Elo solo cuenta las partidas desde el{" "}
+                    <b className="font-mono">{snap.config.eloSince}</b>. Todo lo anterior sigue
+                    guardado y aparece en el resto de la app; simplemente no mueve el Elo.</>
+                : <>El Elo cuenta todas las partidas desde el principio. Reiniciarlo pone a
+                    todo el mundo en {snap.config.eloStart} y empieza a contar desde hoy.</>}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <form action={resetElo}>
+                <button className="btn" type="submit">
+                  <Icon name="refresh" className="size-4" /> Empezar de cero hoy
+                </button>
+              </form>
+              {snap.config.eloSince && (
+                <form action={clearEloReset}>
+                  <button className="btn btn-ghost" type="submit">
+                    Volver a contar desde el principio
+                  </button>
+                </form>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-muted">
+              No se borra ninguna partida. El Elo no está guardado en la base: se calcula desde
+              las partidas cada vez que se pinta el ranking, así que esto es del todo
+              reversible.
+            </p>
+          </div>
 
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />
