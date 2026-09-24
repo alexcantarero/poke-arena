@@ -447,6 +447,119 @@ export const events = pgTable("events", {
   note: text("note").notNull().default(""),
 });
 
+/* ------------------------------------------- metagame presencial --- */
+
+/*
+   Lo que se jugó en un Regional, sin una sola persona dentro.
+
+   POR QUÉ EXISTEN ESTAS DOS TABLAS
+   --------------------------------
+   La API de Limitless sirve su plataforma **online**. Los Regionales
+   presenciales están en su web y en RK9, y de ahí no se saca nada
+   automáticamente: RK9 prohíbe expresamente la extracción automatizada, y
+   Limitless dejó los presenciales fuera de la API a propósito. Así que el
+   metagame de papel entra a mano, pegando la clasificación una vez al mes.
+
+   LO QUE NO SE GUARDA, Y POR QUÉ ESTÁ EN EL ESQUEMA Y NO EN UNA NORMA
+   ------------------------------------------------------------------
+   Una clasificación de Regional son entre ochocientas y dos mil personas con
+   nombre y apellidos que no se han dado de alta en nada. Guardar eso sería
+   tratar datos personales de gente ajena sin ninguna base para hacerlo.
+
+   Por eso `meta_entries` **no tiene columna de nombre**. No es que no se
+   rellene: es que no existe. El parser (`lib/sources/standings.ts`) tira el
+   nombre antes de devolver la fila, y aquí no hay sitio donde ponerlo aunque
+   alguien lo intentara. Una norma se olvida; una tabla sin columna, no.
+
+   Lo que queda es el arquetipo por puesto, que es justamente lo que se quiere
+   saber: qué cortó, qué ganó y en qué proporción.
+*/
+
+/** Un evento presencial del circuito cuyo metagame se ha importado. */
+export const metaEvents = pgTable("meta_events", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  date: date("date").notNull(),
+  /** regional · international · special · worlds · league_cup · other */
+  kind: text("kind").notNull().default("regional"),
+  /** "Lille, Francia". Texto libre, igual que en `events`. */
+  location: text("location").notNull().default(""),
+  format: text("format").notNull().default("standard"),
+  division: text("division").notNull().default("masters"),
+  /** Temporada de Play! Pokémon. Se deduce de la fecha si no se dice. */
+  season: integer("season"),
+  /** Asistencia total, si se sabe. Sirve para poner el corte en contexto. */
+  playerCount: integer("player_count"),
+  /** Tamaño del corte (8, 16, 32…). */
+  topCut: integer("top_cut"),
+  /**
+   * Hasta qué puesto llega lo importado.
+   *
+   * No es lo mismo pegar el top 8 que los 1.200 de la clasificación entera, y
+   * la diferencia cambia por completo cómo se leen los porcentajes. Se guarda
+   * para que la pantalla pueda decir «esto es el top 32», en vez de dar a
+   * entender que es el metagame del evento completo.
+   */
+  coverage: integer("coverage"),
+  /** De dónde se copió. Se enseña como cita, no se llama nunca. */
+  sourceUrl: text("source_url").notNull().default(""),
+  sourceName: text("source_name").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  // Nombre + fecha + división es la identidad de un evento. Volver a importar
+  // el mismo —porque al pegarlo la primera vez aún no estaba el top cut—
+  // actualiza en vez de duplicar.
+  //
+  // La división está ahí porque el mismo Regional tiene Masters, Seniors y
+  // Juniors, con el mismo nombre y la misma fecha y clasificaciones
+  // distintas. Sin ella, importar Seniors pisaba Masters en silencio.
+  uniqueIndex("meta_events_ident_idx").on(t.name, t.date, t.division),
+  index("meta_events_date_idx").on(t.date),
+  index("meta_events_kind_idx").on(t.kind),
+]);
+
+/**
+ * Un puesto de la clasificación, o una línea de un resumen por mazos.
+ *
+ * Dos formas en una tabla, y se distinguen por `placement`:
+ *
+ * · Clasificación pegada → una fila por puesto, `placement` 1..N, `copies` 1.
+ * · Resumen «mazo · cuántos» → `placement` nulo y `copies` con el número.
+ *
+ * Están juntas porque para contar cuota da igual: se suma `copies` en los dos
+ * casos. Lo que solo tiene la primera forma es la conversión a top 8, que
+ * necesita saber el puesto — y por eso el resumen no la calcula en vez de
+ * inventársela.
+ */
+export const metaEntries = pgTable("meta_entries", {
+  id: serial("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => metaEvents.id, { onDelete: "cascade" }),
+  /** Puesto final. Nulo en las filas de resumen. */
+  placement: integer("placement"),
+  /** Cuántas listas representa esta fila. 1 en una clasificación. */
+  copies: integer("copies").notNull().default(1),
+  /** El arquetipo de vuestro catálogo, si el nombre casó con alguno. */
+  archetypeId: text("archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
+  /** El nombre tal y como venía en la fuente. Siempre se guarda. */
+  archetypeName: text("archetype_name").notNull(),
+  /** Slugs para los sprites, deducidos del nombre si no hubo arquetipo. */
+  main: text("main").notNull().default(""),
+  secondary: text("secondary").notNull().default(""),
+  wins: integer("wins"),
+  losses: integer("losses"),
+  ties: integer("ties"),
+}, (t) => [
+  index("meta_entries_event_idx").on(t.eventId),
+  // Un puesto no se repite dentro de un evento. Es lo que hace que volver a
+  // pegar una clasificación corregida no deje dos primeros.
+  uniqueIndex("meta_entries_place_idx")
+    .on(t.eventId, t.placement)
+    .where(sql`${t.placement} is not null`),
+]);
+
 /* ------------------------------------------------------------- tipos --- */
 
 export type Player = typeof players.$inferSelect;
@@ -462,3 +575,5 @@ export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type LadderEntry = typeof ladderEntries.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
+export type MetaEvent = typeof metaEvents.$inferSelect;
+export type MetaEntry = typeof metaEntries.$inferSelect;

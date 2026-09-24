@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitless";
-import { loadSnapshot } from "@/lib/data";
+import { loadMetaIrl, loadSnapshot } from "@/lib/data";
+import { irlMeta } from "@/lib/metaIrl";
+import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import { spriteUrl } from "@/lib/pokemon";
 import { pct, wrColor } from "@/lib/format";
-import { Empty, Kpi, PageHead } from "@/components/ui";
+import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/ui";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Top Decks" };
@@ -29,9 +31,21 @@ export const metadata = { title: "Top Decks" };
    página deja que los filtros de arriba cambien al instante sin volver a
    pedir nada. Mientras tanto se ve el esqueleto de `loading.tsx`.
 
-   Nada de scraping. Todo sale de la API pública de Limitless, que no pide
-   clave para esto. RK9 y pokemon.com quedan fuera: sus condiciones prohíben
-   expresamente la extracción automatizada.
+   DOS METAGAMES, NO UNO
+   ---------------------
+   Desde la v0.12.0 la pantalla tiene dos pestañas, porque son dos realidades
+   distintas y mezclarlas sería peor que tener dos:
+
+   · **Online** — sale de la API pública de Limitless. Son miles de listas a
+     la semana y se mueve antes, pero es su plataforma por internet.
+   · **Presencial** — lo que se ha importado a mano de los Regionales. Va con
+     semanas de retraso y es una muestra del corte, no del torneo, pero es el
+     metagame contra el que de verdad se juega un sábado.
+
+   Nada de scraping, en ninguna de las dos. La online sale de la API pública
+   de Limitless, que no pide clave para esto; la presencial la pega una
+   persona desde una web pública. RK9 y pokemon.com quedan fuera: sus
+   condiciones prohíben expresamente la extracción automatizada.
    ========================================================================= */
 
 const FORMATOS = [
@@ -47,12 +61,76 @@ const VENTANAS = [
 
 export default async function TopDecksPage({
   searchParams,
-}: { searchParams: Promise<{ formato?: string; dias?: string }> }) {
+}: { searchParams: Promise<{ formato?: string; dias?: string; fuente?: string }> }) {
   const q = await searchParams;
   const formato = FORMATOS.some((f) => f.value === q.formato) ? q.formato! : "STANDARD";
   const dias = VENTANAS.some((v) => v.value === q.dias) ? Number(q.dias) : 30;
+  const presencial = q.fuente === "presencial";
 
   const snap = await loadSnapshot();
+
+  /* Cuáles de estos mazos jugáis vosotros. Se cruza por nombre normalizado
+     porque los arquetipos importados de Limitless traen su id, pero los
+     apuntados a mano no. Hace falta en las dos pestañas. */
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const nuestros = new Set(snap.archetypes.map((a) => norm(a.name)));
+
+  const pestanas = (
+    <div className="scroll-x mb-4 flex gap-2" role="tablist" aria-label="Metagame">
+      <Link href="/topdecks" role="tab" aria-selected={!presencial}
+        className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
+          ${!presencial ? "border-source-global bg-source-global-soft text-source-global"
+                        : "border-line bg-surface text-muted hover:text-ink"}`}>
+        <Icon name="globe" className="size-4" />
+        Online
+      </Link>
+      <Link href="/topdecks?fuente=presencial" role="tab" aria-selected={presencial}
+        className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
+          ${presencial ? "border-brand-line bg-brand-soft text-brand"
+                       : "border-line bg-surface text-muted hover:text-ink"}`}>
+        <Icon name="trophy" className="size-4" />
+        Presencial
+      </Link>
+    </div>
+  );
+
+  /* ------------------------------------------------------------ presencial */
+  if (presencial) {
+    const { events, entries } = await loadMetaIrl();
+    // Nombre distinto del `meta` de la vista online, aunque estén en bloques
+    // separados: tener dos cosas distintas llamadas igual en el mismo fichero
+    // es cómo se cuelan los errores al editarlo dentro de seis meses.
+    const metaIrl = irlMeta(
+      events.map((e) => ({
+        id: e.id, name: e.name, date: e.date, kind: e.kind,
+        coverage: e.coverage, playerCount: e.playerCount, topCut: e.topCut,
+      })),
+      entries.map((r) => ({
+        eventId: r.eventId, placement: r.placement, copies: r.copies,
+        archetypeId: r.archetypeId, archetypeName: r.archetypeName,
+        main: r.main, secondary: r.secondary,
+      })),
+    );
+
+    return (
+      <>
+        <PageHead
+          title="Top Decks"
+          sub="Lo que cortó en los Regionales. Importado a mano, porque no hay forma legítima de traerlo solo."
+          back={{ href: "/mas", label: "Más" }}
+        />
+        {pestanas}
+        <MetaIrlTable meta={metaIrl} nuestros={nuestros} />
+        <MetaIrlEvents eventos={events.map((e) => ({
+          id: e.id, name: e.name, date: e.date, kind: e.kind, location: e.location,
+          coverage: e.coverage, playerCount: e.playerCount,
+          sourceName: e.sourceName, sourceUrl: e.sourceUrl,
+        }))} />
+      </>
+    );
+  }
+
+  /* ---------------------------------------------------------------- online */
 
   let meta: Awaited<ReturnType<typeof fetchMetaSnapshot>> | null = null;
   let error: string | null = null;
@@ -68,12 +146,6 @@ export default async function TopDecksPage({
     error = e instanceof Error ? e.message : "error de red";
   }
 
-  /* Cuáles de estos mazos jugáis vosotros. Se cruza por nombre normalizado
-     porque los arquetipos importados de Limitless traen su id, pero los
-     apuntados a mano no. */
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const nuestros = new Set(snap.archetypes.map((a) => norm(a.name)));
-
   const href = (cambios: Record<string, string>) => {
     const sp = new URLSearchParams({ formato, dias: String(dias), ...cambios });
     return `/topdecks?${sp.toString()}`;
@@ -86,9 +158,25 @@ export default async function TopDecksPage({
     <>
       <PageHead
         title="Top Decks"
-        sub="Lo que se está jugando en los torneos del mundo, según Limitless. Para decidir con qué ir al próximo."
+        sub="Lo que se está jugando en los torneos online de Limitless. Para decidir con qué ir al próximo."
         back={{ href: "/mas", label: "Más" }}
       />
+
+      {pestanas}
+
+      {/* Precisión que hay que dar, porque cambia cómo se lee todo lo de
+          abajo: la API de Limitless sirve **su plataforma de torneos
+          online**. Los Regionales presenciales están en su web, no en la API,
+          y sacarlos de ahí sería hacer scraping. Llamar «meta mundial» a esto
+          sin más sería vender otra cosa. */}
+      <p className="mb-4 rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-ink-2">
+        <b>Son torneos online.</b> La API de Limitless cubre su plataforma de torneos por
+        internet, no los Regionales presenciales. Como metagame sirve —son miles de listas a la
+        semana y se mueve antes que el presencial—, pero no es lo mismo.{" "}
+        <Link className="underline" href="/topdecks?fuente=presencial">El metagame presencial</Link>{" "}
+        está en la otra pestaña, y entra pegando la clasificación a mano: no hay forma legítima
+        de traerlo solo.
+      </p>
 
       <div className="scroll-x mb-4 flex gap-2 pb-1">
         {FORMATOS.map((f) => (
@@ -155,15 +243,19 @@ export default async function TopDecksPage({
                   <span className="w-5 flex-none text-right font-mono text-xs text-muted tabular">
                     {i + 1}
                   </span>
-                  <span className="flex flex-none items-center" aria-hidden="true">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={spriteUrl(r.main)} alt="" loading="lazy" className="size-8 object-contain" />
-                    {r.secondary && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={spriteUrl(r.secondary)} alt="" loading="lazy"
-                        className="-ml-2.5 size-6 object-contain" />
-                    )}
-                  </span>
+                  {isOtherArchetype(r.name) ? (
+                    <OtherMark size="md" />
+                  ) : (
+                    <span className="flex flex-none items-center" aria-hidden="true">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={spriteUrl(r.main)} alt="" loading="lazy" className="size-8 object-contain" />
+                      {r.secondary && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={spriteUrl(r.secondary)} alt="" loading="lazy"
+                          className="-ml-2.5 size-6 object-contain" />
+                      )}
+                    </span>
+                  )}
 
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">

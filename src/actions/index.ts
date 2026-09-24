@@ -6,7 +6,8 @@ import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, matches, players, settings, tournamentResults, tournaments,
+  ladderEntries, matches, metaEntries, metaEvents, players, settings, tournamentResults,
+  tournaments,
 } from "@/db/schema";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -24,8 +25,12 @@ import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
 import { energyTypesOf } from "@/lib/sources/pokeapi";
-import { ARCHETYPE_PREFIX, TOURNAMENT_STATUSES } from "@/lib/types";
-import type { FormState } from "@/lib/types";
+import { ARCHETYPE_PREFIX, DIVISIONS, TOURNAMENT_FORMATS, TOURNAMENT_STATUSES } from "@/lib/types";
+import type { FormState, MetaImportState, MetaPreview, MetaPreviewRow } from "@/lib/types";
+import { CALENDAR_KINDS } from "@/lib/calendar";
+import {
+  coverageOf, parseStandings, parseSummary, type ParseResult, type PasteMode,
+} from "@/lib/standings";
 
 /* =========================================================================
    Server Actions.
@@ -1914,4 +1919,256 @@ export async function purgePlayer(fd: FormData) {
   await db.delete(players).where(eq(players.id, id));
   refresh();
   redirect("/ajustes");
+}
+
+/* ------------------------------------------- metagame presencial --- */
+
+/**
+ * Importar lo que se jugó en un Regional, pegando la clasificación.
+ *
+ * POR QUÉ ES UN PEGADO Y NO UN BOTÓN QUE VA A BUSCARLO
+ * ----------------------------------------------------
+ * Porque no hay de dónde traerlo con permiso. La API de Limitless sirve su
+ * plataforma online y deja los presenciales fuera; RK9 y pokemon.com
+ * prohíben expresamente la extracción automatizada, «con o sin fines
+ * comerciales», y que el botón se pulse una vez al mes no cambia lo que dicen
+ * sus condiciones: lo que está prohibido es el método, no la frecuencia.
+ * pokedata.ovh republica lo de RK9, así que pasar por ahí no arregla el
+ * origen, solo añade un intermediario.
+ *
+ * Así que la persona copia lo que ya está viendo y lo pega. A partir de ahí
+ * es todo automático: trocear, casar arquetipos, poner sprites y guardar.
+ *
+ * DOS PASADAS, Y LA PRIMERA NO ESCRIBE
+ * ------------------------------------
+ * Sin `confirmar` devuelve el recuento y no toca la base. Es lo que deja ver
+ * cuántas filas han entrado, cuántas se han descartado y qué mazos no
+ * conocía el catálogo, **antes** de guardar nada. El segundo envío es el que
+ * escribe.
+ *
+ * Lo que vuelve al navegador en esa primera pasada es el recuento por mazo,
+ * no el texto pegado ni ninguna línea suelta.
+ */
+export async function importMetaEvent(
+  _prev: MetaImportState, fd: FormData,
+): Promise<MetaImportState> {
+  const actor = await requireManager();
+
+  const texto = String(fd.get("texto") ?? "");
+  if (!texto.trim()) return { error: "Pega antes la clasificación o el desglose por mazos." };
+
+  const modo: PasteMode = str(fd, "modo") === "summary" ? "summary" : "standings";
+  const catalogo = await db.select().from(archetypes);
+  const known = catalogo.map((a) => ({
+    id: a.id, name: a.name, main: a.main, secondary: a.secondary,
+  }));
+
+  const parsed = modo === "summary" ? parseSummary(texto, known) : parseStandings(texto, known);
+
+  if (!parsed.entries.length) {
+    return {
+      error: parsed.descartadas > 0
+        ? `No se ha reconocido ningún mazo: ${parsed.descartadas} fila(s) descartadas. Prueba a pulsar «Actualizar catálogo» aquí arriba y vuelve a pegarlo.`
+        : "No se ha entendido nada de lo pegado. Revisa que sean filas de clasificación o líneas «mazo — número».",
+    };
+  }
+
+  const preview = resumenImportacion(modo, parsed);
+
+  if (str(fd, "confirmar") !== "si") return { preview };
+
+  /* ------------------------------------------------ a partir de aquí, escribe */
+
+  const name = str(fd, "name").slice(0, 120);
+  const date = isoDate(fd, "date", null);
+  if (!name) return { error: "Ponle nombre al evento.", preview };
+  if (!date) return { error: "La fecha no es válida.", preview };
+
+  const kind = CALENDAR_KINDS[str(fd, "kind")] ? str(fd, "kind") : "regional";
+  const division = DIVISIONS[str(fd, "division") as keyof typeof DIVISIONS]
+    ? str(fd, "division") : "masters";
+
+  /* El id de un evento importado: legible, y sobre todo determinista.
+     Determinista es lo que hace que volver a pegar el mismo Regional lo
+     actualice en vez de duplicarlo.
+
+     Lleva la división porque el mismo Regional tiene tres, con el mismo
+     nombre y la misma fecha y clasificaciones distintas; sin ella, importar
+     Seniors machacaba Masters en silencio.
+
+     Y lleva una firma corta del nombre completo porque el trozo legible va
+     recortado a 40 caracteres: dos eventos que solo se diferencien a partir
+     del carácter 41 tendrían el mismo id y el segundo pisaría al primero sin
+     decir nada. Con la firma, identidades distintas dan ids distintos y el
+     índice único de (nombre, fecha, división) nunca salta. */
+  const id = [
+    "mev",
+    name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40),
+    date,
+    division,
+    firma(`${name}|${date}|${division}`),
+  ].join("-");
+
+  const fila = {
+    id,
+    name,
+    date,
+    kind,
+    location: str(fd, "location").slice(0, 120),
+    format: TOURNAMENT_FORMATS[str(fd, "format") as keyof typeof TOURNAMENT_FORMATS]
+      ? str(fd, "format") : "standard",
+    division,
+    season: maybeInt(fd, "season", 2000, 2100) ?? seasonOfDate(date),
+    playerCount: maybeInt(fd, "playerCount", 0, 100000),
+    topCut: maybeInt(fd, "topCut", 0, 1024),
+    coverage: coverageOf(parsed.entries),
+    sourceUrl: str(fd, "sourceUrl").slice(0, 300),
+    sourceName: str(fd, "sourceName").slice(0, 80),
+    notes: str(fd, "notes").slice(0, 500),
+    createdBy: actor.id,
+    updatedAt: new Date(),
+  };
+
+  // Volver a importar el mismo evento —porque la primera vez aún no estaba el
+  // top cut— actualiza la cabecera y reemplaza las filas. Basta con mirar el
+  // id porque es determinista: la misma identidad da siempre el mismo id, y
+  // dos identidades distintas nunca dan el mismo.
+  await db.insert(metaEvents).values(fila).onConflictDoUpdate({
+    target: metaEvents.id,
+    set: {
+      name: fila.name, date: fila.date, kind: fila.kind, location: fila.location,
+      format: fila.format, division: fila.division, season: fila.season,
+      playerCount: fila.playerCount, topCut: fila.topCut, coverage: fila.coverage,
+      sourceUrl: fila.sourceUrl, sourceName: fila.sourceName, notes: fila.notes,
+      updatedAt: fila.updatedAt,
+    },
+  });
+
+  /* Reemplazo, no mezcla: borrar y volver a insertar. Sin transacción porque
+     el driver `neon-http` no las tiene; la ventana en la que el evento se
+     queda sin filas dura milisegundos y, si el insert fallara, lo que queda es
+     un evento vacío que se arregla volviendo a pegar —no datos mezclados de
+     dos pegados distintos, que sería mucho peor de detectar—. */
+  await db.delete(metaEntries).where(eq(metaEntries.eventId, id));
+
+  const sprites = indiceDeSprites(catalogo);
+  const archById = new Map(catalogo.map((a) => [a.id, a]));
+
+  const filas = parsed.entries.map((e) => {
+    const arch = e.archetypeId ? archById.get(e.archetypeId) : undefined;
+    const iconos = arch
+      ? { main: arch.main, secondary: arch.secondary }
+      : spritesDe(e.deck, sprites);
+    return {
+      eventId: id,
+      placement: e.placement,
+      copies: Math.max(1, e.copies),
+      archetypeId: arch?.id ?? null,
+      archetypeName: e.deck.slice(0, 120),
+      main: iconos.main,
+      secondary: iconos.secondary,
+      wins: e.wins, losses: e.losses, ties: e.ties,
+    };
+  });
+
+  // A trozos: una clasificación de top 256 en un solo insert es una sentencia
+  // con miles de parámetros, y el driver HTTP la corta.
+  for (let i = 0; i < filas.length; i += 200) {
+    await db.insert(metaEntries).values(filas.slice(i, i + 200));
+  }
+
+  refresh();
+  const avisos = [
+    `${filas.length} fila(s) guardadas`,
+    parsed.descartadas ? `${parsed.descartadas} descartada(s) por no repetirse` : "",
+    parsed.nuevos.length ? `${parsed.nuevos.length} mazo(s) fuera del catálogo` : "",
+  ].filter(Boolean);
+  return { ok: `${name}: ${avisos.join(", ")}.`, preview };
+}
+
+/**
+ * Una firma corta y estable de una cadena (FNV-1a, 32 bits en hexadecimal).
+ *
+ * No es criptografía y no pretende serlo: solo hace falta que la misma
+ * entrada dé siempre la misma salida y que dos entradas distintas casi nunca
+ * coincidan. Se usa para desempatar ids de eventos, no para proteger nada.
+ */
+function firma(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/** El recuento por mazo que ve la pantalla antes de guardar. */
+function resumenImportacion(mode: PasteMode, parsed: ParseResult): MetaPreview {
+  const acc = new Map<string, MetaPreviewRow>();
+  for (const e of parsed.entries) {
+    const row = acc.get(e.deck) ?? { name: e.deck, entries: 0, conocido: e.archetypeId != null, top8: 0 };
+    row.entries += Math.max(1, e.copies);
+    if (e.placement != null && e.placement <= 8) row.top8 += 1;
+    acc.set(e.deck, row);
+  }
+  const rows = [...acc.values()].sort((a, b) => b.entries - a.entries || a.name.localeCompare(b.name, "es"));
+  return {
+    mode,
+    rows,
+    total: rows.reduce((a, r) => a + r.entries, 0),
+    coverage: coverageOf(parsed.entries),
+    skipped: parsed.skipped,
+    descartadas: parsed.descartadas,
+    nuevos: parsed.nuevos,
+  };
+}
+
+/**
+ * Los slugs de Pokémon que el catálogo ya conoce.
+ *
+ * Es la forma de ponerle sprite a un mazo que no está dado de alta: si en su
+ * nombre aparece un Pokémon que sí sale en algún arquetipo del catálogo, ese
+ * es el icono. No se inventa ningún slug — un slug inventado es una imagen
+ * rota, y una fila con el dibujo equivocado se lee peor que una sin dibujo.
+ */
+function indiceDeSprites(catalogo: Array<{ main: string; secondary: string }>): Set<string> {
+  const set = new Set<string>();
+  for (const a of catalogo) {
+    if (a.main) set.add(a.main);
+    if (a.secondary) set.add(a.secondary);
+  }
+  return set;
+}
+
+function spritesDe(nombre: string, conocidos: Set<string>): { main: string; secondary: string } {
+  const palabras = nombre.split(/\s+/).filter(Boolean);
+  const hits: string[] = [];
+  // Primero las parejas ("Raging Bolt"), que son más específicas que la
+  // palabra suelta ("Raging" no es nadie, "Bolt" tampoco).
+  for (let n = 2; n >= 1; n--) {
+    for (let i = 0; i + n <= palabras.length; i++) {
+      const slug = pokeSlug(palabras.slice(i, i + n).join(" "));
+      if (slug && conocidos.has(slug) && !hits.includes(slug)) hits.push(slug);
+      if (hits.length >= 2) break;
+    }
+    if (hits.length >= 2) break;
+  }
+  return { main: hits[0] ?? "", secondary: hits[1] ?? "" };
+}
+
+/**
+ * Quitar un evento importado, con sus filas.
+ *
+ * Sin pedir que se escriba el nombre, al revés que borrar un torneo: aquí no
+ * se pierde nada que no se pueda recuperar volviendo a pegar la clasificación
+ * de una web pública.
+ */
+export async function deleteMetaEvent(fd: FormData) {
+  await requireManager();
+  const id = str(fd, "id");
+  if (!id) return;
+  await db.delete(metaEvents).where(eq(metaEvents.id, id));
+  refresh();
+  redirect(withFlash("/ajustes", "ok", "Evento quitado del metagame presencial."));
 }

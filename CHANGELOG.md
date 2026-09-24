@@ -2,6 +2,137 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.12.0] — 2026-09-23
+
+El metagame presencial. **Toca la base de datos**: dos tablas nuevas
+(`drizzle/0007_v0_12_0.sql`).
+
+### Añadido
+
+- **Importar un Regional pegando su clasificación** (Ajustes → «Metagame presencial»). Se
+  copia lo que ya está en pantalla en una web pública, se pega, y la app se queda con el
+  puesto y el mazo de cada fila. Admite dos formas: la clasificación entera, o un desglose
+  «mazo — número» cuando solo interesa el reparto.
+- **Pestaña «Presencial» en Top Decks**, junto a la de siempre. Cuota, conversión a top 8 y a
+  top 4, mejor puesto de cada mazo y en cuántos eventos aparece, con la lista de eventos y su
+  fuente debajo.
+- **Analizar antes de guardar.** El primer botón no escribe nada: devuelve el recuento por
+  mazo, cuántas filas ha descartado y qué mazos no conocía el catálogo.
+- **Selector de eventos del circuito**: rellena nombre, fecha y sede de los eventos europeos
+  que ya están en el calendario, para no teclearlos.
+- **Importación idempotente.** Nombre, fecha y división son la identidad de un evento, así que
+  volver a pegarlo cuando ya esté cerrado el top cut lo actualiza en vez de duplicarlo.
+
+### Sobre los datos personales
+
+- **`meta_entries` no tiene columna de nombre de jugador.** No es que se deje vacía: no
+  existe. Una clasificación de Regional son cientos o miles de personas que no se han dado de
+  alta en nada, y guardar sus nombres sería tratar datos de gente ajena sin ninguna base para
+  hacerlo.
+- El parser descarta el nombre al leer la línea. Cuando no puede saber si algo es un mazo o
+  una persona, **lo tira**: el criterio es la repetición —un nombre propio sale una vez y un
+  mazo sale muchas—, y hace falta que una cadena desconocida aparezca en tres puestos
+  distintos para aceptarla. Equivocarse por descartar cuesta una fila; equivocarse por guardar
+  cuesta el dato de alguien que no ha pedido estar aquí.
+- La pantalla dice cuántas filas ha descartado, que es —casi punto por punto— cuánta gente ha
+  entrado por el textarea y no ha salido.
+
+### Sobre el scraping, que era la pregunta de partida
+
+No se raspa nada, y el botón manual no cambia eso. **RK9.gg y pokemon.com prohíben
+expresamente la extracción automatizada, «con o sin fines comerciales»**: lo que está
+prohibido es el método, no la frecuencia, así que pulsarlo una vez al mes seguiría siendo
+raspar. **pokedata.ovh** republica lo de RK9 —su propio pie de página lo dice— y no tiene
+términos de uso ni API documentada, así que pasar por ahí no arregla el origen. Y
+**limitlesstcg.com** tiene API oficial precisamente para lo que sí quiere servir: los
+presenciales los dejó fuera a propósito, y hay un canal para pedir acceso
+(`contact@limitlesstcg.com`) que es lo que toca antes que ir por detrás.
+
+### Notas
+
+- La foto presencial es **la del corte, no la del torneo**: lo que se importa es el top 32 o
+  el top 64, una muestra elegida por resultados. La pantalla lo dice arriba del todo, porque
+  un número sin su contexto se cita luego sin él.
+- Conviene pulsar «Actualizar catálogo» antes de importar: el importador casa los mazos contra
+  él, y lo que no case se guarda por su nombre y sin sprites.
+
+## [0.11.0] — 2026-09-23
+
+Filtros que se suman, el corte explicado en dos cifras, y una corrección importante de
+etiquetado. **No toca la base de datos.**
+
+### Corregido
+
+- **Las pestañas de la portada se cortaban.** «Clasificación», «Metajuego» y «Tus CP» usaban
+  la clase `.scroll-x`, que lleva un margen negativo para que el contenido ancho llegue de
+  borde a borde de la *página*. Pero viven dentro de una tarjeta con `overflow-hidden` —la que
+  redondea las esquinas—, así que ese margen las sacaba 16px por cada lado y el recorte se
+  comía la primera y la última. Ahora llevan desplazamiento normal con relleno por dentro.
+- **Deslizar una tabla ancha hasta el final ya no te saca de la página**
+  (`overscroll-x-contain` en la tabla de conversión, como ya tenía la matriz).
+- Punto de corte nuevo `xs` (400px): el salto de «móvil» a 640px era demasiado grande para las
+  filas densas. En la clasificación de la portada, el récord se esconde por debajo de ahí.
+
+### Cambiado
+
+**El metagame de Limitless es ONLINE, y ahora lo dice**
+- Comprobado contra su API el 23/09/2026: los veinte torneos más recientes son «Pudding
+  Weekly #14», «CrownOfSpain #8», «Torneo Relámpago ⚡ #82»… Es su **plataforma de torneos por
+  internet**. Los Regionales presenciales están en otra web suya que no tiene API.
+- Llamarlo «meta mundial» vendía otra cosa. Pasa a llamarse **«Meta online»** en la pestaña,
+  en los títulos y en los textos, con una nota que lo explica en Top Decks. Sigue sirviendo
+  como foto del metagame —son miles de listas a la semana— pero ya no se confunde.
+
+**La fuente de Estadísticas afecta a toda la página**
+- Con «Meta online» ya no se quedan debajo la matriz de emparejamientos, el primer turno, la
+  actividad por mes ni el rendimiento por mazo: esas salen de **vuestras** partidas y no
+  existen fuera. Se ocultan y una línea dice por qué, en vez de quedarse ahí dando a entender
+  que el filtro no funciona.
+
+**Filtros múltiples en la conversión de Inicio**
+- Se pueden marcar varios tipos de torneo a la vez, y cada chip encendido lleva una × para
+  quitarlo.
+- Se **suman** (o uno u otro), y no es un descuido: dentro de la misma dimensión, pedir
+  «regional Y cup» no devolvería nunca nada, porque un torneo tiene un solo tipo. El «y» entre
+  dimensiones distintas —tipo y fecha— sí se cumple.
+
+**Orden ascendente y descendente en los gráficos**
+- Control en «Uso del metagame», «Rendimiento», «Victorias por arquetipo», «Qué mazos llegan
+  al corte» y la conversión de Inicio. Descendente por defecto.
+- Los arquetipos **sin dato** se quedan siempre al final, en los dos sentidos: un mazo sin
+  conversión calculable no es «el peor», es que no hay nada que ordenar.
+
+**Camino al corte, en dos cifras**
+- **Entrada segura** y **Depende del desempate**, cada una en su tarjeta con el récord en
+  grande, en vez de un párrafo de texto corrido.
+- De todos los finales que se quedan fuera se enseña **solo el mejor**, y se dice cuántos
+  había detrás. Diez filas diciendo «así no entras» enterraban las dos que importan.
+
+### Añadido
+
+**Pestaña «Último torneo»**
+- El torneo online más grande de los últimos catorce días (64 personas para arriba), con el
+  top 8 y su mazo, y por arquetipo: **play rate**, **% de victorias** y **conversión al
+  corte**. Tres preguntas distintas — cuánto te lo cruzas, si aguanta, si cierra.
+- El tamaño del top cut se deduce de las fases que devuelve la API: si hay una fase que no es
+  suizo, sus rondas son el logaritmo del corte (3 rondas = top 8). Tolerante a nombres nuevos:
+  lo que se mira es que **no** sea suizo.
+- Se pidió como «Último Regional». No se puede: eso exigiría raspar su web. Está explicado en
+  la pantalla y en `src/lib/sources/limitless.ts`.
+
+**Marcador propio para «Other»**
+- Limitless mete en «Other» todo lo que no llega a arquetipo propio, y salía como un sprite
+  roto. Ahora lleva un marcador nuestro: tres cartas apiladas en un círculo de trazo
+  discontinuo, en las listas y también dentro de los ejes de los gráficos.
+- **No es el Substitute** de Limitless, por dos razones: su CDN no lo sirve
+  (`…/gen9/substitute.png` da 404, y las variantes que probé también), y dibujarlo a mano
+  sería copiar un diseño de Pokémon.
+
+### Pruebas
+
+- 122 en total (9 nuevas): el resumen de los finales perdidos y el lector de fases de
+  Limitless, con el caso de las fases de dos días y el de un nombre de fase desconocido.
+
 ## [0.10.0] — 2026-09-23
 
 Medallas, conversión a top cut y una limpieza. **Toca la base de datos**: una columna nueva y

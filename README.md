@@ -1,6 +1,6 @@
 # Arena — liga privada de Pokémon TCG
 
-**v0.10.0**
+**v0.11.0**
 
 Web para llevar vuestra liga entre amigos: ranking con Elo y resistencia, resultados juego a
 juego, calendario, estadísticas de metagame —las vuestras y las del mundo— con matriz de
@@ -30,6 +30,10 @@ Mazos · Competiciones · Top Decks · Perfil · Ajustes
 
 ## Qué hay de nuevo
 
+- **v0.11.0** — filtros que se **suman**, orden asc/desc en los gráficos, el camino al corte
+  en dos cifras (entrada segura / depende), pestaña **«Último torneo»** con play rate y
+  conversión, marcador propio para «Other», y el metagame de Limitless pasa a llamarse
+  **online**, que es lo que es. Sin migración.
 - **v0.10.0** — **medallas de gimnasio** en el perfil, **conversión a top cut** por jugador
   (Inicio) y por mazo (Estadísticas) con gráfica mes a mes, **mejores resultados** al estilo
   del stream, reinicio del Elo por fecha de corte, el récord en V–D–E, el avatar en el
@@ -157,7 +161,8 @@ src/
     CutOutlook.tsx          qué te hace falta para entrar en el top cut
     LiveImport.tsx          pegar el historial de TCG Live
     Matrix.tsx              matriz de emparejamientos
-    statistics/             SourceTabs, KPICards, GlobalMeta y las gráficas de Recharts
+    statistics/             SourceTabs, KPICards, GlobalMeta, LastEvent, SortToggle
+                            y las gráficas de Recharts
   actions/index.ts          Server Actions: todo lo que escribe en la base de datos
   db/
     schema.ts               las tablas
@@ -186,7 +191,8 @@ src/
 scripts/
   sync-archetypes.ts        trae el catálogo de arquetipos desde Limitless
   create-invite.ts          genera el enlace de la primera invitación
-tests/                      cp, rank, rounds, mulligan, cut, badges, conversión y v0_5_0 — 113 pruebas
+tests/                      cp, rank, rounds, mulligan, cut, badges, conversión,
+                            fases de Limitless y v0_5_0 — 122 pruebas
 docs/                       esta documentación
 ```
 
@@ -202,6 +208,8 @@ docs/                       esta documentación
 | Corregir la asistencia de un torneo ya creado | La propia ficha del torneo: recalcula sola |
 | Cambiar las medallas o sus escalones | `src/lib/badges.ts` |
 | Reiniciar el Elo | Ajustes → «Contar el Elo desde» |
+| Cambiar el marcador de «Other» | `OtherMark` en `src/components/ui.tsx` y su gemelo SVG en `statistics/Charts.tsx` |
+| Cambiar qué torneo sale en «Último torneo» | `fetchLastBigTournament` en `src/lib/sources/limitless.ts` |
 | Cambiar colores, sombras, tipografías, espaciados | `src/app/globals.css` |
 | Cambiar el aspecto de un KPI o de un esqueleto de carga | `src/components/primitives.tsx` |
 | Cambiar lo que se ve mientras carga una pantalla | el `loading.tsx` de esa carpeta |
@@ -249,7 +257,7 @@ npm run db:seed              # datos de ejemplo
 npm run db:seed -- --empty   # solo configuración y arquetipos, sin partidas inventadas
 npm run archetypes:sync      # traer arquetipos desde Limitless
 npm run invite               # generar un enlace de invitación desde la terminal
-npm test                     # 113 pruebas: CP, ranking, rondas, mulligan, corte, medallas y conversión
+npm test                     # 122 pruebas: CP, ranking, rondas, mulligan, corte, medallas y conversión
 npm run ui:add <componente>  # añadir un componente de shadcn/ui (ver abajo)
 ```
 
@@ -284,6 +292,13 @@ Conviene tenerlo escrito, porque son preguntas que vuelven:
 - **El Elo no está guardado en la base.** Se recalcula desde las partidas en cada carga, así
   que no hay un número que poner a cero. «Reiniciarlo» es poner una fecha de corte en Ajustes,
   y quitarla lo devuelve todo.
+- **La API de Limitless solo tiene torneos ONLINE.** `play.limitlesstcg.com` es su plataforma
+  de torneos por internet. Los Regionales presenciales —Frankfurt, Niza— se publican en
+  `limitlesstcg.com`, que no tiene API: traerlos exigiría raspar HTML, y eso no se hace. Por
+  eso la pestaña se llama «Último torneo» y no «Último Regional».
+- **No hay sprite de Substitute.** `…/pokemon/gen9/substitute.png` da 404 en su CDN, así que
+  los arquetipos «Other» llevan un marcador propio (tres cartas apiladas). Dibujar el muñeco
+  de Substitute sería copiar un diseño de Pokémon.
 - **La API de Limitless no filtra por país.** El parámetro se ignora y devuelve el listado
   mundial igual. El metagame que se ve es mundial y la pantalla lo dice con esas palabras, en
   vez de poner un selector de región que no haría nada.

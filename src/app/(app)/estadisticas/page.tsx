@@ -14,6 +14,9 @@ import { Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { FilterPanel } from "@/components/FilterPanel";
 import { SourceTabs } from "@/components/statistics/SourceTabs";
+import { LastEvent } from "@/components/statistics/LastEvent";
+import { fetchLastBigTournament } from "@/lib/sources/limitless";
+import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { ArchetypeChart } from "@/components/statistics/Charts";
 import { ConversionChart } from "@/components/statistics/ConversionChart";
@@ -27,7 +30,7 @@ export const metadata = { title: "Estadísticas" };
  *
  * Lo que cambia respecto a antes:
  *
- * · Se puede mirar **tu liga**, el **metagame mundial** o **los dos a la vez**.
+ * · Se puede mirar **tu liga**, el **metagame online** o **los dos a la vez**.
  *   La comparación es el punto: un mazo que en el mundo gana el 55% y en
  *   vuestra liga el 30% dice algo que ninguno de los dos números dice solo.
  * · Los filtros de fecha y de tipo **funcionan**. Antes estaban puestos pero
@@ -45,8 +48,20 @@ export default async function StatsPage({
   const snap = await loadSnapshot();
 
   const fuenteRaw = Array.isArray(q.fuente) ? q.fuente[0] : q.fuente;
-  const fuente: "local" | "global" | "both" =
-    fuenteRaw === "global" || fuenteRaw === "both" ? fuenteRaw : "local";
+  const fuente: "local" | "global" | "both" | "evento" =
+    fuenteRaw === "global" || fuenteRaw === "both" || fuenteRaw === "evento"
+      ? fuenteRaw : "local";
+
+  /* La fuente manda sobre la página ENTERA, no solo sobre el primer bloque.
+     Con «Meta online» o «Último torneo» no tiene sentido enseñar la matriz de
+     emparejamientos ni la actividad por mes: esas salen de vuestras partidas
+     y no existen fuera. En vez de dejarlas ahí diciendo lo de siempre —que
+     era lo confuso—, se ocultan y se dice por qué. */
+  const conLocal = fuente === "local" || fuente === "both";
+
+  /* Orden de los gráficos y de las listas de arquetipos. Descendente por
+     defecto: lo primero que se busca es lo que más pesa. */
+  const orden: SortDir = (Array.isArray(q.orden) ? q.orden[0] : q.orden) === "asc" ? "asc" : "desc";
 
   const filter = parseMatchFilter(q);
   const index: FilterIndex = {
@@ -147,6 +162,28 @@ export default async function StatsPage({
 
   const evolucion = overTime(placements);
 
+  /* El informe del último torneo grande. Solo se pide cuando toca: son dos
+     llamadas encadenadas a Limitless y no hay por qué pagarlas en las otras
+     tres pestañas. */
+  const informe = fuente === "evento"
+    ? await fetchLastBigTournament({
+        days: 14,
+        minPlayers: 64,
+        format: (filter.format || "standard").toUpperCase(),
+        apiKey: process.env.LIMITLESS_API_KEY,
+      })
+    : null;
+
+  /** La URL de ahora con otro orden. */
+  const ordenHref = (d: SortDir) => {
+    const p = new URLSearchParams(query);
+    if (fuente !== "local") p.set("fuente", fuente);
+    if (d === "asc") p.set("orden", "asc");
+    else p.delete("orden");
+    const qs = p.toString();
+    return qs ? `/estadisticas?${qs}` : "/estadisticas";
+  };
+
   const resumen = describeFilter(filter, {
     tournament: (id) => snap.toursById.get(id)?.name,
     competition: (id) => snap.compsById.get(id)?.name,
@@ -168,11 +205,18 @@ export default async function StatsPage({
 
       <SourceTabs current={fuente} query={query} />
 
+      {fuente === "evento" ? (
+        <LastEvent report={informe} />
+      ) : (
+      <>
       <FilterPanel
         action="/estadisticas"
         filter={filter}
         show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format"]}
-        keep={fuente === "local" ? {} : { fuente }}
+        keep={{
+          ...(fuente === "local" ? {} : { fuente }),
+          ...(orden === "asc" ? { orden: "asc" } : {}),
+        }}
         tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
         competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
         tournamentKinds={[...new Set(snap.tournaments.map((t) => t.kind))]
@@ -193,7 +237,16 @@ export default async function StatsPage({
         />
       )}
 
-      {focus && focusRow && (
+      {!conLocal && (
+        <p className="card mb-4 p-3 text-xs text-ink-2">
+          Estás mirando el <b>metagame online</b>. Las secciones que salen de vuestras
+          partidas —la matriz de emparejamientos, el primer turno, la actividad por mes y el
+          rendimiento por mazo— no existen fuera de vuestra liga, así que no se enseñan. Pasa
+          a <b>Comparar</b> para verlas junto al mundo.
+        </p>
+      )}
+
+      {conLocal && focus && focusRow && (
         <section className="card mt-4 p-4">
           <div className="flex items-center gap-3">
             <Sprites archetype={focus} size="lg" />
@@ -210,10 +263,11 @@ export default async function StatsPage({
         </section>
       )}
 
-      {/* Estas cuatro son de VUESTRA liga, siempre, mire uno la fuente que
-          mire. Van en azul —el color de «local» en todo el sistema— para que
-          no se confundan con las de arriba, que son del mundo y salen en
-          naranja cuando hay fuente mundial elegida. */}
+      {/* A partir de aquí todo sale de VUESTRAS partidas. Con la fuente en
+          «Meta online» no se enseña: no existe fuera de la liga y dejarlo
+          puesto era lo que hacía pensar que el filtro no funcionaba. */}
+      {conLocal && (
+      <>
       <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi tone="local" icon="database" label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
         <Kpi tone="local" icon="deck" label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
@@ -224,10 +278,13 @@ export default async function StatsPage({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
-          <div className="card-head"><h2 className="text-lg font-bold">Uso del metagame</h2></div>
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Uso del metagame</h2>
+            <SortToggle dir={orden} href={ordenHref} />
+          </div>
           <div className="p-4">
             {archs.length ? (
-              <Bars rows={archs.slice(0, 10).map((a) => ({
+              <Bars rows={sortRows(archs, (a) => a.played, orden).slice(0, 10).map((a) => ({
                 label: <span className="inline-flex min-w-0 items-center gap-1.5"><Sprites archetype={a.archetype} size="sm" /><span className="truncate text-[13px]">{a.archetype?.name}</span></span>,
                 value: a.played,
                 right: `${a.played}`,
@@ -238,12 +295,15 @@ export default async function StatsPage({
 
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Rendimiento</h2>
-            <span className="text-xs text-muted">mín. 2 usos</span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Rendimiento</h2>
+              <p className="text-xs text-muted">mín. 2 usos</p>
+            </div>
+            <SortToggle dir={orden} href={ordenHref} />
           </div>
           <div className="p-4">
             {archs.filter((a) => a.played >= 2).length ? (
-              <Bars max={100} rows={archs.filter((a) => a.played >= 2).slice(0, 10).map((a) => ({
+              <Bars max={100} rows={sortRows(archs.filter((a) => a.played >= 2), (a) => a.winRate, orden).slice(0, 10).map((a) => ({
                 label: <span className="inline-flex min-w-0 items-center gap-1.5"><Sprites archetype={a.archetype} size="sm" /><span className="truncate text-[13px]">{a.archetype?.name}</span></span>,
                 value: (a.winRate ?? 0) * 100,
                 right: `${pct(a.winRate, 0)} (${a.played})`,
@@ -256,13 +316,16 @@ export default async function StatsPage({
 
       {archs.filter((a) => a.played >= 2).length > 1 && (
         <section className="card mt-4 p-4">
-          <h2 className="mb-1 text-lg font-bold">Victorias por arquetipo</h2>
+          <div className="mb-1 flex items-start justify-between gap-3">
+            <h2 className="min-w-0 text-lg font-bold">Victorias por arquetipo</h2>
+            <SortToggle dir={orden} href={ordenHref} />
+          </div>
           <p className="mb-3 text-xs text-muted">
             Los más jugados de tu liga, con el filtro que tengas puesto.
           </p>
           <ArchetypeChart
             mode="local"
-            rows={archs.filter((a) => a.played >= 2).map((a) => ({
+            rows={sortRows(archs.filter((a) => a.played >= 2), (a) => a.winRate, orden).map((a) => ({
               id: a.archetypeId,
               name: a.archetype?.name ?? a.archetypeId,
               // Los sprites del eje salen de aquí: sin ellos la gráfica cae al
@@ -287,10 +350,10 @@ export default async function StatsPage({
                   Esto mira <b>torneos</b>, no partidas: con qué mazo se entra en el top cut.
                 </p>
               </div>
-              <span className="flex-none text-xs text-muted">{porMazo.length} mazos</span>
+              <SortToggle dir={orden} href={ordenHref} />
             </div>
             <ConversionTable
-              rows={porMazo}
+              rows={sortRows(porMazo, (r) => r.cutRate ?? r.top8Rate, orden)}
               empty="Ningún resultado de torneo tiene el mazo apuntado todavía."
             />
             <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
@@ -382,6 +445,10 @@ export default async function StatsPage({
           </div>
         </section>
       </div>
+      </>
+      )}
+      </>
+      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, Globe, GitCompare } from "lucide-react";
+import { Database, Globe, GitCompare, Trophy } from "lucide-react";
 
 /* =========================================================================
    De dónde miramos los datos: tu liga, el mundo, o los dos.
@@ -21,7 +21,7 @@ const OPCIONES = [
   },
   {
     value: "global" as const,
-    label: "Meta mundial",
+    label: "Meta online",
     Icon: Globe,
     on: "border-source-global bg-source-global-soft text-source-global",
   },
@@ -31,11 +31,17 @@ const OPCIONES = [
     Icon: GitCompare,
     on: "border-source-diff bg-source-diff-soft text-source-diff",
   },
+  {
+    value: "evento" as const,
+    label: "Último torneo",
+    Icon: Trophy,
+    on: "border-brand-line bg-brand-soft text-brand",
+  },
 ];
 
 export function SourceTabs({
   current, query,
-}: { current: "local" | "global" | "both"; query: string }) {
+}: { current: "local" | "global" | "both" | "evento"; query: string }) {
   const href = (v: string) => {
     const p = new URLSearchParams(query);
     if (v === "local") p.delete("fuente");

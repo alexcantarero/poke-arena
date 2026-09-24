@@ -214,6 +214,14 @@
   /* alto de la barra inferior del móvil, para reservar hueco al final del scroll */
   --spacing-nav: 4.75rem;
 
+  /* Un punto de corte por debajo del `sm` de Tailwind (640px).
+  
+     Hace falta porque el salto de «móvil» a «tableta» es demasiado grande
+     para las filas densas: un iPhone SE mide 375px y un iPhone Pro Max 430,
+     y hay cosas que caben en el segundo y no en el primero. 400px parte esa
+     franja justo por la mitad. */
+  --breakpoint-xs: 25rem;
+
   /* ---------------------------------------------------------------------
      Puente con shadcn/ui.
 

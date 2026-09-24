@@ -87,11 +87,54 @@ export function ExternalTag({ name }: { name: string }) {
 
 const SPRITE_SIZES = { sm: "size-6", md: "size-8", lg: "size-12" } as const;
 
+/**
+ * ¿Esto es el cajón de sastre del metagame?
+ *
+ * Limitless mete en «Other» todo lo que no llega a arquetipo propio. No es un
+ * mazo: es «los demás», y merece un dibujo distinto al de un mazo de verdad.
+ */
+export const isOtherArchetype = (name?: string | null): boolean =>
+  /^(other|others|otro|otros)$/i.test((name ?? "").trim());
+
+/**
+ * El marcador de «Other» y de lo que no tiene sprite.
+ *
+ * Aquí iba a ir el Substitute, que es lo que usa Limitless, y no se puede por
+ * dos razones que conviene dejar escritas para no volver a intentarlo:
+ *
+ * · **El sprite no existe en su CDN.** `…/pokemon/gen9/substitute.png`
+ *   devuelve 404, igual que las variantes que probé. Los sprites que sí
+ *   usamos son los de Pokémon con número de Pokédex.
+ * · **Dibujarlo a mano sería copiar un diseño de Pokémon.** El muñeco de
+ *   Substitute es suyo.
+ *
+ * Así que esto es nuestro: tres cartas apiladas dentro de un círculo de
+ * trazo discontinuo. Se lee como «varios mazos» y no como un sprite roto,
+ * que es justo lo que hacía falta.
+ */
+export function OtherMark({ size = "md" }: { size?: keyof typeof SPRITE_SIZES }) {
+  return (
+    <span
+      className={`inline-grid flex-none place-items-center rounded-full border border-dashed border-line text-muted ${SPRITE_SIZES[size]}`}
+      title="Otros mazos"
+      aria-label="Otros mazos"
+    >
+      <svg viewBox="0 0 24 24" className="size-[62%]" fill="none" stroke="currentColor"
+        strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="7" width="10" height="14" rx="1.6" />
+        <path d="M8 4.5h8.2a1.6 1.6 0 0 1 1.6 1.6V18" />
+        <path d="M12.5 2.5h7.4a1.6 1.6 0 0 1 1.6 1.6v11.2" />
+      </svg>
+    </span>
+  );
+}
+
 export function Sprites({
   archetype, size = "md",
 }: { archetype?: Archetype | null; size?: keyof typeof SPRITE_SIZES }) {
-  if (!archetype) {
-    return <span className="grid size-6 flex-none place-items-center rounded-full bg-surface-3 text-[10px]">?</span>;
+  // Sin arquetipo, o el cajón de «Other»: el mismo marcador propio.
+  if (!archetype || isOtherArchetype(archetype.name)) {
+    return <OtherMark size={size} />;
   }
   const list = [archetype.main, archetype.secondary].filter(Boolean);
   if (!list.length) {

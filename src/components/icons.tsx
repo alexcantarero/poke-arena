@@ -31,6 +31,8 @@ const P: Record<string, string> = {
   card: "M4 6h11v14H4zM17 8h3v12H8",
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3.2 2",
   wifi: "M2.5 9a15 15 0 0 1 19 0M5.5 12.5a10 10 0 0 1 13 0M8.5 16a5.5 5.5 0 0 1 7 0M12 19.5h.01",
+  // v0.12.0: quitar un evento del metagame presencial.
+  trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5",
 };
 
 export function Icon({

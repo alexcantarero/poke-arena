@@ -1,11 +1,11 @@
 import type {
-  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, Player, Settings,
-  Tournament, TournamentResult,
+  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, MetaEntry, MetaEvent,
+  Player, Settings, Tournament, TournamentResult,
 } from "@/db/schema";
 
 export type {
-  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, Player, Settings,
-  Tournament, TournamentResult,
+  Archetype, Competition, Deck, EventRow, Game, Invite, LadderEntry, Match, MetaEntry, MetaEvent,
+  Player, Settings, Tournament, TournamentResult,
 };
 
 /**
@@ -192,6 +192,40 @@ export const TOURNAMENT_KIND_GROUPS: Array<{ group: string; kinds: string[] }> =
 
 /** Resultado de un formulario que usa `useActionState`. */
 export type FormState = { error?: string; ok?: string } | null;
+
+/* ------------------------------------------- importar metagame IRL --- */
+
+/**
+ * Lo que la pantalla de importación enseña antes de guardar nada.
+ *
+ * Fíjate en que solo hay nombres de **mazo** y números. El texto pegado se
+ * queda en el navegador, y de vuelta del servidor viene esto: el recuento por
+ * arquetipo. Ni una línea original, ni un nombre de persona, ni siquiera para
+ * enseñarlo un momento.
+ */
+export type MetaPreviewRow = {
+  name: string;
+  entries: number;
+  /** Si ha casado con un arquetipo de vuestro catálogo. */
+  conocido: boolean;
+  top8: number;
+};
+
+export type MetaPreview = {
+  mode: "standings" | "summary";
+  rows: MetaPreviewRow[];
+  total: number;
+  /** Hasta qué puesto llega lo pegado. */
+  coverage: number | null;
+  /** Filas que no se han entendido. */
+  skipped: number;
+  /** Cadenas descartadas por salir una sola vez —o sea, nombres de persona—. */
+  descartadas: number;
+  /** Mazos que no están en vuestro catálogo. */
+  nuevos: string[];
+};
+
+export type MetaImportState = { error?: string; ok?: string; preview?: MetaPreview } | null;
 
 
 /* ------------------------------------------------- estadísticas (API) --- */

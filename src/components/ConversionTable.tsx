@@ -74,8 +74,11 @@ export function ConversionTable({
         ))}
       </ul>
 
-      {/* -------- escritorio -------- */}
-      <div className="hidden overflow-x-auto md:block">
+      {/* -------- escritorio --------
+          `overscroll-x-contain`: sin él, al llegar al final del
+          desplazamiento lateral el gesto se lo queda el navegador y se va a
+          la página anterior. Con siete columnas pasa constantemente. */}
+      <div className="hidden overflow-x-auto overscroll-x-contain md:block">
         <table className="tbl">
           <thead>
             <tr>

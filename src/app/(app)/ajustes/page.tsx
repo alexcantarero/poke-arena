@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
-import { currentPlayer, loadInvites, loadPlayerEmails, loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, SectionTitle } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
+import { MetaImport } from "@/components/MetaImport";
+import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
 import { hasPokemonTcgKey } from "@/lib/sources/pokemontcg";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
@@ -32,6 +34,9 @@ export default async function SettingsPage() {
   const tcgKey = hasPokemonTcgKey();
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
+  // Lo importado de los Regionales va aparte del snapshot: crece más deprisa
+  // que el resto y solo hace falta aquí y en Top Decks.
+  const metaEventos = manager ? await loadMetaEvents() : [];
 
   const played = snap.matches.filter(isPlayed);
   const counts = Object.fromEntries(
@@ -193,8 +198,15 @@ export default async function SettingsPage() {
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />
 
+          {/* El metagame presencial. Va justo después del catálogo a
+              propósito: el importador casa los mazos contra él, así que el
+              orden en el que están los dos botones es el orden en el que
+              conviene pulsarlos. */}
+          <SectionTitle aside="pegando la clasificación">Metagame presencial</SectionTitle>
+          <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
+
           {/* Saber en qué estado están las fuentes de fuera evita la pregunta
-              de «¿por qué no me sale el metagame mundial?» a la tercera vez.
+              de «¿por qué no me sale el metagame online?» a la tercera vez.
               No se enseña ninguna clave, solo si la hay. */}
           <div className="card mt-3 p-4 text-sm">
             <p className="label mb-2">Fuentes externas</p>
@@ -203,7 +215,7 @@ export default async function SettingsPage() {
                 <span className="chip chip-global mt-0.5 flex-none">Limitless</span>
                 <span className="min-w-0 text-ink-2">
                   Torneos y clasificaciones. Funciona <b>sin clave</b>: de ahí salen el catálogo
-                  de arquetipos y el metagame mundial de Estadísticas.
+                  de arquetipos y el metagame online de Estadísticas.
                 </span>
               </li>
               <li className="flex items-start gap-2">

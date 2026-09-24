@@ -3,7 +3,7 @@ import type { StatsPayload } from "@/lib/types";
 import type { ChartRow } from "./Charts";
 
 /* =========================================================================
-   Las cifras de cabecera del metagame mundial.
+   Las cifras de cabecera del metagame online.
 
    Por qué están aparte de los KPIs que ya hay arriba en la pantalla: los de
    arriba describen **vuestra liga** y salen del snapshot, que está en
