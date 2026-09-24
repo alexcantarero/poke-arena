@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
-import { currentPlayer, loadInvites, loadPlayerEmails, loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, SectionTitle } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
+import { MetaImport } from "@/components/MetaImport";
+import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
 import { hasPokemonTcgKey } from "@/lib/sources/pokemontcg";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
@@ -32,6 +34,9 @@ export default async function SettingsPage() {
   const tcgKey = hasPokemonTcgKey();
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
+  // Lo importado de los Regionales va aparte del snapshot: crece más deprisa
+  // que el resto y solo hace falta aquí y en Top Decks.
+  const metaEventos = manager ? await loadMetaEvents() : [];
 
   const played = snap.matches.filter(isPlayed);
   const counts = Object.fromEntries(
@@ -192,6 +197,13 @@ export default async function SettingsPage() {
 
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />
+
+          {/* El metagame presencial. Va justo después del catálogo a
+              propósito: el importador casa los mazos contra él, así que el
+              orden en el que están los dos botones es el orden en el que
+              conviene pulsarlos. */}
+          <SectionTitle aside="pegando la clasificación">Metagame presencial</SectionTitle>
+          <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
 
           {/* Saber en qué estado están las fuentes de fuera evita la pregunta
               de «¿por qué no me sale el metagame online?» a la tercera vez.

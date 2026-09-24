@@ -2,6 +2,60 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.12.0] — 2026-09-23
+
+El metagame presencial. **Toca la base de datos**: dos tablas nuevas
+(`drizzle/0007_v0_12_0.sql`).
+
+### Añadido
+
+- **Importar un Regional pegando su clasificación** (Ajustes → «Metagame presencial»). Se
+  copia lo que ya está en pantalla en una web pública, se pega, y la app se queda con el
+  puesto y el mazo de cada fila. Admite dos formas: la clasificación entera, o un desglose
+  «mazo — número» cuando solo interesa el reparto.
+- **Pestaña «Presencial» en Top Decks**, junto a la de siempre. Cuota, conversión a top 8 y a
+  top 4, mejor puesto de cada mazo y en cuántos eventos aparece, con la lista de eventos y su
+  fuente debajo.
+- **Analizar antes de guardar.** El primer botón no escribe nada: devuelve el recuento por
+  mazo, cuántas filas ha descartado y qué mazos no conocía el catálogo.
+- **Selector de eventos del circuito**: rellena nombre, fecha y sede de los eventos europeos
+  que ya están en el calendario, para no teclearlos.
+- **Importación idempotente.** Nombre, fecha y división son la identidad de un evento, así que
+  volver a pegarlo cuando ya esté cerrado el top cut lo actualiza en vez de duplicarlo.
+
+### Sobre los datos personales
+
+- **`meta_entries` no tiene columna de nombre de jugador.** No es que se deje vacía: no
+  existe. Una clasificación de Regional son cientos o miles de personas que no se han dado de
+  alta en nada, y guardar sus nombres sería tratar datos de gente ajena sin ninguna base para
+  hacerlo.
+- El parser descarta el nombre al leer la línea. Cuando no puede saber si algo es un mazo o
+  una persona, **lo tira**: el criterio es la repetición —un nombre propio sale una vez y un
+  mazo sale muchas—, y hace falta que una cadena desconocida aparezca en tres puestos
+  distintos para aceptarla. Equivocarse por descartar cuesta una fila; equivocarse por guardar
+  cuesta el dato de alguien que no ha pedido estar aquí.
+- La pantalla dice cuántas filas ha descartado, que es —casi punto por punto— cuánta gente ha
+  entrado por el textarea y no ha salido.
+
+### Sobre el scraping, que era la pregunta de partida
+
+No se raspa nada, y el botón manual no cambia eso. **RK9.gg y pokemon.com prohíben
+expresamente la extracción automatizada, «con o sin fines comerciales»**: lo que está
+prohibido es el método, no la frecuencia, así que pulsarlo una vez al mes seguiría siendo
+raspar. **pokedata.ovh** republica lo de RK9 —su propio pie de página lo dice— y no tiene
+términos de uso ni API documentada, así que pasar por ahí no arregla el origen. Y
+**limitlesstcg.com** tiene API oficial precisamente para lo que sí quiere servir: los
+presenciales los dejó fuera a propósito, y hay un canal para pedir acceso
+(`contact@limitlesstcg.com`) que es lo que toca antes que ir por detrás.
+
+### Notas
+
+- La foto presencial es **la del corte, no la del torneo**: lo que se importa es el top 32 o
+  el top 64, una muestra elegida por resultados. La pantalla lo dice arriba del todo, porque
+  un número sin su contexto se cita luego sin él.
+- Conviene pulsar «Actualizar catálogo» antes de importar: el importador casa los mazos contra
+  él, y lo que no case se guarda por su nombre y sin sprites.
+
 ## [0.11.0] — 2026-09-23
 
 Filtros que se suman, el corte explicado en dos cifras, y una corrección importante de

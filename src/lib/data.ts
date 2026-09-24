@@ -1,13 +1,14 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  matches, players, settings, tournamentResults, tournaments,
+  matches, metaEntries, metaEvents, players, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
 import type {
-  DeckOption, Game, MatchFull, PublicPlayer, Settings, TournamentFull, TournamentResult,
+  DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
+  TournamentResult,
 } from "./types";
 import { deckArchetypeIndex, eloTable } from "./stats";
 import { computeCp, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
@@ -304,6 +305,37 @@ export async function currentPlayer(): Promise<PublicPlayer | null> {
 export async function loadPlayerEmails(): Promise<Record<string, string>> {
   const rows = await db.select({ id: players.id, email: players.email }).from(players);
   return Object.fromEntries(rows.filter((r) => r.email).map((r) => [r.id, r.email as string]));
+}
+
+/* --------------------------------------------- metagame presencial --- */
+
+/**
+ * Lo importado de los Regionales, aparte del snapshot.
+ *
+ * Aparte a propósito, por lo mismo que los correos: esto solo lo miran Top
+ * Decks y la pantalla de importación, y una clasificación de top 64 por
+ * evento crece más deprisa que el resto de la liga. Meterlo en `loadSnapshot`
+ * sería pagarlo en todas las páginas para usarlo en dos.
+ */
+export async function loadMetaIrl(): Promise<{ events: MetaEvent[]; entries: MetaEntry[] }> {
+  const evs = await db.select().from(metaEvents).orderBy(desc(metaEvents.date));
+  if (!evs.length) return { events: [], entries: [] };
+  const rows = await db.select().from(metaEntries)
+    .where(inArray(metaEntries.eventId, evs.map((e) => e.id)))
+    .orderBy(asc(metaEntries.placement));
+  return { events: evs, entries: rows };
+}
+
+/** Solo las cabeceras, para la lista de «lo que ya está importado». */
+export async function loadMetaEvents(): Promise<Array<MetaEvent & { entries: number }>> {
+  const evs = await db.select().from(metaEvents).orderBy(desc(metaEvents.date));
+  if (!evs.length) return [];
+  const counts = await db
+    .select({ eventId: metaEntries.eventId, n: sql<number>`sum(${metaEntries.copies})::int` })
+    .from(metaEntries)
+    .groupBy(metaEntries.eventId);
+  const byId = new Map(counts.map((c) => [c.eventId, c.n]));
+  return evs.map((e) => ({ ...e, entries: byId.get(e.id) ?? 0 }));
 }
 
 /** Invitaciones vigentes. Solo se cargan cuando hacen falta (pantalla de ajustes). */
