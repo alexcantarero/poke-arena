@@ -160,6 +160,30 @@ export function verdictFor(final: Record3, line: CutLine | null): Verdict {
   return "out";
 }
 
+/**
+ * Los escenarios, con los perdidos resumidos en uno.
+ *
+ * La lista completa de finales puede tener quince filas, y diez de ellas
+ * dicen lo mismo: «así no entras». Leerlas una a una no aporta nada y
+ * entierra las dos que sí importan. Así que de todos los que se quedan fuera
+ * se enseña **solo el mejor** —el que más puntos saca— y se dice cuántos
+ * había detrás.
+ *
+ * Los que entran y los de la burbuja se enseñan todos: ahí cada fila es una
+ * decisión distinta.
+ */
+export function collapseOut(list: Scenario[]): {
+  shown: Scenario[];
+  hiddenOut: number;
+} {
+  const fuera = list.filter((s) => s.verdict === "out");
+  const resto = list.filter((s) => s.verdict !== "out");
+  if (fuera.length <= 1) return { shown: list, hiddenOut: 0 };
+
+  // Ya vienen ordenados de mejor a peor, así que el primero es el mejor.
+  return { shown: [...resto, fuera[0]], hiddenOut: fuera.length - 1 };
+}
+
 export type Outlook = {
   /** Rondas de suizo que quedan por jugar. */
   remaining: number;

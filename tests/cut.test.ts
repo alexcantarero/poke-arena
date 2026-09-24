@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  binomial, cutLine, cutOutlook, expectedWithAtLeast, matchPoints,
+  binomial, collapseOut, cutLine, cutOutlook, expectedWithAtLeast, matchPoints,
   recordLabel, scenarios, verdictFor, type Record3,
 } from "../src/lib/cut.ts";
 
@@ -55,10 +55,18 @@ test("el récord solo enseña los empates cuando los hay", () => {
 
 /* -------------------------------------------------------- línea de corte -- */
 
+/* `assert.ok(x)` estrecha el tipo en tiempo de ejecución pero depende de que
+   TypeScript vea la firma `asserts value` de @types/node. En vez de fiarlo a
+   eso —que es lo que hace que un test compile en un sitio y no en otro—, se
+   comprueba y se saca a una constante ya no nula. */
+function noNulo<T>(v: T | null | undefined, que: string): T {
+  assert.ok(v, `esperaba ${que}, y no hay`);
+  return v as T;
+}
+
 test("32 personas, 5 rondas, top 8: entra el 4-1 y el 3-2 es burbuja", () => {
   // Es el caso de manual y el que valida el modelo entero.
-  const l = cutLine(32, 5, 8);
-  assert.ok(l);
+  const l = noNulo(cutLine(32, 5, 8), "una línea de corte");
   assert.equal(l.safeWins, 4);
   assert.equal(l.bubbleWins, 3);
   assert.equal(l.expectedSafe, 6);
@@ -66,8 +74,7 @@ test("32 personas, 5 rondas, top 8: entra el 4-1 y el 3-2 es burbuja", () => {
 });
 
 test("64 personas, 6 rondas, top 8: entra el 5-1", () => {
-  const l = cutLine(64, 6, 8);
-  assert.ok(l);
+  const l = noNulo(cutLine(64, 6, 8), "una línea de corte");
   assert.equal(l.safeWins, 5);
   assert.equal(l.bubbleWins, 4);
 });
@@ -117,8 +124,8 @@ test("sin línea, ningún récord tiene veredicto", () => {
 test("2-1 en un 32 personas: con ganar 2 de 3 entra", () => {
   const o = cutOutlook({ players: 32, swissRounds: 5, topCut: 8, current: r(2, 1) });
   assert.equal(o.remaining, 2);
-  assert.ok(o.cheapestIn);
-  assert.equal(o.cheapestIn.need.wins, 2);
+  const barato = noNulo(o.cheapestIn, "un escenario que entre");
+  assert.equal(barato.need.wins, 2);
   assert.equal(o.eliminated, false);
   assert.equal(o.clinched, false);
 });
@@ -184,4 +191,39 @@ test("futuro y pasado mezclados: nunca se cuela un pasado por delante", () => {
   const corte = lista.findIndex((x) => x.date < hoy);
   assert.ok(lista.slice(0, corte).every((x) => x.date >= hoy));
   assert.ok(lista.slice(corte).every((x) => x.date < hoy));
+});
+
+/* ------------------------------------------------- resumir los perdidos -- */
+
+test("de todos los escenarios perdidos se enseña solo el mejor", () => {
+  const l = cutLine(32, 5, 8);
+  const list = scenarios(r(0, 3), 2, l);
+  const { shown, hiddenOut } = collapseOut(list);
+  const fuera = shown.filter((s) => s.verdict === "out");
+  assert.equal(fuera.length, 1);
+  assert.equal(hiddenOut, list.filter((s) => s.verdict === "out").length - 1);
+  // Y el que queda es el que más puntos saca de los perdidos.
+  const maxFuera = Math.max(...list.filter((s) => s.verdict === "out").map((s) => s.points));
+  assert.equal(fuera[0].points, maxFuera);
+});
+
+test("lo que entra y lo que depende se enseña entero", () => {
+  const l = cutLine(32, 5, 8);
+  const list = scenarios(r(2, 1), 2, l);
+  const { shown } = collapseOut(list);
+  for (const v of ["in", "bubble"] as const) {
+    assert.equal(
+      shown.filter((s) => s.verdict === v).length,
+      list.filter((s) => s.verdict === v).length,
+      v,
+    );
+  }
+});
+
+test("con un solo perdido no se resume nada", () => {
+  const l = cutLine(32, 5, 8);
+  const list = scenarios(r(4, 0), 1, l);
+  const { shown, hiddenOut } = collapseOut(list);
+  assert.equal(hiddenOut, 0);
+  assert.equal(shown.length, list.length);
 });

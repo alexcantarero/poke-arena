@@ -70,7 +70,20 @@ export function Tabs({ tabs, initial }: { tabs: TabDef[]; initial?: string }) {
     <div>
       <div
         ref={listRef} role="tablist" onKeyDown={onKeyDown}
-        className="scroll-x relative flex gap-0.5 border-b border-line"
+        /* Aquí NO va `.scroll-x`.
+        
+           `.scroll-x` lleva `-mx-4` para que el contenido ancho llegue de
+           borde a borde de la PÁGINA. Estas pestañas viven dentro de una
+           tarjeta, y esa tarjeta tiene `overflow-hidden` para redondear sus
+           esquinas: el margen negativo las sacaba 16px por cada lado y el
+           recorte se comía la primera y la última. Eso es lo que se veía
+           como «las pestañas se salen y se cortan».
+        
+           Con desplazamiento normal y relleno por dentro, se quedan dentro de
+           la tarjeta y siguen deslizándose con el dedo cuando no caben.
+           `overscroll-x-contain` evita además que al llegar al final el gesto
+           se lo quede el navegador y te saque de la página. */
+        className="relative flex gap-0.5 overflow-x-auto overscroll-x-contain border-b border-line px-1"
       >
         {tabs.map((t) => {
           const on = t.id === active;

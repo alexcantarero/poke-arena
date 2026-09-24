@@ -8,7 +8,7 @@ import { ArchetypeChart, ShareChart, type ChartRow } from "./Charts";
 import { KPICards } from "./KPICards";
 
 /* =========================================================================
-   El metagame mundial, y la comparación con el vuestro.
+   El metagame online, y la comparación con el vuestro.
 
    Esto va en el cliente y no en el servidor por una razón de tiempos: pedirle
    el metagame a Limitless son varias llamadas encadenadas y tarda segundos.
@@ -19,7 +19,7 @@ import { KPICards } from "./KPICards";
    Lo que NO se puede hacer, y conviene que quede dicho en el propio código:
    **la API de Limitless no filtra por país.** Está comprobado que el
    parámetro se ignora y devuelve el listado mundial igual. Así que esto es
-   meta mundial, la pantalla lo dice con esas palabras, y no hay ningún
+   meta online, la pantalla lo dice con esas palabras, y no hay ningún
    selector de región que prometa un filtro que no existe.
    ========================================================================= */
 
@@ -93,7 +93,7 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
        nada de sitio, que es todo el objetivo. */
     return (
       <div role="status" aria-live="polite">
-        <span className="sr-only">Cargando el metagame mundial…</span>
+        <span className="sr-only">Cargando el metagame online…</span>
         <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="card p-3 sm:p-4">
@@ -121,7 +121,7 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
           {error ?? "Limitless no ha devuelto datos."}
         </p>
         <p className="mt-1 text-xs text-muted">
-          El metagame mundial es un extra: todo lo de tu liga sigue funcionando sin él.
+          El metagame online es un extra: todo lo de tu liga sigue funcionando sin él.
         </p>
       </div>
     );
@@ -132,15 +132,16 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
       <KPICards mode={mode} data={data} rows={filas} />
 
       <section className="card mb-4 border-source-global/40 bg-source-global-soft p-4">
-        <h2 className="font-display text-lg font-bold">Metagame mundial</h2>
+        <h2 className="font-display text-lg font-bold">Metagame online</h2>
         <p className="mt-1 text-sm text-ink-2">
           De <b className="tabular">{data.tournaments}</b> torneos y{" "}
           <b className="tabular">{data.entries}</b> listas de los últimos{" "}
           <b className="tabular">{data.days}</b> días, según Limitless.
         </p>
         <p className="mt-1 text-xs text-muted">
-          Es meta <b>mundial</b>: la API de Limitless no permite filtrar por país, así que no
-          hay forma de recortarlo a España sin inventárselo.
+          Son los <b>torneos online</b> de Limitless: su API cubre su plataforma por internet,
+          no los Regionales presenciales. Y no se puede filtrar por país — el parámetro existe
+          pero lo ignora—, así que tampoco hay forma de recortarlo a España.
           {data.failed > 0 && (
             <> · {data.failed} torneo(s) no respondieron, así que la foto está algo coja.</>
           )}

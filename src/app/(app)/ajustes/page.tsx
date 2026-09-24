@@ -194,7 +194,7 @@ export default async function SettingsPage() {
           <ArchetypeSync total={snap.archetypes.length} />
 
           {/* Saber en qué estado están las fuentes de fuera evita la pregunta
-              de «¿por qué no me sale el metagame mundial?» a la tercera vez.
+              de «¿por qué no me sale el metagame online?» a la tercera vez.
               No se enseña ninguna clave, solo si la hay. */}
           <div className="card mt-3 p-4 text-sm">
             <p className="label mb-2">Fuentes externas</p>
@@ -203,7 +203,7 @@ export default async function SettingsPage() {
                 <span className="chip chip-global mt-0.5 flex-none">Limitless</span>
                 <span className="min-w-0 text-ink-2">
                   Torneos y clasificaciones. Funciona <b>sin clave</b>: de ahí salen el catálogo
-                  de arquetipos y el metagame mundial de Estadísticas.
+                  de arquetipos y el metagame online de Estadísticas.
                 </span>
               </li>
               <li className="flex items-start gap-2">

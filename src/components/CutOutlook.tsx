@@ -1,4 +1,6 @@
-import { cutOutlook, matchPoints, recordLabel, type Record3, type Scenario } from "@/lib/cut";
+import {
+  collapseOut, cutOutlook, matchPoints, recordLabel, type CutLine, type Record3, type Scenario,
+} from "@/lib/cut";
 import { cpForPlacement, resolveEventDef } from "@/lib/cp";
 import { Icon } from "./icons";
 
@@ -59,6 +61,7 @@ export function CutOutlook({ season, kind, playerCount, swissRounds, topCut, rec
   }
 
   const o = cutOutlook({ players, swissRounds: rounds, topCut: cut, current: record });
+  const resumen = collapseOut(o.scenarios);
   const jugadas = record.wins + record.losses + record.ties;
 
   return (
@@ -74,23 +77,20 @@ export function CutOutlook({ season, kind, playerCount, swissRounds, topCut, rec
       <div className="p-4">
         <Titular outlook={o} record={record} cut={cut} />
 
-        {o.line && (
-          <p className="mt-2 text-xs text-muted">
-            Con {players} jugadores y {rounds} rondas, se espera que{" "}
-            <b className="tabular">{o.line.expectedSafe.toFixed(0)}</b> personas acaben con{" "}
-            <b>{o.line.safeWins}</b> victorias o más — caben en el top {cut}.
-            {o.line.bubbleWins != null && o.line.expectedBubble != null && (
-              <> Con <b>{o.line.bubbleWins}</b> victorias serían unas{" "}
-              <b className="tabular">{o.line.expectedBubble.toFixed(0)}</b>, así que ese récord es
-              la burbuja: entra quien tenga mejor resistencia.</>
-            )}
-          </p>
-        )}
+        {o.line && <Umbral line={o.line} rounds={rounds} players={players} cut={cut} />}
 
         {o.remaining > 0 && (
-          <ul className="mt-4 flex flex-col gap-1.5">
-            {o.scenarios.map((s, i) => <Fila key={i} s={s} remaining={o.remaining} />)}
-          </ul>
+          <>
+            <ul className="mt-4 flex flex-col gap-1.5">
+              {resumen.shown.map((s, i) => <Fila key={i} s={s} remaining={o.remaining} />)}
+            </ul>
+            {resumen.hiddenOut > 0 && (
+              <p className="mt-1.5 text-[11px] text-muted">
+                Se enseña solo el mejor de los finales que se quedan fuera; hay{" "}
+                {resumen.hiddenOut} peor{resumen.hiddenOut === 1 ? "" : "es"} y dicen lo mismo.
+              </p>
+            )}
+          </>
         )}
 
         <Premio season={season} kind={kind} players={players} cut={cut} />
@@ -103,6 +103,63 @@ export function CutOutlook({ season, kind, playerCount, swissRounds, topCut, rec
         </p>
       </div>
     </section>
+  );
+}
+
+/**
+ * Las dos cifras que de verdad se buscan: con qué entras seguro y con qué
+ * dependes del desempate.
+ *
+ * Iban en un párrafo de texto corrido y se leían mal. Son dos números, se
+ * miran de reojo entre ronda y ronda, y merecen estar separados y en grande.
+ *
+ * El «depende» no es un fallo de la estimación: en un suizo, con el récord
+ * justo de la línea siempre hay más gente que huecos, y quién pasa lo decide
+ * la resistencia — contra quién te tocó jugar. Eso no se puede saber desde
+ * aquí, y decirlo es más útil que fingir un sí o un no.
+ */
+function Umbral({ line, rounds, players, cut }: {
+  line: CutLine; rounds: number; players: number; cut: number;
+}) {
+  const label = (v: number) => `${v}-${rounds - v}`;
+  return (
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="rounded-xl border border-win/40 bg-win-soft p-3">
+        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-win">
+          <Icon name="check" className="size-3.5" /> Entrada segura
+        </p>
+        <p className="font-display text-2xl font-extrabold tabular leading-none text-win">
+          {label(line.safeWins)} o mejor
+        </p>
+        <p className="mt-1 text-[11px] text-ink-2">
+          Se esperan <b className="tabular">{line.expectedSafe.toFixed(0)}</b> personas con{" "}
+          {line.safeWins} victorias o más, y en el top {cut} caben {cut}.
+        </p>
+      </div>
+
+      {line.bubbleWins != null && line.expectedBubble != null ? (
+        <div className="rounded-xl border border-info/40 bg-info-soft p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-info">
+            <Icon name="compare" className="size-3.5" /> Depende del desempate
+          </p>
+          <p className="font-display text-2xl font-extrabold tabular leading-none text-info">
+            {label(line.bubbleWins)}
+          </p>
+          <p className="mt-1 text-[11px] text-ink-2">
+            Ahí se esperan unas <b className="tabular">{line.expectedBubble.toFixed(0)}</b> para{" "}
+            {cut} plazas: entra quien tenga mejor resistencia.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-line bg-ground p-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted">Sin burbuja</p>
+          <p className="mt-1 text-[11px] text-ink-2">
+            Con {players} jugadores y {rounds} rondas no hay un récord intermedio que se juegue
+            el corte: o entras o no.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -17,7 +17,7 @@ const g = (number: number, winner: string, first = ""): Game =>
 const m = (over: Partial<MatchFull> = {}): MatchFull => ({
   id: "m1", competitionId: null, tournamentId: "t1", round: 1, date: "2026-09-01",
   playerAId: "p1", playerBId: null, opponentName: "Sara",
-  deckAId: null, deckBId: null, opponentArchetypeId: null,
+  deckAId: null, deckBId: null, opponentArchetypeId: null, archetypeAId: null,
   bestOf: 3, status: "done", seriesResult: null, firstTurn: "",
   note: "", createdBy: null, createdAt: new Date(), games: [],
   ...over,

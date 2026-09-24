@@ -3,6 +3,7 @@ import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import { byPlayer, type PlacementRow } from "@/lib/tournamentStats";
 import { getSeason } from "@/lib/cp";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
+import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { readSession } from "@/lib/auth";
 import { archetypeStats, isInternal, isPlayed, outcome, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
@@ -15,7 +16,7 @@ import { HomeCharts } from "@/components/HomeCharts";
 
 export default async function HomePage({
   searchParams,
-}: { searchParams: Promise<{ tipo?: string }> }) {
+}: { searchParams: Promise<{ tipo?: string | string[]; orden?: string }> }) {
   const [q, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
   const played = snap.matches.filter(isPlayed);
   const pending = snap.matches.filter((m) => m.status === "scheduled");
@@ -97,11 +98,21 @@ export default async function HomePage({
      enlace se comparte y la vuelta atrás funciona.
      -------------------------------------------------------------- */
   const tiposConTorneos = [...new Set(snap.tournaments.map((t) => t.kind))];
-  const tipo = q.tipo && tiposConTorneos.includes(q.tipo) ? q.tipo : "";
+
+  /* --- varios tipos a la vez ---
+     `?tipo=regional&tipo=league_cup`. Dentro de la MISMA dimensión los
+     valores se suman (o uno u otro), que es lo que uno espera al marcar dos
+     casillas: pedir «regional Y cup» a la vez no devolvería nunca nada,
+     porque un torneo tiene un solo tipo. El «y» entre dimensiones distintas
+     —tipo y fecha, por ejemplo— sí se cumple, y es como funcionan también
+     los filtros de Resultados y Estadísticas. */
+  const tipos = (Array.isArray(q.tipo) ? q.tipo : q.tipo ? [q.tipo] : [])
+    .filter((t) => tiposConTorneos.includes(t));
+  const activo = (k: string) => tipos.includes(k);
   const cpTable = getSeason(snap.config.cpSeason);
 
   const placements: PlacementRow[] = snap.tournaments
-    .filter((t) => !tipo || t.kind === tipo)
+    .filter((t) => !tipos.length || tipos.includes(t.kind))
     .flatMap((t) => t.results.map((r) => ({
       playerId: r.playerId,
       archetypeId: r.archetypeId
@@ -116,7 +127,13 @@ export default async function HomePage({
   /* El %V y las victorias de partidas salen de las rondas de torneo, no de
      los puestos: son dos cosas distintas y conviene verlas juntas. */
   const rondas = played.filter((m) => m.tournamentId)
-    .filter((m) => !tipo || snap.toursById.get(m.tournamentId as string)?.kind === tipo);
+    .filter((m) => {
+      if (!tipos.length) return true;
+      const k = snap.toursById.get(m.tournamentId as string)?.kind;
+      return Boolean(k && tipos.includes(k));
+    });
+
+  const orden: SortDir = q.orden === "asc" ? "asc" : "desc";
 
   const conversion: ConvRow[] = [...byPlayer(placements).entries()]
     .map(([playerId, stats]) => {
@@ -135,12 +152,19 @@ export default async function HomePage({
         matchWinRate: mias.length ? (ganadas + empatadas / 2) / mias.length : null,
       };
     })
-    .sort((a, b) =>
-      (b.cutRate ?? -1) - (a.cutRate ?? -1)
-      || (b.top4Rate ?? -1) - (a.top4Rate ?? -1)
-      || b.entries - a.entries);
+    .sort((a, b) => b.entries - a.entries);
 
-  const tipoHref = (k: string) => (k ? `/?tipo=${k}` : "/");
+  /** La URL con un tipo añadido o quitado, conservando los demás y el orden. */
+  const urlCon = (lista: string[], dir: SortDir) => {
+    const sp = new URLSearchParams();
+    for (const t of lista) sp.append("tipo", t);
+    if (dir === "asc") sp.set("orden", "asc");
+    const qs = sp.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+  const alternar = (k: string) =>
+    urlCon(activo(k) ? tipos.filter((x) => x !== k) : [...tipos, k], orden);
+  const ordenHref = (d: SortDir) => urlCon(tipos, d);
 
   return (
     <>
@@ -190,27 +214,40 @@ export default async function HomePage({
                 rondas.
               </p>
             </div>
-            <span className="flex-none text-xs text-muted">{placements.length} resultados</span>
+            <SortToggle dir={orden} href={ordenHref} />
           </div>
 
           {tiposConTorneos.length > 1 && (
-            <div className="scroll-x flex gap-2 px-4 pt-3">
-              <Link href={tipoHref("")} aria-current={!tipo ? "page" : undefined}
-                className={`chip flex-none ${!tipo ? "chip-brand" : ""}`}>
-                Todos
-              </Link>
-              {tiposConTorneos.map((k) => (
-                <Link key={k} href={tipoHref(k)} aria-current={tipo === k ? "page" : undefined}
-                  className={`chip flex-none ${tipo === k ? "chip-brand" : ""}`}>
-                  {cpTable.events[k]?.label ?? k}
+            <div className="px-4 pt-3">
+              {/* Se pueden marcar varios. Cada chip encendido lleva una × que
+                  lo quita, que es la única forma de que se entienda que no es
+                  un selector de uno solo. */}
+              <div className="scroll-x flex gap-2">
+                <Link href={urlCon([], orden)} aria-current={!tipos.length ? "page" : undefined}
+                  className={`chip flex-none ${!tipos.length ? "chip-brand" : ""}`}>
+                  Todos
                 </Link>
-              ))}
+                {tiposConTorneos.map((k) => (
+                  <Link key={k} href={alternar(k)}
+                    aria-pressed={activo(k)}
+                    className={`chip flex-none ${activo(k) ? "chip-brand" : ""}`}>
+                    {cpTable.events[k]?.label ?? k}
+                    {activo(k) && <Icon name="close" className="size-3" />}
+                  </Link>
+                ))}
+              </div>
+              {tipos.length > 1 && (
+                <p className="mt-1.5 text-[11px] text-muted">
+                  Se suman: salen los torneos de cualquiera de los {tipos.length} tipos
+                  marcados.
+                </p>
+              )}
             </div>
           )}
 
           <div className="mt-2">
             <ConversionTable
-              rows={conversion}
+              rows={sortRows(conversion, (r) => r.cutRate ?? r.top4Rate, orden)}
               matchColumns
               empty="Nadie tiene todavía un puesto apuntado en un torneo de este tipo."
             />
@@ -267,9 +304,12 @@ export default async function HomePage({
                 <li key={r.playerId} className="flex items-center gap-3 px-4 py-2.5">
                   <span className={`w-5 flex-none text-center font-display text-lg font-extrabold tabular
                     ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</span>
-                  <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="flex-1" />
-                  <Record w={r.wins} d={r.ties} l={r.losses} />
-                  <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>
+                  <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1" />
+                  {/* El récord se esconde en pantallas estrechas: con el
+                      nombre, el %V y la racha no cabe, y es lo que menos se
+                      mira de los cuatro. Está entero en Ranking. */}
+                  <span className="hidden xs:inline"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
+                  <span className="w-11 flex-none text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>
                     {pct(r.winRate, 0)}
                   </span>
                   <StreakChip kind={r.streak.kind} n={r.streak.n} />

@@ -403,3 +403,252 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
     failed,
   };
 }
+
+/* =========================================================================
+   El informe de un torneo concreto (v0.11.0).
+
+   QUÉ CUBRE ESTA API Y QUÉ NO — LÉELO ANTES DE PROMETER NADA
+   ----------------------------------------------------------
+   `play.limitlesstcg.com` es **la plataforma de torneos online** de
+   Limitless. Su API sirve lo que se juega ahí: ligas semanales, torneos de
+   tiendas por internet, series de creadores. Comprobado el 23/09/2026
+   pidiendo los veinte últimos: «Pudding Weekly #14», «CrownOfSpain #8»,
+   «Torneo Relámpago ⚡ #82»…
+
+   **Los Regionales presenciales no están.** Frankfurt, Niza y compañía se
+   publican en `limitlesstcg.com`, que es otra web y no tiene API: la única
+   forma de sacarlos sería raspar el HTML. No se hace, por lo mismo que no se
+   raspa RK9.
+
+   Así que esto es «el último torneo grande **online**», y así se llama en la
+   pantalla. Como foto del metagame vale —son miles de listas a la semana y se
+   mueve antes que el presencial—, pero llamarlo Regional sería mentir.
+
+   DE DÓNDE SALE CADA CIFRA
+   ------------------------
+   · `/tournaments` → la lista, con `players` para elegir el más grande.
+   · `/tournaments/{id}/details` → `phases`, que es lo que da las rondas de
+     suizo y **el tamaño del top cut**: si hay una fase que no es SWISS, sus
+     rondas son log2 del corte (3 rondas = top 8).
+   · `/tournaments/{id}/standings` → puesto, récord y mazo de cada jugador.
+   ========================================================================= */
+
+export type LimitlessPhase = {
+  phase?: number;
+  type?: string;
+  rounds?: number;
+  mode?: string;
+};
+
+export type LimitlessDetails = {
+  id: string;
+  name: string;
+  date: string;
+  format: string;
+  players: number;
+  organizer?: { id?: number; name?: string };
+  platform?: string;
+  decklists?: boolean;
+  isOnline?: boolean;
+  isPublic?: boolean;
+  phases?: LimitlessPhase[];
+};
+
+export async function fetchTournamentDetails(id: string, apiKey?: string) {
+  return get<LimitlessDetails>(`/tournaments/${encodeURIComponent(id)}/details`, apiKey);
+}
+
+/**
+ * Rondas de suizo y tamaño del top cut, deducidos de las fases.
+ *
+ * Las fases vienen como una lista: la primera suele ser `SWISS` con sus
+ * rondas, y si hay eliminatoria va detrás con otro tipo. De esa segunda, el
+ * número de rondas es el logaritmo del corte — tres rondas son cuartos,
+ * semifinal y final, o sea un top 8.
+ *
+ * Tolerante a propósito: si el tipo viene con otro nombre del que esperamos,
+ * lo que se mira es que **no** sea suizo, no que se llame de una forma
+ * concreta. Un nombre nuevo en su API no puede dejar la pantalla sin corte.
+ */
+export function phaseShape(phases: LimitlessPhase[] | undefined): {
+  swissRounds: number;
+  topCut: number;
+} {
+  const list = Array.isArray(phases) ? phases : [];
+  const suizo = list.filter((p) => (p.type ?? "").toUpperCase().includes("SWISS"));
+  const corte = list.filter((p) => !(p.type ?? "").toUpperCase().includes("SWISS"));
+
+  const swissRounds = suizo.reduce((a, p) => a + (p.rounds ?? 0), 0);
+  const rondasCorte = corte.reduce((a, p) => a + (p.rounds ?? 0), 0);
+  return { swissRounds, topCut: rondasCorte > 0 ? 2 ** rondasCorte : 0 };
+}
+
+/** Cómo le fue a un arquetipo en ESE torneo. */
+export type ReportRow = {
+  identifier: string;
+  name: string;
+  main: string;
+  secondary: string;
+  /** Listas de ese mazo. */
+  entries: number;
+  /** Qué parte del torneo era ese mazo, 0–1. Es el «play rate». */
+  share: number;
+  /** Listas que entraron en el corte. */
+  cut: number;
+  /** De sus listas, cuántas entraron. null si el torneo no tuvo corte. */
+  cutRate: number | null;
+  /** El mejor puesto que consiguió. */
+  best: number | null;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number | null;
+};
+
+export type TopPlayer = {
+  placing: number;
+  name: string;
+  country: string;
+  deck: string;
+  main: string;
+  secondary: string;
+  record: string;
+};
+
+export type TournamentReport = {
+  id: string;
+  name: string;
+  date: string;
+  format: string;
+  players: number;
+  organizer: string;
+  swissRounds: number;
+  topCut: number;
+  /** Listas con mazo identificado. El denominador del play rate. */
+  identified: number;
+  rows: ReportRow[];
+  top: TopPlayer[];
+  fetchedAt: string;
+};
+
+/**
+ * El informe del torneo grande más reciente.
+ *
+ * «Grande» es `minPlayers`, y «reciente» es el primero que cumple mirando
+ * hacia atrás. Se pide la lista, se ordena por gente y se coge el mayor de
+ * los últimos `days` días — no el último a secas, porque el último puede ser
+ * uno de nueve personas y no dice nada del metagame.
+ *
+ * Devuelve null si no hay ninguno o si la API no responde. Nunca lanza: esta
+ * pantalla es un extra y no puede tumbar nada.
+ */
+export async function fetchLastBigTournament(opts: {
+  days?: number;
+  minPlayers?: number;
+  format?: string;
+  apiKey?: string;
+} = {}): Promise<TournamentReport | null> {
+  const { days = 14, minPlayers = 64, format = "STANDARD", apiKey } = opts;
+
+  try {
+    const desde = Date.now() - days * 86400000;
+    const lista = (await fetchTournaments({ limit: 50, format, apiKey }))
+      .filter((t) => (t.players ?? 0) >= minPlayers)
+      .filter((t) => {
+        const d = Date.parse(t.date);
+        return Number.isFinite(d) ? d >= desde : false;
+      })
+      // El más grande; a igualdad, el más reciente.
+      .sort((a, b) => (b.players ?? 0) - (a.players ?? 0) || b.date.localeCompare(a.date));
+
+    const elegido = lista[0];
+    if (!elegido) return null;
+
+    const [detalles, standings] = await Promise.all([
+      fetchTournamentDetails(elegido.id, apiKey).catch(() => null),
+      fetchStandings(elegido.id, apiKey).catch(() => [] as LimitlessStanding[]),
+    ]);
+    if (!standings.length) return null;
+
+    const { swissRounds, topCut } = phaseShape(detalles?.phases);
+
+    type Acc = ReportRow & { placings: number[] };
+    const acc = new Map<string, Acc>();
+    let identified = 0;
+
+    for (const fila of standings) {
+      const deck = fila.deck;
+      if (!deck?.id || !deck.name) continue;
+      const icons = Array.isArray(deck.icons) ? deck.icons : [];
+      identified++;
+
+      let cur = acc.get(deck.id);
+      if (!cur) {
+        cur = {
+          identifier: deck.id, name: deck.name,
+          main: icons[0] ?? "", secondary: icons[1] ?? "",
+          entries: 0, share: 0, cut: 0, cutRate: null, best: null,
+          wins: 0, losses: 0, ties: 0, winRate: null, placings: [],
+        };
+        acc.set(deck.id, cur);
+      }
+      cur.entries++;
+      cur.wins += fila.record?.wins ?? 0;
+      cur.losses += fila.record?.losses ?? 0;
+      cur.ties += fila.record?.ties ?? 0;
+
+      const puesto = fila.placing;
+      if (typeof puesto === "number" && puesto > 0) {
+        cur.placings.push(puesto);
+        if (topCut > 0 && puesto <= topCut) cur.cut++;
+      }
+    }
+
+    const rows: ReportRow[] = [...acc.values()].map(({ placings, ...r }) => {
+      const jugadas = r.wins + r.losses + r.ties;
+      return {
+        ...r,
+        share: identified ? r.entries / identified : 0,
+        // Sin top cut no hay conversión que calcular: null, no cero.
+        cutRate: topCut > 0 && r.entries ? r.cut / r.entries : null,
+        best: placings.length ? Math.min(...placings) : null,
+        winRate: jugadas ? (r.wins + r.ties / 2) / jugadas : null,
+      };
+    }).sort((a, b) => b.share - a.share || a.name.localeCompare(b.name));
+
+    const top: TopPlayer[] = standings
+      .filter((s) => typeof s.placing === "number" && (s.placing as number) > 0)
+      .sort((a, b) => (a.placing as number) - (b.placing as number))
+      .slice(0, 8)
+      .map((s) => {
+        const icons = Array.isArray(s.deck?.icons) ? (s.deck?.icons as string[]) : [];
+        const r = s.record;
+        return {
+          placing: s.placing as number,
+          name: s.name || s.player || "—",
+          country: (s as { country?: string }).country ?? "",
+          deck: s.deck?.name ?? "Sin identificar",
+          main: icons[0] ?? "",
+          secondary: icons[1] ?? "",
+          record: r ? `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}` : "",
+        };
+      });
+
+    return {
+      id: elegido.id,
+      name: elegido.name,
+      date: elegido.date,
+      format: elegido.format || format,
+      players: elegido.players ?? standings.length,
+      organizer: detalles?.organizer?.name ?? "",
+      swissRounds,
+      topCut,
+      identified,
+      rows,
+      top,
+      fetchedAt: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}

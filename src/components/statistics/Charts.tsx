@@ -33,7 +33,7 @@ export type ChartRow = {
   secondary?: string;
   /** % de victorias de la liga, 0–1. */
   local?: number | null;
-  /** % de victorias del metagame mundial, 0–1. */
+  /** % de victorias del metagame online de Limitless, 0–1. */
   global?: number | null;
   /** Cuota de uso, 0–1. */
   share?: number;
@@ -98,32 +98,39 @@ const EJE = { fontSize: 11, fill: "var(--muted)" } as const;
 type TickRow = { name: string; main?: string; secondary?: string };
 
 type TickProps = {
-  x?: number;
-  y?: number;
-  payload?: { value?: string };
+  x?: number | string;
+  y?: number | string;
+  payload?: { value?: any };
   /** id → arquetipo. Lo pone quien usa el eje. */
   rows?: Map<string, TickRow>;
 };
 
 /** Eje horizontal: el sprite debajo de cada barra. */
 function TickSpriteX({ x = 0, y = 0, payload, rows }: TickProps) {
-  const row = rows?.get(payload?.value ?? "");
-  if (!row) return null;
-  const lista = [row.main, row.secondary].filter(Boolean) as string[];
+  const row = rows?.get(String(payload?.value ?? ""));
+  // Un `<g/>` vacío y no `null`: el contrato de Recharts para `tick` pide un
+  // elemento SVG, y devolver null lo rompe con el tipado estricto.
+  if (!row) return <g />;
+  const lista = esOtros(row.name) ? [] : ([row.main, row.secondary].filter(Boolean) as string[]);
 
-  // Sin Pokémon —un arquetipo apuntado a mano— no hay dibujo que valga: se
-  // cae al texto corto, que es mejor que un hueco en blanco.
+  const nx = Number(x);
+  const ny = Number(y);
+
+  // «Other» y los arquetipos sin Pokémon comparten marcador: tres cartas
+  // apiladas. Ver la explicación en `OtherMark` (ui.tsx) de por qué no es el
+  // Substitute de Limitless.
   if (!lista.length) {
     return (
-      <text x={x} y={y + 12} textAnchor="middle" fontSize={10} fill="var(--muted)">
-        {corto(row.name, 9)}
-      </text>
+      <g transform={`translate(${nx - 9}, ${ny + 5})`}>
+        <title>{row.name}</title>
+        <MarcaOtros />
+      </g>
     );
   }
 
   const ancho = lista.length > 1 ? 32 : 22;
   return (
-    <g transform={`translate(${x - ancho / 2}, ${y + 4})`}>
+    <g transform={`translate(${nx - ancho / 2}, ${ny + 4})`}>
       <title>{row.name}</title>
       {lista.map((slug, i) => (
         <image
@@ -142,19 +149,43 @@ function TickSpriteX({ x = 0, y = 0, payload, rows }: TickProps) {
 
 /** Eje vertical: el sprite y el nombre, que ahí sí cabe. */
 function TickSpriteY({ x = 0, y = 0, payload, rows }: TickProps) {
-  const row = rows?.get(payload?.value ?? "");
-  if (!row) return null;
-  const main = row.main;
+  const row = rows?.get(String(payload?.value ?? ""));
+  if (!row) return <g />;
+  const otros = esOtros(row.name);
+  const main = otros ? "" : row.main;
+  const nx = Number(x);
+  const ny = Number(y);
   return (
-    <g transform={`translate(${x - 90}, ${y - 10})`}>
+    <g transform={`translate(${nx - 90}, ${ny - 10})`}>
       <title>{row.name}</title>
-      {main && (
-        <image href={spriteUrl(main)} x={0} y={0} width={20} height={20}
-          preserveAspectRatio="xMidYMid meet" />
-      )}
-      <text x={main ? 24 : 0} y={14} fontSize={11} fill="var(--muted)">
-        {corto(row.name, main ? 11 : 14)}
+      {main
+        ? <image href={spriteUrl(main)} x={0} y={0} width={20} height={20}
+            preserveAspectRatio="xMidYMid meet" />
+        : <g transform="translate(1, 1)"><MarcaOtros /></g>}
+      <text x={24} y={14} fontSize={11} fill="var(--muted)">
+        {corto(row.name, 11)}
       </text>
+    </g>
+  );
+}
+
+/** El cajón de sastre de Limitless. Mismo criterio que `isOtherArchetype`. */
+const esOtros = (name: string) => /^(other|others|otro|otros)$/i.test(name.trim());
+
+/**
+ * El marcador de «otros», en SVG para poder meterlo dentro de un eje.
+ *
+ * Es el mismo dibujo que `OtherMark` de `ui.tsx` —tres cartas apiladas—,
+ * repetido aquí porque un eje de Recharts solo admite SVG y aquel es HTML.
+ * Si se cambia uno, hay que cambiar el otro.
+ */
+function MarcaOtros() {
+  return (
+    <g fill="none" stroke="var(--muted)" strokeWidth="1.6" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="8.6" strokeDasharray="2.6 2.6" opacity="0.7" />
+      <rect x="3.6" y="6.2" width="6.4" height="8.6" rx="1" />
+      <path d="M6.7 4.7h4.9a1 1 0 0 1 1 1v7.1" />
+      <path d="M9.6 3.3h4.4a1 1 0 0 1 1 1v6.6" />
     </g>
   );
 }
@@ -186,8 +217,15 @@ export function ArchetypeChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 4, right: 4, left: -22, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" vertical={false} />
-            <XAxis dataKey="id" interval={0} height={34} tickLine={false}
-              tick={<TickSpriteX rows={porId} />} />
+            <XAxis
+              dataKey="id" interval={0} height={34} tickLine={false}
+              /* La forma de función y no `tick={<Elemento/>}`: Recharts
+                 declara el prop como «elemento SVG o función que devuelve
+                 uno», y un elemento con props propias no siempre encaja en
+                 esa declaración. Con la función, lo que se comprueba es el
+                 valor devuelto, que sí es un `<g>`. */
+              tick={(props) => <TickSpriteX {...props} rows={porId} />}
+            />
             <YAxis
               tick={EJE} domain={[0, 1]}
               tickFormatter={(v: number) => `${Math.round(v * 100)}`}
@@ -230,8 +268,10 @@ export function ShareChart({ rows, limit = 10 }: { rows: ChartRow[]; limit?: num
             type="number" tick={EJE} domain={[0, "dataMax"]}
             tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
           />
-          <YAxis type="category" dataKey="id" width={96} tickLine={false}
-            tick={<TickSpriteY rows={porId} />} />
+          <YAxis
+            type="category" dataKey="id" width={96} tickLine={false}
+            tick={(props) => <TickSpriteY {...props} rows={porId} />}
+          />
           <Tooltip content={<Caja names={nombres} />} cursor={{ fill: "var(--surface-2)" }} />
           <Bar dataKey="share" name="Cuota" radius={[0, 3, 3, 0]}>
             {data.map((d) => <Cell key={d.id} fill={d.color} />)}

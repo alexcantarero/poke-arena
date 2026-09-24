@@ -3,7 +3,7 @@ import { fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitle
 import { loadSnapshot } from "@/lib/data";
 import { spriteUrl } from "@/lib/pokemon";
 import { pct, wrColor } from "@/lib/format";
-import { Empty, Kpi, PageHead } from "@/components/ui";
+import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/ui";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Top Decks" };
@@ -86,9 +86,21 @@ export default async function TopDecksPage({
     <>
       <PageHead
         title="Top Decks"
-        sub="Lo que se está jugando en los torneos del mundo, según Limitless. Para decidir con qué ir al próximo."
+        sub="Lo que se está jugando en los torneos online de Limitless. Para decidir con qué ir al próximo."
         back={{ href: "/mas", label: "Más" }}
       />
+
+      {/* Precisión que hay que dar, porque cambia cómo se lee todo lo de
+          abajo: la API de Limitless sirve **su plataforma de torneos
+          online**. Los Regionales presenciales están en su web, no en la API,
+          y sacarlos de ahí sería hacer scraping. Llamar «meta mundial» a esto
+          sin más sería vender otra cosa. */}
+      <p className="mb-4 rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-ink-2">
+        <b>Son torneos online.</b> La API de Limitless cubre su plataforma de torneos por
+        internet, no los Regionales presenciales —esos están en su web y no hay forma
+        legítima de traerlos automáticamente—. Como metagame sirve: son miles de listas a la
+        semana y se mueve antes que el presencial.
+      </p>
 
       <div className="scroll-x mb-4 flex gap-2 pb-1">
         {FORMATOS.map((f) => (
@@ -155,15 +167,19 @@ export default async function TopDecksPage({
                   <span className="w-5 flex-none text-right font-mono text-xs text-muted tabular">
                     {i + 1}
                   </span>
-                  <span className="flex flex-none items-center" aria-hidden="true">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={spriteUrl(r.main)} alt="" loading="lazy" className="size-8 object-contain" />
-                    {r.secondary && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={spriteUrl(r.secondary)} alt="" loading="lazy"
-                        className="-ml-2.5 size-6 object-contain" />
-                    )}
-                  </span>
+                  {isOtherArchetype(r.name) ? (
+                    <OtherMark size="md" />
+                  ) : (
+                    <span className="flex flex-none items-center" aria-hidden="true">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={spriteUrl(r.main)} alt="" loading="lazy" className="size-8 object-contain" />
+                      {r.secondary && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={spriteUrl(r.secondary)} alt="" loading="lazy"
+                          className="-ml-2.5 size-6 object-contain" />
+                      )}
+                    </span>
+                  )}
 
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
