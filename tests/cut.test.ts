@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   binomial, collapseOut, cutLine, cutOutlook, expectedWithAtLeast, matchPoints,
   recordLabel, scenarios, verdictFor, type Record3,
+  regionalStructure, qualifiesForDay2, isRegionalTournament, day1Outlook,
+  day1Scenarios, filterDay2Qualifiers,
 } from "../src/lib/cut.ts";
 
 const r = (wins: number, losses: number, ties = 0): Record3 => ({ wins, losses, ties });
@@ -226,4 +228,165 @@ test("con un solo perdido no se resume nada", () => {
   const { shown, hiddenOut } = collapseOut(list);
   assert.equal(hiddenOut, 0);
   assert.equal(shown.length, list.length);
+});
+
+/* ---------------------------------- lógica regional: día 1, día 2 y top cut -- */
+
+test("regionalStructure: estructura oficial de dos fases según Play! Pokémon Handbook (Variant #5)", () => {
+  // 65–128: 7 Día 1 + 2 Día 2 = 9 suizas, umbral 13 pts
+  const s100 = regionalStructure(100);
+  assert.equal(s100.day1Rounds, 7);
+  assert.equal(s100.day2Rounds, 2);
+  assert.equal(s100.totalSwissRounds, 9);
+  assert.equal(s100.pointsThreshold, 13);
+  assert.equal(s100.hasDay2, true);
+
+  // 129–256: 8 Día 1 + 2 Día 2 = 10 suizas, umbral 16 pts
+  const s200 = regionalStructure(200);
+  assert.equal(s200.day1Rounds, 8);
+  assert.equal(s200.day2Rounds, 2);
+  assert.equal(s200.totalSwissRounds, 10);
+  assert.equal(s200.pointsThreshold, 16);
+
+  // 257–512: 8 Día 1 + 3 Día 2 = 11 suizas, umbral 16 pts
+  const s400 = regionalStructure(400);
+  assert.equal(s400.day1Rounds, 8);
+  assert.equal(s400.day2Rounds, 3);
+  assert.equal(s400.totalSwissRounds, 11);
+  assert.equal(s400.pointsThreshold, 16);
+
+  // 513–1,024: 8 Día 1 + 4 Día 2 = 12 suizas, umbral 16 pts
+  const s800 = regionalStructure(800);
+  assert.equal(s800.day1Rounds, 8);
+  assert.equal(s800.day2Rounds, 4);
+  assert.equal(s800.totalSwissRounds, 12);
+  assert.equal(s800.pointsThreshold, 16);
+
+  // 1,025–2,048: 8 Día 1 + 5 Día 2 = 13 suizas, umbral 16 pts
+  const s1500 = regionalStructure(1500);
+  assert.equal(s1500.day1Rounds, 8);
+  assert.equal(s1500.day2Rounds, 5);
+  assert.equal(s1500.totalSwissRounds, 13);
+  assert.equal(s1500.pointsThreshold, 16);
+
+  // 2,049–4,096: 8 Día 1 + 6 Día 2 = 14 suizas, umbral 16 pts
+  const s2500 = regionalStructure(2500);
+  assert.equal(s2500.day1Rounds, 8);
+  assert.equal(s2500.day2Rounds, 6);
+  assert.equal(s2500.totalSwissRounds, 14);
+  assert.equal(s2500.pointsThreshold, 16);
+
+  // 4,097–8,192: 9 Día 1 + 6 Día 2 = 15 suizas, umbral 19 pts
+  const s5000 = regionalStructure(5000);
+  assert.equal(s5000.day1Rounds, 9);
+  assert.equal(s5000.day2Rounds, 6);
+  assert.equal(s5000.totalSwissRounds, 15);
+  assert.equal(s5000.pointsThreshold, 19);
+
+  // Top Cut siempre es 8 para >= 65 y la garantía de Día 2 es 32
+  for (const s of [s100, s200, s400, s800, s1500, s2500, s5000]) {
+    assert.equal(s.topCut, 8);
+    assert.equal(s.minDay2Players, 32);
+    assert.equal(s.topCutRounds, 3);
+  }
+});
+
+test("qualifiesForDay2: estándar (129 a 4096) clasifica con 16 puntos", () => {
+  // 5-2-1 = 16 pts en 1000 participantes
+  const q1 = qualifiesForDay2({ participants: 1000, record: r(5, 2, 1) });
+  assert.equal(q1.qualifies, true);
+  assert.equal(q1.byPoints, true);
+  assert.equal(q1.byTop32, false);
+  assert.equal(q1.points, 16);
+  assert.equal(q1.threshold, 16);
+
+  // 6-2-0 = 18 pts en 2500 participantes (sigue siendo umbral 16 pts según handbook)
+  const q2 = qualifiesForDay2({ participants: 2500, record: r(6, 2, 0) });
+  assert.equal(q2.qualifies, true);
+  assert.equal(q2.byPoints, true);
+  assert.equal(q2.threshold, 16);
+});
+
+test("qualifiesForDay2: 65 a 128 participantes pide 13 puntos", () => {
+  // 4-2-1 = 13 pts en 100 participantes
+  const q1 = qualifiesForDay2({ participants: 100, record: r(4, 2, 1) });
+  assert.equal(q1.qualifies, true);
+  assert.equal(q1.byPoints, true);
+  assert.equal(q1.threshold, 13);
+
+  // 4-3-0 = 12 pts (< 13) no llega
+  const q2 = qualifiesForDay2({ participants: 100, record: r(4, 3, 0) });
+  assert.equal(q2.qualifies, false);
+});
+
+test("qualifiesForDay2: más de 4096 participantes pide 19 puntos", () => {
+  // 6-2-1 = 19 pts en 5000 participantes
+  const q1 = qualifiesForDay2({ participants: 5000, record: r(6, 2, 1) });
+  assert.equal(q1.qualifies, true);
+  assert.equal(q1.byPoints, true);
+  assert.equal(q1.threshold, 19);
+
+  // 5-1-3 = 18 pts: no llega por puntos
+  const q2 = qualifiesForDay2({ participants: 5000, record: r(5, 1, 3) });
+  assert.equal(q2.qualifies, false);
+
+  // Mismo 18 pts pero en puesto 30: entra por garantía Top 32
+  const q3 = qualifiesForDay2({ participants: 5000, record: r(5, 1, 3), placement: 30 });
+  assert.equal(q3.qualifies, true);
+  assert.equal(q3.byTop32, true);
+});
+
+test("day1Outlook: cálculo de rondas restantes y camino más barato", () => {
+  // 4-1-0 (12 pts) en torneo estándar tras ronda 5: quedan 3 rondas
+  const d1 = day1Outlook({ players: 1200, current: r(4, 1, 0) });
+  assert.equal(d1.day1Rounds, 8);
+  assert.equal(d1.remaining, 3);
+  assert.equal(d1.threshold, 16);
+  assert.equal(d1.clinched, false);
+  assert.equal(d1.eliminated, false);
+  // El más barato para llegar a 16 desde 12 es 1V 1E (4 pts -> 16)
+  assert.equal(d1.cheapestIn?.need.wins, 1);
+  assert.equal(d1.cheapestIn?.need.ties, 1);
+});
+
+test("day1Outlook: clinched cuando ya supera el umbral", () => {
+  // 6-0-0 (18 pts) tras ronda 6: ya tiene >= 16 pts
+  const d1 = day1Outlook({ players: 1000, current: r(6, 0, 0) });
+  assert.equal(d1.clinched, true);
+  assert.equal(d1.eliminated, false);
+  assert.equal(d1.cheapestIn?.need.wins, 0);
+  assert.equal(d1.cheapestIn?.need.ties, 0);
+});
+
+test("day1Outlook: eliminated cuando ya no da matemáticamente", () => {
+  // 1-5-0 (3 pts) tras ronda 6: quedan 2 rondas (max 3 + 6 = 9 < 16)
+  const d1 = day1Outlook({ players: 1000, current: r(1, 5, 0) });
+  assert.equal(d1.eliminated, true);
+  assert.equal(d1.cheapestIn, null);
+});
+
+test("filterDay2Qualifiers: filtra correctamente por puntos y por Top 32", () => {
+  const standings = [
+    { placement: 1, wins: 8, losses: 0, ties: 0 }, // 24 pts -> pasa por puntos
+    { placement: 20, wins: 5, losses: 2, ties: 1 }, // 16 pts -> pasa por puntos
+    { placement: 30, wins: 5, losses: 3, ties: 0 }, // 15 pts -> pasa por Top 32
+    { placement: 32, wins: 4, losses: 2, ties: 2 }, // 14 pts -> pasa por Top 32
+    { placement: 33, wins: 4, losses: 2, ties: 2 }, // 14 pts -> fuera
+    { placement: 50, wins: 5, losses: 2, ties: 1 }, // 16 pts -> pasa por puntos
+    { placement: 60, wins: 5, losses: 3, ties: 0 }, // 15 pts -> fuera
+  ];
+
+  const qualifiers = filterDay2Qualifiers(standings, 1000);
+  const placements = qualifiers.map((q) => q.placement);
+  assert.deepEqual(placements, [1, 20, 30, 32, 50]);
+});
+
+test("isRegionalTournament: reconoce tipos oficiales y asistencia >= 65", () => {
+  assert.equal(isRegionalTournament("regional", 100), true);
+  assert.equal(isRegionalTournament("special", 50), true);
+  assert.equal(isRegionalTournament("international", 200), true);
+  assert.equal(isRegionalTournament("store", 300), true);
+  assert.equal(isRegionalTournament("league_cup", 64), false);
+  assert.equal(isRegionalTournament(undefined, 65), true);
+  assert.equal(isRegionalTournament(undefined, 64), false);
 });

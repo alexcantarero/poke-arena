@@ -59,6 +59,7 @@ type Props = {
   totalRounds: number | null;
   /** Tamaño del top cut, si se sabe. Junto con totalRounds da el nombre de cada fase. */
   topCut: number | null;
+  playerCount?: number | null;
   archById: Map<string, Archetype>;
   /** El torneo está cerrado: se puede mirar, no escribir. */
   closed: boolean;
@@ -68,7 +69,7 @@ type Props = {
 export function TournamentRounds({
   tournamentId, playerId, playerName, bestOf, rounds, record,
   rivalDecks, archetypeOptions, myDecks, lockedDeckId, lockedDeckName, isMine,
-  totalRounds, topCut, archById, closed, canEdit,
+  totalRounds, topCut, playerCount, archById, closed, canEdit,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const nextRound = rounds.length ? Math.max(...rounds.map((r) => r.round)) + 1 : 1;
@@ -139,13 +140,25 @@ export function TournamentRounds({
                     >
                       R{r.round}
                     </span>
-                    {/* Solo se etiqueta el top cut: en el suizo, "Suizo" en
-                        cada fila no dice nada que "R3" no diga ya. */}
-                    {roundStage(r.round, totalRounds, topCut).kind === "cut" && (
-                      <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-brand">
-                        {roundStage(r.round, totalRounds, topCut).label}
-                      </span>
-                    )}
+                    {/* Solo se etiqueta el top cut o el Día 2 */}
+                    {(() => {
+                      const stage = roundStage(r.round, totalRounds, topCut, playerCount);
+                      if (stage.kind === "cut") {
+                        return (
+                          <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-brand">
+                            {stage.label}
+                          </span>
+                        );
+                      }
+                      if (stage.day === 2) {
+                        return (
+                          <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-info">
+                            Día 2
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </span>
 
                   <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -240,9 +253,16 @@ export function TournamentRounds({
             <h3 className="mb-3 flex flex-wrap items-center gap-1.5 font-display text-base font-bold">
               Apuntar la ronda {nextRound}
               {totalRounds ? <span className="text-sm font-normal text-muted">de {totalRounds}</span> : null}
-              {roundStage(nextRound, totalRounds, topCut).kind === "cut" && (
-                <span className="chip chip-brand text-[10px]">{roundStage(nextRound, totalRounds, topCut).label}</span>
-              )}
+              {(() => {
+                const stage = roundStage(nextRound, totalRounds, topCut, playerCount);
+                if (stage.kind === "cut") {
+                  return <span className="chip chip-brand text-[10px]">{stage.label}</span>;
+                }
+                if (stage.day === 2) {
+                  return <span className="chip chip-info text-[10px]">Día 2</span>;
+                }
+                return null;
+              })()}
             </h3>
             <RoundForm
               tournamentId={tournamentId}

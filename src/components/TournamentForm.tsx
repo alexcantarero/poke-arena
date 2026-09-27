@@ -5,7 +5,8 @@ import { saveTournament } from "@/actions";
 import { eventKinds, awardsCp } from "@/lib/cp";
 import { TOURNAMENT_FORMATS, TOURNAMENT_KIND_GROUPS, DIVISIONS, TOURNAMENT_STATUS } from "@/lib/types";
 import type { Tournament } from "@/lib/types";
-import { suggestedRounds } from "@/lib/stats";
+import { suggestedRounds, suggestedTopCut } from "@/lib/stats";
+import { isRegionalTournament, regionalStructure } from "@/lib/cut";
 import { todayISO } from "@/lib/format";
 import { Icon } from "./icons";
 
@@ -49,7 +50,10 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
 
   const givesCp = awardsCp(season, kind);
   const people = Number(playerCount) || 0;
-  const maxRounds = people > 1 ? suggestedRounds(people) : null;
+  const isRegional = isRegionalTournament(kind, people > 0 ? people : null);
+  const maxRounds = people > 1 ? suggestedRounds(people, kind) : null;
+  const recTopCut = people > 1 ? suggestedTopCut(people, kind) : (isRegional ? 8 : null);
+  const regStruct = isRegional && people > 0 ? regionalStructure(people) : null;
   const roundsN = Number(rounds) || 0;
   const roundsOff = maxRounds != null && roundsN > 0 && roundsN !== maxRounds;
 
@@ -177,7 +181,9 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
                   className="text-xs font-semibold text-info underline underline-offset-2"
                   onClick={() => setRounds(String(maxRounds))}
                 >
-                  Con {people} personas: {maxRounds}
+                  {regStruct && regStruct.hasDay2
+                    ? `Con ${people} personas: ${maxRounds} rondas (${regStruct.day1Rounds} Día 1 + ${regStruct.day2Rounds} Día 2)`
+                    : `Con ${people} personas: ${maxRounds}`}
                 </button>
               )}
             </div>
@@ -188,14 +194,16 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             />
             {roundsOff && (
               <p className="text-xs text-muted">
-                Un suizo de {people} suele ser de {maxRounds} rondas. Si el vuestro fue de{" "}
-                {roundsN}, adelante: hay torneos que recortan por horario.
+                {regStruct && regStruct.hasDay2
+                  ? `La estructura oficial para ${people} participantes son ${maxRounds} rondas suizas (${regStruct.day1Rounds} en Día 1 y ${regStruct.day2Rounds} en Día 2) según el reglamento oficial. Si el torneo usó ${roundsN}, puedes dejarlo.`
+                  : `Un suizo de ${people} suele ser de ${maxRounds} rondas. Si el vuestro fue de ${roundsN}, adelante: hay torneos que recortan por horario.`}
               </p>
             )}
             {!playerCount && (
               <p className="text-xs text-muted">
-                Pon cuánta gente hubo y te digo cuántas rondas tocan. La asistencia también
-                decide qué tramos de CP se cobran.
+                {isRegional
+                  ? "Pon cuántos participantes hay para calcular las rondas de Día 1, Día 2 y corte."
+                  : "Pon cuánta gente hubo y te digo cuántas rondas tocan. La asistencia también decide qué tramos de CP se cobran."}
               </p>
             )}
           </div>
@@ -245,7 +253,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="topCut">Top cut</label>
                   <input className="input" id="topCut" name="topCut" type="number" min={0} inputMode="numeric"
-                    defaultValue={tournament?.topCut ?? ""} placeholder="8" />
+                    defaultValue={tournament?.topCut ?? ""} placeholder={recTopCut != null ? String(recTopCut) : "8"} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="division">División</label>

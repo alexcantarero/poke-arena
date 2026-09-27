@@ -233,3 +233,302 @@ export function cutOutlook(input: {
     clinched: Boolean(line) && list.every((s) => s.verdict === "in"),
   };
 }
+
+/* =========================================================================
+   ESTRUCTURA Y CORTE AL DÍA 2 - POKÉMON TCG REGIONALES
+   ========================================================================= */
+
+export type RegionalStructure = {
+  day1Rounds: number;
+  day2Rounds: number;
+  totalSwissRounds: number;
+  pointsThreshold: number;
+  minDay2Players: number;
+  topCut: number;
+  topCutRounds: number;
+  hasDay2: boolean;
+};
+
+/**
+ * Estructura oficial de torneos de dos fases según el Play! Pokémon Tournament Rules Handbook
+ * (Variant #5: Two Phase 2026 Championship Format):
+ *
+ * Participantes   | Suizo Total | Fase 1 (Día 1) | Umbral Fase 2 | Fase 2 (Día 2) | Top Cut
+ * 4–8             | 3           | 3              | N/A           | 0              | N/A
+ * 9–16            | 4           | 4              | N/A           | 0              | Top 2
+ * 17–32           | 6           | 6              | N/A           | 0              | Top 4
+ * 33–64           | 7           | 7              | N/A           | 0              | Top 6
+ * --- [Requiere segunda fase de suizo / Día 2] ---
+ * 65–128          | 9           | 7              | 13 pts        | 2              | Top 8
+ * 129–256         | 10          | 8              | 16 pts        | 2              | Top 8
+ * 257–512         | 11          | 8              | 16 pts        | 3              | Top 8
+ * 513–1,024       | 12          | 8              | 16 pts        | 4              | Top 8
+ * 1,025–2,048     | 13          | 8              | 16 pts        | 5              | Top 8
+ * 2,049–4,096     | 14          | 8              | 16 pts        | 6              | Top 8
+ * 4,097–8,192     | 15          | 9              | 19 pts        | 6              | Top 8
+ *
+ * Condicionante General de Aprobación:
+ * Un jugador avanza si cumple el umbral de puntos requerido según el tamaño del evento,
+ * o si termina dentro del Top 32 global, garantizando que siempre haya un mínimo de
+ * 32 jugadores compitiendo en el Día 2 (en eventos con Día 2).
+ */
+export function regionalStructure(participants: number): RegionalStructure {
+  if (participants <= 8) {
+    return {
+      day1Rounds: 3,
+      day2Rounds: 0,
+      totalSwissRounds: 3,
+      pointsThreshold: 0,
+      minDay2Players: 0,
+      topCut: 0,
+      topCutRounds: 0,
+      hasDay2: false,
+    };
+  }
+  if (participants <= 16) {
+    return {
+      day1Rounds: 4,
+      day2Rounds: 0,
+      totalSwissRounds: 4,
+      pointsThreshold: 0,
+      minDay2Players: 0,
+      topCut: 2,
+      topCutRounds: 1,
+      hasDay2: false,
+    };
+  }
+  if (participants <= 32) {
+    return {
+      day1Rounds: 6,
+      day2Rounds: 0,
+      totalSwissRounds: 6,
+      pointsThreshold: 0,
+      minDay2Players: 0,
+      topCut: 4,
+      topCutRounds: 2,
+      hasDay2: false,
+    };
+  }
+  if (participants <= 64) {
+    return {
+      day1Rounds: 7,
+      day2Rounds: 0,
+      totalSwissRounds: 7,
+      pointsThreshold: 0,
+      minDay2Players: 0,
+      topCut: 6,
+      topCutRounds: 3,
+      hasDay2: false,
+    };
+  }
+
+  // A partir de 65 participantes hay Día 2 (Variant #5)
+  let day1Rounds = 8;
+  let day2Rounds = 2;
+  let pointsThreshold = 16;
+
+  if (participants <= 128) {
+    day1Rounds = 7;
+    day2Rounds = 2;
+    pointsThreshold = 13;
+  } else if (participants <= 256) {
+    day1Rounds = 8;
+    day2Rounds = 2;
+    pointsThreshold = 16;
+  } else if (participants <= 512) {
+    day1Rounds = 8;
+    day2Rounds = 3;
+    pointsThreshold = 16;
+  } else if (participants <= 1024) {
+    day1Rounds = 8;
+    day2Rounds = 4;
+    pointsThreshold = 16;
+  } else if (participants <= 2048) {
+    day1Rounds = 8;
+    day2Rounds = 5;
+    pointsThreshold = 16;
+  } else if (participants <= 4096) {
+    day1Rounds = 8;
+    day2Rounds = 6;
+    pointsThreshold = 16;
+  } else {
+    // 4097 a 8192
+    day1Rounds = 9;
+    day2Rounds = 6;
+    pointsThreshold = 19;
+  }
+
+  return {
+    day1Rounds,
+    day2Rounds,
+    totalSwissRounds: day1Rounds + day2Rounds,
+    pointsThreshold,
+    minDay2Players: 32,
+    topCut: 8,
+    topCutRounds: 3,
+    hasDay2: true,
+  };
+}
+
+export type Day2Qualification = {
+  qualifies: boolean;
+  byPoints: boolean;
+  byTop32: boolean;
+  points: number;
+  threshold: number;
+  minDay2Players: number;
+};
+
+/**
+ * Evalúa si un jugador avanza al Día 2 tras concluir la última ronda del Día 1.
+ *
+ * Condicionante General de Aprobación:
+ * Un jugador avanza si cumple el umbral de puntos requerido según el tamaño
+ * del evento (13, 16 o 19 pts), o si termina dentro del Top 32 global, garantizando
+ * que siempre haya un mínimo de 32 jugadores compitiendo en el Día 2.
+ */
+export function qualifiesForDay2(input: {
+  participants: number;
+  record?: Record3;
+  points?: number;
+  placement?: number | null;
+}): Day2Qualification {
+  const structure = regionalStructure(input.participants);
+  const points = input.points ?? (input.record ? matchPoints(input.record) : 0);
+  const byPoints = structure.pointsThreshold > 0 && points >= structure.pointsThreshold;
+  const byTop32 =
+    structure.hasDay2 &&
+    typeof input.placement === "number" &&
+    input.placement > 0 &&
+    input.placement <= structure.minDay2Players;
+
+  return {
+    qualifies: byPoints || byTop32,
+    byPoints,
+    byTop32,
+    points,
+    threshold: structure.pointsThreshold,
+    minDay2Players: structure.minDay2Players,
+  };
+}
+
+/** Determina si un evento sigue la estructura de torneo Regional de dos días. */
+export function isRegionalTournament(
+  kind?: string | null,
+  participants?: number | null,
+): boolean {
+  if (kind === "regional" || kind === "special" || kind === "international") return true;
+  if (participants != null && participants >= 65 && kind !== "league_challenge" && kind !== "league_cup") return true;
+  return false;
+}
+
+export type Day1Outlook = {
+  stage: "day1";
+  day1Rounds: number;
+  day2Rounds: number;
+  totalSwissRounds: number;
+  remaining: number;
+  threshold: number;
+  currentPoints: number;
+  scenarios: Scenario[];
+  cheapestIn: Scenario | null;
+  eliminated: boolean;
+  clinched: boolean;
+  qualifies: boolean;
+};
+
+/**
+ * Escenarios para las rondas restantes del Día 1 hacia el corte de Día 2.
+ */
+export function day1Scenarios(
+  current: Record3,
+  remainingDay1: number,
+  threshold: number,
+): Scenario[] {
+  const out: Scenario[] = [];
+  for (let w = remainingDay1; w >= 0; w--) {
+    for (let t = remainingDay1 - w; t >= 0; t--) {
+      const need = { wins: w, ties: t, losses: remainingDay1 - w - t };
+      const final = {
+        wins: current.wins + w,
+        losses: current.losses + need.losses,
+        ties: current.ties + t,
+      };
+      const pts = matchPoints(final);
+      let verdict: Verdict = "out";
+      if (pts >= threshold) {
+        verdict = "in";
+      } else if (pts >= threshold - 2) {
+        verdict = "bubble";
+      }
+      out.push({ need, final, points: pts, verdict });
+    }
+  }
+  return out.sort((a, b) => b.points - a.points);
+}
+
+/**
+ * Pronóstico y combinaciones para pasar el corte al Día 2 durante el Día 1.
+ */
+export function day1Outlook(input: {
+  players: number;
+  current: Record3;
+  placement?: number | null;
+}): Day1Outlook {
+  const { players, current, placement } = input;
+  const structure = regionalStructure(players);
+  const jugadas = current.wins + current.losses + current.ties;
+  const remaining = Math.max(0, structure.day1Rounds - jugadas);
+  const currentPoints = matchPoints(current);
+  const list = day1Scenarios(current, remaining, structure.pointsThreshold);
+
+  const dentro = list.filter((s) => s.verdict === "in");
+  const cheapestIn = dentro.length
+    ? dentro.reduce((best, s) =>
+        s.need.wins < best.need.wins ||
+        (s.need.wins === best.need.wins && s.need.ties < best.need.ties) ? s : best)
+    : null;
+
+  const qualification = qualifiesForDay2({
+    participants: players,
+    record: current,
+    placement,
+  });
+
+  return {
+    stage: "day1",
+    day1Rounds: structure.day1Rounds,
+    day2Rounds: structure.day2Rounds,
+    totalSwissRounds: structure.totalSwissRounds,
+    remaining,
+    threshold: structure.pointsThreshold,
+    currentPoints,
+    scenarios: list,
+    cheapestIn,
+    eliminated: currentPoints + remaining * 3 < structure.pointsThreshold,
+    clinched: currentPoints >= structure.pointsThreshold,
+    qualifies: qualification.qualifies,
+  };
+}
+
+/**
+ * Filtra una lista de jugadores/entradas para obtener los clasificados al Día 2.
+ */
+export function filterDay2Qualifiers<T extends {
+  wins?: number | null;
+  losses?: number | null;
+  ties?: number | null;
+  placement?: number | null;
+}>(entries: T[], totalParticipants?: number): T[] {
+  const n = totalParticipants ?? entries.length;
+  const structure = regionalStructure(n);
+  return entries.filter((e) => {
+    const pts = (e.wins ?? 0) * 3 + (e.ties ?? 0);
+    const byPoints = pts >= structure.pointsThreshold;
+    const byTop32 =
+      typeof e.placement === "number" &&
+      e.placement > 0 &&
+      e.placement <= structure.minDay2Players;
+    return byPoints || byTop32;
+  });
+}
