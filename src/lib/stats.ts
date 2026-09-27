@@ -627,10 +627,79 @@ export function pairRound(
   return { pairs, bye: pool[0] ?? null };
 }
 
-/** Rondas recomendadas para un suizo según el número de jugadores. */
-export function suggestedRounds(n: number) {
+/**
+ * Rondas recomendadas para un suizo según el número de participantes y tipo de torneo,
+ * según el Play! Pokémon Tournament Rules Handbook (Edición 1 de septiembre de 2026).
+ *
+ * - Para torneos de dos fases / Regionales (Variant #5):
+ *   65–128: 9 rondas (7 Día 1 + 2 Día 2)
+ *   129–256: 10 rondas (8 Día 1 + 2 Día 2)
+ *   257–512: 11 rondas (8 Día 1 + 3 Día 2)
+ *   513–1024: 12 rondas (8 Día 1 + 4 Día 2)
+ *   1025–2048: 13 rondas (8 Día 1 + 5 Día 2)
+ *   2049–4096: 14 rondas (8 Día 1 + 6 Día 2)
+ *   4097–8192: 15 rondas (9 Día 1 + 6 Día 2)
+ *
+ * - Para League Cups (Variant #3: TCG Single Day):
+ *   4–8: 3, 9–12: 4, 13–32: 5, 33–64: 6, 65–128: 7, 129–226: 8, 227–409: 9, 410+: 10
+ *
+ * - Para League Challenges (Variant #2: TCG Swiss Only):
+ *   4–8: 3, 9–16: 4, 17–32: 5, 33–64: 6, 65–128: 7, 129–256: 8, 257–512: 9, 513+: 10
+ */
+export function suggestedRounds(n: number, kind?: string): number {
   if (n <= 2) return 1;
+
+  const isRegional =
+    kind === "regional" || kind === "special" || kind === "international";
+
+  if (isRegional || (n >= 65 && kind !== "league_cup" && kind !== "league_challenge")) {
+    if (n <= 8) return 3;
+    if (n <= 16) return 4;
+    if (n <= 32) return 6;
+    if (n <= 64) return 7;
+    if (n <= 128) return 9;
+    if (n <= 256) return 10;
+    if (n <= 512) return 11;
+    if (n <= 1024) return 12;
+    if (n <= 2048) return 13;
+    if (n <= 4096) return 14;
+    return 15;
+  }
+
+  if (kind === "league_cup") {
+    if (n <= 8) return 3;
+    if (n <= 12) return 4;
+    if (n <= 32) return 5;
+    if (n <= 64) return 6;
+    if (n <= 128) return 7;
+    if (n <= 226) return 8;
+    if (n <= 409) return 9;
+    return 10;
+  }
+
+  if (kind === "league_challenge") {
+    if (n <= 8) return 3;
+    if (n <= 16) return 4;
+    if (n <= 32) return 5;
+    if (n <= 64) return 6;
+    if (n <= 128) return 7;
+    if (n <= 256) return 8;
+    if (n <= 512) return 9;
+    return 10;
+  }
+
   return Math.max(1, Math.ceil(Math.log2(n)));
+}
+
+/** Top cut recomendado según la asistencia y tipo de evento. */
+export function suggestedTopCut(n: number, kind?: string): number {
+  if (n < 8) return 0;
+  const isRegional =
+    kind === "regional" || kind === "special" || kind === "international";
+  if (isRegional || n >= 65) return 8;
+  if (kind === "league_challenge") return 0;
+  if (n <= 20) return 4;
+  return 8;
 }
 
 /* ==================================== rondas de torneo ====
@@ -773,8 +842,9 @@ export function nextStarter(previousWinner: Side | "tie" | null): Side {
 
 export type RoundStage = {
   kind: "swiss" | "cut";
-  /** "Suizo", o el nombre de la ronda eliminatoria: "Cuartos", "Final"… */
+  /** "Suizo", "Día 1", "Día 2", o el nombre de la ronda eliminatoria: "Cuartos", "Final"… */
   label: string;
+  day?: 1 | 2;
 };
 
 const CUT_STAGE_NAMES = ["Final", "Semifinal", "Cuartos", "Octavos", "Dieciseisavos"];
@@ -782,18 +852,84 @@ const CUT_STAGE_NAMES = ["Final", "Semifinal", "Cuartos", "Octavos", "Dieciseisa
 /**
  * Fase de una ronda dentro del torneo.
  *
- * Rondas 1..swissRounds son suizo. Las siguientes son el top cut, contadas
- * desde el final: la última jugada es la Final, la anterior la Semifinal, y
- * así hacia atrás. `topCut` decide cuántas rondas de eliminatoria caben
- * (un top 8 son 3: cuartos, semi, final); sin él, o si la ronda cae más allá
- * de las que salen, se llama solo «Top cut» en vez de inventar un nombre.
+ * En torneos de dos fases (Regionales / ICs, o con 9 a 15 rondas suizas):
+ * - Día 1: rondas 1..7 (en torneos de 9 rondas), 1..8 (en 10-14 rondas), o 1..9 (en 15 rondas).
+ * - Día 2: rondas siguientes del suizo hasta completar la fase.
+ * - Top Cut: eliminatoria directa (Top 8: Cuartos, Semifinal, Final).
+ *
+ * En torneos estándar de un solo día:
+ * - Rondas 1..swissRounds son "Suizo".
+ * - Las siguientes son el top cut, contadas desde el final hacia atrás.
  */
 export function roundStage(
   round: number,
   swissRounds: number | null | undefined,
   topCut: number | null | undefined,
+  options?: { playerCount?: number | null; kind?: string } | number | null,
 ): RoundStage {
   const swiss = swissRounds ?? 0;
+  const playerCount = typeof options === "number" ? options : options?.playerCount ?? null;
+  const kind = typeof options === "object" ? options?.kind : undefined;
+
+  const isRegional =
+    kind === "regional" ||
+    kind === "special" ||
+    kind === "international" ||
+    (playerCount != null && playerCount >= 65 && kind !== "league_challenge" && kind !== "league_cup") ||
+    (swiss >= 9 && swiss <= 15 && kind !== "league_challenge" && kind !== "league_cup");
+
+  if (isRegional) {
+    let day1Rounds = 8;
+    let totalSwiss = 12;
+
+    if (playerCount && playerCount >= 65) {
+      if (playerCount <= 128) {
+        day1Rounds = 7;
+        totalSwiss = 9;
+      } else if (playerCount <= 256) {
+        day1Rounds = 8;
+        totalSwiss = 10;
+      } else if (playerCount <= 512) {
+        day1Rounds = 8;
+        totalSwiss = 11;
+      } else if (playerCount <= 1024) {
+        day1Rounds = 8;
+        totalSwiss = 12;
+      } else if (playerCount <= 2048) {
+        day1Rounds = 8;
+        totalSwiss = 13;
+      } else if (playerCount <= 4096) {
+        day1Rounds = 8;
+        totalSwiss = 14;
+      } else {
+        day1Rounds = 9;
+        totalSwiss = 15;
+      }
+    } else {
+      if (swiss === 9) day1Rounds = 7;
+      else if (swiss === 15) day1Rounds = 9;
+      else day1Rounds = 8;
+      totalSwiss = swiss > 0 ? swiss : 12;
+    }
+
+    const effectiveSwiss = swiss > 0 ? swiss : totalSwiss;
+
+    if (round <= day1Rounds) {
+      return { kind: "swiss", label: "Día 1", day: 1 };
+    }
+    if (round <= effectiveSwiss) {
+      return { kind: "swiss", label: "Día 2", day: 2 };
+    }
+    const cut = topCut && topCut > 1 ? topCut : 8;
+    const cutRounds = Math.ceil(Math.log2(cut));
+    const posFromEnd = effectiveSwiss + cutRounds - round;
+    const label =
+      cutRounds > 0 && posFromEnd >= 0 && posFromEnd < CUT_STAGE_NAMES.length
+        ? CUT_STAGE_NAMES[posFromEnd]
+        : "Top cut";
+    return { kind: "cut", label };
+  }
+
   if (!swiss || round <= swiss) return { kind: "swiss", label: "Suizo" };
 
   const cutRounds = topCut && topCut > 1 ? Math.ceil(Math.log2(topCut)) : 0;

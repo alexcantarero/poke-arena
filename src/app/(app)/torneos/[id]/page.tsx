@@ -222,6 +222,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
             isMine
             totalRounds={t.rounds ?? null}
             topCut={t.topCut ?? null}
+            playerCount={t.playerCount ?? null}
             archById={snap.archById}
             closed={status === "closed"}
             canEdit
