@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { loadSnapshot } from "@/lib/data";
 import {
   activityByMonth, archetypeStats, archetypesOfMatch, firstTurnSeriesStats, firstTurnStats,
-  isInternal, isPlayed, matchupMatrix, seriesShapes,
+  isInternal, isPlayed, matchupMatrix, outcome, seriesShapes,
 } from "@/lib/stats";
 import {
   applyMatchFilter, describeFilter, filterToQuery, isFiltered, parseMatchFilter,
@@ -10,7 +11,7 @@ import {
 import { COMPETITION_KINDS, TOURNAMENT_FORMATS } from "@/lib/types";
 import { getSeason } from "@/lib/cp";
 import { MONTHS, pct, wrColor } from "@/lib/format";
-import { Bars, Kpi, PageHead, Sprites } from "@/components/ui";
+import { Avatar, Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { FilterPanel } from "@/components/FilterPanel";
 import { SourceTabs } from "@/components/statistics/SourceTabs";
@@ -21,7 +22,7 @@ import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { ArchetypeChart } from "@/components/statistics/Charts";
 import { ConversionChart } from "@/components/statistics/ConversionChart";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
-import { byArchetype, overTime, type PlacementRow } from "@/lib/tournamentStats";
+import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 
 export const metadata = { title: "Estadísticas" };
 
@@ -160,6 +161,41 @@ export default async function StatsPage({
       || (b.top4Rate ?? -1) - (a.top4Rate ?? -1)
       || b.entries - a.entries);
 
+  const porJugador: ConvRow[] = [...byPlayer(placements).entries()]
+    .map(([playerId, stats]) => {
+      const p = snap.playersById.get(playerId);
+      const mias = rows.filter((m) => m.tournamentId && m.playerAId === playerId);
+      const ganadas = mias.filter((m) => outcome(m).winner === "a").length;
+      const perdidas = mias.filter((m) => outcome(m).winner === "b").length;
+      const empatadas = mias.length - ganadas - perdidas;
+      return {
+        ...stats,
+        id: playerId,
+        label: p?.name ?? "—",
+        icon: <Avatar player={p} size="sm" />,
+        href: `/perfil/${playerId}`,
+        matchWins: ganadas,
+        matchWinRate: mias.length ? (ganadas + empatadas / 2) / mias.length : null,
+      };
+    })
+    .sort((a, b) =>
+      (b.cutRate ?? -1) - (a.cutRate ?? -1)
+      || (b.top4Rate ?? -1) - (a.top4Rate ?? -1)
+      || b.entries - a.entries);
+
+  const vistaRaw = Array.isArray(q.vista) ? q.vista[0] : q.vista;
+  const vista: "mazos" | "jugadores" = vistaRaw === "jugadores" ? "jugadores" : "mazos";
+
+  const vistaHref = (v: "mazos" | "jugadores") => {
+    const p = new URLSearchParams(query);
+    if (fuente !== "local") p.set("fuente", fuente);
+    if (orden === "asc") p.set("orden", "asc");
+    if (v !== "mazos") p.set("vista", v);
+    else p.delete("vista");
+    const qs = p.toString();
+    return qs ? `/estadisticas?${qs}` : "/estadisticas";
+  };
+
   const evolucion = overTime(placements);
 
   /* El informe del último torneo grande. Solo se pide cuando toca: son dos
@@ -178,6 +214,7 @@ export default async function StatsPage({
   const ordenHref = (d: SortDir) => {
     const p = new URLSearchParams(query);
     if (fuente !== "local") p.set("fuente", fuente);
+    if (vista !== "mazos") p.set("vista", vista);
     if (d === "asc") p.set("orden", "asc");
     else p.delete("orden");
     const qs = p.toString();
@@ -215,6 +252,7 @@ export default async function StatsPage({
         show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format"]}
         keep={{
           ...(fuente === "local" ? {} : { fuente }),
+          ...(vista === "mazos" ? {} : { vista }),
           ...(orden === "asc" ? { orden: "asc" } : {}),
         }}
         tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
@@ -339,27 +377,50 @@ export default async function StatsPage({
         </section>
       )}
 
-      {/* -------------------- rendimiento en torneos por mazo ------------------- */}
+      {/* -------------------- rendimiento en torneos ------------------- */}
       {placements.length > 0 && (
         <>
           <section className="card mt-4">
             <div className="card-head">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold">Qué mazos llegan al corte</h2>
+                <h2 className="text-lg font-bold">
+                  {vista === "jugadores" ? "Qué jugadores llegan al corte" : "Qué mazos llegan al corte"}
+                </h2>
                 <p className="text-xs text-muted">
-                  Esto mira <b>torneos</b>, no partidas: con qué mazo se entra en el top cut.
+                  {vista === "jugadores"
+                    ? "De cada vez que vais a un torneo, cuántas entráis al top cut."
+                    : "Esto mira torneos, no partidas: con qué mazo se entra en el top cut."}
                 </p>
               </div>
-              <SortToggle dir={orden} href={ordenHref} />
+              <div className="flex items-center gap-2">
+                <div className="seg text-xs">
+                  <Link href={vistaHref("mazos")} data-on={vista === "mazos"}>
+                    Mazos
+                  </Link>
+                  <Link href={vistaHref("jugadores")} data-on={vista === "jugadores"}>
+                    Jugadores
+                  </Link>
+                </div>
+                <SortToggle dir={orden} href={ordenHref} />
+              </div>
             </div>
-            <ConversionTable
-              rows={sortRows(porMazo, (r) => r.cutRate ?? r.top8Rate, orden)}
-              empty="Ningún resultado de torneo tiene el mazo apuntado todavía."
-            />
+            {vista === "jugadores" ? (
+              <ConversionTable
+                rows={sortRows(porJugador, (r) => r.cutRate ?? r.top4Rate, orden)}
+                matchColumns
+                empty="Nadie tiene todavía un puesto apuntado en un torneo de este tipo."
+              />
+            ) : (
+              <ConversionTable
+                rows={sortRows(porMazo, (r) => r.cutRate ?? r.top8Rate, orden)}
+                empty="Ningún resultado de torneo tiene el mazo apuntado todavía."
+              />
+            )}
             <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
               <b>%Cut</b> sale solo de los torneos que tenían top cut, así que un guion quiere
-              decir «no había nada que convertir», no un cero. Usa los filtros de arriba para
-              recortar por tipo de torneo o por fechas.
+              decir «no había nada que convertir», no un cero.
+              {vista === "jugadores" && " %V y V son de partidas de torneo, no de torneos enteros."}{" "}
+              Usa los filtros de arriba para recortar por tipo de torneo o por fechas.
             </p>
           </section>
 

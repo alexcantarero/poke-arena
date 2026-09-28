@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
-import { byPlayer, type PlacementRow } from "@/lib/tournamentStats";
-import { getSeason } from "@/lib/cp";
-import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
-import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { readSession } from "@/lib/auth";
-import { archetypeStats, isInternal, isPlayed, outcome, standings } from "@/lib/stats";
+import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
   Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
@@ -14,10 +10,8 @@ import {
 import { Icon } from "@/components/icons";
 import { HomeCharts } from "@/components/HomeCharts";
 
-export default async function HomePage({
-  searchParams,
-}: { searchParams: Promise<{ tipo?: string | string[]; orden?: string }> }) {
-  const [q, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
+export default async function HomePage() {
+  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const played = snap.matches.filter(isPlayed);
   const pending = snap.matches.filter((m) => m.status === "scheduled");
 
@@ -87,84 +81,7 @@ export default async function HomePage({
     };
   });
 
-  /* --------------------------------------------------------------
-     Conversión en torneos: de cada diez veces que vas, cuántas llegas.
 
-     Es otra pregunta distinta a la del ranking. El ranking dice quién gana
-     más partidas; esto dice quién convierte. Hay gente que gana muchas
-     rondas y se queda en la burbuja.
-
-     El filtro por tipo de torneo va por URL, como el resto de la app: el
-     enlace se comparte y la vuelta atrás funciona.
-     -------------------------------------------------------------- */
-  const tiposConTorneos = [...new Set(snap.tournaments.map((t) => t.kind))];
-
-  /* --- varios tipos a la vez ---
-     `?tipo=regional&tipo=league_cup`. Dentro de la MISMA dimensión los
-     valores se suman (o uno u otro), que es lo que uno espera al marcar dos
-     casillas: pedir «regional Y cup» a la vez no devolvería nunca nada,
-     porque un torneo tiene un solo tipo. El «y» entre dimensiones distintas
-     —tipo y fecha, por ejemplo— sí se cumple, y es como funcionan también
-     los filtros de Resultados y Estadísticas. */
-  const tipos = (Array.isArray(q.tipo) ? q.tipo : q.tipo ? [q.tipo] : [])
-    .filter((t) => tiposConTorneos.includes(t));
-  const activo = (k: string) => tipos.includes(k);
-  const cpTable = getSeason(snap.config.cpSeason);
-
-  const placements: PlacementRow[] = snap.tournaments
-    .filter((t) => !tipos.length || tipos.includes(t.kind))
-    .flatMap((t) => t.results.map((r) => ({
-      playerId: r.playerId,
-      archetypeId: r.archetypeId
-        ?? (r.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null),
-      placement: r.placement ?? null,
-      date: t.date,
-      kind: t.kind,
-      playerCount: t.playerCount ?? null,
-      topCut: t.topCut ?? null,
-    })));
-
-  /* El %V y las victorias de partidas salen de las rondas de torneo, no de
-     los puestos: son dos cosas distintas y conviene verlas juntas. */
-  const rondas = played.filter((m) => m.tournamentId)
-    .filter((m) => {
-      if (!tipos.length) return true;
-      const k = snap.toursById.get(m.tournamentId as string)?.kind;
-      return Boolean(k && tipos.includes(k));
-    });
-
-  const orden: SortDir = q.orden === "asc" ? "asc" : "desc";
-
-  const conversion: ConvRow[] = [...byPlayer(placements).entries()]
-    .map(([playerId, stats]) => {
-      const p = snap.playersById.get(playerId);
-      const mias = rondas.filter((m) => m.playerAId === playerId);
-      const ganadas = mias.filter((m) => outcome(m).winner === "a").length;
-      const perdidas = mias.filter((m) => outcome(m).winner === "b").length;
-      const empatadas = mias.length - ganadas - perdidas;
-      return {
-        ...stats,
-        id: playerId,
-        label: p?.name ?? "—",
-        icon: <Avatar player={p} size="sm" />,
-        href: `/perfil/${playerId}`,
-        matchWins: ganadas,
-        matchWinRate: mias.length ? (ganadas + empatadas / 2) / mias.length : null,
-      };
-    })
-    .sort((a, b) => b.entries - a.entries);
-
-  /** La URL con un tipo añadido o quitado, conservando los demás y el orden. */
-  const urlCon = (lista: string[], dir: SortDir) => {
-    const sp = new URLSearchParams();
-    for (const t of lista) sp.append("tipo", t);
-    if (dir === "asc") sp.set("orden", "asc");
-    const qs = sp.toString();
-    return qs ? `/?${qs}` : "/";
-  };
-  const alternar = (k: string) =>
-    urlCon(activo(k) ? tipos.filter((x) => x !== k) : [...tipos, k], orden);
-  const ordenHref = (d: SortDir) => urlCon(tipos, d);
 
   return (
     <>
@@ -203,63 +120,7 @@ export default async function HomePage({
         />
       </div>
 
-      {/* --------------------- conversión en torneos --------------------- */}
-      {conversion.length > 0 && (
-        <section className="card mb-4">
-          <div className="card-head">
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold">Conversión en torneos</h2>
-              <p className="text-xs text-muted">
-                De cada vez que vais, cuántas llegáis al corte. No es lo mismo que ganar
-                rondas.
-              </p>
-            </div>
-            <SortToggle dir={orden} href={ordenHref} />
-          </div>
 
-          {tiposConTorneos.length > 1 && (
-            <div className="px-4 pt-3">
-              {/* Se pueden marcar varios. Cada chip encendido lleva una × que
-                  lo quita, que es la única forma de que se entienda que no es
-                  un selector de uno solo. */}
-              <div className="scroll-x flex gap-2">
-                <Link href={urlCon([], orden)} aria-current={!tipos.length ? "page" : undefined}
-                  className={`chip flex-none ${!tipos.length ? "chip-brand" : ""}`}>
-                  Todos
-                </Link>
-                {tiposConTorneos.map((k) => (
-                  <Link key={k} href={alternar(k)}
-                    aria-pressed={activo(k)}
-                    className={`chip flex-none ${activo(k) ? "chip-brand" : ""}`}>
-                    {cpTable.events[k]?.label ?? k}
-                    {activo(k) && <Icon name="close" className="size-3" />}
-                  </Link>
-                ))}
-              </div>
-              {tipos.length > 1 && (
-                <p className="mt-1.5 text-[11px] text-muted">
-                  Se suman: salen los torneos de cualquiera de los {tipos.length} tipos
-                  marcados.
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="mt-2">
-            <ConversionTable
-              rows={sortRows(conversion, (r) => r.cutRate ?? r.top4Rate, orden)}
-              matchColumns
-              empty="Nadie tiene todavía un puesto apuntado en un torneo de este tipo."
-            />
-          </div>
-
-          <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
-            <b>%Cut</b> se calcula solo sobre los torneos que tenían top cut: un Challenge sin
-            corte no cuenta como corte fallado, y por eso a veces sale un guion en vez de un
-            cero. <b>%V</b> y <b>V</b> son de partidas, no de torneos.
-          </p>
-        </section>
-      )}
 
       {pending.length > 0 && (
         <section className="card mb-4">

@@ -293,7 +293,7 @@ const RESULTS = [
   { v: "b", label: "Perdí", cls: "data-[on=true]:bg-loss data-[on=true]:text-white" },
 ] as const;
 
-function RoundForm({
+export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
   lockedDeckId, existing, onCancel,
 }: {
