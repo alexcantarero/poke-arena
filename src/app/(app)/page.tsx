@@ -4,7 +4,7 @@ import { readSession } from "@/lib/auth";
 import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
-  Avatar, Empty, Kpi, MatchCard, MatchList, PageHead, PlayerTag,
+  Avatar, Empty, Kpi, PageHead, PlayerTag,
   Record, Sprites, StreakChip,
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -73,7 +73,6 @@ export default async function HomePage({
   const myCp = session ? playerCp(snap, session.playerId) : null;
   const archs = archetypeStats(played, snap.archIndex, undefined, snap.archById);
   const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 3);
-  const recent = played.slice(-6).reverse();
   const nextTournaments = snap.tournaments.filter((t) => t.date >= todayISO()).slice(-3).reverse();
 
   /* ---------------------------------------------------------------
@@ -156,7 +155,7 @@ export default async function HomePage({
     const ev = irl.events.find((e) => KINDS_REGIONAL.has(e.kind)) ?? irl.events[0];
     const entries = ev ? irl.entries.filter((e) => e.eventId === ev.id) : [];
     const p = panelDeEvento(entries, ev?.topCut, online);
-    const deTemporada = irl.events.filter((e) => (e.season ?? seasonOfDate(e.date)) === temporada);
+    const deTemporada = irl.events.filter((e) => KINDS_REGIONAL.has(e.kind) && (e.season ?? seasonOfDate(e.date)) === temporada);
     const top = irlMeta(deTemporada, irl.entries.filter((e) => deTemporada.some((d) => d.id === e.eventId)));
     panel = {
       vista, hrefs,
@@ -175,7 +174,7 @@ export default async function HomePage({
         share: r.share, decks: r.entries,
       })),
       topNota: `${top.events} eventos · temporada ${temporada} · lo importado`,
-      recientes: irl.events.slice(0, 6).map((e) => ({
+      recientes: irl.events.filter((e) => e.kind !== "city_league").slice(0, 6).map((e) => ({
         key: e.id, date: fechaCorta(e.date), name: e.name, tipo: etiquetaTipo(e.kind),
         aside: e.playerCount ? `${e.playerCount.toLocaleString("es")} jugadores` : undefined,
         href: "/topdecks?fuente=presencial",
@@ -379,34 +378,6 @@ export default async function HomePage({
         </section>
       </div>
 
-      <section className="card mt-4">
-        <div className="card-head">
-          <h2 className="text-lg font-bold">Últimos resultados</h2>
-          <Link className="btn btn-ghost btn-sm" href="/resultados">Todos</Link>
-        </div>
-        {recent.length ? (
-          <MatchList>
-            {recent.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                playerA={snap.playersById.get(m.playerAId)}
-                playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
-                archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
-                archB={m.deckBId ? snap.archIndex.get(m.deckBId) : (m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined)}
-                context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
-              />
-            ))}
-          </MatchList>
-        ) : (
-          <Empty
-            title="Todavía no hay partidas"
-            action={<Link className="btn btn-brand" href="/partidas/nueva">Registrar la primera</Link>}
-          >
-            En cuanto registréis unas cuantas, el ranking y las estadísticas se construyen solos.
-          </Empty>
-        )}
-      </section>
 
       {(eloSeries.length > 0 || metaRows.length > 0 || cpBars.length > 0) && (
         <HomeCharts

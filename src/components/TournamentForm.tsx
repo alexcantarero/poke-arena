@@ -39,7 +39,10 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
 
   const [kind, setKind] = useState(tournament?.kind ?? "store");
   const [scope, setScope] = useState(tournament?.scope ?? "onsite");
-  const [bestOf, setBestOf] = useState(tournament?.bestOf ?? 3);
+  const [bestOf, setBestOf] = useState(
+    tournament?.bestOf
+      ?? (tournament?.kind === "league_challenge" || tournament?.kind === "pokemon_challenge" ? 1 : 3),
+  );
   const [status, setStatus] = useState(tournament?.status ?? "open");
   const [playerCount, setPlayerCount] = useState<string>(
     tournament?.playerCount != null ? String(tournament.playerCount) : "",
@@ -82,7 +85,14 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             <label className="label" htmlFor="kind">Tipo</label>
             <select
               className="input" id="kind" name="kind" value={kind}
-              onChange={(e) => setKind(e.target.value)}
+              onChange={(e) => {
+                const k = e.target.value;
+                setKind(k);
+                // Los League Challenge se juegan al mejor de uno (confirmado por
+                // Ibai, v0.14). Se propone al elegir el tipo; se puede cambiar.
+                if (k === "league_challenge" || k === "pokemon_challenge") setBestOf(1);
+                else if (bestOf === 1 && (kind === "league_challenge" || kind === "pokemon_challenge")) setBestOf(3);
+              }}
             >
               {TOURNAMENT_KIND_GROUPS.map((g) => (
                 <optgroup key={g.group} label={g.group}>

@@ -96,7 +96,12 @@ export default async function TopDecksPage({
 
   /* ------------------------------------------------------------ presencial */
   if (presencial) {
-    const { events, entries } = await loadMetaIrl();
+    const todo = await loadMetaIrl();
+    // v0.14: las City Leagues van aparte (formato japonés, por delante del
+    // internacional): mezclarlas aquí movería las cuotas del meta de papel.
+    const events = todo.events.filter((e) => e.kind !== "city_league");
+    const vivos = new Set(events.map((e) => e.id));
+    const entries = todo.entries.filter((r) => vivos.has(r.eventId));
     // Nombre distinto del `meta` de la vista online, aunque estén en bloques
     // separados: tener dos cosas distintas llamadas igual en el mismo fichero
     // es cómo se cuelan los errores al editarlo dentro de seis meses.
@@ -116,7 +121,7 @@ export default async function TopDecksPage({
       <>
         <PageHead
           title="Top Decks"
-          sub="Lo que cortó en los Regionales. Importado a mano, porque no hay forma legítima de traerlo solo."
+          sub="Lo que cortó en los Regionales: traído de Limitless TCG desde Ajustes, o pegado a mano."
           back={{ href: "/mas", label: "Más" }}
         />
         {pestanas}

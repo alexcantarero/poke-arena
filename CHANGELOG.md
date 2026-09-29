@@ -2,6 +2,47 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.14.0] — 2026-09-28
+
+Regionales y City Leagues sin pegar nada, Estadísticas por fuente y la ficha del torneo por
+fase. **Sin migración y sin dependencias nuevas.**
+
+### Añadido
+
+- **Regionales y City Leagues desde Limitless TCG** (Ajustes → «Regionales y City Leagues
+  automáticos», solo organizadores). Lee dos páginas públicas por torneo de limitlesstcg.com:
+  el recuento de mazos del Día 2 que publica Limitless y la cabeza de resultados (puesto y
+  mazo). Se guarda en el metagame presencial de siempre, con fuente citada.
+  - **Sin nombres de persona**: los parsers (`lib/limitlessHtml.ts`) no capturan ni la
+    columna del jugador ni `data-name`, y `meta_entries` sigue sin esa columna.
+  - Idempotente (`lt-<id>`, `ltjp-<id>`): lo ya traído no se vuelve a pedir. Tope de 6
+    Regionales y 15 City Leagues por pulsación, pausa de 0,6 s entre peticiones, User-Agent
+    propio y caché de 24 h.
+  - robots.txt de limitlesstcg.com: permite todo. La web no publica condiciones de uso.
+- **Estadísticas por fuente**: Jugadores de la app · Regionales · City Leagues · Online ·
+  Comparar · Último torneo online. Regionales y City Leagues salen de lo traído o pegado.
+- **Challenges y Cups de la zona en el Calendario**: se pega la lista del buscador de eventos
+  oficial y se crean los eventos (solo TCG, solo Challenge y Cup). Idempotente.
+
+### Cambiado
+
+- **Los League Challenge son Bo1 por defecto** al crear el torneo.
+- **La pestaña de fase filtra también las rondas.** Día 1 enseña solo las rondas del Día 1,
+  Día 2 solo las del Día 2 y el corte, General todas. Va por URL (`?fase=`); sin ella se abre
+  en la fase en la que vas.
+- La lista de desplegables se llama **«Resultados del grupo»**, y cada cabecera lleva también
+  el **premio** junto al puesto, V–D–E, mazo, CP y comentario.
+- **Inicio sin «Últimos resultados»**: ya tiene su pestaña.
+- **Barra del móvil: Estadísticas en lugar de Ranking.** Ranking sigue en «Más».
+- Top Decks → Presencial y el inicio no mezclan las City Leagues (formato japonés) con los
+  Regionales.
+
+### Verificado
+
+- `npm test`: 261 de 261 (11 nuevas, con fragmentos del HTML real de Limitless, incluida una
+  que comprueba que ningún nombre de jugador sale de los parsers).
+- `npm run build` sigue sin poderse lanzar aquí.
+
 ## [0.13.0] — 2026-09-28
 
 El inicio con el último Regional, y las rondas según el tipo de torneo. **Sin migración y sin

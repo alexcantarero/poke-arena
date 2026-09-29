@@ -15,6 +15,8 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /** Las que caben en la barra inferior del móvil. El resto van a «Más». */
-export const MOBILE_HREFS = ["/", "/ranking", "/torneos"];
+/* v0.14: Estadísticas sustituye a Ranking en la barra del móvil; Ranking
+   sigue en «Más» y en la barra lateral. */
+export const MOBILE_HREFS = ["/", "/estadisticas", "/torneos"];
 
 export const moreSections = () => NAV_ITEMS.filter((i) => !MOBILE_HREFS.includes(i.href));

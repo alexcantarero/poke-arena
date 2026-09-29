@@ -18,7 +18,8 @@ import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/TournamentRounds";
-import { etapaDeRonda, familiaDe, maxRondasDe } from "@/lib/estructura";
+import { etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
+import type { Pestana } from "@/components/CaminoAlCorte";
 import { deleteTournament, deleteTournamentResult } from "@/actions";
 import { Icon } from "@/components/icons";
 
@@ -43,10 +44,13 @@ import { Icon } from "@/components/icons";
 
 export default async function TournamentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ fase?: string }>;
 }) {
   const { id } = await params;
+  const q = await searchParams;
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   const t = snap.toursById.get(id);
   if (!t) notFound();
@@ -115,6 +119,27 @@ export default async function TournamentPage({
   };
   const familia = familiaDe(t.kind);
   const maxRonda = maxRondasDe(forma);
+  const { fase1: rondasFase1, suizo: rondasSuizo } = formaDe(forma);
+
+  /* v0.14 — la pestaña de fase (Día 1 / Día 2 / General, o Suizo / General)
+     va por URL y filtra TAMBIÉN las rondas de cada jugador de abajo. Antes
+     solo cambiaba la tarjeta de resumen y la lista enseñaba siempre todas.
+
+     Sin `?fase=`, se abre en la fase en la que vas: en el Día 2 si ya has
+     apuntado rondas de Día 2, en General si el torneo está cerrado. */
+  const misRondasMax = myRounds.length ? Math.max(...myRounds.map((r) => r.round)) : 0;
+  const hayDia2 = familia === "dosFases" && rondasFase1 != null && rondasSuizo != null && rondasSuizo > rondasFase1;
+  const faseUrl: Pestana | null =
+    q.fase === "dia1" || q.fase === "general" || (q.fase === "dia2" && hayDia2) ? q.fase : null;
+  const fase: Pestana = faseUrl
+    ?? (t.status === "closed" ? "general"
+      : hayDia2 && rondasFase1 != null && misRondasMax > rondasFase1 ? "dia2"
+      : !hayDia2 && rondasSuizo != null && misRondasMax > rondasSuizo ? "general"
+      : "dia1");
+  const enFase = (round: number) =>
+    fase === "general" || rondasFase1 == null
+      ? true
+      : fase === "dia1" ? round <= rondasFase1 : round > rondasFase1;
 
   // Jugadores del grupo con presencia en el torneo (por resultado o por rondas apuntadas, más tú si estás logueado)
   const participantIds = new Set<string>();
@@ -191,7 +216,8 @@ export default async function TournamentPage({
       ties,
       puntos: wins * 3 + ties,
       placement: theirResult?.placement ?? null,
-      rondas: pRounds.map((r) => {
+      apuntadas: pRounds.length,
+      rondas: pRounds.filter((r) => enFase(r.round)).map((r) => {
         const oppArch = r.match.opponentArchetypeId
           ? snap.archById.get(r.match.opponentArchetypeId)
           : r.match.deckBId
@@ -417,6 +443,8 @@ export default async function TournamentPage({
           rondasTotales={t.rounds} // lo configurado a mano manda sobre la tabla
           topCut={t.topCut}
           storageKey={`torneo-${t.id}`} // para que recuerde el plegado por torneo
+          pestana={fase}
+          hrefFase={`/torneos/${t.id}?fase=`}
           rondas={myRounds.flatMap((m) =>
             m.result
               ? [{ round: m.round, result: m.result === "d" ? "t" : m.result }]
@@ -452,6 +480,11 @@ export default async function TournamentPage({
             yoId={me?.id ?? ""}
             total={t.rounds ?? 0}
             asistencia={t.playerCount}
+            filtro={
+              fase === "general" ? null
+                : fase === "dia1" ? (hayDia2 ? "Solo rondas del Día 1" : "Solo rondas del suizo")
+                : "Solo rondas del Día 2 y el top cut"
+            }
             jugadores={participantes}
             formulario={roundFormNode}
           />

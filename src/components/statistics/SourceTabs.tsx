@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, Globe, GitCompare, Trophy } from "lucide-react";
+import { Database, Globe, GitCompare, Landmark, MapPin, Trophy } from "lucide-react";
 
 /* =========================================================================
    De dónde miramos los datos: tu liga, el mundo, o los dos.
@@ -15,13 +15,26 @@ import { Database, Globe, GitCompare, Trophy } from "lucide-react";
 const OPCIONES = [
   {
     value: "local" as const,
-    label: "Tu liga",
+    // v0.14: el nombre dice lo que es — solo lo que habéis jugado vosotros.
+    label: "Jugadores de la app",
     Icon: Database,
     on: "border-source-local bg-source-local-soft text-source-local",
   },
   {
+    value: "regionales" as const,
+    label: "Regionales",
+    Icon: Landmark,
+    on: "border-brand-line bg-brand-soft text-brand",
+  },
+  {
+    value: "city" as const,
+    label: "City Leagues",
+    Icon: MapPin,
+    on: "border-brand-line bg-brand-soft text-brand",
+  },
+  {
     value: "global" as const,
-    label: "Meta online",
+    label: "Online",
     Icon: Globe,
     on: "border-source-global bg-source-global-soft text-source-global",
   },
@@ -33,15 +46,17 @@ const OPCIONES = [
   },
   {
     value: "evento" as const,
-    label: "Último torneo",
+    label: "Último torneo online",
     Icon: Trophy,
     on: "border-brand-line bg-brand-soft text-brand",
   },
 ];
 
+export type Fuente = "local" | "regionales" | "city" | "global" | "both" | "evento";
+
 export function SourceTabs({
   current, query,
-}: { current: "local" | "global" | "both" | "evento"; query: string }) {
+}: { current: Fuente; query: string }) {
   const href = (v: string) => {
     const p = new URLSearchParams(query);
     if (v === "local") p.delete("fuente");

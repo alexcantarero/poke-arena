@@ -12,7 +12,7 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
-import { clearEloReset, purgePlayer, resetElo, resetLeague, saveSettings, wipeSeason } from "@/actions";
+import { clearEloReset, purgePlayer, resetElo, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Ajustes" };
@@ -202,6 +202,30 @@ export default async function SettingsPage() {
               propósito: el importador casa los mazos contra él, así que el
               orden en el que están los dos botones es el orden en el que
               conviene pulsarlos. */}
+          {/* v0.14 — Regionales y City Leagues sin pegar nada. Solo mazos: ni
+              los parsers leen nombres ni la tabla tiene dónde guardarlos. */}
+          <SectionTitle aside="limitlesstcg.com">Regionales y City Leagues automáticos</SectionTitle>
+          <div className="card mb-3 p-4 text-sm">
+            <p className="text-ink-2">
+              Trae de <b>Limitless TCG</b> los Regionales de la temporada y las últimas City Leagues
+              de Japón que aún no estén: el recuento de mazos del Día 2 y el top cut, puesto a
+              puesto. <b>Sin ningún nombre de jugador.</b> Lo que ya está no se vuelve a pedir.
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Hasta 6 Regionales y 15 City Leagues por pulsación. Los torneos online ya llegan
+              solos por la API oficial. Si Limitless pidiera que no, se apaga y se vuelve a pegar
+              a mano aquí debajo.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[["todo", "Traer todo"], ["regionales", "Solo Regionales"], ["city", "Solo City Leagues"]].map(([v, l]) => (
+                <form key={v} action={syncLimitlessIrl}>
+                  <input type="hidden" name="que" value={v} />
+                  <button className={`btn btn-sm ${v === "todo" ? "btn-brand" : ""}`} type="submit">{l}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+
           <SectionTitle aside="pegando la clasificación">Metagame presencial</SectionTitle>
           <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
 

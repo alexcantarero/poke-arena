@@ -44,7 +44,11 @@ export function Sidebar({ meId }: { meId: string }) {
  */
 export function BottomNav({ meId }: { meId: string }) {
   const isActive = useActive();
-  const items = NAV_ITEMS.filter((i) => MOBILE_HREFS.includes(i.href));
+  // En el orden de MOBILE_HREFS, no en el de la barra lateral: Estadísticas
+  // ocupa el hueco que tenía Ranking, a la izquierda del «+».
+  const items = MOBILE_HREFS
+    .map((h) => NAV_ITEMS.find((i) => i.href === h))
+    .filter((i): i is Item => Boolean(i));
 
   return (
     <nav

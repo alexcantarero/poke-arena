@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { loadSnapshot } from "@/lib/data";
+import { loadMetaIrl, loadSnapshot } from "@/lib/data";
+import { irlMeta } from "@/lib/metaIrl";
+import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import {
   activityByMonth, archetypeStats, archetypesOfMatch, firstTurnSeriesStats, firstTurnStats,
   isInternal, isPlayed, matchupMatrix, outcome, seriesShapes,
@@ -14,7 +16,7 @@ import { MONTHS, pct, wrColor } from "@/lib/format";
 import { Avatar, Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { FilterPanel } from "@/components/FilterPanel";
-import { SourceTabs } from "@/components/statistics/SourceTabs";
+import { SourceTabs, type Fuente } from "@/components/statistics/SourceTabs";
 import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
@@ -49,9 +51,56 @@ export default async function StatsPage({
   const snap = await loadSnapshot();
 
   const fuenteRaw = Array.isArray(q.fuente) ? q.fuente[0] : q.fuente;
-  const fuente: "local" | "global" | "both" | "evento" =
+  const fuente: Fuente =
     fuenteRaw === "global" || fuenteRaw === "both" || fuenteRaw === "evento"
+    || fuenteRaw === "regionales" || fuenteRaw === "city"
       ? fuenteRaw : "local";
+
+  /* v0.14 — Regionales y City Leagues: el metagame presencial (lo traído de
+     Limitless o pegado a mano), partido por tipo de evento. Son mazos de
+     fuera: los filtros de partidas de la liga no aplican, así que la página
+     se queda en la tabla y la lista de eventos. */
+  if (fuente === "regionales" || fuente === "city") {
+    const { events, entries } = await loadMetaIrl();
+    const tipos = fuente === "city"
+      ? new Set(["city_league"])
+      : new Set(["regional", "special", "international", "worlds"]);
+    const evs = events.filter((e) => tipos.has(e.kind));
+    const ids = new Set(evs.map((e) => e.id));
+    const meta = irlMeta(
+      evs.map((e) => ({
+        id: e.id, name: e.name, date: e.date, kind: e.kind,
+        coverage: e.coverage, playerCount: e.playerCount, topCut: e.topCut,
+      })),
+      entries.filter((r) => ids.has(r.eventId)).map((r) => ({
+        eventId: r.eventId, placement: r.placement, copies: r.copies,
+        archetypeId: r.archetypeId, archetypeName: r.archetypeName,
+        main: r.main, secondary: r.secondary,
+      })),
+    );
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return (
+      <>
+        <PageHead
+          title="Estadísticas"
+          sub={fuente === "city"
+            ? "City Leagues de Japón: el top de cada evento, solo puesto y mazo. Su formato va por delante del internacional."
+            : "Regionales, Specials e Internacionales: recuento del Día 2 y top cut. Sin nombres de jugador."}
+        />
+        <SourceTabs current={fuente} query="" />
+        <MetaIrlTable meta={meta} nuestros={new Set(snap.archetypes.map((a) => norm(a.name)))} />
+        <MetaIrlEvents eventos={evs.map((e) => ({
+          id: e.id, name: e.name, date: e.date, kind: e.kind, location: e.location,
+          sourceName: e.sourceName, sourceUrl: e.sourceUrl, coverage: e.coverage,
+          playerCount: e.playerCount, division: e.division,
+        }))} />
+        <p className="mt-3 text-xs text-muted">
+          Se actualiza en Ajustes → «Regionales y City Leagues automáticos». Datos de{" "}
+          <a className="underline" href="https://limitlesstcg.com" target="_blank" rel="noopener noreferrer">Limitless TCG</a>.
+        </p>
+      </>
+    );
+  }
 
   /* La fuente manda sobre la página ENTERA, no solo sobre el primer bloque.
      Con «Meta online» o «Último torneo» no tiene sentido enseñar la matriz de

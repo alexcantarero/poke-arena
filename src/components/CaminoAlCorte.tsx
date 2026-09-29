@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   DESEMPATES, TOP_CUT_MAXIMO_TCG, estructuraDe, familiaDe, puntosDe, techoDe, umbralesDe,
   veredictoDe, victoriasNecesarias, type Umbral, type Veredicto,
@@ -59,15 +60,26 @@ type Props = {
   topCut?: number | null;
   /** Clave para recordar si lo dejaste plegado. */
   storageKey?: string;
+  /**
+   * v0.14 — la pestaña va por URL (`?fase=`) y la decide la página, porque
+   * la misma elección filtra también las rondas de «Resultados del grupo».
+   * Antes era estado interno y la lista de abajo enseñaba siempre todo.
+   */
+  pestana?: Pestana;
+  /** Prefijo del enlace de cada pestaña: se le añade `dia1`, `dia2` o `general`.
+   *  Es texto y no una función porque viene de un Server Component. */
+  hrefFase?: string;
 };
 
-type Pestana = "dia1" | "dia2" | "general";
+export type Pestana = "dia1" | "dia2" | "general";
 
 export function CaminoAlCorte({
   kind, playerCount, rondas, rondasTotales, topCut, storageKey = "camino",
+  pestana: pestanaUrl, hrefFase,
 }: Props) {
   const [abierto, setAbierto] = useState(true);
-  const [pestana, setPestana] = useState<Pestana>("dia1");
+  const [pestanaLocal, setPestana] = useState<Pestana>(pestanaUrl ?? "dia1");
+  const pestana = pestanaUrl ?? pestanaLocal;
 
   /* El plegado se recuerda por navegador. Va en un efecto y no en el estado
      inicial porque el servidor no tiene localStorage: pintar distinto en el
@@ -193,7 +205,7 @@ export function CaminoAlCorte({
 
       {abierto && (
         <div className="p-4 pt-0">
-          <Pestanas actual={pestana} onPick={setPestana} hayDia2={hayDia2}
+          <Pestanas actual={pestana} onPick={setPestana} href={hrefFase} hayDia2={hayDia2}
             fase1={fase1} fase2={e?.fase2 ?? 0} corte={corteReal} />
 
           {(pestana === "dia1" || !hayDia2) && (
@@ -259,9 +271,9 @@ export function CaminoAlCorte({
 /* --------------------------------------------------------------- piezas -- */
 
 function Pestanas({
-  actual, onPick, hayDia2, fase1, fase2, corte,
+  actual, onPick, href, hayDia2, fase1, fase2, corte,
 }: {
-  actual: Pestana; onPick: (p: Pestana) => void;
+  actual: Pestana; onPick: (p: Pestana) => void; href?: string;
   hayDia2: boolean; fase1: number; fase2: number; corte: number;
 }) {
   const items: Array<{ id: Pestana; label: string; sub: string }> = [
@@ -280,17 +292,23 @@ function Pestanas({
       role="tablist" aria-label="Fase del torneo">
       {items.map((it) => {
         const on = actual === it.id;
-        return (
-          <button
-            key={it.id} type="button" role="tab" aria-selected={on}
-            onClick={() => onPick(it.id)}
-            className={`tap flex-none rounded-lg border px-3 py-1.5 text-left transition-colors
+        const cls = `tap flex-none rounded-lg border px-3 py-1.5 text-left transition-colors
               ${on ? "border-brand-line bg-brand-soft text-brand"
-                   : "border-line bg-surface text-muted hover:text-ink"}`}
-          >
+                   : "border-line bg-surface text-muted hover:text-ink"}`;
+        const cuerpo = (
+          <>
             <span className="block text-sm font-semibold">{it.label}</span>
             <span className="block text-[10px] opacity-80 tabular">{it.sub}</span>
-          </button>
+          </>
+        );
+        // Con `href`, la pestaña es un enlace: filtra también las rondas de
+        // abajo y funciona sin JavaScript.
+        return href ? (
+          <Link key={it.id} href={`${href}${it.id}`} scroll={false} replace role="tab"
+            aria-selected={on} className={cls}>{cuerpo}</Link>
+        ) : (
+          <button key={it.id} type="button" role="tab" aria-selected={on}
+            onClick={() => onPick(it.id)} className={cls}>{cuerpo}</button>
         );
       })}
     </div>

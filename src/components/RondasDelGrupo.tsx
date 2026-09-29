@@ -86,6 +86,8 @@ export type JugadorRondas = {
   losses: number;
   ties: number;
   puntos: number;
+  /** Rondas apuntadas en total, antes de filtrar por fase. */
+  apuntadas?: number;
   /** Puesto final, si el torneo ya cerró. */
   placement?: number | null;
   rondas: RondaDetalle[];
@@ -113,6 +115,8 @@ type Props = {
   total: number;
   /** Asistencia, para el «de 3.342» debajo del puesto. */
   asistencia?: number | null;
+  /** Si las rondas vienen filtradas por fase, qué se está enseñando. */
+  filtro?: string | null;
   /** El formulario de añadir ronda. Se pinta al final de tu bloque. */
   formulario?: ReactNode;
 };
@@ -122,6 +126,7 @@ export function RondasDelGrupo({
   yoId,
   total,
   asistencia,
+  filtro,
   formulario,
 }: Props) {
   /* Tú primero; el resto por puesto final si lo hay —es lo que ordenaba la
@@ -156,9 +161,16 @@ export function RondasDelGrupo({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <p className="text-xs text-muted tabular">
-          {orden.reduce((a, j) => a + j.rondas.length, 0)} rondas apuntadas
-        </p>
+        {/* v0.14: el bloque se llama como la lista que sustituye. Cada
+            desplegable es el resultado de una persona, con sus rondas dentro. */}
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-bold">Resultados del grupo</h2>
+          <p className="text-xs text-muted tabular">
+            {orden.length} {orden.length === 1 ? "jugador" : "jugadores"} ·{" "}
+            {orden.reduce((a, j) => a + (j.apuntadas ?? j.rondas.length), 0)} rondas apuntadas
+            {filtro ? ` · ${filtro}` : ""}
+          </p>
+        </div>
         <button
           type="button"
           className="btn btn-ghost btn-sm"
@@ -176,7 +188,7 @@ export function RondasDelGrupo({
         {orden.map((j) => {
           const abierto = abiertos.has(j.id);
           const yo = j.id === yoId;
-          const faltan = total - j.rondas.length;
+          const faltan = total - (j.apuntadas ?? j.rondas.length);
           return (
             <li
               key={j.id}
@@ -254,21 +266,25 @@ export function RondasDelGrupo({
                       </span>
                     ) : null}
                   </span>
+                  {j.premios && (
+                    <span className="chip max-w-[9rem] truncate text-[10px]" title={j.premios}>
+                      {j.premios}
+                    </span>
+                  )}
                 </span>
               </button>
 
               {abierto && (
                 <div className="border-t border-line-soft">
-                  {(j.comentario || j.premios || j.retirado || j.invitacion || j.acciones) && (
+                  {(j.comentario || j.retirado || j.invitacion || j.acciones) && (
                     <div className="flex flex-col gap-2 border-b border-line-soft bg-surface px-3 py-2.5">
                       {j.comentario && (
                         <p className="text-sm text-ink-2">{j.comentario}</p>
                       )}
-                      {(j.premios || j.retirado || j.invitacion) && (
+                      {(j.retirado || j.invitacion) && (
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {j.invitacion && <span className="chip chip-brand">Invitación al Mundial</span>}
                           {j.retirado && <span className="chip chip-tie">Se retiró</span>}
-                          {j.premios && <span className="chip">{j.premios}</span>}
                         </div>
                       )}
                       {j.acciones}
@@ -276,7 +292,9 @@ export function RondasDelGrupo({
                   )}
                   {j.rondas.length === 0 ? (
                     <p className="px-3 py-4 text-center text-xs text-muted">
-                      Sin rondas apuntadas.
+                      {filtro && (j.apuntadas ?? 0) > 0
+                        ? "Ninguna ronda en esta fase."
+                        : "Sin rondas apuntadas."}
                     </p>
                   ) : (
                     <ul className="divide-y divide-line-soft">

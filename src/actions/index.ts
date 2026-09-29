@@ -25,6 +25,9 @@ import { familiaDe, maxRondasDe } from "@/lib/estructura";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
+import { recogerCityLeagues, recogerRegionales } from "@/lib/sources/limitlessWeb";
+import { filasParaGuardar } from "@/lib/limitlessHtml";
+import { parseEventosPegados } from "@/lib/eventosPegados";
 import { energyTypesOf } from "@/lib/sources/pokeapi";
 import { ARCHETYPE_PREFIX, DIVISIONS, TOURNAMENT_FORMATS, TOURNAMENT_STATUSES } from "@/lib/types";
 import type { FormState, MetaImportState, MetaPreview, MetaPreviewRow } from "@/lib/types";
@@ -2188,4 +2191,143 @@ export async function deleteMetaEvent(fd: FormData) {
   await db.delete(metaEvents).where(eq(metaEvents.id, id));
   refresh();
   redirect(withFlash("/ajustes", "ok", "Evento quitado del metagame presencial."));
+}
+
+/* ================================================ v0.14 — Limitless web ====
+
+   Un botón de organizador en Ajustes: trae los Regionales y las City Leagues
+   que falten desde limitlesstcg.com y los guarda en el metagame presencial
+   (`meta_events` + `meta_entries`), la misma tabla que la importación a mano.
+
+   · Solo mazos. Los parsers no leen nombres de persona (ver
+     `lib/limitlessHtml.ts`) y la tabla no tiene dónde guardarlos.
+   · Idempotente: los ids son `lt-<id>` y `ltjp-<id>`, y lo que ya está no se
+     vuelve a pedir. Pulsarlo dos veces seguidas no hace ninguna petición de
+     torneo la segunda vez.
+   · Con tope: 6 Regionales y 15 City Leagues por pulsación, con pausa entre
+     peticiones. Si falta algo, se vuelve a pulsar.
+   ========================================================================= */
+
+export async function syncLimitlessIrl(fd: FormData) {
+  const actor = await requireManager();
+  const que = str(fd, "que") === "city" ? "city" : str(fd, "que") === "regionales" ? "regionales" : "todo";
+
+  const existentes = await db.select({ id: metaEvents.id, name: metaEvents.name, date: metaEvents.date, division: metaEvents.division })
+    .from(metaEvents);
+  const ids = new Set<string>(existentes.map((e) => e.id));
+  const identidades = new Set<string>(existentes.map((e) => `${e.name}|${e.date}|${e.division}`));
+
+  const catalogo = await db.select().from(archetypes);
+  const normA = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const porNombre = new Map(catalogo.map((a) => [normA(a.name), a]));
+  const porSprites = new Map(catalogo.map((a) => [`${a.main}|${a.secondary}`, a]));
+  const casar = (name: string, main: string, secondary: string) =>
+    porNombre.get(normA(name)) ?? porSprites.get(`${main}|${secondary}`) ?? porSprites.get(`${main}|`) ?? null;
+
+  const guardar = async (
+    ev: typeof metaEvents.$inferInsert,
+    filas: Array<{ placement: number | null; copies: number; name: string; main: string; secondary: string }>,
+  ) => {
+    // Si alguien ya lo pegó a mano con el mismo nombre y fecha, manda lo suyo.
+    if (identidades.has(`${ev.name}|${ev.date}|${ev.division}`)) return false;
+    await db.insert(metaEvents).values(ev).onConflictDoNothing();
+    await db.delete(metaEntries).where(eq(metaEntries.eventId, ev.id));
+    const rows = filas.map((f) => {
+      const a = casar(f.name, f.main, f.secondary);
+      return {
+        eventId: ev.id, placement: f.placement, copies: Math.max(1, f.copies),
+        archetypeId: a?.id ?? null,
+        archetypeName: (a?.name ?? f.name).slice(0, 120),
+        main: a?.main ?? f.main, secondary: a?.secondary ?? f.secondary,
+        wins: null, losses: null, ties: null,
+      };
+    });
+    for (let i = 0; i < rows.length; i += 200) await db.insert(metaEntries).values(rows.slice(i, i + 200));
+    return true;
+  };
+
+  const desde = `${(seasonOfDate(todayISO()) ?? 2027) - 1}-07-01`; // la temporada en curso
+  const avisos: string[] = [];
+  const fallos: string[] = [];
+
+  if (que !== "city") {
+    const r = await recogerRegionales({
+      yaTenemos: new Set([...ids].filter((i) => i.startsWith("lt-")).map((i) => i.slice(3))),
+      desde,
+    });
+    let n = 0;
+    for (const x of r.leidos) {
+      const ok = await guardar({
+        id: `lt-${x.torneo.id}`, name: x.torneo.name, date: x.torneo.date, kind: x.kind,
+        location: x.torneo.country, format: "standard", division: "masters",
+        season: seasonOfDate(x.torneo.date), playerCount: x.torneo.players,
+        topCut: x.cabeza.length || 8, coverage: null,
+        sourceUrl: x.url, sourceName: "Limitless TCG",
+        notes: "Recuento de mazos del Día 2 (fase 2) publicado por Limitless TCG; el top cut va puesto a puesto. Sin nombres.",
+        createdBy: actor.id,
+      }, filasParaGuardar(x.stats, x.cabeza));
+      if (ok) n++;
+    }
+    avisos.push(`${n} Regional(es) nuevo(s)`);
+    fallos.push(...r.fallos);
+  }
+
+  if (que !== "regionales") {
+    const r = await recogerCityLeagues({
+      yaTenemos: new Set([...ids].filter((i) => i.startsWith("ltjp-")).map((i) => i.slice(5))),
+    });
+    let n = 0;
+    for (const x of r.leidas) {
+      const ok = await guardar({
+        id: `ltjp-${x.liga.id}`, name: `City League ${x.liga.prefecture} ${x.liga.date.slice(5).replace("-", "/")}`,
+        date: x.liga.date, kind: "city_league",
+        location: `${x.liga.prefecture}, Japón`, format: "standard", division: "masters",
+        season: seasonOfDate(x.liga.date), playerCount: null, topCut: 8, coverage: x.puestos.length,
+        sourceUrl: x.url, sourceName: "Limitless TCG",
+        notes: "City League de Japón: top del evento, solo puesto y mazo. Formato japonés, que va por delante del internacional.",
+        createdBy: actor.id,
+      }, x.puestos.map((p) => ({ ...p, copies: 1 })));
+      if (ok) n++;
+    }
+    avisos.push(`${n} City League(s) nueva(s)`);
+    fallos.push(...r.fallos);
+  }
+
+  refresh();
+  const msg = `Limitless: ${avisos.join(", ")}.${fallos.length ? ` ${fallos.length} con problemas: ${fallos.slice(0, 2).join("; ")}` : ""}`;
+  redirect(withFlash("/ajustes", fallos.length && !avisos.some((a) => !a.startsWith("0")) ? "error" : "ok", msg));
+}
+
+/* ============================================ v0.14 — buscador de eventos ====
+
+   Challenges y Cups pegados desde el Event Locator oficial (ver
+   `lib/eventosPegados.ts`: pokemon.com prohíbe la extracción automatizada,
+   así que se copia a mano y se pega). Idempotente por id: pegar la misma
+   lista otra vez actualiza y no duplica.
+   ========================================================================= */
+
+export async function importPastedEvents(fd: FormData) {
+  await requireManager();
+  const texto = String(fd.get("texto") ?? "").slice(0, 200_000);
+  const { eventos, ignorados } = parseEventosPegados(texto);
+  if (!eventos.length) {
+    redirect(withFlash("/calendario", "error",
+      "No he reconocido ningún League Challenge ni League Cup de TCG en lo pegado. Copia la lista de resultados del buscador, con fechas."));
+  }
+  const ya = new Set((await db.select({ id: events.id }).from(events)
+    .where(inArray(events.id, eventos.map((e) => e.id)))).map((r) => r.id));
+  let nuevos = 0;
+  for (const e of eventos) {
+    const values = {
+      title: e.title.slice(0, 120), date: e.date, endDate: null, kind: "tourney",
+      tournamentKind: e.kind, location: e.location, url: "",
+      competitionId: null, tournamentId: null,
+      note: [e.time ? `Empieza a las ${e.time}` : "", "Del buscador de eventos oficial"].filter(Boolean).join(" · "),
+    };
+    if (ya.has(e.id)) await db.update(events).set(values).where(eq(events.id, e.id));
+    else { await db.insert(events).values({ id: e.id, ...values }); nuevos++; }
+  }
+  refresh();
+  redirect(withFlash("/calendario", "ok",
+    `${nuevos} evento(s) nuevo(s), ${eventos.length - nuevos} actualizado(s)${ignorados ? `, ${ignorados} ignorado(s) (otros juegos o tipos)` : ""}.`));
 }

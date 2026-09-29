@@ -7,7 +7,7 @@ import { DOWS, MONTHS, byAgenda, fmtDateLong, relDays, todayISO } from "@/lib/fo
 import { Empty, PageHead } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
-import { importEuropeanEvents } from "@/actions";
+import { importEuropeanEvents, importPastedEvents } from "@/actions";
 
 export const metadata = { title: "Calendario" };
 
@@ -256,6 +256,28 @@ export default async function CalendarPage({
                   coinciden. Míralas en la web oficial antes de sacar vuelos.
                 </p>
               </div>
+            </section>
+
+            {/* v0.14 — Challenges y Cups de la zona, pegando el buscador oficial.
+                No se consulta pokemon.com desde la app: sus condiciones prohíben
+                la extracción automatizada. */}
+            <section className="card">
+              <div className="card-head"><h2 className="text-lg font-bold">Challenges y Cups de la zona</h2></div>
+              <form action={importPastedEvents} className="flex flex-col gap-3 p-4">
+                <p className="text-sm text-muted">
+                  Abre el{" "}
+                  <a className="underline" href="https://events.pokemon.com/EventLocator/" target="_blank" rel="noopener noreferrer">
+                    buscador de eventos oficial
+                  </a>, busca <b>Barcelona</b> con TCG, League Challenge y League Cup, selecciona la
+                  lista de resultados, cópiala y pégala aquí. Se quedan solo los Challenges y Cups de
+                  TCG; pegar otra vez la misma lista actualiza y no duplica.
+                </p>
+                <textarea className="input min-h-32 font-mono text-xs" name="texto" required
+                  placeholder={"League Challenge\nSat, Oct 4, 2026 10:00 AM\nTienda\nCarrer…, Barcelona"} />
+                <button className="btn btn-brand w-full" type="submit">
+                  <Icon name="calendar" className="size-4" /> Añadir al calendario
+                </button>
+              </form>
             </section>
           </div>
         )}
