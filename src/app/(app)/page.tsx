@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
+import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
@@ -9,9 +9,50 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { HomeCharts } from "@/components/HomeCharts";
+import { UltimoRegional, type Vista } from "@/components/UltimoRegional";
+import { effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
+import { estructuraDe, umbralesDe } from "@/lib/estructura";
+import { conCuotaOnline, resumenGrupo, type ResultadoGrupo } from "@/lib/metaGrupo";
+import { irlMeta, panelDeEvento } from "@/lib/metaIrl";
+import { ordenaPorCuota } from "@/lib/metaBadges";
+import { fetchMetaSnapshot } from "@/lib/sources/limitless";
+import type { Archetype } from "@/lib/types";
 
-export default async function HomePage() {
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+/** Los tipos que tienen Día 2 y cuentan como «Regional» en el inicio. */
+const KINDS_REGIONAL = new Set(["regional", "special", "international"]);
+
+/**
+ * La cuota online, para la insignia de «sobrejugado». Con un tope de tiempo:
+ * el inicio no puede quedarse esperando a Limitless. Si no llega, la
+ * insignia dice que no hay con qué comparar y ya está.
+ */
+async function cuotaOnline(): Promise<Array<{ name: string; share: number }>> {
+  try {
+    const snap = await Promise.race([
+      fetchMetaSnapshot({ days: 14, limit: 20, minPlayers: 32, apiKey: process.env.LIMITLESS_API_KEY }),
+      new Promise<null>((r) => setTimeout(() => r(null), 2500)),
+    ]);
+    return snap ? snap.rows.map((r) => ({ name: r.name, share: r.share })) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** «18 sept.» — la fecha corta de las listas. */
+const fechaCorta = (iso: string) =>
+  new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(`${iso}T00:00:00Z`));
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vista?: string }>;
+}) {
+  const q = await searchParams;
+  const vista: Vista = q.vista === "grupo" ? "grupo" : "global";
+  const [snap, session, irl, online] = await Promise.all([
+    loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
+  ]);
   const played = snap.matches.filter(isPlayed);
   const pending = snap.matches.filter((m) => m.status === "scheduled");
 
@@ -83,6 +124,125 @@ export default async function HomePage() {
 
 
 
+  /* -------------------------------------------- el último Regional --- */
+  const hoy = todayISO();
+  const temporada = seasonOfDate(hoy) ?? snap.config.cpSeason;
+  const etiquetaTipo = (kind: string) => getSeason(temporada).events[kind]?.label ?? kind;
+  const archDe = (r: { deckId: string | null; archetypeId: string | null }): Archetype | undefined =>
+    r.deckId ? snap.archIndex.get(r.deckId) : r.archetypeId ? snap.archById.get(r.archetypeId) : undefined;
+
+  // Vuestros resultados en forma de metagame, torneo a torneo.
+  const resultadosDe = (t: (typeof snap.tournaments)[number]): ResultadoGrupo[] => {
+    const umbral = umbralesDe(t.playerCount, t.kind)?.diaDos?.puntos ?? null;
+    const corte = t.topCut ?? estructuraDe(t.playerCount, t.kind)?.topCut ?? null;
+    return t.results.map((r) => {
+      const a = archDe(r);
+      return {
+        playerId: r.playerId, tournamentId: t.id, umbralDiaDos: umbral, topCut: corte,
+        archetypeId: a?.id ?? null, archetypeName: a?.name ?? "Mazo sin anotar",
+        main: a?.main ?? "", secondary: a?.secondary ?? "",
+        placement: r.placement, wins: r.wins, losses: r.losses, ties: r.ties,
+      };
+    });
+  };
+  const jugados = snap.tournaments
+    .filter((t) => t.date <= hoy && t.results.length > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  let panel: Parameters<typeof UltimoRegional>[0];
+  const hrefs = { global: "/#ultimo-regional", grupo: "/?vista=grupo#ultimo-regional" };
+
+  if (vista === "global") {
+    const ev = irl.events.find((e) => KINDS_REGIONAL.has(e.kind)) ?? irl.events[0];
+    const entries = ev ? irl.entries.filter((e) => e.eventId === ev.id) : [];
+    const p = panelDeEvento(entries, ev?.topCut, online);
+    const deTemporada = irl.events.filter((e) => (e.season ?? seasonOfDate(e.date)) === temporada);
+    const top = irlMeta(deTemporada, irl.entries.filter((e) => deTemporada.some((d) => d.id === e.eventId)));
+    panel = {
+      vista, hrefs,
+      evento: ev ? {
+        name: ev.name, date: fechaCorta(ev.date), location: ev.location || null,
+        playerCount: ev.playerCount,
+        muestra: ev.coverage ? `top ${ev.coverage} importado (${p.campo.decks} listas)` : `${p.campo.decks} listas importadas`,
+        href: "/topdecks?fuente=presencial",
+      } : null,
+      filas: p.filas, campo: p.campo,
+      etiquetaConversion: "al top cut",
+      corte: p.corte.map((c) => ({ placement: c.placement, titulo: c.name, main: c.main, secondary: c.secondary })),
+      corteTitulo: "Top cut", corteTamano: p.campo.topCut,
+      top: top.rows.slice(0, 10).map((r) => ({
+        key: r.key, name: r.name, main: r.main || undefined, secondary: r.secondary || undefined,
+        share: r.share, decks: r.entries,
+      })),
+      topNota: `${top.events} eventos · temporada ${temporada} · lo importado`,
+      recientes: irl.events.slice(0, 6).map((e) => ({
+        key: e.id, date: fechaCorta(e.date), name: e.name, tipo: etiquetaTipo(e.kind),
+        aside: e.playerCount ? `${e.playerCount.toLocaleString("es")} jugadores` : undefined,
+        href: "/topdecks?fuente=presencial",
+      })),
+      vacio: (
+        <>
+          Todavía no hay ningún Regional importado. Se importa en{" "}
+          <Link className="underline" href="/ajustes">Ajustes → Metagame presencial</Link>, pegando la
+          clasificación del top 32 o 64: solo se guardan puesto y mazo, ningún nombre.
+        </>
+      ),
+    };
+  } else {
+    const t = jugados.find((x) => KINDS_REGIONAL.has(x.kind));
+    const res = t ? resultadosDe(t) : [];
+    const r = resumenGrupo(res);
+    const temporadaT = jugados.filter((x) => (x.season ?? seasonOfDate(x.date)) === temporada);
+    const rTemp = resumenGrupo(temporadaT.flatMap(resultadosDe));
+    const decksTemp = rTemp.campo.decks || 1;
+    const topT = t ? (t.topCut ?? estructuraDe(t.playerCount, t.kind)?.topCut ?? 0) : 0;
+    const temporadaEv = t?.season ?? seasonOfDate(t?.date) ?? temporada;
+    panel = {
+      vista, hrefs,
+      evento: t ? {
+        name: t.name, date: fechaCorta(t.date), location: t.city || t.venue || null,
+        playerCount: t.playerCount,
+        muestra: `${r.resultados} del grupo`,
+        href: `/torneos/${t.id}`,
+      } : null,
+      filas: ordenaPorCuota(conCuotaOnline(r.filas, online)), campo: r.campo,
+      etiquetaConversion: "a Día 2",
+      corte: [...t?.results ?? []]
+        .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))
+        .map((x) => {
+          const a = archDe(x);
+          const cp = t ? effectiveCp(temporadaEv, t.kind, x, t.playerCount) : 0;
+          return {
+            placement: x.placement ?? 0,
+            titulo: snap.playersById.get(x.playerId)?.name ?? "Alguien",
+            sub: a?.name ?? "Mazo sin anotar",
+            main: a?.main || undefined, secondary: a?.secondary || undefined,
+            extra: (
+              <span className="flex flex-none items-center gap-1.5 text-xs tabular">
+                <span><span className="text-win">{x.wins}</span>–<span className="text-loss">{x.losses}</span>–<span className="text-tie">{x.ties}</span></span>
+                {cp > 0 && <span className="chip chip-brand text-[10px]">{cp} CP</span>}
+              </span>
+            ),
+          };
+        }),
+      corteTitulo: "Vuestros resultados", corteTamano: topT,
+      top: ordenaPorCuota(rTemp.filas).slice(0, 10).map((f) => ({
+        key: f.key, name: f.name, main: f.main || undefined, secondary: f.secondary || undefined,
+        share: f.field / decksTemp, decks: f.field,
+      })),
+      topNota: `${rTemp.resultados} resultados en ${rTemp.torneos} torneos · temporada ${temporada}`,
+      recientes: jugados.slice(0, 6).map((x) => {
+        const mejor = Math.min(...x.results.map((r) => r.placement ?? 9e9));
+        return {
+          key: x.id, date: fechaCorta(x.date), name: x.name, tipo: etiquetaTipo(x.kind),
+          href: `/torneos/${x.id}`,
+          aside: `${x.results.length} del grupo${Number.isFinite(mejor) && mejor < 9e9 ? ` · mejor ${mejor}.º` : ""}`,
+        };
+      }),
+      vacio: <>Nadie del grupo tiene todavía un Regional apuntado con resultado.</>,
+    };
+  }
+
   return (
     <>
       <PageHead
@@ -121,6 +281,9 @@ export default async function HomePage() {
       </div>
 
 
+
+      {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
+      <UltimoRegional {...panel} />
 
       {pending.length > 0 && (
         <section className="card mb-4">

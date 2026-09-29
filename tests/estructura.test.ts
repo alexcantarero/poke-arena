@@ -210,3 +210,58 @@ test("el orden de los desempates es el del reglamento", () => {
   assert.deepEqual(DESEMPATES.map((d) => d.corto),
     ["Op Win %", "Op Op Win %", "Head-to-head"]);
 });
+
+/* -------------------------------------------- v0.13: fases por tipo -- */
+
+import { etapaDeRonda, familiaDe, maxRondasDe, rondasDeCorte } from "../src/lib/estructura.ts";
+
+test("v0.13 · familiaDe: Challenge y Cup nunca son de dos fases", () => {
+  assert.equal(familiaDe("league_challenge"), "challenge");
+  assert.equal(familiaDe("pokemon_challenge"), "challenge");
+  assert.equal(familiaDe("league_cup"), "cup");
+  assert.equal(familiaDe("pokemon_cup"), "cup");
+  assert.equal(familiaDe("regional"), "dosFases");
+  assert.equal(familiaDe("store"), "libre");
+});
+
+test("v0.13 · Challenge: ninguna ronda lleva Día 2 ni top cut, aunque sean 200 personas", () => {
+  for (const r of [1, 5, 8, 9, 12]) {
+    assert.deepEqual(etapaDeRonda(r, { kind: "league_challenge", playerCount: 200, rounds: 8 }),
+      { tipo: "suizo", etiqueta: null });
+  }
+});
+
+test("v0.13 · Challenge de 5 rondas: la 5 es la última que se puede apuntar", () => {
+  assert.equal(maxRondasDe({ kind: "league_challenge", rounds: 5 }), 5);
+  // Con un top cut tecleado por error, sigue sin haber corte.
+  assert.equal(maxRondasDe({ kind: "league_challenge", rounds: 5, topCut: 8 }), 5);
+  // Sin rondas, sale de la tabla: 17–32 personas son 5.
+  assert.equal(maxRondasDe({ kind: "league_challenge", playerCount: 25 }), 5);
+});
+
+test("v0.13 · Cup: suizo + eliminatoria el mismo día, sin Día 2", () => {
+  const cup = { kind: "league_cup", playerCount: 28, rounds: 5, topCut: 8 };
+  assert.equal(etapaDeRonda(5, cup).etiqueta, null);
+  assert.deepEqual(etapaDeRonda(6, cup), { tipo: "corte", etiqueta: "Cuartos" });
+  assert.deepEqual(etapaDeRonda(8, cup), { tipo: "corte", etiqueta: "Final" });
+  assert.equal(maxRondasDe(cup), 8);
+  // Una Cup enorme sigue sin tener Día 2.
+  assert.notEqual(etapaDeRonda(8, { kind: "league_cup", playerCount: 300, rounds: 9 }).tipo, "dia2");
+});
+
+test("v0.13 · Regional de 3.342: rondas 9–14 son Día 2, la 15 es cuartos", () => {
+  const reg = { kind: "regional", playerCount: 3342 };
+  assert.equal(etapaDeRonda(8, reg).etiqueta, null);
+  assert.deepEqual(etapaDeRonda(9, reg), { tipo: "dia2", etiqueta: "Día 2" });
+  assert.deepEqual(etapaDeRonda(14, reg), { tipo: "dia2", etiqueta: "Día 2" });
+  assert.equal(etapaDeRonda(15, reg).tipo, "corte");
+  // Corte asimétrico: hasta 16 plazas, cuatro rondas de eliminatoria.
+  assert.equal(maxRondasDe(reg), 18);
+});
+
+test("v0.13 · rondasDeCorte", () => {
+  assert.equal(rondasDeCorte(0), 0);
+  assert.equal(rondasDeCorte(4), 2);
+  assert.equal(rondasDeCorte(8), 3);
+  assert.equal(rondasDeCorte(16), 4);
+});

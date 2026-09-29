@@ -295,7 +295,7 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel,
+  lockedDeckId, existing, onCancel, maxRound,
 }: {
   tournamentId: string;
   playerId: string;
@@ -307,6 +307,8 @@ export function RoundForm({
   lockedDeckId: string | null;
   existing?: RoundView;
   onCancel?: () => void;
+  /** Última ronda que admite el torneo (v0.13). Nulo = sin tope conocido. */
+  maxRound?: number | null;
 }) {
   const m = existing?.match;
   const hasGames = (m?.games.length ?? 0) > 0;
@@ -400,7 +402,7 @@ export function RoundForm({
           <label className="label" htmlFor={`round-${round}`}>Ronda</label>
           <input
             className="input px-2 text-center tabular" id={`round-${round}`} name="round"
-            type="number" min={1} max={50} inputMode="numeric" defaultValue={round}
+            type="number" min={1} max={maxRound ?? 50} inputMode="numeric" defaultValue={round}
           />
         </div>
         <div className="flex flex-col gap-1.5">

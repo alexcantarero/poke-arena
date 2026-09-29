@@ -227,3 +227,19 @@ test("archetypesOfMatch cae al arquetipo propio cuando no hay mazo con lista", (
   assert.equal(a?.id, A.id);
   assert.equal(b?.id, B.id);
 });
+
+/* ------------------------------------ v0.13: el Día 2 es solo de Regional -- */
+
+test("v0.13 · roundStage: un Challenge o una Cup grandes no tienen Día 2", () => {
+  assert.deepEqual(roundStage(9, 9, 0, { playerCount: 200, kind: "league_challenge" }), { kind: "swiss", label: "Suizo" });
+  assert.deepEqual(roundStage(9, 9, 8, { playerCount: 300, kind: "pokemon_cup" }), { kind: "swiss", label: "Suizo" });
+  assert.deepEqual(roundStage(10, 9, 8, { playerCount: 300, kind: "pokemon_cup" }), { kind: "cut", label: "Cuartos" });
+});
+
+test("v0.13 · suggestedTopCut: el Challenge nunca tiene corte", () => {
+  assert.equal(suggestedTopCut(200, "league_challenge"), 0);
+  assert.equal(suggestedTopCut(200, "pokemon_challenge"), 0);
+  assert.equal(suggestedTopCut(8, "league_cup"), 0);
+  assert.equal(suggestedTopCut(12, "league_cup"), 4);
+  assert.equal(suggestedRounds(300, "pokemon_cup"), 9);
+});

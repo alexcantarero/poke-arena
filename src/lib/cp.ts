@@ -11,11 +11,10 @@
      mejores resultados. Y algunos tipos comparten contador — un Pokémon Cup
      cuenta contra el mismo límite que una League Cup.
 
-     Los límites de esta liga son **de casa**, no los oficiales: 4 mejores
-     Challenges, 4 mejores Cups y 5 mejores Regionales. Se cambian en el campo
-     `bfl` de cada tipo, en las tablas del final. Para que Challenges y Cups
-     compartieran un único cubo de 4, bastaría con poner
-     `"sharesBflWith": "league_cup"` en `league_challenge`.
+     En 2027 los límites son los **oficiales** (verificados el 28/09/2026 en
+     championships.pokemon.com): 4 Challenges y 4 Cups, **sin compartir** —la
+     página lo dice con esas palabras—, y 5 entre Regionales, Specials e
+     Internacionales, compartidos. Se cambian en el campo `bfl` de cada tipo.
    · El **kicker**: el valor de CP de un puesto es fijo; lo que depende de la
      asistencia es si ese tramo reparte puntos o no. Un 9.º puesto en una
      League Challenge de 30 personas no cobra, porque ese tramo necesita 48.
@@ -677,8 +676,19 @@ export const CP_2026: CpSeason = {
 /**
  * Temporada 2027 (TCG, Masters). CONFIRMADA.
  *
- * Cifras oficiales de Play! Pokémon para 2027, transcritas de las tablas que
- * circulan del anuncio de temporada. Dos cosas cambian de verdad respecto a
+ * Cifras oficiales de Play! Pokémon para 2027, **contrastadas cifra a cifra el
+ * 28/09/2026** contra las tres páginas oficiales (puesto, kicker y CP):
+ *
+ *   · championships.pokemon.com/en-us/about/league-challenges-and-league-cup
+ *   · championships.pokemon.com/en-us/about/pokemon-regional-and-special-championships
+ *   · championships.pokemon.com/en-us/about/international-championships
+ *
+ * Las mismas páginas confirman: Challenge y Cup con BFL 4 cada uno y sin
+ * compartir; Pokémon Challenge/Cup comparten el de su League equivalente;
+ * Regional, Special e Internacional comparten 5; invitación directa al
+ * campeón de Regional/Special y a los cuatro finalistas de un Internacional.
+ * Los tests de `tests/cp.test.ts` («v0.13 · oficial») fijan cada fila.
+ * Dos cosas cambian de verdad respecto a
  * 2026 y conviene no perderlas de vista:
  *
  *   · **Los kickers bajan mucho en los tramos altos.** Un 2.º puesto ahora
@@ -701,7 +711,7 @@ export const CP_2027: CpSeason = {
   game: "TCG",
   division: "masters",
   confirmed: true,
-  source: "Play! Pokémon — estructura de puntos de la temporada 2027",
+  source: "championships.pokemon.com — páginas de League Challenge/Cup, Regional/Special e International (consultadas el 28/09/2026)",
   note:
     "Regionales e Internacionales comparten un único límite de 5 mejores resultados. " +
     "El campeón de un Regional y el Top 4 de un Internacional tienen invitación directa al Mundial.",

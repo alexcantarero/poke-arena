@@ -376,3 +376,100 @@ export function victoriasNecesarias(
   const necesarias = Math.ceil(faltan / PTS_VICTORIA);
   return necesarias <= quedan ? necesarias : null;
 }
+
+/* ------------------------------------------------ fases de cada ronda -- */
+
+/**
+ * La familia de un tipo de torneo, que es lo único que decide qué etiquetas
+ * lleva cada ronda.
+ *
+ * · `challenge` — League Challenge / Pokémon Challenge. Suizo de un solo día
+ *   y **sin top cut** (§5.5.6.1, Variante #2).
+ * · `cup` — League Cup / Pokémon Cup. Suizo y después top cut, **el mismo
+ *   día** (Variante #3). No hay Día 2.
+ * · `dosFases` — Regional, Special, Internacional, Mundial (Variante #5). El
+ *   único sitio donde existe el Día 2.
+ * · `libre` — tienda, online, otros: sin estructura oficial que imponer.
+ */
+export type Familia = "challenge" | "cup" | "dosFases" | "libre";
+
+export function familiaDe(kind: string | null | undefined): Familia {
+  const v = varianteDe(kind ?? "");
+  return v === "swiss" ? "challenge" : v === "singleDay" ? "cup" : v === "dosFases" ? "dosFases" : "libre";
+}
+
+/** Las rondas de eliminatoria que hacen falta para un corte: top 8 → 3. */
+export function rondasDeCorte(topCut: number | null | undefined): number {
+  if (!topCut || topCut < 2) return 0;
+  return Math.ceil(Math.log2(topCut));
+}
+
+const NOMBRES_CORTE = ["Final", "Semifinal", "Cuartos", "Octavos"];
+
+export type TorneoForma = {
+  kind: string;
+  playerCount?: number | null;
+  /** Rondas suizas apuntadas en el torneo. Mandan sobre la tabla. */
+  rounds?: number | null;
+  topCut?: number | null;
+};
+
+/** Suizo, fase uno y corte efectivos: lo tecleado manda, la tabla rellena. */
+export function formaDe(t: TorneoForma): {
+  familia: Familia; suizo: number | null; fase1: number | null; corte: number; asimetrico: boolean;
+} {
+  const familia = familiaDe(t.kind);
+  const e = estructuraDe(t.playerCount, t.kind);
+  const suizo = (t.rounds && t.rounds > 0 ? t.rounds : null) ?? e?.total ?? null;
+  // Solo la Variante #5 parte el suizo en dos días.
+  const fase1 = familia === "dosFases" && e && e.fase2 > 0 ? e.fase1 : suizo;
+  const corte = familia === "challenge" ? 0 : (t.topCut ?? e?.topCut ?? 0);
+  return { familia, suizo, fase1, corte, asimetrico: familia === "dosFases" && (e?.asimetrico ?? true) };
+}
+
+/**
+ * Cómo se etiqueta una ronda en pantalla.
+ *
+ * `null` es «ronda de suizo normal, no hace falta chip». En un Challenge
+ * **todas** son así, en una Cup solo las de eliminatoria llevan etiqueta, y
+ * «Día 2» sale únicamente en la tabla de dos fases.
+ */
+export function etapaDeRonda(
+  round: number, t: TorneoForma,
+): { tipo: "suizo" | "dia2" | "corte"; etiqueta: string | null } {
+  const f = formaDe(t);
+  if (f.familia === "challenge" || f.familia === "libre" || !f.suizo) {
+    return { tipo: "suizo", etiqueta: null };
+  }
+  if (f.familia === "dosFases" && f.fase1 != null && round > f.fase1 && round <= f.suizo) {
+    return { tipo: "dia2", etiqueta: "Día 2" };
+  }
+  if (round <= f.suizo) return { tipo: "suizo", etiqueta: null };
+
+  const n = rondasDeCorte(f.corte) || 3;
+  const desdeElFinal = f.suizo + n - round; // 0 = la final
+  return {
+    tipo: "corte",
+    etiqueta: desdeElFinal >= 0 && desdeElFinal < NOMBRES_CORTE.length
+      ? NOMBRES_CORTE[desdeElFinal]
+      : "Top cut",
+  };
+}
+
+/**
+ * Cuál es la última ronda que se puede apuntar. Nulo = sin tope conocido.
+ *
+ * · Challenge: exactamente las rondas del suizo. Sin top cut no hay ronda 6
+ *   en un Challenge de 5 (§5.5.6.1, Variante #2).
+ * · Cup: el suizo más las rondas de eliminatoria de su corte.
+ * · Dos fases: el suizo más el corte; si es asimétrico, lo que ocupe el tope
+ *   de 16 del reglamento (§5.5.6.2), que son cuatro rondas.
+ */
+export function maxRondasDe(t: TorneoForma): number | null {
+  const f = formaDe(t);
+  if (!f.suizo || f.familia === "libre") return null;
+  if (f.familia === "challenge") return f.suizo;
+  if (f.familia === "cup") return f.suizo + rondasDeCorte(f.corte);
+  const corte = f.asimetrico ? Math.max(f.corte, TOP_CUT_MAXIMO_TCG) : f.corte;
+  return f.suizo + rondasDeCorte(corte);
+}

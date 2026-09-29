@@ -417,9 +417,11 @@ export function isRegionalTournament(
   kind?: string | null,
   participants?: number | null,
 ): boolean {
-  if (kind === "regional" || kind === "special" || kind === "international") return true;
-  if (participants != null && participants >= 65 && kind !== "league_challenge" && kind !== "league_cup") return true;
-  return false;
+  /* Solo la tabla de dos fases tiene Día 2. Con el tipo delante, manda el
+     tipo: una Cup, un Challenge o un torneo de tienda de 300 personas siguen
+     siendo de un solo día. Sin tipo se deduce por tamaño, como antes. */
+  if (kind) return kind === "regional" || kind === "special" || kind === "international" || kind === "worlds";
+  return participants != null && participants >= 65;
 }
 
 export type Day1Outlook = {

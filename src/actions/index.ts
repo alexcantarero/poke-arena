@@ -21,6 +21,7 @@ import { pokeSlug } from "@/lib/pokemon";
 import { cpForPlacement, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
+import { familiaDe, maxRondasDe } from "@/lib/estructura";
 import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
@@ -1470,6 +1471,22 @@ export async function saveTournamentRound(fd: FormData) {
   if (tour.status !== "open") return;
 
   const round = int(fd, "round", 1, 1, 50);
+
+  /* v0.13 — el tope de rondas. Un League Challenge es solo suizo (§5.5.6.1,
+     Variante #2): en uno de 5 rondas no existe la 6. En una Cup se admite el
+     suizo más su eliminatoria, y en un Regional el suizo más el corte. El
+     formulario ya no se enseña al llegar al tope, pero una Server Action es
+     un endpoint público: la comprobación buena es esta. */
+  const tope = maxRondasDe({
+    kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut,
+  });
+  if (tope != null && round > tope) {
+    redirect(withFlash(`/torneos/${tournamentId}`, "error",
+      familiaDe(tour.kind) === "challenge"
+        ? `Este Challenge tiene ${tope} rondas y no hay top cut: la ronda ${round} no existe.`
+        : `Este torneo admite como mucho ${tope} rondas (suizo + top cut).`));
+  }
+
   const bestOf = [1, 3, 5].includes(tour.bestOf) ? tour.bestOf : 3;
   const opponentName = str(fd, "opponentName").slice(0, 60);
   if (!opponentName) return;

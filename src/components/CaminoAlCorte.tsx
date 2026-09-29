@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  DESEMPATES, TOP_CUT_MAXIMO_TCG, estructuraDe, puntosDe, techoDe, umbralesDe,
+  DESEMPATES, TOP_CUT_MAXIMO_TCG, estructuraDe, familiaDe, puntosDe, techoDe, umbralesDe,
   veredictoDe, victoriasNecesarias, type Umbral, type Veredicto,
 } from "@/lib/estructura";
 import { Icon } from "./icons";
@@ -88,18 +88,67 @@ export function CaminoAlCorte({
   const e = estructuraDe(playerCount, kind);
   const u = umbralesDe(playerCount, kind);
 
+  const familia = familiaDe(kind);
+
   // Lo configurado a mano manda sobre la tabla.
   const total = rondasTotales || e?.total || 0;
-  const fase1 = e?.fase1 ?? total;
-  const corteReal = topCut ?? e?.topCut ?? 0;
+  // Solo la tabla de dos fases parte el suizo en días. En una Cup o un
+  // Challenge la fase uno ES el suizo entero.
+  const fase1 = e && e.fase2 > 0 ? e.fase1 : total;
+  // Un League Challenge no tiene corte (§5.5.6.1, Variante #2), aunque alguien
+  // haya tecleado uno en el torneo.
+  const corteReal = familia === "challenge" ? 0 : (topCut ?? e?.topCut ?? 0);
+  /* Sin asistencia no hay fila de la tabla, pero si se sabe el corte y las
+     rondas el mínimo para pelearlo (X-2) sale igual. */
+  const corteUmbral: Umbral | null = u?.corte
+    ?? (corteReal > 0 && total > 2
+      ? { puntos: (total - 2) * 3, record: `${total - 2}-2` }
+      : null);
 
   if (!total) {
     return (
       <section className="card mb-5 p-4">
-        <h2 className="text-lg font-bold">Camino al corte</h2>
+        <h2 className="text-lg font-bold">{familiaDe(kind) === "challenge" ? "Tu Challenge" : "Camino al corte"}</h2>
         <p className="mt-1 text-sm text-muted">
           Falta saber <b>cuánta gente hay</b> o <b>cuántas rondas se juegan</b>. Se ponen al
           editar el torneo, y con eso ya se puede calcular todo lo demás.
+        </p>
+      </section>
+    );
+  }
+
+  /* --- el Challenge: suizo y se acabó ---
+     No hay corte que perseguir, así que no se enseña ningún «mínimo» ni el
+     «ni ganándolas todas llegas» que salía en rojo: en un Challenge siempre
+     se llega a donde se llega, y lo que cuenta es el puesto final. */
+  if (familia === "challenge" || (!corteReal && !(e?.fase2))) {
+    const w = rondas.filter((r) => r.result === "w").length;
+    const t = rondas.filter((r) => r.result === "t").length;
+    const l = rondas.length - w - t;
+    const quedan = Math.max(0, total - rondas.length);
+    return (
+      <section className="card mb-5 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold">
+            {familia === "challenge" ? "Tu Challenge" : "Tu suizo"}
+          </h2>
+          <span className="text-xs text-muted tabular">
+            {rondas.length} de {total} rondas
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-display text-3xl font-extrabold tabular leading-none">
+            <span className="text-win">{w}</span>–<span className="text-loss">{l}</span>–<span className="text-tie">{t}</span>
+          </span>
+          <span className="text-sm text-muted tabular">{puntosDe(w, t)} puntos</span>
+        </div>
+        <p className="mt-3 text-sm text-ink-2">
+          {quedan === 0
+            ? "Suizo terminado."
+            : `Quedan ${quedan} ${quedan === 1 ? "ronda" : "rondas"}.`}{" "}
+          {familia === "challenge"
+            ? "Los League Challenge son solo suizo y de un día, sin top cut (reglamento, §5.5.6.1 · Variante #2): el puesto final sale de la clasificación del suizo."
+            : "Este torneo no tiene corte configurado."}
         </p>
       </section>
     );
@@ -120,11 +169,11 @@ export function CaminoAlCorte({
 
   const hayDia2 = (e?.fase2 ?? 0) > 0;
   const vDia1 = u?.diaDos ? (pts1 >= u.diaDos.puntos ? "dentro" : "fuera") as Veredicto : null;
-  const vCorte = veredictoDe(ptsT, u?.corte ?? null);
+  const vCorte = veredictoDe(ptsT, corteUmbral);
 
   const titular = hayDia2 && rT.jugadas <= fase1
     ? resumenFase(pts1, r1.jugadas, fase1, u?.diaDos ?? null, "el Día 2")
-    : resumenFase(ptsT, rT.jugadas, total, u?.corte ?? null, `el top ${corteReal}`);
+    : resumenFase(ptsT, rT.jugadas, total, corteUmbral, `el top ${corteReal}`);
 
   return (
     <section className="card mb-5">
@@ -152,7 +201,7 @@ export function CaminoAlCorte({
               titulo={hayDia2 ? "Resultado del Día 1" : "Resultado del suizo"}
               rondas={r1.jugadas} de={fase1}
               record={r1} puntos={pts1}
-              umbral={hayDia2 ? u?.diaDos ?? null : u?.corte ?? null}
+              umbral={hayDia2 ? u?.diaDos ?? null : corteUmbral}
               veredicto={hayDia2 ? vDia1 : vCorte}
               etiquetaUmbral={hayDia2 ? "Mínimo para el Día 2" : `Mínimo para pelear el top ${corteReal}`}
               absoluto={hayDia2}
@@ -166,7 +215,7 @@ export function CaminoAlCorte({
                 titulo="Resultado del Día 2"
                 rondas={rT.jugadas} de={total}
                 record={rT} puntos={ptsT}
-                umbral={u?.corte ?? null}
+                umbral={corteUmbral}
                 veredicto={vCorte}
                 etiquetaUmbral={`Mínimo para pelear el top ${corteReal}`}
                 absoluto={false}
@@ -178,17 +227,20 @@ export function CaminoAlCorte({
 
           {pestana === "general" && (
             <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Umbralito
-                  etiqueta="Mínimo para el Día 2"
-                  umbral={u?.diaDos ?? null}
-                  veredicto={vDia1}
-                  rondas={fase1}
-                  nota={hayDia2 ? "Son puntos publicados: o llegas o no." : "Este torneo no tiene Día 2."}
-                />
+              <div className={`grid gap-3 ${hayDia2 ? "sm:grid-cols-2" : ""}`}>
+                {/* El Día 2 solo existe en Regionales: en una Cup ni se menciona. */}
+                {hayDia2 && (
+                  <Umbralito
+                    etiqueta="Mínimo para el Día 2"
+                    umbral={u?.diaDos ?? null}
+                    veredicto={vDia1}
+                    rondas={fase1}
+                    nota="Son puntos publicados: o llegas o no."
+                  />
+                )}
                 <Umbralito
                   etiqueta={`Mínimo para pelear el top ${corteReal}`}
-                  umbral={u?.corte ?? null}
+                  umbral={corteUmbral}
                   veredicto={vCorte}
                   rondas={total}
                   nota={corteReal ? "Ahí manda el desempate." : "Este torneo no tiene corte."}
@@ -301,6 +353,8 @@ function Fase({
           ? <span className="text-muted">Fase terminada.</span>
           : faltan === 0
             ? <b className="text-win">Ya llegas al mínimo pase lo que pase.</b>
+            : !umbral
+              ? <span className="text-muted">Quedan {quedan}.</span>
             : faltan != null
               ? <>Quedan {quedan}. <b className="text-ink">
                   {faltan === quedan

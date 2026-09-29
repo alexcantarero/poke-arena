@@ -146,3 +146,32 @@ test("mejorConversion no corona a un mazo con dos listas", () => {
   // «Casualidad» tiene 100% de top 4 con dos listas; no cuenta.
   assert.equal(mejorConversion(rows)?.key, "a1");
 });
+
+/* ---------------------------------------------- v0.13: panel del inicio -- */
+
+import { panelDeEvento } from "../src/lib/metaIrl.ts";
+
+test("v0.13 · panelDeEvento: conversión al corte dentro de lo importado", () => {
+  const filas: IrlEntry[] = [
+    ...Array.from({ length: 3 }, (_, i) => e("ev", i + 1, "Dragapult ex", "drag")),
+    ...Array.from({ length: 5 }, (_, i) => e("ev", i + 4, "Basic Box", "box")),
+    ...Array.from({ length: 24 }, (_, i) => e("ev", i + 9, "Slowking", "slow")),
+  ];
+  const p = panelDeEvento(filas, 8, [{ name: "Dragapult ex", share: 0.1 }]);
+  assert.equal(p.campo.decks, 32);
+  assert.equal(p.campo.day2, 8);
+  assert.equal(p.corte.length, 8);
+  assert.equal(p.corte[0].name, "Dragapult ex");
+  const drag = p.filas.find((f) => f.key === "drag")!;
+  assert.equal(drag.cut, 3);
+  assert.equal(drag.bestFinish, 1);
+  assert.equal(drag.onlineShare, 0.1);
+  assert.equal(p.filas.find((f) => f.key === "slow")!.cut, 0);
+});
+
+test("v0.13 · panelDeEvento: solo resumen, sin puestos → conversión nula, no cero", () => {
+  const p = panelDeEvento([{ ...e("ev", 1, "Gholdengo ex", "g"), placement: null, copies: 40 }], 8);
+  assert.equal(p.campo.day2, null);
+  assert.equal(p.campo.decks, 40);
+  assert.equal(p.corte.length, 0);
+});

@@ -11,22 +11,14 @@ import { awardsCp, effectiveCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong } from "@/lib/format";
 import { firstTurnSeriesStats, recordOf, roundsOf } from "@/lib/stats";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
-import {
-  Empty,
-  Kpi,
-  PageHead,
-  PlayerTag,
-  Record,
-  SectionTitle,
-  Sprites,
-} from "@/components/ui";
+import { Avatar, Empty, Kpi, PageHead } from "@/components/ui";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { CaminoAlCorte } from "@/components/CaminoAlCorte";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/TournamentRounds";
-import { estructuraDe } from "@/lib/estructura";
+import { etapaDeRonda, familiaDe, maxRondasDe } from "@/lib/estructura";
 import { deleteTournament, deleteTournamentResult } from "@/actions";
 import { Icon } from "@/components/icons";
 
@@ -37,9 +29,11 @@ import { Icon } from "@/components/icons";
    que están los datos en la base:
 
      1. En qué punto está y qué falta        (TournamentLifecycle)
-     2. Rondas del grupo                     ← tú primero y abierto, los demás plegables
+     2. Rondas del grupo                     ← tú primero y abierto, los demás plegables.
+                                               Desde la v0.13 cada cabecera lleva también
+                                               el resultado final (puesto, CP, comentario):
+                                               la lista «Resultados del grupo» ya no existe.
      3. Tu resultado final                   ← se rellena una vez, al acabar
-     4. Cómo le fue al resto del grupo       (Resultados del grupo)
 
    Las rondas van casi lo primero porque el caso real es estar de pie en la
    tienda con dos minutos entre rondas. Y el formulario de edición de la
@@ -111,7 +105,16 @@ export default async function TournamentPage({
     return null;
   };
 
-  const estructura = estructuraDe(t.playerCount, t.kind);
+  /* La forma del torneo, para etiquetar rondas y poner el tope. Lo tecleado
+     (rondas, corte) manda; la tabla del reglamento rellena lo que falte. */
+  const forma = {
+    kind: t.kind,
+    playerCount: t.playerCount,
+    rounds: t.rounds,
+    topCut: t.topCut,
+  };
+  const familia = familiaDe(t.kind);
+  const maxRonda = maxRondasDe(forma);
 
   // Jugadores del grupo con presencia en el torneo (por resultado o por rondas apuntadas, más tú si estás logueado)
   const participantIds = new Set<string>();
@@ -156,12 +159,33 @@ export default async function TournamentPage({
     const canEditPlayerRounds = Boolean(
       me && (manager || pid === me.id) && status !== "closed",
     );
+    const canEditResult = Boolean(me && theirResult && (pid === me.id || manager));
+    const tier =
+      theirResult?.placement != null
+        ? tierFor(season, t.kind, theirResult.placement, t.playerCount)
+        : null;
 
     return {
       id: pid,
       name: p?.name ?? "Alguien",
       mazo: mazoNombre,
-      main: finalArch?.main,
+      main: finalArch?.main || undefined,
+      secondary: finalArch?.secondary || undefined,
+      avatar: p ? <Avatar player={p} size="sm" /> : undefined,
+      cp: theirResult ? cpDe(theirResult) : 0,
+      cpManual: theirResult?.cpManual ?? false,
+      comentario: theirResult?.notes || undefined,
+      premios: theirResult?.prizes || undefined,
+      retirado: theirResult?.dropped ?? false,
+      invitacion: Boolean(tier?.invite),
+      acciones: canEditResult && theirResult ? (
+        <form action={deleteTournamentResult}>
+          <input type="hidden" name="id" value={theirResult.id} />
+          <button className="btn btn-ghost btn-sm btn-danger" type="submit">
+            Borrar este resultado
+          </button>
+        </form>
+      ) : undefined,
       wins,
       losses,
       ties,
@@ -191,6 +215,7 @@ export default async function TournamentPage({
 
         const primero =
           r.firstGameOne === true ? "a" : r.firstGameOne === false ? "b" : "";
+        const etapa = etapaDeRonda(r.round, forma);
 
         return {
           round: r.round,
@@ -202,6 +227,8 @@ export default async function TournamentPage({
           perdidos,
           primero: primero as "a" | "b" | "",
           nota: r.match.note || undefined,
+          etapa: etapa.etiqueta,
+          corte: etapa.tipo === "corte",
           editar: canEditPlayerRounds ? (
             <Link
               href={`/partidas/${r.match.id}`}
@@ -220,17 +247,34 @@ export default async function TournamentPage({
     ? Math.max(...myRounds.map((r) => r.round)) + 1
     : 1;
   const finished = t.rounds != null && t.rounds > 0 && nextRound > t.rounds;
+  /* Con el tope alcanzado no hay formulario: en un Challenge de 5 rondas no
+     existe la 6. La Server Action lo vuelve a comprobar, porque esconder el
+     formulario no protege nada. */
+  const topeAlcanzado = maxRonda != null && nextRound > maxRonda;
+
+  const avisoFin = !finished ? null : familia === "challenge" ? (
+    <p className="text-xs text-muted">
+      Tienes las {t.rounds} rondas apuntadas. Un League Challenge es solo suizo,
+      sin top cut (reglamento §5.5.6.1, Variante #2): ya no hay más rondas que
+      apuntar. Falta tu puesto final, justo debajo.
+    </p>
+  ) : topeAlcanzado ? (
+    <p className="text-xs text-muted">
+      Tienes todas las rondas apuntadas, suizo y top cut incluidos.
+    </p>
+  ) : (
+    <p className="text-xs text-muted">
+      Tienes las {t.rounds} rondas de suizo apuntadas. Si pasaste al top cut,
+      sigue con la ronda {nextRound}
+      {maxRonda ? ` (la última posible es la ${maxRonda})` : ""}.
+    </p>
+  );
 
   const roundFormNode =
     me && status !== "closed" && status !== "draft" ? (
       <div className="flex flex-col gap-2">
-        {finished && (
-          <p className="text-xs text-muted">
-            Tienes las {t.rounds} rondas apuntadas. Si hubo top cut, sigue
-            añadiendo con el número de ronda que quieras.
-          </p>
-        )}
-        <RoundForm
+        {avisoFin}
+        {!topeAlcanzado && <RoundForm
           tournamentId={t.id}
           playerId={me.id}
           round={nextRound}
@@ -239,7 +283,8 @@ export default async function TournamentPage({
           archetypeOptions={archOptions}
           myDecks={myDecks}
           lockedDeckId={lockValueOf(myResult)}
-        />
+          maxRound={maxRonda}
+        />}
       </div>
     ) : undefined;
 
@@ -405,8 +450,8 @@ export default async function TournamentPage({
         <div className="mb-6">
           <RondasDelGrupo
             yoId={me?.id ?? ""}
-            fase1={estructura?.fase1 ?? t.rounds ?? 0}
             total={t.rounds ?? 0}
+            asistencia={t.playerCount}
             jugadores={participantes}
             formulario={roundFormNode}
           />
@@ -443,100 +488,6 @@ export default async function TournamentPage({
             />
           </div>
         </details>
-      )}
-
-      {/* ---------------------- 4. el resto del grupo ------------------------ */}
-      <SectionTitle aside={`${t.results.length} resultados`}>
-        Resultados del grupo
-      </SectionTitle>
-
-      {ordered.length ? (
-        <div className="card mb-6 divide-y divide-line-soft">
-          {ordered.map((r) => {
-            const p = snap.playersById.get(r.playerId);
-            const arch = r.deckId
-              ? snap.archIndex.get(r.deckId)
-              : r.archetypeId
-                ? snap.archById.get(r.archetypeId)
-                : undefined;
-            const canEdit = me && (r.playerId === me.id || manager);
-            const tier =
-              r.placement != null
-                ? tierFor(season, t.kind, r.placement, t.playerCount)
-                : null;
-            return (
-              <div key={r.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-9 flex-none text-center">
-                    <span className="block font-display text-xl font-extrabold tabular leading-none">
-                      {r.placement ?? "—"}
-                    </span>
-                    {t.playerCount && r.placement && (
-                      <span className="block text-[10px] text-muted">
-                        de {t.playerCount}
-                      </span>
-                    )}
-                  </span>
-
-                  {/* El mazo va con su sprite, no como un texto debajo del
-                      nombre: de un vistazo se reconoce antes un Dragapult que
-                      la palabra «Dragapult». */}
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    <Sprites archetype={arch} size="md" />
-                    <span className="min-w-0 flex-1">
-                      <PlayerTag player={p} size="sm" />
-                      <span className="block truncate text-[11px] text-muted">
-                        {arch?.name ?? "Mazo sin anotar"}
-                      </span>
-                    </span>
-                  </span>
-
-                  {r.wins || r.losses || r.ties ? (
-                    <Record w={r.wins} d={r.ties} l={r.losses} />
-                  ) : null}
-                  {cpDe(r) > 0 && (
-                    <span className="chip chip-brand tabular">
-                      {cpDe(r)} CP{r.cpManual ? "*" : ""}
-                    </span>
-                  )}
-                </div>
-
-                {(r.prizes || r.dropped || tier?.invite) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 pl-12 text-xs">
-                    {tier?.invite && (
-                      <span className="chip chip-brand">
-                        Invitación al Mundial
-                      </span>
-                    )}
-                    {r.dropped && (
-                      <span className="chip chip-tie">Se retiró</span>
-                    )}
-                    {r.prizes && <span className="chip">{r.prizes}</span>}
-                  </div>
-                )}
-                {r.notes && (
-                  <p className="mt-2 pl-12 text-sm text-ink-2">{r.notes}</p>
-                )}
-
-                {canEdit && (
-                  <form action={deleteTournamentResult} className="mt-2 pl-12">
-                    <input type="hidden" name="id" value={r.id} />
-                    <button
-                      className="btn btn-ghost btn-sm btn-danger"
-                      type="submit"
-                    >
-                      Borrar este resultado
-                    </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="card mb-6">
-          <Empty title="Nadie ha puesto su resultado todavía" />
-        </div>
       )}
 
       {t.notes && (

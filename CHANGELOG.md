@@ -2,6 +2,58 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.13.0] — 2026-09-28
+
+El inicio con el último Regional, y las rondas según el tipo de torneo. **Sin migración y sin
+dependencias nuevas.**
+
+### Añadido
+
+- **«El último Regional» en el inicio**, a lo Ciphermaniac: cabecera con cifras, cuatro
+  insignias (espejo del corte, rindió, decepcionó, sobrejugado) y el top cut; debajo, **Top
+  arquetipos** de la temporada y **Torneos recientes**. Un selector **Global / Vuestro grupo**
+  (`?vista=grupo`) cambia los tres bloques a la vez.
+  - Global sale del metagame presencial importado en Ajustes. La conversión se mide **al top
+    cut dentro de la muestra importada**, y la cabecera dice cuál es esa muestra.
+  - Vuestro grupo sale de los resultados apuntados; el Día 2 se deduce del récord.
+  - La cuota online para «sobrejugado» se pide a Limitless con un tope de 2,5 s: si no llega,
+    la insignia lo dice y el inicio no espera.
+- `panelDeEvento()` en `metaIrl.ts`; `familiaDe()`, `etapaDeRonda()`, `maxRondasDe()` y
+  `rondasDeCorte()` en `estructura.ts`. Todas puras y con tests.
+
+### Cambiado
+
+- **«Resultados del grupo» desaparece de la ficha del torneo.** Cada cabecera de «Rondas
+  apuntadas» lleva ahora el puesto (de N), el récord V–D–E, el mazo con sprites, el nombre con
+  avatar, los CP y el comentario del resultado final. Premios, retirada, invitación y «Borrar
+  este resultado» están dentro, al abrir el bloque. El orden es: tú primero, luego por puesto.
+- **Las etiquetas de ronda salen del tipo de torneo** (reglamento §5.5.6): «Día 2» solo en
+  Regional, Special, Internacional y Mundial; en una Cup las rondas de eliminatoria son
+  Cuartos, Semifinal y Final; en un Challenge ninguna ronda lleva etiqueta.
+- **League Challenge sin corte.** «Camino al corte» se convierte en «Tu Challenge» (récord,
+  puntos y rondas que quedan), sin el mensaje en rojo de «ni ganándolas todas se llega».
+- **Tope de rondas.** En un Challenge de 5 rondas no se puede apuntar la 6: el formulario
+  desaparece al llegar y la Server Action lo rechaza con un aviso. En una Cup el tope es el
+  suizo más su eliminatoria. El texto «si hubo top cut…» solo sale donde lo hay.
+- `cp.ts`: la fuente de 2027 pasa a ser la web oficial, contrastada cifra a cifra.
+
+### Corregido
+
+- Un Challenge o una Cup de **65 o más personas se trataban como Regional** (Día 2 y top 8
+  inventados): `isRegionalTournament`, `roundStage`, `suggestedRounds` y `suggestedTopCut`
+  miraban la asistencia antes que el tipo. Ahora, con tipo, manda el tipo.
+- `suggestedTopCut` proponía top 8 a un Challenge grande y top 4 a una Cup de 8.
+- En Cups y Challenges, `CaminoAlCorte` usaba la fase uno de la tabla de Regionales.
+
+### Verificado
+
+- **CP 2027**: las cuatro tablas (Challenge, Cup, Regional/Special, Internacional) coinciden
+  con championships.pokemon.com, kickers incluidos. **BFL: 4 Challenges y 4 Cups sin
+  compartir** (cierra la duda abierta desde la v0.5); 5 compartidos entre Regional, Special e
+  Internacional.
+- `npm test`: 250 de 250. `tsc` estricto sobre lo tocado: sin errores propios.
+  `npm run build` sigue sin poderse lanzar aquí.
+
 ## [0.12.0] — 2026-09-23
 
 El metagame presencial. **Toca la base de datos**: dos tablas nuevas

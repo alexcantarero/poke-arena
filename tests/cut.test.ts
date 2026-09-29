@@ -381,11 +381,13 @@ test("filterDay2Qualifiers: filtra correctamente por puntos y por Top 32", () =>
   assert.deepEqual(placements, [1, 20, 30, 32, 50]);
 });
 
-test("isRegionalTournament: reconoce tipos oficiales y asistencia >= 65", () => {
+test("isRegionalTournament: con tipo manda el tipo; sin él, asistencia >= 65", () => {
   assert.equal(isRegionalTournament("regional", 100), true);
   assert.equal(isRegionalTournament("special", 50), true);
   assert.equal(isRegionalTournament("international", 200), true);
-  assert.equal(isRegionalTournament("store", 300), true);
+  assert.equal(isRegionalTournament("store", 300), false); // v0.13: solo el tipo decide
+  assert.equal(isRegionalTournament("pokemon_cup", 300), false);
+  assert.equal(isRegionalTournament("league_challenge", 300), false);
   assert.equal(isRegionalTournament("league_cup", 64), false);
   assert.equal(isRegionalTournament(undefined, 65), true);
   assert.equal(isRegionalTournament(undefined, 64), false);

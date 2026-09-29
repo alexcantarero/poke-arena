@@ -627,6 +627,11 @@ export function pairRound(
   return { pairs, bye: pool[0] ?? null };
 }
 
+/** Tipos de torneo por familia. El Día 2 solo existe en `TWO_PHASE_KINDS`. */
+const TWO_PHASE_KINDS = new Set(["regional", "special", "international", "worlds"]);
+const CUP_KINDS = new Set(["league_cup", "pokemon_cup"]);
+const CHALLENGE_KINDS = new Set(["league_challenge", "pokemon_challenge"]);
+
 /**
  * Rondas recomendadas para un suizo según el número de participantes y tipo de torneo,
  * según el Play! Pokémon Tournament Rules Handbook (Edición 1 de septiembre de 2026).
@@ -649,10 +654,9 @@ export function pairRound(
 export function suggestedRounds(n: number, kind?: string): number {
   if (n <= 2) return 1;
 
-  const isRegional =
-    kind === "regional" || kind === "special" || kind === "international";
+  const isRegional = kind ? TWO_PHASE_KINDS.has(kind) : n >= 65;
 
-  if (isRegional || (n >= 65 && kind !== "league_cup" && kind !== "league_challenge")) {
+  if (isRegional) {
     if (n <= 8) return 3;
     if (n <= 16) return 4;
     if (n <= 32) return 6;
@@ -666,7 +670,7 @@ export function suggestedRounds(n: number, kind?: string): number {
     return 15;
   }
 
-  if (kind === "league_cup") {
+  if (kind && CUP_KINDS.has(kind)) {
     if (n <= 8) return 3;
     if (n <= 12) return 4;
     if (n <= 32) return 5;
@@ -677,7 +681,7 @@ export function suggestedRounds(n: number, kind?: string): number {
     return 10;
   }
 
-  if (kind === "league_challenge") {
+  if (kind && CHALLENGE_KINDS.has(kind)) {
     if (n <= 8) return 3;
     if (n <= 16) return 4;
     if (n <= 32) return 5;
@@ -693,11 +697,14 @@ export function suggestedRounds(n: number, kind?: string): number {
 
 /** Top cut recomendado según la asistencia y tipo de evento. */
 export function suggestedTopCut(n: number, kind?: string): number {
+  // League Challenge: suizo y se acabó (§5.5.6.1, Variante #2). Va lo primero
+  // para que ningún tamaño de torneo le invente un corte.
+  if (kind && CHALLENGE_KINDS.has(kind)) return 0;
   if (n < 8) return 0;
-  const isRegional =
-    kind === "regional" || kind === "special" || kind === "international";
-  if (isRegional || n >= 65) return 8;
-  if (kind === "league_challenge") return 0;
+  const isRegional = kind ? TWO_PHASE_KINDS.has(kind) : n >= 65;
+  if (isRegional) return 8;
+  // League Cup (Variante #3): 4–8 sin corte, 9–20 top 4, 21+ top 8.
+  if (kind && CUP_KINDS.has(kind)) return n <= 8 ? 0 : n <= 20 ? 4 : 8;
   if (n <= 20) return 4;
   return 8;
 }
@@ -871,12 +878,13 @@ export function roundStage(
   const playerCount = typeof options === "number" ? options : options?.playerCount ?? null;
   const kind = typeof options === "object" ? options?.kind : undefined;
 
-  const isRegional =
-    kind === "regional" ||
-    kind === "special" ||
-    kind === "international" ||
-    (playerCount != null && playerCount >= 65 && kind !== "league_challenge" && kind !== "league_cup") ||
-    (swiss >= 9 && swiss <= 15 && kind !== "league_challenge" && kind !== "league_cup");
+  /* El Día 2 solo existe en la tabla de dos fases (Regional, Special,
+     Internacional, Mundial). Si se sabe el tipo, manda el tipo: un Challenge
+     o una Cup de 300 personas siguen siendo de un día. Solo cuando no se
+     sabe se deduce por tamaño, que es lo que hacía la v0.5 y fijan sus tests. */
+  const isRegional = kind
+    ? TWO_PHASE_KINDS.has(kind)
+    : (playerCount != null && playerCount >= 65) || (swiss >= 9 && swiss <= 15);
 
   if (isRegional) {
     let day1Rounds = 8;

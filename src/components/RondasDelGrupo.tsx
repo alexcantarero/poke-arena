@@ -35,6 +35,18 @@ import { spriteUrl } from "@/lib/pokemon";
    Entra como prop y no se escribe aquí a propósito: el formulario habla con
    una Server Action y esto es un componente de cliente. Así este fichero no
    sabe nada de la base de datos y se puede mover de sitio sin arrastrar nada.
+
+   v0.13 — ABSORBE «RESULTADOS DEL GRUPO»
+   --------------------------------------
+   La lista de resultados de debajo repetía a las mismas personas con otros
+   datos. Ahora la cabecera plegada de cada uno lleva todo lo que tenía:
+   **puesto (de N), récord V–D–E, mazo con sprites, nombre con avatar, CP y
+   el comentario del resultado final**. Premios, retirada, invitación y el
+   botón de borrar el resultado van dentro, al abrir el bloque.
+
+   Las etiquetas de fase de cada ronda (Día 2, Cuartos…) llegan ya calculadas
+   en `etapa`: las decide `etapaDeRonda()` en el servidor con el tipo de
+   torneo, porque el Día 2 solo existe en Regionales y aquí no se sabe el tipo.
    ========================================================================= */
 
 export type RondaDetalle = {
@@ -54,6 +66,13 @@ export type RondaDetalle = {
   nota?: string;
   /** Enlace o acción para corregir la ronda. */
   editar?: ReactNode;
+  /**
+   * Etiqueta de fase ya calculada: «Día 2» (solo Regionales), «Cuartos»,
+   * «Semifinal», «Final»… Vacía en las rondas de suizo normales.
+   */
+  etapa?: string | null;
+  /** true si la etapa es de eliminatoria, para pintarla con otro color. */
+  corte?: boolean;
 };
 
 export type JugadorRondas = {
@@ -70,16 +89,30 @@ export type JugadorRondas = {
   /** Puesto final, si el torneo ya cerró. */
   placement?: number | null;
   rondas: RondaDetalle[];
+  /** Avatar ya pintado en el servidor, para no traer `ui.tsx` al cliente. */
+  avatar?: ReactNode;
+  /** CP efectivos del puesto. 0 o ausente = no se pinta el chip. */
+  cp?: number;
+  /** El CP se puso a mano: lleva asterisco. */
+  cpManual?: boolean;
+  /** Comentario del resultado final («Sensación rareta…»). */
+  comentario?: string;
+  /** Chips del resultado: premios, se retiró, invitación al Mundial. */
+  premios?: string;
+  retirado?: boolean;
+  invitacion?: boolean;
+  /** Acciones sobre el resultado final (borrar). Se pintan al abrir. */
+  acciones?: ReactNode;
 };
 
 type Props = {
   jugadores: JugadorRondas[];
   /** Quién eres tú: tu bloque sale primero y abierto. */
   yoId: string;
-  /** Rondas de la fase uno, para marcar cuáles son de Día 2. */
-  fase1: number;
-  /** Rondas totales del torneo, para decir «te faltan N por apuntar». */
+  /** Rondas totales del suizo, para decir «te faltan N por apuntar». */
   total: number;
+  /** Asistencia, para el «de 3.342» debajo del puesto. */
+  asistencia?: number | null;
   /** El formulario de añadir ronda. Se pinta al final de tu bloque. */
   formulario?: ReactNode;
 };
@@ -87,14 +120,16 @@ type Props = {
 export function RondasDelGrupo({
   jugadores,
   yoId,
-  fase1,
   total,
+  asistencia,
   formulario,
 }: Props) {
-  // Tú primero; el resto por puntos, que es el orden en el que se mira.
+  /* Tú primero; el resto por puesto final si lo hay —es lo que ordenaba la
+     lista de resultados que esto sustituye— y, sin puesto, por puntos. */
   const orden = [...jugadores].sort(
     (a, b) =>
       (a.id === yoId ? -1 : b.id === yoId ? 1 : 0) ||
+      (a.placement ?? 9e9) - (b.placement ?? 9e9) ||
       b.puntos - a.puntos ||
       a.name.localeCompare(b.name, "es"),
   );
@@ -159,32 +194,36 @@ export function RondasDelGrupo({
                   className={`size-4 flex-none text-muted transition-transform ${abierto ? "-rotate-90" : ""}`}
                 />
 
-                {j.main && (
-                  <span
-                    className="flex flex-none items-center"
-                    aria-hidden="true"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={spriteUrl(j.main)}
-                      alt=""
-                      loading="lazy"
-                      className="size-7 object-contain"
-                    />
-                    {j.secondary && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={spriteUrl(j.secondary)}
-                        alt=""
-                        loading="lazy"
-                        className="-ml-2 size-5 object-contain"
-                      />
-                    )}
+                {/* Puesto final, con la asistencia debajo: «410 de 3342». */}
+                <span className="w-10 flex-none text-center">
+                  <span className="block font-display text-lg font-extrabold tabular leading-none">
+                    {j.placement ?? "—"}
                   </span>
-                )}
+                  {j.placement != null && asistencia ? (
+                    <span className="block text-[10px] text-muted tabular">
+                      de {asistencia}
+                    </span>
+                  ) : null}
+                </span>
+
+                <span className="flex w-12 flex-none items-center justify-center" aria-hidden="true">
+                  {j.main ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={spriteUrl(j.main)} alt="" loading="lazy" className="size-8 object-contain" />
+                      {j.secondary && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={spriteUrl(j.secondary)} alt="" loading="lazy" className="-ml-3 size-7 object-contain" />
+                      )}
+                    </>
+                  ) : (
+                    <span className="size-7 rounded-md border border-dashed border-line" />
+                  )}
+                </span>
 
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
+                    {j.avatar}
                     <span className="truncate text-sm font-bold">{j.name}</span>
                     {yo && (
                       <span className="chip chip-brand flex-none text-[10px]">
@@ -194,23 +233,47 @@ export function RondasDelGrupo({
                   </span>
                   <span className="block truncate text-[11px] text-muted">
                     {j.mazo || "Mazo sin anotar"}
-                    {j.placement != null && ` · ${j.placement}.º`}
                   </span>
+                  {j.comentario && (
+                    <span className="mt-0.5 block truncate text-[11px] italic text-ink-2">
+                      «{j.comentario}»
+                    </span>
+                  )}
                 </span>
 
-                <span className="flex-none text-right">
-                  <span className="block font-display text-base font-extrabold tabular">
-                    {j.wins}–{j.losses}
-                    {j.ties > 0 ? `–${j.ties}` : ""}
+                <span className="flex flex-none flex-col items-end gap-1">
+                  {/* V–D–E, en ese orden y con sus colores, como en toda la app. */}
+                  <span className="font-display text-base font-extrabold tabular leading-none">
+                    <span className="text-win">{j.wins}</span>–<span className="text-loss">{j.losses}</span>–<span className="text-tie">{j.ties}</span>
                   </span>
-                  <span className="block text-[10px] text-muted tabular">
-                    {j.puntos} pts
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted tabular">{j.puntos} pts</span>
+                    {j.cp ? (
+                      <span className="chip chip-brand text-[10px] tabular">
+                        {j.cp} CP{j.cpManual ? "*" : ""}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
               </button>
 
               {abierto && (
                 <div className="border-t border-line-soft">
+                  {(j.comentario || j.premios || j.retirado || j.invitacion || j.acciones) && (
+                    <div className="flex flex-col gap-2 border-b border-line-soft bg-surface px-3 py-2.5">
+                      {j.comentario && (
+                        <p className="text-sm text-ink-2">{j.comentario}</p>
+                      )}
+                      {(j.premios || j.retirado || j.invitacion) && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          {j.invitacion && <span className="chip chip-brand">Invitación al Mundial</span>}
+                          {j.retirado && <span className="chip chip-tie">Se retiró</span>}
+                          {j.premios && <span className="chip">{j.premios}</span>}
+                        </div>
+                      )}
+                      {j.acciones}
+                    </div>
+                  )}
                   {j.rondas.length === 0 ? (
                     <p className="px-3 py-4 text-center text-xs text-muted">
                       Sin rondas apuntadas.
@@ -220,12 +283,12 @@ export function RondasDelGrupo({
                       {[...j.rondas]
                         .sort((a, b) => a.round - b.round)
                         .map((r) => (
-                          <Ronda key={r.round} r={r} fase1={fase1} />
+                          <Ronda key={r.round} r={r} />
                         ))}
                     </ul>
                   )}
 
-                  {yo && (
+                  {yo && formulario && (
                     <div className="border-t border-line-soft bg-surface-2 p-3">
                       {faltan > 0 && (
                         <p className="mb-2 text-xs text-muted">
@@ -247,10 +310,9 @@ export function RondasDelGrupo({
 }
 
 /** Una ronda. El resultado a la derecha y en grande, que es lo que se busca. */
-function Ronda({ r, fase1 }: { r: RondaDetalle; fase1: number }) {
+function Ronda({ r }: { r: RondaDetalle }) {
   const gano = r.ganados > r.perdidos;
   const empate = r.ganados === r.perdidos;
-  const dia2 = r.round > fase1;
 
   return (
     <li className="flex items-start gap-3 px-3 py-2.5">
@@ -261,9 +323,9 @@ function Ronda({ r, fase1 }: { r: RondaDetalle; fase1: number }) {
         >
           R{r.round}
         </span>
-        {dia2 && (
-          <span className="mt-0.5 block text-[9px] font-bold uppercase text-brand">
-            Día 2
+        {r.etapa && (
+          <span className={`mt-0.5 block text-[9px] font-bold uppercase ${r.corte ? "text-info" : "text-brand"}`}>
+            {r.etapa}
           </span>
         )}
       </span>

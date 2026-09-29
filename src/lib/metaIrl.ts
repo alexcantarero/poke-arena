@@ -191,3 +191,97 @@ export function mejorConversion(rows: IrlRow[], minimo = 5): IrlRow | null {
   if (!con.length) return null;
   return con.reduce((best, r) => ((top4Rate(r) ?? 0) > (top4Rate(best) ?? 0) ? r : best));
 }
+
+/* =========================================================================
+   v0.13 — un evento importado, con la forma del panel del inicio.
+
+   El panel «Último Regional» del inicio pinta filas `FilaMeta` (la forma de
+   `metaBadges.ts`), igual para el lado global y para el de vuestro grupo.
+   Esto convierte las filas importadas de UN evento a esa forma.
+
+   EL DENOMINADOR, QUE ES LO QUE PUEDE MENTIR
+   ------------------------------------------
+   Lo que se importa de un Regional es el top 32 o 64, no el campo entero.
+   Todo el que está en un top 64 pasó al Día 2, así que una «conversión a Día
+   2» sobre esa muestra saldría al 100% para todos. En su lugar se mide la
+   **conversión al top cut dentro de lo importado**: de las listas de ese
+   mazo que están en la muestra, cuántas acabaron en el corte. Es la misma
+   cuenta que hace `metaBadges` (fila contra media), y la pantalla dice
+   exactamente sobre qué muestra está hecha.
+
+   Las filas de resumen (sin puesto) suman cuota pero no corte, igual que en
+   `irlMeta`.
+   ========================================================================= */
+
+export type FilaEvento = {
+  key: string;
+  name: string;
+  /** Listas de este mazo en lo importado. */
+  field: number;
+  /** Listas que acabaron en el top cut. Hace de «convirtió» en las insignias. */
+  day2: number | null;
+  cut: number;
+  bestFinish: number | null;
+  onlineShare: number | null;
+  main?: string;
+  secondary?: string;
+};
+
+export type EventoPanel = {
+  filas: FilaEvento[];
+  campo: { decks: number; day2: number | null; topCut: number };
+  /** El top cut, puesto a puesto, sin nombres de persona: no existen. */
+  corte: Array<{ placement: number; name: string; main: string; secondary: string }>;
+};
+
+export function panelDeEvento(
+  entries: IrlEntry[],
+  topCut: number | null | undefined,
+  online: Array<{ name: string; share: number }> = [],
+): EventoPanel {
+  const corteN = topCut && topCut > 0 ? topCut : 8;
+  const cuotaOnline = new Map(online.map((o) => [norm(o.name), o.share]));
+  const acc = new Map<string, FilaEvento>();
+  let decks = 0;
+  let enCorte = 0;
+  let conPuesto = 0;
+
+  for (const e of entries) {
+    const key = e.archetypeId ?? `n:${norm(e.archetypeName)}`;
+    if (key === "n:") continue;
+    const copies = Math.max(1, e.copies || 1);
+    let f = acc.get(key);
+    if (!f) {
+      f = {
+        key, name: e.archetypeName, field: 0, day2: 0, cut: 0, bestFinish: null,
+        onlineShare: cuotaOnline.get(norm(e.archetypeName)) ?? null,
+        main: e.main || undefined, secondary: e.secondary || undefined,
+      };
+      acc.set(key, f);
+    }
+    if (!f.main && e.main) { f.main = e.main; f.secondary = e.secondary || undefined; }
+    f.field += copies;
+    decks += copies;
+    if (e.placement != null) {
+      conPuesto += copies;
+      if (f.bestFinish == null || e.placement < f.bestFinish) f.bestFinish = e.placement;
+      if (e.placement <= corteN) {
+        f.cut += copies;
+        f.day2 = (f.day2 ?? 0) + copies;
+        enCorte += copies;
+      }
+    }
+  }
+
+  const corte = entries
+    .filter((e) => e.placement != null && e.placement <= corteN)
+    .sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0))
+    .map((e) => ({ placement: e.placement as number, name: e.archetypeName, main: e.main, secondary: e.secondary }));
+
+  return {
+    filas: [...acc.values()].sort((a, b) => b.field - a.field || a.name.localeCompare(b.name, "es")),
+    // Sin ninguna fila con puesto no hay conversión que medir: nulo, no cero.
+    campo: { decks, day2: conPuesto > 0 ? enCorte : null, topCut: corteN },
+    corte,
+  };
+}

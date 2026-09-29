@@ -264,3 +264,33 @@ test("las tablas de 2026 y 2027 no son la misma, y por eso importa la temporada"
   assert.equal(effectiveCp(2027, "league_challenge", res(5), 20), 8);
   assert.equal(effectiveCp(2026, "league_challenge", res(5), 20), 0);
 });
+
+/* ------------------------- v0.13 · oficial: contrastado el 28/09/2026 -- */
+
+import { CP_2027 } from "../src/lib/cp.ts";
+
+const OFICIAL_2027: Record<string, Array<[number, number, number, number]>> = {
+  // [desde, hasta, CP, kicker]
+  league_challenge: [[1,1,15,0],[2,2,12,4],[3,4,10,8],[5,8,8,14],[9,16,6,25],[17,32,4,48]],
+  league_cup: [[1,1,50,0],[2,2,40,4],[3,4,32,8],[5,8,25,17],[9,16,20,48],[17,32,16,80],[33,64,13,128]],
+  regional: [[1,1,350,0],[2,2,325,4],[3,4,300,8],[5,8,280,17],[9,16,200,33],[17,32,160,65],
+    [33,64,120,129],[65,128,80,257],[129,256,60,513],[257,512,45,1025],[513,1024,22,2049]],
+  international: [[1,1,500,0],[2,2,480,4],[3,4,420,8],[5,8,380,17],[9,16,300,33],[17,32,240,65],
+    [33,64,180,129],[65,128,140,257],[129,256,100,513],[257,512,85,1025],[513,1024,42,2049]],
+};
+
+for (const [kind, filas] of Object.entries(OFICIAL_2027)) {
+  test(`v0.13 · oficial: ${kind} 2027 coincide con championships.pokemon.com`, () => {
+    const tiers = CP_2027.events[kind].tiers!;
+    assert.deepEqual(tiers.map((t) => [t.from, t.to, t.cp, t.minPlayers]), filas);
+  });
+}
+
+test("v0.13 · oficial: BFL 4 + 4 sin compartir; 5 compartido entre Regional, Special e IC", () => {
+  assert.equal(CP_2027.events.league_challenge.bfl, 4);
+  assert.equal(CP_2027.events.league_cup.bfl, 4);
+  assert.notEqual(bflBucket(2027, "league_challenge"), bflBucket(2027, "league_cup"));
+  assert.equal(bflBucket(2027, "pokemon_cup"), bflBucket(2027, "league_cup"));
+  assert.equal(bflBucket(2027, "special"), bflBucket(2027, "regional"));
+  assert.equal(bflBucket(2027, "international"), bflBucket(2027, "regional"));
+});
