@@ -149,6 +149,60 @@ test("el apellido pegado al mazo no se lleva por delante el arquetipo", () => {
   assert.equal(r.entries[0].archetypeId, "a-charizard");
 });
 
+/* ------------------------------------------------ el formato de Frankfurt -- */
+
+/*
+   El que se copia de la clasificación de un Regional:
+
+     Puesto · Nombre · Nacionalidad · Puntos · Récord · OPW% · OOPW% · Mazo
+
+   Tiene dos trampas respecto al formato de Limitless online: el mazo va
+   **detrás** de los porcentajes, no delante del récord, y entre el nombre y
+   el récord hay un número suelto (los match points) que podría confundirse
+   con un puesto.
+*/
+const FRANKFURT = [
+  "1 Tomasz Chałupka PL 49 16 - 1 - 1 62.22% 62.84% alakazamdusknoir",
+  "2 Mateusz Łaszkiewicz PL 43 14 - 3 - 1 61.66% 62.47% alakazamdusknoir",
+  "3 Ander Etxebarria ES 41 13 - 2 - 2 59.10% 60.11% grimmsnarlfroslass",
+].join("\n");
+
+const KNOWN_FR: KnownArchetype[] = [
+  { id: "a-alakazam", name: "Alakazam Dusknoir" },
+  { id: "a-grimm", name: "Grimmsnarl Froslass" },
+];
+
+test("Frankfurt: el mazo va detrás de los porcentajes y aun así se pilla", () => {
+  const r = parseStandings(FRANKFURT, KNOWN_FR);
+  assert.equal(r.entries.length, 3);
+  assert.deepEqual(r.entries.map((e) => e.archetypeId),
+    ["a-alakazam", "a-alakazam", "a-grimm"]);
+  assert.deepEqual(r.entries[0], {
+    placement: 1, copies: 1, deck: "Alakazam Dusknoir", archetypeId: "a-alakazam",
+    wins: 16, losses: 1, ties: 1,
+  });
+  assert.equal(r.descartadas, 0);
+});
+
+test("Frankfurt: los match points no se confunden con nada", () => {
+  const r = parseStandings(FRANKFURT, KNOWN_FR);
+  // 49 puntos, récord 16-1-1. Si el 49 se hubiera colado como récord o como
+  // puesto, esto no cuadraría.
+  assert.equal(r.entries[0].wins! * 3 + r.entries[0].ties!, 49);
+  assert.equal(r.entries[1].wins! * 3 + r.entries[1].ties!, 43);
+  assert.equal(r.entries[2].wins! * 3 + r.entries[2].ties!, 41);
+});
+
+test("Frankfurt: de la clasificación no sale ni un nombre ni una nacionalidad", () => {
+  const r = parseStandings(FRANKFURT, KNOWN_FR);
+  const serializado = JSON.stringify(r);
+  for (const dato of ["Tomasz", "Chałupka", "Mateusz", "Łaszkiewicz", "Ander", "Etxebarria"]) {
+    assert.ok(!serializado.includes(dato), `se ha colado «${dato}»`);
+  }
+  // La nacionalidad también es un dato de la persona: fuera.
+  assert.ok(!/"PL"|"ES"/.test(serializado));
+});
+
 /* -------------------------------------------------------------- resumen -- */
 
 test("resumen: número detrás", () => {

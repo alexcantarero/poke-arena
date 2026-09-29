@@ -206,17 +206,19 @@ export function RondasDelGrupo({
                   className={`size-4 flex-none text-muted transition-transform ${abierto ? "-rotate-90" : ""}`}
                 />
 
-                {/* Puesto final, con la asistencia debajo: «410 de 3342». */}
-                <span className="w-10 flex-none text-center">
-                  <span className="block font-display text-lg font-extrabold tabular leading-none">
-                    {j.placement ?? "—"}
-                  </span>
-                  {j.placement != null && asistencia ? (
-                    <span className="block text-[10px] text-muted tabular">
-                      de {asistencia}
+                {/* Puesto final, con la asistencia debajo: «410 de 3342». En una fase concreta no se muestra puesto. */}
+                {!filtro && (
+                  <span className="w-10 flex-none text-center">
+                    <span className="block font-display text-lg font-extrabold tabular leading-none">
+                      {j.placement ?? "—"}
                     </span>
-                  ) : null}
-                </span>
+                    {j.placement != null && asistencia ? (
+                      <span className="block text-[10px] text-muted tabular">
+                        de {asistencia}
+                      </span>
+                    ) : null}
+                  </span>
+                )}
 
                 <span className="flex w-12 flex-none items-center justify-center" aria-hidden="true">
                   {j.main ? (

@@ -177,9 +177,18 @@ export default async function TournamentPage({
       ? (snap.decksById.get(theirResult.deckId)?.name ?? finalArch?.name)
       : finalArch?.name;
 
-    const wins = pRounds.length ? pRecord.wins : (theirResult?.wins ?? 0);
-    const losses = pRounds.length ? pRecord.losses : (theirResult?.losses ?? 0);
-    const ties = pRounds.length ? pRecord.ties : (theirResult?.ties ?? 0);
+    const pRoundsEnFase = pRounds.filter((r) => enFase(r.round));
+    const pRecordFase = recordOf(pRoundsEnFase);
+
+    const wins = fase === "general"
+      ? (pRounds.length ? pRecord.wins : (theirResult?.wins ?? 0))
+      : pRecordFase.wins;
+    const losses = fase === "general"
+      ? (pRounds.length ? pRecord.losses : (theirResult?.losses ?? 0))
+      : pRecordFase.losses;
+    const ties = fase === "general"
+      ? (pRounds.length ? pRecord.ties : (theirResult?.ties ?? 0))
+      : pRecordFase.ties;
 
     const canEditPlayerRounds = Boolean(
       me && (manager || pid === me.id) && status !== "closed",
@@ -215,9 +224,9 @@ export default async function TournamentPage({
       losses,
       ties,
       puntos: wins * 3 + ties,
-      placement: theirResult?.placement ?? null,
+      placement: fase === "general" ? (theirResult?.placement ?? null) : null,
       apuntadas: pRounds.length,
-      rondas: pRounds.filter((r) => enFase(r.round)).map((r) => {
+      rondas: pRoundsEnFase.map((r) => {
         const oppArch = r.match.opponentArchetypeId
           ? snap.archById.get(r.match.opponentArchetypeId)
           : r.match.deckBId
@@ -242,6 +251,8 @@ export default async function TournamentPage({
         const primero =
           r.firstGameOne === true ? "a" : r.firstGameOne === false ? "b" : "";
         const etapa = etapaDeRonda(r.round, forma);
+        const etiquetaEtapa =
+          fase === "dia2" && etapa.etiqueta === "Día 2" ? null : etapa.etiqueta;
 
         return {
           round: r.round,
@@ -253,7 +264,7 @@ export default async function TournamentPage({
           perdidos,
           primero: primero as "a" | "b" | "",
           nota: r.match.note || undefined,
-          etapa: etapa.etiqueta,
+          etapa: etiquetaEtapa,
           corte: etapa.tipo === "corte",
           editar: canEditPlayerRounds ? (
             <Link
