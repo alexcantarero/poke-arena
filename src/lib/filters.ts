@@ -243,7 +243,9 @@ export function applyMatchFilter(
     }
 
     /* quién jugó */
-    if (f.playerId && m.playerAId !== f.playerId && m.playerBId !== f.playerId) return false;
+    // v0.15.1: también cuando la persona fue el rival de una ronda de torneo.
+    if (f.playerId && m.playerAId !== f.playerId && m.playerBId !== f.playerId
+      && m.opponentPlayerId !== f.playerId) return false;
 
     /* con qué se jugó, en cualquiera de los dos lados */
     if (f.archetypeId && !index.archetypesOf(m).includes(f.archetypeId)) return false;

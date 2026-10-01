@@ -1791,6 +1791,44 @@ export async function saveTournamentRound(fd: FormData) {
   redirect(withFlash(`/torneos/${tournamentId}`, "ok", `Ronda ${round} guardada.`));
 }
 
+/**
+ * v0.15.1 — Drop desde la ronda, en vez de apuntar la siguiente.
+ *
+ * Pone `dropped` en el resultado del torneo (creándolo si aún no había) y
+ * vuelve a la ficha: allí ya no sale el formulario de ronda, y
+ * `saveTournamentRound` rechaza rondas nuevas. Corregir las apuntadas sigue
+ * pudiéndose.
+ */
+export async function dropFromTournament(fd: FormData) {
+  await setDropped(fd, true);
+}
+
+/** Deshacer el drop: vuelve a dejar apuntar rondas. */
+export async function undoDrop(fd: FormData) {
+  await setDropped(fd, false);
+}
+
+async function setDropped(fd: FormData, dropped: boolean) {
+  const actor = await requireActor();
+  const tournamentId = str(fd, "tournamentId");
+  if (!tournamentId) return;
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!owns(actor, playerId)) return;
+  const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
+  if (!tour) return;
+
+  await db.insert(tournamentResults)
+    .values({ id: newId("tr"), tournamentId, playerId, dropped })
+    .onConflictDoUpdate({
+      target: [tournamentResults.tournamentId, tournamentResults.playerId],
+      set: { dropped },
+    });
+  await syncTournamentRecord(tournamentId, playerId);
+  refresh();
+  redirect(withFlash(`/torneos/${tournamentId}`, "ok",
+    dropped ? "Drop apuntado: ya no se piden más rondas." : "Drop deshecho: puedes seguir apuntando rondas."));
+}
+
 export async function deleteTournamentRound(fd: FormData) {
   const actor = await requireActor();
   const id = str(fd, "id");

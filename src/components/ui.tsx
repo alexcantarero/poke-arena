@@ -22,7 +22,7 @@ export {
 
 /* ------------------------------------------------------------- jugador -- */
 
-const AV_SIZES = { sm: "size-7 text-[11px]", md: "size-9 text-sm", lg: "size-14 text-xl" } as const;
+const AV_SIZES = { xs: "size-5 text-[9px]", sm: "size-7 text-[11px]", md: "size-9 text-sm", lg: "size-14 text-xl" } as const;
 
 export function Avatar({
   player, size = "md",

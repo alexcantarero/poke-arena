@@ -1,0 +1,185 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { pct, wrColor } from "@/lib/format";
+
+/* =========================================================================
+   v0.15.1 — El ranking con «Todo»: UNA tabla con todo sumado.
+
+   En la v0.15.0 «Todo» enseñaba dos tablas, liga y torneos, una debajo de
+   otra. Lo que se pedía es una sola: por persona, todas sus partidas —liga,
+   amistosos y rondas de torneo, presenciales y online— y, al lado, lo que
+   solo existe en torneos (cuántos, conversión al corte, puesto medio) y los
+   CP de la temporada.
+
+   Los puntos son los de siempre (3 / 1 / 0 por defecto) sobre TODAS las
+   partidas. La resistencia y la diferencia de juegos no están: solo tienen
+   sentido entre gente del grupo, y siguen en la vista «Liga».
+   ========================================================================= */
+
+export type TodoRow = {
+  playerId: string;
+  name: string;
+  avatar: ReactNode;
+  avatarSm: ReactNode;
+  points: number;
+  played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number | null;
+  elo: number;
+  cp: number;
+  torneos: number;
+  conCorte: number;
+  cortes: number;
+  cutRate: number | null;
+  avgPlacement: number | null;
+  drops: number;
+};
+
+type Key = "points" | "winRate" | "played" | "elo" | "cp" | "torneos" | "cutRate" | "avgPlacement";
+
+const COLS: Array<{ key: Key; short: string; label: string }> = [
+  { key: "points", short: "Pts", label: "Puntos sobre todas las partidas" },
+  { key: "winRate", short: "%V", label: "% de victorias (empate = media)" },
+  { key: "played", short: "PJ", label: "Partidas jugadas" },
+  { key: "elo", short: "Elo", label: "Elo (solo partidas entre gente del grupo)" },
+  { key: "cp", short: "CP", label: "Championship Points de la temporada" },
+  { key: "torneos", short: "Torneos", label: "Torneos jugados" },
+  { key: "cutRate", short: "%Cut", label: "Conversión al top cut (solo torneos con corte)" },
+  { key: "avgPlacement", short: "Media", label: "Puesto medio en torneos" },
+];
+
+const ASC_ES_MEJOR: Partial<Record<Key, true>> = { avgPlacement: true };
+
+export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
+  const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 }>({ key: "points", dir: -1 });
+
+  const val = (r: TodoRow, k: Key): number => {
+    const v = r[k];
+    if (v == null) return sort.dir < 0 ? -Infinity : Infinity;
+    return v as number;
+  };
+  const sorted = [...rows].sort((a, b) => {
+    const va = val(a, sort.key), vb = val(b, sort.key);
+    if (va === vb) {
+      return b.points - a.points || (b.winRate ?? -1) - (a.winRate ?? -1) || b.cp - a.cp
+        || a.name.localeCompare(b.name, "es");
+    }
+    return sort.dir * (va < vb ? -1 : 1);
+  });
+  const click = (k: Key) => setSort((s) => (s.key === k
+    ? { key: k, dir: (s.dir * -1) as 1 | -1 }
+    : { key: k, dir: ASC_ES_MEJOR[k] ? 1 : -1 }));
+
+  const media = (v: number | null) => (v == null ? "—" : v.toFixed(1).replace(".", ","));
+  const destacado = (r: TodoRow): { v: ReactNode; l: string } => {
+    switch (sort.key) {
+      case "winRate": return { v: pct(r.winRate, 0), l: "%V" };
+      case "played": return { v: r.played, l: "partidas" };
+      case "elo": return { v: r.elo, l: "Elo" };
+      case "cp": return { v: r.cp, l: "CP" };
+      case "torneos": return { v: r.torneos, l: "torneos" };
+      case "cutRate": return { v: pct(r.cutRate, 0), l: r.conCorte ? `corte ${r.cortes}/${r.conCorte}` : "sin corte" };
+      case "avgPlacement": return { v: media(r.avgPlacement), l: "puesto medio" };
+      default: return { v: r.points, l: "pts" };
+    }
+  };
+
+  return (
+    <>
+      <div className="mb-3 flex gap-2 overflow-x-auto pb-1 md:hidden">
+        {COLS.map((c) => (
+          <button
+            key={c.key} type="button" onClick={() => click(c.key)}
+            className={`chip flex-none ${sort.key === c.key ? "chip-brand" : ""}`}
+            aria-pressed={sort.key === c.key}
+          >
+            {c.short}{sort.key === c.key && (sort.dir < 0 ? " ▼" : " ▲")}
+          </button>
+        ))}
+      </div>
+
+      {/* -------- móvil -------- */}
+      <ol className="card divide-y divide-line-soft md:hidden">
+        {sorted.map((r, i) => {
+          const d = destacado(r);
+          return (
+            <li key={r.playerId}>
+              <Link href={`/perfil/${r.playerId}`} className="flex items-center gap-3 px-3 py-3 hover:bg-surface-2">
+                <span className={`w-6 flex-none text-center font-display text-xl font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>
+                  {i + 1}
+                </span>
+                <span className="flex-none">{r.avatar}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{r.name}</span>
+                  <span className="block truncate text-xs text-muted tabular">
+                    <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
+                    {` · ${r.played} partidas`}
+                    {r.torneos ? ` · ${r.torneos} torneo${r.torneos === 1 ? "" : "s"}` : ""}
+                    {r.cp ? ` · ${r.cp} CP` : ""}
+                  </span>
+                </span>
+                <span className="flex-none text-right">
+                  <span className="block font-display text-xl font-extrabold tabular leading-none">{d.v}</span>
+                  <span className="block text-[10px] uppercase tracking-wide text-muted">{d.l}</span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+        {!sorted.length && <li className="px-4 py-8 text-center text-sm text-muted">Sin jugadores.</li>}
+      </ol>
+
+      {/* -------- escritorio -------- */}
+      <div className="card hidden overflow-x-auto md:block">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th className="w-10 text-center">#</th>
+              <th>Jugador</th>
+              <th>V–D–E</th>
+              {COLS.map((c) => (
+                <th key={c.key} className="text-right">
+                  <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={c.label}>
+                    {c.short}{sort.key === c.key && <span className="opacity-60"> {sort.dir < 0 ? "▼" : "▲"}</span>}
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r, i) => (
+              <tr key={r.playerId} className="hover:bg-surface-2">
+                <td className={`text-center font-display text-lg font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</td>
+                <td>
+                  <Link href={`/perfil/${r.playerId}`} className="inline-flex items-center gap-2 hover:text-info">
+                    <span className="flex-none">{r.avatarSm}</span>
+                    <span className="font-semibold">{r.name}</span>
+                    {r.drops > 0 && <span className="chip chip-drop text-[10px]">{r.drops} DROP</span>}
+                  </Link>
+                </td>
+                <td className="font-mono text-[13px]">
+                  <b className="text-win">{r.wins}</b>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
+                </td>
+                <td className="text-right font-semibold tabular">{r.points}</td>
+                <td className="text-right font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</td>
+                <td className="text-right tabular">{r.played}</td>
+                <td className="text-right tabular">{r.elo}</td>
+                <td className="text-right tabular">{r.cp || "—"}</td>
+                <td className="text-right tabular">{r.torneos || "—"}</td>
+                <td className="text-right tabular">
+                  {pct(r.cutRate, 0)}
+                  {r.conCorte > 0 && <span className="ml-1 text-[11px] text-muted">{r.cortes}/{r.conCorte}</span>}
+                </td>
+                <td className="text-right tabular">{media(r.avgPlacement)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}

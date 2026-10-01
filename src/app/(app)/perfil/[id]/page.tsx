@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import {
-  archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, sideOf,
+  archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, porRecientes,
+  sideOf,
 } from "@/lib/stats";
 import { cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import type { MatchFull } from "@/lib/types";
@@ -40,6 +41,9 @@ const SCOPES = {
 } as const;
 
 type ScopeKey = keyof typeof SCOPES;
+
+/** Cuántas partidas enseña el perfil antes de mandar a Resultados. */
+const ULTIMAS = 8;
 const isScope = (s: string): s is ScopeKey => (Object.keys(SCOPES) as string[]).includes(s);
 
 export default async function ProfilePage({
@@ -374,24 +378,37 @@ export default async function ProfilePage({
         )}
       </div>
 
-      <SectionTitle aside={`${scoped.length} de ${mine.length} partidas`}>
-        {scope === "all" ? "Historial" : `Historial · ${SCOPES[scope].label}`}
+      {/* v0.15.1 — el historial completo vive en Resultados, que tiene sus
+          filtros (persona, torneo, fecha, mazo…). Aquí van las últimas, en
+          orden: fecha y, el mismo día, ronda descendente. */}
+      <SectionTitle aside={`${Math.min(scoped.length, ULTIMAS)} de ${scoped.length} partidas`}>
+        {scope === "all" ? "Últimas partidas" : `Últimas partidas · ${SCOPES[scope].label}`}
       </SectionTitle>
       <div className="card">
         {scoped.length ? (
+          <>
           <MatchList>
-            {scoped.slice().reverse().slice(0, 40).map((m) => (
+            {scoped.slice().sort(porRecientes).slice(0, ULTIMAS).map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}
                 playerA={snap.playersById.get(m.playerAId)}
-                playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
+                playerB={m.playerBId ? snap.playersById.get(m.playerBId)
+                  : m.opponentPlayerId ? snap.playersById.get(m.opponentPlayerId) : undefined}
                 archA={m.deckAId ? snap.archIndex.get(m.deckAId) : undefined}
                 archB={m.deckBId ? snap.archIndex.get(m.deckBId) : (m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined)}
                 context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
               />
             ))}
           </MatchList>
+          <Link
+            className="flex min-h-12 items-center justify-center gap-2 border-t border-line-soft text-sm font-semibold text-info hover:bg-surface-2"
+            href={`/resultados?jugador=${player.id}${
+              scope === "liga" ? "&ambito=league" : scope === "torneos" ? "&ambito=tournament" : scope === "amistosos" ? "&ambito=casual" : ""}`}
+          >
+            Ver todas en Resultados, con filtros de torneo, fecha y mazo
+          </Link>
+          </>
         ) : scope === "all" ? (
           <Empty title="Sin partidas" />
         ) : (

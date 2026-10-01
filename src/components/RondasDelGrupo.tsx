@@ -66,6 +66,8 @@ export type RondaDetalle = {
   nota?: string;
   /** Enlace o acción para corregir la ronda. */
   editar?: ReactNode;
+  /** v0.15.1 — avatar del rival cuando es alguien del grupo. */
+  rivalAvatar?: ReactNode;
   /**
    * Etiqueta de fase ya calculada: «Día 2» (solo Regionales), «Cuartos»,
    * «Semifinal», «Final»… Vacía en las rondas de suizo normales.
@@ -378,7 +380,10 @@ function Ronda({ r }: { r: RondaDetalle }) {
       )}
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{r.rival}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {r.rivalAvatar}
+          <span className="truncate text-sm font-semibold">{r.rival}</span>
+        </span>
         <span className="block truncate text-[11px] text-muted">
           {r.mazoRival || "Mazo sin anotar"}
         </span>

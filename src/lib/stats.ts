@@ -136,6 +136,30 @@ export const opponentOf = (m: MatchFull, playerId: string): string | null =>
 export const deckOfIn = (m: MatchFull, playerId: string) =>
   m.playerAId === playerId ? m.deckAId : m.playerBId === playerId ? m.deckBId : null;
 
+/**
+ * v0.15.1 — El orden de un historial: lo más reciente arriba.
+ *
+ * Por fecha descendente y, el mismo día, por ronda descendente (R4, R3, R2,
+ * R1). Antes se hacía `.reverse()` sobre el orden de la base, que con varias
+ * partidas de la misma fecha no garantiza nada: salía R3, R2, R1, R4. Al
+ * final, la de creación más reciente primero.
+ */
+export function porRecientes(
+  a: Pick<MatchFull, "date" | "round" | "id"> & { createdAt?: Date | string | null },
+  b: Pick<MatchFull, "date" | "round" | "id"> & { createdAt?: Date | string | null },
+): number {
+  return (b.date || "").localeCompare(a.date || "")
+    || (b.round ?? 0) - (a.round ?? 0)
+    || instante(b.createdAt) - instante(a.createdAt)
+    || b.id.localeCompare(a.id);
+}
+
+function instante(v: Date | string | null | undefined): number {
+  if (!v) return 0;
+  const t = v instanceof Date ? v.getTime() : Date.parse(v);
+  return Number.isFinite(t) ? t : 0;
+}
+
 function byDate(a: MatchFull, b: MatchFull) {
   return (a.date || "").localeCompare(b.date || "") || a.id.localeCompare(b.id);
 }

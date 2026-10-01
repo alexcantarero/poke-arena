@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { currentPlayer, loadSnapshot } from "@/lib/data";
+import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
-import { outcome } from "@/lib/stats";
+import { outcome, toRoundView } from "@/lib/stats";
+import { archetypeValue } from "@/lib/types";
+import { maxRondasDe } from "@/lib/estructura";
+import { RoundForm } from "@/components/TournamentRounds";
 import { fmtDateLong } from "@/lib/format";
 import { Avatar, PageHead, Sprites } from "@/components/ui";
 import { MatchForm } from "@/components/MatchForm";
@@ -16,7 +19,14 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   if (!match) notFound();
 
   const A = snap.playersById.get(match.playerAId);
-  const B = match.playerBId ? snap.playersById.get(match.playerBId) : undefined;
+  /* v0.15.1 — en una ronda de torneo el rival puede ser alguien del grupo
+     (`opponentPlayerId`) aunque `playerBId` siga nulo. Antes esta pantalla
+     solo miraba `playerBId` y lo pintaba como un desconocido. */
+  const B = match.playerBId ? snap.playersById.get(match.playerBId)
+    : match.opponentPlayerId ? snap.playersById.get(match.opponentPlayerId) : undefined;
+  /** Es una ronda de torneo (rival de fuera o enlazado), no una partida interna. */
+  const esRonda = Boolean(match.tournamentId && !match.playerBId);
+  const tour = match.tournamentId ? snap.toursById.get(match.tournamentId) : undefined;
   const archA = match.deckAId ? snap.archIndex.get(match.deckAId) : undefined;
   const archB = match.deckBId
     ? snap.archIndex.get(match.deckBId)
@@ -30,8 +40,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
      Sara del mismo arquetipo — y se avisa de que es una suposición, en vez de
      dejar el hueco vacío sin explicar por qué. */
   const deckBExact = match.deckBId ? snap.decksById.get(match.deckBId) : undefined;
-  const deckBGuess = !deckBExact && match.playerBId && archB
-    ? snap.decks.find((d) => d.playerId === match.playerBId && d.archetypeId === archB.id && d.list)
+  const rivalId = match.playerBId ?? match.opponentPlayerId;
+  const deckBGuess = !deckBExact && rivalId && archB
+    ? snap.decks.find((d) => d.playerId === rivalId && d.archetypeId === archB.id && d.list)
     : undefined;
   const deckB = deckBExact ?? deckBGuess;
   const nameB = B?.name ?? match.opponentName ?? "el rival";
@@ -55,7 +66,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       name: nameB,
       deck: deckB,
       guess: Boolean(deckBGuess),
-      missing: !match.playerBId
+      missing: !rivalId
         ? `${nameB} es de fuera de la liga: de esas partidas se anota el arquetipo, no la lista. No hay ninguna guardada.`
         : deckB
           ? `«${deckB.name}» no tiene guardada la lista de 60 cartas.`
@@ -64,6 +75,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   ];
 
   const o = outcome(match);
+  const canEditRound = Boolean(me && (me.id === match.playerAId || canManageLeague(me.role)));
+  const resultadoRonda = tour?.results.find((x) => x.playerId === match.playerAId);
+  const lockedRound = resultadoRonda?.deckId
+    ?? (resultadoRonda?.archetypeId ? archetypeValue(resultadoRonda.archetypeId) : null);
   const pending = match.status === "scheduled";
   const context = match.competitionId
     ? snap.compsById.get(match.competitionId)?.name
@@ -84,13 +99,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               { p: A, arch: archA, name: A?.name, win: o.winner === "a" },
               { p: B, arch: archB, name: B?.name ?? match.opponentName, win: o.winner === "b" },
             ].map((s, i) => (
-              <div key={i} className={`flex flex-1 flex-col items-center gap-1.5 text-center ${i === 1 ? "order-3" : ""}`}>
+              /* `min-w-0` en la columna: sin él, el nombre del mazo con
+                 `truncate` no se recortaba y empujaba el lado derecho fuera
+                 de la pantalla («Slowking / Kyur…» cortado en el borde). */
+              <div key={i} className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center ${i === 1 ? "order-3" : ""}`}>
                 <Avatar player={s.p} size="lg" />
-                <span className={`text-sm ${s.win ? "font-bold" : "font-medium"}`}>{s.name ?? "—"}</span>
+                <span className={`max-w-full truncate text-sm ${s.win ? "font-bold" : "font-medium"}`}>{s.name ?? "—"}</span>
                 {s.arch && (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted">
+                  <span className="flex max-w-full min-w-0 items-center justify-center gap-1 text-xs text-muted">
                     <Sprites archetype={s.arch} size="sm" />
-                    <span className="max-w-24 truncate">{s.arch.name}</span>
+                    <span className="min-w-0 truncate">{s.arch.name}</span>
                   </span>
                 )}
               </div>
@@ -179,6 +197,40 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           otro punto de Alex: en una partida ya cerrada lo que quieres es
           leerla, y editarla es la excepción. Si está pendiente de anotar, se
           abre solo, porque entonces es justo para lo que has entrado. */}
+      {esRonda && tour ? (
+        /* v0.15.1 — una ronda de torneo se edita con el formulario de RONDA.
+           Con el de partida genérica, elegir al rival del grupo la convertía
+           en partida interna: desaparecía del torneo y salía como amistoso. */
+        canEditRound ? (
+          <details className="card" open={pending}>
+            <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
+              Editar la ronda {match.round}
+              <span className="text-xs font-normal text-muted">{tour.name}</span>
+            </summary>
+            <div className="border-t border-line-soft p-4">
+              <RoundForm
+                tournamentId={tour.id}
+                playerId={match.playerAId}
+                round={match.round}
+                bestOf={tour.bestOf}
+                rivalDecks={deckOptions(snap, match.playerAId)}
+                archetypeOptions={archetypeOptions(snap)}
+                myDecks={deckOptions(snap, match.playerAId, { includeOthers: false })}
+                lockedDeckId={lockedRound}
+                existing={toRoundView(match)}
+                maxRound={maxRondasDe({ kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut })}
+                rivalPlayers={snap.players
+                  .filter((p) => p.active && p.id !== match.playerAId)
+                  .map((p) => ({ id: p.id, name: p.name }))}
+              />
+              <p className="mt-3 text-xs text-muted">
+                Es una ronda de <Link className="underline" href={`/torneos/${tour.id}`}>{tour.name}</Link>:
+                se queda en el torneo aunque el rival sea alguien del grupo.
+              </p>
+            </div>
+          </details>
+        ) : null
+      ) : (
       <details className="card" open={pending}>
         <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
           {pending ? "Anotar el resultado" : "Editar la partida"}
@@ -197,6 +249,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           />
         </div>
       </details>
+      )}
     </>
   );
 }

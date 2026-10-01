@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { saveTournamentRound, deleteTournamentRound } from "@/actions";
+import { saveTournamentRound, deleteTournamentRound, dropFromTournament } from "@/actions";
 import type { Archetype, DeckOption, Side } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
 import type { RoundView, RoundRecord } from "@/lib/stats";
@@ -623,6 +623,27 @@ export function RoundForm({
           <button className="btn btn-ghost" type="button" onClick={onCancel}>Cancelar</button>
         )}
       </div>
+
+      {/* v0.15.1 — el drop, aquí mismo: en vez de apuntar la ronda siguiente,
+          «me retiro». `formNoValidate` para que no pida el nombre del rival,
+          y `formAction` para que vaya a otra acción con el mismo formulario
+          (torneo y jugador ya viajan como campos ocultos). */}
+      {!existing && (
+        <div className="flex items-center gap-3 border-t border-line-soft pt-3">
+          <p className="min-w-0 flex-1 text-xs text-muted">
+            ¿No sigues? Apunta el drop y no te pediré más rondas.
+          </p>
+          <button
+            type="submit" formAction={dropFromTournament} formNoValidate
+            className="btn btn-sm flex-none border-loss/50 font-bold text-loss hover:bg-loss-soft"
+            onClick={(e) => {
+              if (!window.confirm("¿Apuntar el drop? No podrás añadir más rondas (se puede deshacer).")) e.preventDefault();
+            }}
+          >
+            DROP · me retiro
+          </button>
+        </div>
+      )}
     </form>
   );
 }

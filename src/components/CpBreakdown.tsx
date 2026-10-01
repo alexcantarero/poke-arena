@@ -189,11 +189,17 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
   );
 }
 
-/** Color de la bola según el tramo (0 = 1.º, que va en dorado aparte). */
-function ballColor(tierIndex: number): string {
-  const paleta = ["var(--series-4)", "var(--series-1)", "var(--series-3)", "var(--series-7)",
-    "var(--series-2)", "var(--series-5)", "var(--series-6)"];
-  return tierIndex < 0 ? "var(--muted)" : paleta[Math.min(tierIndex, paleta.length - 1)];
+/**
+ * La medalla de un hueco según su tramo: 0 = 1.º (oro), 1 = 2.º (plata),
+ * 2 = 3.º–4.º (bronce). Del 5.º para abajo, gris, más oscuro cuanto más bajo.
+ */
+function medalla(tierIndex: number): { className: string; style?: CSSProperties } {
+  if (tierIndex === 0) return { className: "cp-ball-gold" };
+  if (tierIndex === 1) return { className: "cp-ball-silver" };
+  if (tierIndex === 2) return { className: "cp-ball-bronze" };
+  const grises = ["#6b7588", "#5a6375", "#4a5263", "#3d4453", "#323845"];
+  const g = grises[Math.min(Math.max(tierIndex - 3, 0), grises.length - 1)];
+  return { className: "", style: { "--ball": g } as CSSProperties };
 }
 
 function Bucket({ view }: { view: BucketView }) {
@@ -239,11 +245,12 @@ function Bucket({ view }: { view: BucketView }) {
                 </span>
               );
             }
+            const med = medalla(slot.tierIndex);
             return (
               <span
                 key={i}
-                className={`cp-ball ${slot.maxed ? "cp-ball-max" : ""}`}
-                style={slot.maxed ? undefined : ({ "--ball": ballColor(slot.tierIndex) } as CSSProperties)}
+                className={`cp-ball ${med.className}`}
+                style={med.style}
                 title={`${slot.row.tournamentName}${slot.row.placement ? ` · ${slot.row.placement}.º` : ""} · ${slot.row.counted} CP${slot.maxed ? " · maxeado" : ""}`}
               >
                 {slot.row.counted}
@@ -309,8 +316,8 @@ function Bucket({ view }: { view: BucketView }) {
                 )}
               </span>
               <span
-                className={`cp-ball cp-ball-sm ${maxed ? "cp-ball-max" : row.excluded || row.counted === 0 ? "cp-ball-empty" : ""}`}
-                style={maxed || row.excluded || row.counted === 0 ? undefined : ({ "--ball": ballColor(tierIndex) } as CSSProperties)}
+                className={`cp-ball cp-ball-sm ${row.excluded || row.counted === 0 ? "cp-ball-empty" : medalla(tierIndex).className}`}
+                style={row.excluded || row.counted === 0 ? undefined : medalla(tierIndex).style}
               >
                 {row.excluded ? <s>{row.value}</s> : row.counted}
               </span>

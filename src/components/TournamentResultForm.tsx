@@ -234,19 +234,15 @@ export function TournamentResultForm({
         />
       </div>
 
-      {/* v0.15 — el drop. Guardado con la casilla marcada, la ficha deja de
-          ofrecer rondas nuevas (y la Server Action las rechaza) y tu bloque
-          sale con la etiqueta DROP. Desmarcarla lo deshace. */}
-      <label className="flex items-start gap-2.5 rounded-lg border border-line-soft p-3 text-sm">
-        <input type="checkbox" name="dropped" className="mt-0.5 size-4 flex-none" defaultChecked={result?.dropped ?? false} />
-        <span>
-          <b>No he acabado el torneo</b> (drop)
-          <span className="block text-xs text-muted">
-            Al guardarlo ya no se pueden apuntar más rondas y sales con la etiqueta DROP. Las que
-            tienes apuntadas se pueden seguir corrigiendo.
-          </span>
-        </span>
-      </label>
+      {/* v0.15.1 — el drop se apunta desde la ronda («DROP · me retiro») y se
+          deshace desde el aviso de la ficha. Aquí solo viaja el valor que ya
+          había, para que guardar el resultado no lo borre. */}
+      <input type="hidden" name="dropped" value={result?.dropped ? "on" : ""} />
+      {result?.dropped && (
+        <p className="flex items-center gap-2 text-xs text-muted">
+          <span className="chip chip-drop">DROP</span> Te retiraste de este torneo.
+        </p>
+      )}
 
       <button className="btn btn-brand w-full" type="submit">
         <Icon name="check" className="size-4" />

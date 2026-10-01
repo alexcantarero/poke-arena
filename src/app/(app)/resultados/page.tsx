@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { loadSnapshot } from "@/lib/data";
-import { archetypesOfMatch, isPlayed } from "@/lib/stats";
+import { archetypesOfMatch, isPlayed, porRecientes } from "@/lib/stats";
 import {
   applyMatchFilter, describeFilter, isFiltered, parseMatchFilter, type FilterIndex,
 } from "@/lib/filters";
@@ -41,7 +41,7 @@ export default async function ResultsPage({
   };
 
   const played = snap.matches.filter(isPlayed);
-  const rows = applyMatchFilter(played, filter, index).slice().reverse();
+  const rows = applyMatchFilter(played, filter, index).slice().sort(porRecientes);
 
   // Las pendientes respetan el filtro de competición y de torneo, que es lo
   // único que tiene sentido en algo que aún no se ha jugado.
@@ -128,7 +128,8 @@ export default async function ResultsPage({
                 key={m.id}
                 match={m}
                 playerA={snap.playersById.get(m.playerAId)}
-                playerB={m.playerBId ? snap.playersById.get(m.playerBId) : undefined}
+                playerB={m.playerBId ? snap.playersById.get(m.playerBId)
+                  : m.opponentPlayerId ? snap.playersById.get(m.opponentPlayerId) : undefined}
                 archA={archOf(m, "a")}
                 archB={archOf(m, "b")}
                 context={m.competitionId

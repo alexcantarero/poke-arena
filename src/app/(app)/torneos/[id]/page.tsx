@@ -21,7 +21,7 @@ import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/TournamentRounds";
 import { etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
 import type { Pestana } from "@/components/CaminoAlCorte";
-import { deleteTournament, deleteTournamentResult } from "@/actions";
+import { deleteTournament, deleteTournamentResult, undoDrop } from "@/actions";
 import { Icon } from "@/components/icons";
 
 /* =========================================================================
@@ -266,7 +266,11 @@ export default async function TournamentPage({
 
         return {
           round: r.round,
-          rival: r.match.opponentName || "Rival sin nombre",
+          rival: (r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)?.name)
+            || r.match.opponentName || "Rival sin nombre",
+          rivalAvatar: r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)
+            ? <Avatar player={snap.playersById.get(r.match.opponentPlayerId)} size="xs" />
+            : undefined,
           mazoRival: oppArch?.name ?? undefined,
           main: oppArch?.main,
           secondary: oppArch?.secondary,
@@ -290,9 +294,12 @@ export default async function TournamentPage({
     };
   });
 
-  const nextRound = myRounds.length
-    ? Math.max(...myRounds.map((r) => r.round)) + 1
-    : 1;
+  /* v0.15.1 — la siguiente ronda es el primer HUECO, no «la última + 1».
+     Con R1, R2 y R4 apuntadas se pedía la 5 y la ficha decía a la vez «te
+     falta 1» y «tienes las 4»: la que falta es la 3. */
+  const apuntadas = new Set(myRounds.map((r) => r.round));
+  let nextRound = 1;
+  while (apuntadas.has(nextRound)) nextRound++;
   const finished = t.rounds != null && t.rounds > 0 && nextRound > t.rounds;
   /* Con el tope alcanzado no hay formulario: en un Challenge de 5 rondas no
      existe la 6. La Server Action lo vuelve a comprobar, porque esconder el
@@ -321,15 +328,19 @@ export default async function TournamentPage({
      rondas que apuntar: en vez del formulario sale el aviso, y la Server
      Action rechaza una ronda nueva aunque llegue por un POST a mano. */
   const yoDrop = Boolean(myResult?.dropped);
-  const avisoDrop = (
-    <p className="flex items-start gap-2 rounded-lg border border-loss/40 bg-loss-soft px-3 py-2 text-xs text-ink-2">
+  const avisoDrop = me ? (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-loss/40 bg-loss-soft px-3 py-2 text-xs text-ink-2">
       <span className="chip chip-drop flex-none">DROP</span>
-      <span>
-        Marcaste que no acabaste el torneo, así que ya no se pueden apuntar más rondas. Si fue
-        un error, desmarca «No he acabado el torneo» en tu resultado final.
+      <span className="min-w-0 flex-1">
+        Te retiraste del torneo: ya no se apuntan más rondas. Las que tienes se pueden corregir.
       </span>
-    </p>
-  );
+      <form action={undoDrop}>
+        <input type="hidden" name="tournamentId" value={t.id} />
+        <input type="hidden" name="playerId" value={me.id} />
+        <button type="submit" className="btn btn-ghost btn-sm">Deshacer</button>
+      </form>
+    </div>
+  ) : null;
 
   const roundFormNode =
     me && status !== "closed" && status !== "draft" ? (
