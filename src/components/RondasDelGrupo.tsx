@@ -244,6 +244,12 @@ export function RondasDelGrupo({
                         tú
                       </span>
                     )}
+                    {/* v0.15: el drop se ve sin abrir el bloque. */}
+                    {j.retirado && (
+                      <span className="chip chip-drop flex-none text-[10px]" title="No acabó el torneo">
+                        DROP
+                      </span>
+                    )}
                   </span>
                   <span className="block truncate text-[11px] text-muted">
                     {j.mazo || "Mazo sin anotar"}
@@ -286,7 +292,7 @@ export function RondasDelGrupo({
                       {(j.retirado || j.invitacion) && (
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {j.invitacion && <span className="chip chip-brand">Invitación al Mundial</span>}
-                          {j.retirado && <span className="chip chip-tie">Se retiró</span>}
+                          {j.retirado && <span className="chip chip-drop">DROP · no acabó el torneo</span>}
                         </div>
                       )}
                       {j.acciones}

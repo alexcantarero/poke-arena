@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
-import { archetypeStats, isPlayed, standings } from "@/lib/stats";
+import { archetypeStats, isPlayed, outcome, recordOf, roundResult, roundsOf, standings } from "@/lib/stats";
 import { applyMatchFilter, EMPTY_FILTER, MATCH_SCOPES, type FilterIndex, type MatchScope } from "@/lib/filters";
-import { seasonOfDate } from "@/lib/cp";
+import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput } from "@/lib/cp";
+import { rankingTorneos, type EntradaTorneo } from "@/lib/rankingTorneos";
+import { claveRonda, matrizH2H, type Encuentro } from "@/lib/h2h";
+import { TournamentRankingTable, type TourRankRow } from "@/components/TournamentRankingTable";
+import { H2HHeatmap } from "@/components/H2HHeatmap";
 import { Avatar, PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
 import { ScopeTabs } from "@/components/ScopeTabs";
@@ -14,7 +18,12 @@ export const metadata = { title: "Ranking" };
 
 /* Lo que se puede mirar por separado, en el orden en que se ofrece. `all`
    sale aparte, como los demás «todo» de la app. */
-const AMBITOS: MatchScope[] = ["league", "onsite", "online", "casual"];
+const AMBITOS: MatchScope[] = ["league", "tournament", "onsite", "online", "casual"];
+
+/* v0.15 — Los ámbitos de torneo enseñan el ranking de torneos y no la
+   clasificación de liga: la de liga solo cuenta partidas entre dos del grupo,
+   y con un ámbito de torneo se quedaba entera a cero. */
+const AMBITOS_TORNEO: MatchScope[] = ["tournament", "onsite", "online"];
 
 export default async function RankingPage({
   searchParams,
@@ -88,6 +97,82 @@ export default async function RankingPage({
     };
   });
 
+  /* ------------------------------------------------ v0.15 · torneos --- */
+  const vistaTorneos = (AMBITOS_TORNEO as string[]).includes(ambito);
+  const conTorneos = !competition && (vistaTorneos || ambito === "all");
+  const cpSeason = snap.config.cpSeason;
+
+  const toursEnAmbito = snap.tournaments.filter((t) =>
+    (ambito === "onsite" ? t.scope !== "online" : ambito === "online" ? t.scope === "online" : true)
+    && (!soloTemporada || (t.season ?? seasonOfDate(t.date)) === cpSeason));
+
+  const entradas: EntradaTorneo[] = [];
+  const cpRows = new Map<string, CpResultInput[]>();
+  if (conTorneos) {
+    for (const t of toursEnAmbito) {
+      const quien = new Set<string>(t.results.map((x) => x.playerId));
+      for (const m of snap.matches) {
+        if (m.tournamentId === t.id && m.playerBId === null) quien.add(m.playerAId);
+      }
+      for (const pid of quien) {
+        if (!snap.playersById.has(pid)) continue;
+        const res = t.results.find((x) => x.playerId === pid);
+        const rondas = roundsOf(snap.matches, t.id, pid);
+        // El récord sale de las rondas si las hay; si no, del resultado tecleado.
+        const rec = rondas.length ? recordOf(rondas) : null;
+        entradas.push({
+          playerId: pid,
+          tournamentId: t.id,
+          placement: res?.placement ?? null,
+          topCut: t.topCut ?? null,
+          wins: rec ? rec.wins : res?.wins ?? 0,
+          losses: rec ? rec.losses : res?.losses ?? 0,
+          ties: rec ? rec.ties : res?.ties ?? 0,
+          dropped: res?.dropped ?? false,
+        });
+        // Los CP de la temporada en curso, solo de lo que está dentro del filtro.
+        const kind = cpKindOf(t);
+        if (res && (t.season ?? seasonOfDate(t.date)) === cpSeason && awardsCp(cpSeason, kind)) {
+          const list = cpRows.get(pid) ?? [];
+          list.push({
+            id: res.id, kind, date: t.date, placement: res.placement, playerCount: t.playerCount,
+            cpEarned: res.cpEarned, cpManual: res.cpManual, tournamentName: t.name,
+          });
+          cpRows.set(pid, list);
+        }
+      }
+    }
+  }
+  const cpDe = (pid: string) => computeCp(cpSeason, cpRows.get(pid) ?? []).total;
+  const tourRows: TourRankRow[] = rankingTorneos(entradas, cpDe).map((f) => {
+    const p = snap.playersById.get(f.playerId);
+    return {
+      ...f,
+      name: p?.name ?? "—",
+      avatar: <Avatar player={p} size="md" />,
+      avatarSm: <Avatar player={p} size="sm" />,
+    };
+  });
+
+  /* ------------------------------------- v0.15 · enfrentamientos directos --- */
+  const encuentros: Encuentro[] = [];
+  for (const m of scoped) {
+    if (m.playerBId) {
+      const o = outcome(m);
+      encuentros.push({ clave: `m:${m.id}`, a: m.playerAId, b: m.playerBId, resultado: o.winner });
+    } else if (m.tournamentId && m.opponentPlayerId) {
+      const res = roundResult(m);
+      encuentros.push({
+        clave: claveRonda(m.tournamentId, m.round, m.playerAId, m.opponentPlayerId),
+        a: m.playerAId,
+        b: m.opponentPlayerId,
+        resultado: res === "w" ? "a" : res === "l" ? "b" : res === "d" ? "tie" : null,
+      });
+    }
+  }
+  const h2h = matrizH2H(encuentros);
+  const h2hJugadores = snap.players.map((p) => ({ id: p.id, name: p.name, avatar: <Avatar player={p} size="sm" /> }));
+
   const ladder = ladderStandings(snap.players.filter((p) => p.active));
 
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
@@ -156,13 +241,49 @@ export default async function RankingPage({
             ? "Con este filtro no queda ninguna partida, así que la tabla sale a cero."
             : `${scoped.length} partida${scoped.length === 1 ? "" : "s"}: ${
                 ambito === "all" ? "todas" : MATCH_SCOPES[ambito].toLowerCase()
-              }${soloTemporada ? `, temporada ${snap.config.cpSeason}` : ""}. El Elo y los CP no cambian con este filtro: son globales.`}
+              }${soloTemporada ? `, temporada ${snap.config.cpSeason}` : ""}.${
+                vistaTorneos
+                  ? ` Los CP son los de la temporada ${cpSeason} de estos torneos, con su Best Finish Limit.`
+                  : " El Elo y los CP no cambian con este filtro: son globales."
+              }`}
         </p>
       )}
 
-      <div className="mt-4">
-        <RankingTable rows={rows} />
-      </div>
+      {!vistaTorneos && (
+        <div className="mt-4">
+          {ambito === "all" && !competition && (
+            <h2 className="mb-2 font-display text-lg font-bold">Liga y amistosos</h2>
+          )}
+          <RankingTable rows={rows} />
+        </div>
+      )}
+
+      {conTorneos && (
+        <section className="mt-5">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-bold">
+              {ambito === "online" ? "Torneos online" : ambito === "onsite" ? "Torneos presenciales" : "Torneos"}
+            </h2>
+            <span className="text-xs text-muted tabular">
+              {new Set(entradas.map((e) => e.tournamentId)).size} torneos · conversión solo sobre los que tenían top cut
+            </span>
+          </div>
+          <TournamentRankingTable rows={tourRows} cpLabel={`CP ${cpSeason}`} />
+          {ambito === "online" && (
+            <p className="mt-2 text-xs text-muted">Los torneos online no reparten Championship Points.</p>
+          )}
+        </section>
+      )}
+
+      <section className="card mt-5 min-w-0 overflow-hidden">
+        <div className="card-head">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold">Enfrentamientos directos</h2>
+            <p className="text-xs text-muted">Cuántas veces os habéis cruzado, con el filtro de arriba.</p>
+          </div>
+        </div>
+        <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
+      </section>
 
       {withHistory.length > 0 && (
         <section className="card mt-4">

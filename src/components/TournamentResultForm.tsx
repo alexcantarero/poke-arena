@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { saveTournamentResult } from "@/actions";
-import { tierFor, awardsCp } from "@/lib/cp";
+import { tierFor, awardsCp, cpKindOf } from "@/lib/cp";
 import type { DeckOption, Tournament, TournamentResult } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
 import { DeckPicker } from "./DeckPicker";
@@ -56,9 +56,11 @@ export function TournamentResultForm({
   const [cpManual, setCpManual] = useState(result?.cpManual ?? false);
   const [cpEarned, setCpEarned] = useState<string>(result?.cpEarned ? String(result.cpEarned) : "");
 
-  const givesCp = awardsCp(season, tournament.kind);
+  // El tipo a efectos de CP: online no reparte puntos (v0.15).
+  const cpKind = cpKindOf(tournament);
+  const givesCp = awardsCp(season, cpKind);
   const tier = givesCp
-    ? tierFor(season, tournament.kind, placement ? Number(placement) : null, tournament.playerCount)
+    ? tierFor(season, cpKind, placement ? Number(placement) : null, tournament.playerCount)
     : null;
 
   return (
@@ -172,7 +174,9 @@ export function TournamentResultForm({
 
         {!givesCp ? (
           <p className="mt-2 text-sm text-muted">
-            Este tipo de torneo no reparte CP. Cuenta igual para tus estadísticas.
+            {tournament.scope === "online"
+              ? "Los torneos online no reparten Championship Points. Cuenta igual para tus estadísticas."
+              : "Este tipo de torneo no reparte CP. Cuenta igual para tus estadísticas."}
           </p>
         ) : cpManual ? (
           <input
@@ -230,9 +234,18 @@ export function TournamentResultForm({
         />
       </div>
 
-      <label className="inline-flex items-center gap-2 text-sm">
-        <input type="checkbox" name="dropped" className="size-4" defaultChecked={result?.dropped ?? false} />
-        Me retiré antes de terminar
+      {/* v0.15 — el drop. Guardado con la casilla marcada, la ficha deja de
+          ofrecer rondas nuevas (y la Server Action las rechaza) y tu bloque
+          sale con la etiqueta DROP. Desmarcarla lo deshace. */}
+      <label className="flex items-start gap-2.5 rounded-lg border border-line-soft p-3 text-sm">
+        <input type="checkbox" name="dropped" className="mt-0.5 size-4 flex-none" defaultChecked={result?.dropped ?? false} />
+        <span>
+          <b>No he acabado el torneo</b> (drop)
+          <span className="block text-xs text-muted">
+            Al guardarlo ya no se pueden apuntar más rondas y sales con la etiqueta DROP. Las que
+            tienes apuntadas se pueden seguir corrigiendo.
+          </span>
+        </span>
       </label>
 
       <button className="btn btn-brand w-full" type="submit">

@@ -115,6 +115,20 @@ export function awardsCp(season: number, kind: string): boolean {
 }
 
 /**
+ * v0.15 — El tipo de evento **a efectos de CP** de un torneo.
+ *
+ * Un torneo online no reparte Championship Points, se llame como se llame:
+ * un «Challenge» de Limitless o de PTCG Live no es un League Challenge del
+ * circuito. Antes la app miraba solo `kind`, y un torneo online apuntado como
+ * League Challenge salía cobrando puntos. Ahora todas las pantallas y las
+ * Server Actions pasan por aquí, y lo online cuenta como `online`: sin tabla,
+ * sin puntos, y sin hueco de Best Finish Limit.
+ */
+export function cpKindOf(t: { kind: string; scope?: string | null }): string {
+  return t.scope === "online" ? "online" : t.kind;
+}
+
+/**
  * El tramo al que cae un puesto, con el kicker ya resuelto.
  *
  * Existe aparte de `cpForPlacement` porque la interfaz necesita explicar el
@@ -212,6 +226,9 @@ export function effectiveCp(
   result: { placement: number | null; cpEarned: number; cpManual: boolean },
   playerCount: number | null | undefined,
 ): number {
+  // Un tipo que no reparte CP da 0 aunque alguien tecleara un número: es la
+  // regla de «en un torneo online no hay CP», y no tiene puerta de atrás.
+  if (!awardsCp(season, kind)) return 0;
   if (result.cpManual) return result.cpEarned;
   return cpForPlacement(season, kind, result.placement, playerCount) ?? 0;
 }
@@ -238,10 +255,9 @@ export function explainCp(
   result: { placement: number | null; cpEarned: number; cpManual: boolean },
   playerCount: number | null | undefined,
 ): CpReason {
-  if (result.cpManual) return { kind: "manual", cp: result.cpEarned };
-
   const def = resolveEventDef(season, kind);
   if (!def?.tiers?.length) return { kind: "no-cp" };
+  if (result.cpManual) return { kind: "manual", cp: result.cpEarned };
   if (result.placement == null || result.placement < 1) return { kind: "no-placement" };
 
   const tier = def.tiers.find((t) => result.placement! >= t.from && result.placement! <= t.to);
@@ -299,7 +315,7 @@ export function computeCp(season: number, results: CpResultInput[]): CpTotals {
 
   const withValue = results.map((r) => {
     const auto = cpForPlacement(season, r.kind, r.placement, r.playerCount);
-    const value = r.cpManual ? r.cpEarned : auto ?? r.cpEarned;
+    const value = !awardsCp(season, r.kind) ? 0 : r.cpManual ? r.cpEarned : auto ?? r.cpEarned;
     return { ...r, value, bucket: bflBucket(season, r.kind) };
   });
 
@@ -322,10 +338,17 @@ export function computeCp(season: number, results: CpResultInput[]): CpTotals {
     let counting = 0;
     let bucketTotal = 0;
 
-    sorted.forEach((r, i) => {
-      const excluded = bfl > 0 && i >= bfl;
-      const counted = excluded ? 0 : r.value;
-      if (!excluded) {
+    /* v0.15 — un resultado de 0 CP NO ocupa hueco. Antes un 12.º de un
+       Challenge de 20 personas (0 CP por el kicker) salía como «3 ocupados ·
+       1 libre», y eso no es verdad: el límite es de mejores resultados que
+       PUNTÚAN, y uno que no suma nunca le quita el sitio a otro. Como la lista
+       va ordenada de más a menos, los ceros quedan siempre al final y basta
+       con no contarlos. */
+    sorted.forEach((r) => {
+      const occupies = r.value > 0;
+      const excluded = occupies && bfl > 0 && counting >= bfl;
+      const counted = excluded || !occupies ? 0 : r.value;
+      if (occupies && !excluded) {
         counting++;
         bucketTotal += counted;
       }

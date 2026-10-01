@@ -226,6 +226,16 @@ export const matches = pgTable("matches", {
   playerBId: text("player_b_id").references(() => players.id),
   /** Rival externo: solo su nombre y su mazo, para las estadísticas de metagame. */
   opponentName: text("opponent_name"),
+  /**
+   * v0.15 — En una ronda de torneo, el rival cuando es alguien del grupo.
+   *
+   * `playerBId` se queda nulo a propósito: la ronda sigue siendo «tu» ronda
+   * del torneo (índice único por torneo + jugador + ronda, récord y mazo
+   * heredado), y no una partida interna que mueva Elo. Esta columna solo
+   * enlaza al perfil y alimenta el mapa de enfrentamientos directos.
+   * `opponentName` se sigue rellenando con su nombre.
+   */
+  opponentPlayerId: text("opponent_player_id").references(() => players.id, { onDelete: "set null" }),
   deckAId: text("deck_a_id").references(() => decks.id, { onDelete: "set null" }),
   deckBId: text("deck_b_id").references(() => decks.id, { onDelete: "set null" }),
   /**
@@ -275,6 +285,7 @@ export const matches = pgTable("matches", {
   index("matches_comp_idx").on(t.competitionId),
   index("matches_tour_idx").on(t.tournamentId),
   index("matches_a_idx").on(t.playerAId),
+  index("matches_opp_player_idx").on(t.opponentPlayerId),
   index("matches_b_idx").on(t.playerBId),
   index("matches_date_idx").on(t.date),
   // Una ronda de un torneo es única por jugador: evita duplicar la ronda 3 de

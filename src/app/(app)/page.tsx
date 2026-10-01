@@ -10,7 +10,7 @@ import {
 import { Icon } from "@/components/icons";
 import { HomeCharts } from "@/components/HomeCharts";
 import { UltimoRegional, type Vista } from "@/components/UltimoRegional";
-import { effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
+import { cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { estructuraDe, umbralesDe } from "@/lib/estructura";
 import { conCuotaOnline, resumenGrupo, type ResultadoGrupo } from "@/lib/metaGrupo";
 import { irlMeta, panelDeEvento } from "@/lib/metaIrl";
@@ -210,7 +210,7 @@ export default async function HomePage({
         .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))
         .map((x) => {
           const a = archDe(x);
-          const cp = t ? effectiveCp(temporadaEv, t.kind, x, t.playerCount) : 0;
+          const cp = t ? effectiveCp(temporadaEv, cpKindOf(t), x, t.playerCount) : 0;
           return {
             placement: x.placement ?? 0,
             titulo: snap.playersById.get(x.playerId)?.name ?? "Alguien",

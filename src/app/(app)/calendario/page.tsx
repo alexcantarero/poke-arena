@@ -68,7 +68,11 @@ export default async function CalendarPage({
     }
   };
 
-  for (const e of snap.events) {
+  /* v0.15 — un evento enlazado a un torneo que existe ya sale como torneo:
+     pintarlo también como evento ponía Niza dos veces en el mismo día. */
+  const eventos = snap.events.filter((e) => !(e.tournamentId && snap.toursById.has(e.tournamentId)));
+
+  for (const e of eventos) {
     if (tipo && e.tournamentKind !== tipo) continue;
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
     pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined });
@@ -108,7 +112,7 @@ export default async function CalendarPage({
      Antes solo enseñaba los eventos; ahora también los torneos apuntados,
      que es lo que la gente busca aquí. */
   const agenda = [
-    ...snap.events
+    ...eventos
       .filter((e) => (e.endDate ?? e.date) >= today)
       .filter((e) => !tipo || e.tournamentKind === tipo)
       .map((e) => ({

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import {
-  awardsCp, bflBucket, getSeason, tierFor,
+  awardsCp, bflBucket, getSeason, resolveEventDef, tierFor,
   type CpBreakdownRow, type CpTotals,
 } from "@/lib/cp";
 import { fmtDate } from "@/lib/format";
@@ -30,6 +31,13 @@ import { fmtDate } from "@/lib/format";
 
 type BucketRow = {
   row: CpBreakdownRow;
+  /** Índice del tramo en la tabla (0 = el 1.º). Decide el color de la bola. */
+  tierIndex: number;
+  /** Ese resultado es el máximo que da su tipo de evento: el 1.º. */
+  maxed: boolean;
+  /** Tramo de puestos, para explicar un 0: «9.º–16.º». */
+  tramo: string | null;
+  tierCp: number;
   /** Ese puesto da plaza para el Mundial al margen de los puntos. */
   invite: boolean;
   /** Gente que le faltó al torneo para que ese tramo pagara. 0 = pagó. */
@@ -82,10 +90,17 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
         .filter((r) => r.bucket === key)
         .map((row) => {
           const t = tierFor(cp.season, row.kind, row.placement, row.playerCount);
+          const tiers = resolveEventDef(cp.season, row.kind)?.tiers ?? [];
+          const tierIndex = t ? tiers.indexOf(t.tier) : -1;
+          const top = tiers.length ? Math.max(...tiers.map((x) => x.cp)) : 0;
           return {
             row,
             invite: Boolean(t?.invite),
             needed: t?.blockedByKicker ? t.needed : 0,
+            tierIndex,
+            maxed: !row.excluded && row.counted > 0 && row.counted >= top,
+            tramo: t ? (t.tier.from === t.tier.to ? `${t.tier.from}.º` : `${t.tier.from}.º–${t.tier.to}.º`) : null,
+            tierCp: t?.tier.cp ?? 0,
           };
         })
         // Primero lo que puntúa, de más a menos; los excluidos al final, que es
@@ -117,7 +132,7 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
   const invites = views.flatMap((v) => v.rows.filter((r) => r.invite));
 
   return (
-    <section className="card mb-5">
+    <section className="card mb-5 min-w-0 overflow-hidden">
       <div className="card-head">
         <div className="min-w-0">
           <h2 className="text-lg font-bold">Championship Points {cp.season}</h2>
@@ -155,7 +170,10 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
         </div>
       )}
 
-      <div className="grid gap-3 p-4 lg:grid-cols-2">
+      {/* `grid-cols-1` y no la columna implícita: la implícita mide `auto`, y
+          los nombres de torneo con `truncate` (sin salto de línea) la estiraban
+          más que la pantalla. Era el borde cortado en el móvil. */}
+      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
         {views.map((v) => <Bucket key={v.bucket} view={v} />)}
       </div>
 
@@ -171,11 +189,22 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
   );
 }
 
+/** Color de la bola según el tramo (0 = 1.º, que va en dorado aparte). */
+function ballColor(tierIndex: number): string {
+  const paleta = ["var(--series-4)", "var(--series-1)", "var(--series-3)", "var(--series-7)",
+    "var(--series-2)", "var(--series-5)", "var(--series-6)"];
+  return tierIndex < 0 ? "var(--muted)" : paleta[Math.min(tierIndex, paleta.length - 1)];
+}
+
 function Bucket({ view }: { view: BucketView }) {
   const shared = view.mainKinds.length > 1;
+  // Los huecos ocupados: solo lo que suma y no está fuera por el límite.
+  const slots = view.rows
+    .filter((x) => !x.row.excluded && x.row.counted > 0)
+    .sort((a, b) => b.row.counted - a.row.counted);
 
   return (
-    <div className="rounded-xl border border-line-soft bg-ground p-3.5">
+    <div className="min-w-0 rounded-xl border border-line-soft bg-ground p-3.5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="min-w-0 truncate font-display text-lg font-bold">{view.label}</h3>
         <span className="flex-none font-display text-2xl font-extrabold tabular leading-none">
@@ -196,16 +225,36 @@ function Bucket({ view }: { view: BucketView }) {
         )}
       </p>
 
-      {/* Los huecos, dibujados. Cuatro barritas se cuentan de un vistazo y un
-          «3/4» hay que leerlo. */}
+      {/* v0.15 — los huecos como bolas con los CP dentro. Cada tramo de puesto
+          tiene su color y el 1.º sale en dorado: ese hueco ya está «maxeado»,
+          no se puede mejorar. Las vacías van con borde discontinuo. */}
       {view.bfl > 0 && (
-        <div className="mt-2 flex gap-1" aria-hidden="true">
-          {Array.from({ length: view.bfl }, (_, i) => (
-            <i
-              key={i}
-              className={`h-1.5 flex-1 rounded-full ${i < view.counting ? "bg-brand" : "bg-surface-3"}`}
-            />
-          ))}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {Array.from({ length: view.bfl }, (_, i) => {
+            const slot = slots[i];
+            if (!slot) {
+              return (
+                <span key={i} className="cp-ball cp-ball-empty" title="Hueco libre">
+                  <span className="sr-only">Hueco libre</span>
+                </span>
+              );
+            }
+            return (
+              <span
+                key={i}
+                className={`cp-ball ${slot.maxed ? "cp-ball-max" : ""}`}
+                style={slot.maxed ? undefined : ({ "--ball": ballColor(slot.tierIndex) } as CSSProperties)}
+                title={`${slot.row.tournamentName}${slot.row.placement ? ` · ${slot.row.placement}.º` : ""} · ${slot.row.counted} CP${slot.maxed ? " · maxeado" : ""}`}
+              >
+                {slot.row.counted}
+              </span>
+            );
+          })}
+          {slots.some((x) => x.maxed) && (
+            <span className="text-[11px] font-semibold text-brand">
+              ★ {slots.filter((x) => x.maxed).length === 1 ? "1 hueco maxeado" : `${slots.filter((x) => x.maxed).length} huecos maxeados`}
+            </span>
+          )}
         </div>
       )}
 
@@ -228,7 +277,7 @@ function Bucket({ view }: { view: BucketView }) {
 
       {view.rows.length ? (
         <ul className="mt-3 divide-y divide-line-soft border-t border-line-soft">
-          {view.rows.map(({ row, invite, needed }) => (
+          {view.rows.map(({ row, invite, needed, tramo, tierCp, maxed, tierIndex }) => (
             <li key={row.id} className="flex items-start gap-2.5 py-2.5">
               <span className="min-w-0 flex-1">
                 <span className={`block truncate text-sm font-medium ${row.excluded ? "text-muted" : ""}`}>
@@ -239,25 +288,31 @@ function Bucket({ view }: { view: BucketView }) {
                   {row.placement ? ` · puesto ${row.placement}` : ""}
                   {row.playerCount ? ` · ${row.playerCount} jugadores` : ""}
                 </span>
-                {(invite || row.excluded || needed > 0 || row.cpManual) && (
+                {(invite || row.excluded || needed > 0 || row.cpManual || maxed) && (
                   <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {invite && <span className="chip chip-brand">invitación al Mundial</span>}
+                    {maxed && <span className="chip chip-brand">★ maxeado</span>}
                     {row.excluded && (
                       <span className="chip chip-tie">no suma · fuera por Best Finish Limit</span>
                     )}
+                    {/* v0.15 — antes: «ese tramo necesitaba 25 jugadores para
+                        pagar», sin decir qué tramo ni cuánto valía. Ahora dice
+                        las tres cosas y que no ocupa hueco. */}
                     {needed > 0 && (
                       <span className="text-xs text-muted">
-                        ese tramo necesitaba {needed} jugadores para pagar
+                        0 CP: el {tramo} vale {tierCp} CP pero pide {needed} jugadores
+                        {row.playerCount ? ` y hubo ${row.playerCount}` : ""}. No ocupa hueco.
                       </span>
                     )}
                     {row.cpManual && <span className="chip">CP a mano</span>}
                   </span>
                 )}
               </span>
-              <span className="flex-none font-mono text-sm font-semibold tabular">
-                {row.excluded
-                  ? <s className="text-muted">{row.value}</s>
-                  : row.counted}
+              <span
+                className={`cp-ball cp-ball-sm ${maxed ? "cp-ball-max" : row.excluded || row.counted === 0 ? "cp-ball-empty" : ""}`}
+                style={maxed || row.excluded || row.counted === 0 ? undefined : ({ "--ball": ballColor(tierIndex) } as CSSProperties)}
+              >
+                {row.excluded ? <s>{row.value}</s> : row.counted}
               </span>
             </li>
           ))}

@@ -509,6 +509,8 @@
   .chip-tie   { @apply border-transparent bg-tie-soft text-tie; }
   .chip-brand { @apply border-brand-line bg-brand-soft text-brand; }
   .chip-info  { @apply border-transparent bg-info-soft text-info; }
+  /* v0.15 — DROP: no acabó el torneo. Rojo lleno para que se lea de lejos. */
+  .chip-drop  { @apply border-transparent bg-loss font-extrabold tracking-wide text-white; }
 
   /* Grupo de botones tipo segmentado: la forma más cómoda de elegir en móvil. */
   .seg {
@@ -673,4 +675,42 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* =========================================================================
+   v0.15 — Bolas de CP en los huecos del Best Finish Limit.
+   Cada tramo de puesto tiene su color (paleta de series, validada para
+   daltonismo); el 1.º —el máximo que da ese tipo de evento— va en dorado.
+   ========================================================================= */
+.cp-ball {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  border-radius: 9999px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  background: var(--ball, var(--series-1));
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.18), inset 0 2px 0 rgb(255 255 255 / 0.25);
+}
+.cp-ball-sm {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.75rem;
+}
+.cp-ball-empty {
+  color: var(--muted);
+  background: transparent;
+  border: 2px dashed var(--line);
+  box-shadow: none;
+}
+.cp-ball-max {
+  color: #4a3300;
+  background: radial-gradient(circle at 32% 28%, #fff4c2 0%, #f7d774 30%, #e0a91b 70%, #b07d08 100%);
+  box-shadow: 0 0 0 2px #f7d774, 0 0 12px rgb(247 215 116 / 0.55), inset 0 -3px 0 rgb(0 0 0 / 0.15);
 }

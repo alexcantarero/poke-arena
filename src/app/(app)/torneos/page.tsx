@@ -3,11 +3,14 @@ import Link from "next/link";
 import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
 import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
-import { awardsCp, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
+import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
 import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle } from "@/components/ui";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
+import { canManageLeague } from "@/lib/auth";
+import { importLocalTournaments } from "@/actions";
+import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 
 export const metadata = { title: "Torneos" };
 
@@ -23,6 +26,11 @@ export default async function TournamentsPage({
   const table = getSeason(season);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const myCp = me ? playerCp(snap, me.id, season) : null;
+
+  /* v0.15 — los torneos de la zona de oct–nov que aún no están en la app. */
+  const zonaPendientes = me && canManageLeague(me.role)
+    ? TORNEOS_ZONA_2026.filter((z) => !yaExiste(z, snap.tournaments))
+    : [];
 
   const mine = me ? snap.tournaments.filter((t) => t.results.some((r) => r.playerId === me.id)) : [];
   const cpTotalGroup = snap.players.reduce((a, p) => a + playerCp(snap, p.id, season).total, 0);
@@ -81,7 +89,7 @@ export default async function TournamentsPage({
         <Kpi label="CP del grupo" value={cpTotalGroup} note="sumando a todos" />
         <Kpi
           label="Con CP"
-          value={snap.tournaments.filter((t) => awardsCp(season, t.kind)).length}
+          value={snap.tournaments.filter((t) => awardsCp(season, cpKindOf(t))).length}
           note="dan puntos oficiales"
         />
       </div>
@@ -107,6 +115,25 @@ export default async function TournamentsPage({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {zonaPendientes.length > 0 && (
+        <section className="card mb-5">
+          <div className="card-head">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Torneos de la zona · octubre y noviembre</h2>
+              <p className="text-xs text-muted">
+                {zonaPendientes.length} por añadir: Challenges y Cups de Catalunya, y los Regionales
+                de Niza y Gdansk. Entran como borrador; los que ya estén se saltan.
+              </p>
+            </div>
+          </div>
+          <form action={importLocalTournaments} className="p-4">
+            <button className="btn btn-brand w-full sm:w-auto" type="submit">
+              <Icon name="plus" className="size-4" /> Añadir {zonaPendientes.length} torneos
+            </button>
+          </form>
         </section>
       )}
 
@@ -138,7 +165,7 @@ export default async function TournamentsPage({
                quedarse vieja; así la lista, la ficha y el perfil dicen
                siempre lo mismo. */
             const tSeason = t.season ?? seasonOfDate(t.date) ?? season;
-            const cpDe = (r: typeof results[number]) => effectiveCp(tSeason, t.kind, r, t.playerCount);
+            const cpDe = (r: typeof results[number]) => effectiveCp(tSeason, cpKindOf(t), r, t.playerCount);
             const cp = results.reduce((a, r) => a + cpDe(r), 0);
             // Con el filtro puesto interesa el resultado de esa persona, no el
             // mejor del grupo: es la pregunta que se está haciendo.
@@ -166,7 +193,7 @@ export default async function TournamentsPage({
                     {TOURNAMENT_STATUS[asStatus(t.status)].short}
                   </span>
                   <span className="chip">Bo{t.bestOf}</span>
-                  {awardsCp(season, t.kind) && <span className="chip chip-brand">CP</span>}
+                  {awardsCp(season, cpKindOf(t)) && <span className="chip chip-brand">CP</span>}
                 </div>
 
                 <div className="flex items-start gap-3">

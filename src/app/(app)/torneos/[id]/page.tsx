@@ -7,9 +7,10 @@ import {
   deckOptions,
   loadSnapshot,
 } from "@/lib/data";
-import { awardsCp, effectiveCp, getSeason, tierFor } from "@/lib/cp";
+import { awardsCp, cpKindOf, effectiveCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong } from "@/lib/format";
-import { firstTurnSeriesStats, recordOf, roundsOf } from "@/lib/stats";
+import { recordOf, roundsOf } from "@/lib/stats";
+import { primerTurno, textoLado } from "@/lib/primerTurno";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
 import { Avatar, Empty, Kpi, PageHead } from "@/components/ui";
 import { AttendanceForm } from "@/components/AttendanceForm";
@@ -57,6 +58,8 @@ export default async function TournamentPage({
 
   const season = t.season ?? snap.config.cpSeason;
   const table = getSeason(season);
+  /** El tipo a efectos de CP: un torneo online no da puntos (v0.15). */
+  const cpKind = cpKindOf(t);
   const status = asStatus(t.status);
   const manager = me ? canManageLeague(me.role) : false;
   // Mover el estado y editar la cabecera: quien lo creó y los organizadores.
@@ -75,13 +78,14 @@ export default async function TournamentPage({
     placement: number | null;
     cpEarned: number;
     cpManual: boolean;
-  }) => effectiveCp(season, t.kind, r, t.playerCount);
+  }) => effectiveCp(season, cpKind, r, t.playerCount);
   const totalCp = t.results.reduce((a, r) => a + cpDe(r), 0);
 
   // Mis rondas. El récord sale de ellas, nunca se teclea.
   const myRounds = me ? roundsOf(snap.matches, t.id, me.id) : [];
   const myRecord = recordOf(myRounds);
-  const firstTurn = firstTurnSeriesStats(myRounds.map((r) => r.match));
+  // v0.15: contado desde tu lado (ver `lib/primerTurno.ts` para el fallo de antes).
+  const firstTurn = primerTurno(myRounds);
 
   // Para «con qué jugué yo», los míos y los de la liga. Para «qué llevaba el
   // rival», todo lo que haya, porque el mazo de otra persona es exactamente lo
@@ -89,6 +93,12 @@ export default async function TournamentPage({
   const myDecks = me ? deckOptions(snap, me.id, { includeOthers: false }) : [];
   const rivalDecks = me ? deckOptions(snap, me.id) : [];
   const archOptions = archetypeOptions(snap);
+  /* v0.15 — el rival puede ser alguien del grupo. Se ofrecen las cuentas
+     activas menos la tuya; con eso la ronda queda enlazada a su perfil y entra
+     en el mapa de enfrentamientos directos. */
+  const rivalPlayers = snap.players
+    .filter((p) => p.active && p.id !== me?.id)
+    .map((p) => ({ id: p.id, name: p.name }));
   /* El mazo fijado se resuelve aquí, contra la tabla entera: un mazo retirado
      no sale en los selectores pero sigue siendo el que se jugó. Y puede no
      haber mazo en absoluto: "bloquear el mismo mazo para todo el torneo"
@@ -196,7 +206,7 @@ export default async function TournamentPage({
     const canEditResult = Boolean(me && theirResult && (pid === me.id || manager));
     const tier =
       theirResult?.placement != null
-        ? tierFor(season, t.kind, theirResult.placement, t.playerCount)
+        ? tierFor(season, cpKind, theirResult.placement, t.playerCount)
         : null;
 
     return {
@@ -307,8 +317,23 @@ export default async function TournamentPage({
     </p>
   );
 
+  /* v0.15 — el drop. Con «No he acabado el torneo» guardado no hay más
+     rondas que apuntar: en vez del formulario sale el aviso, y la Server
+     Action rechaza una ronda nueva aunque llegue por un POST a mano. */
+  const yoDrop = Boolean(myResult?.dropped);
+  const avisoDrop = (
+    <p className="flex items-start gap-2 rounded-lg border border-loss/40 bg-loss-soft px-3 py-2 text-xs text-ink-2">
+      <span className="chip chip-drop flex-none">DROP</span>
+      <span>
+        Marcaste que no acabaste el torneo, así que ya no se pueden apuntar más rondas. Si fue
+        un error, desmarca «No he acabado el torneo» en tu resultado final.
+      </span>
+    </p>
+  );
+
   const roundFormNode =
     me && status !== "closed" && status !== "draft" ? (
+      yoDrop ? avisoDrop : (
       <div className="flex flex-col gap-2">
         {avisoFin}
         {!topeAlcanzado && <RoundForm
@@ -321,13 +346,15 @@ export default async function TournamentPage({
           myDecks={myDecks}
           lockedDeckId={lockValueOf(myResult)}
           maxRound={maxRonda}
+          rivalPlayers={rivalPlayers}
         />}
       </div>
+      )
     ) : undefined;
 
   const myTier =
     myResult?.placement != null
-      ? tierFor(season, t.kind, myResult.placement, t.playerCount)
+      ? tierFor(season, cpKind, myResult.placement, t.playerCount)
       : null;
 
   /* Lo que falta por hacer. Se deduce de los datos y no del estado: un torneo
@@ -336,7 +363,7 @@ export default async function TournamentPage({
     {
       label: "Falta la asistencia",
       done: t.playerCount != null && t.playerCount > 0,
-      hint: awardsCp(season, t.kind)
+      hint: awardsCp(season, cpKind)
         ? "Sin ella no se pueden calcular los Championship Points."
         : "Cuánta gente hubo.",
       href: `/torneos/${t.id}/editar`,
@@ -403,7 +430,7 @@ export default async function TournamentPage({
           label="CP repartidos"
           value={totalCp}
           note={
-            awardsCp(season, t.kind)
+            awardsCp(season, cpKind)
               ? `temporada ${season}`
               : "este tipo no da CP"
           }
@@ -434,7 +461,7 @@ export default async function TournamentPage({
       <AttendanceForm
         tournamentId={t.id}
         season={season}
-        kind={t.kind}
+        kind={cpKind}
         playerCount={t.playerCount ?? null}
         rounds={t.rounds ?? null}
         topCut={t.topCut ?? null}
@@ -500,11 +527,11 @@ export default async function TournamentPage({
             formulario={roundFormNode}
           />
 
-          {firstTurn.n >= 3 && (
+          {firstTurn.total >= 2 && (
             <p className="mt-2 px-1 text-xs text-muted">
-              De las {firstTurn.n} rondas en las que apuntaste quién salía
-              primero, ganaste el {Math.round((firstTurn.winRate ?? 0) * 100)}%
-              de las que empezaste tú.
+              Tus rondas con el turno apuntado: saliendo <b className="text-ink-2">1.º</b>{" "}
+              ganaste {textoLado(firstTurn.primero)} · saliendo{" "}
+              <b className="text-ink-2">2.º</b> ganaste {textoLado(firstTurn.segundo)}.
             </p>
           )}
         </div>

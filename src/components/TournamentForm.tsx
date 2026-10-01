@@ -51,7 +51,8 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
     tournament?.rounds != null ? String(tournament.rounds) : "",
   );
 
-  const givesCp = awardsCp(season, kind);
+  // v0.15: los torneos online no reparten CP aunque se llamen Challenge.
+  const givesCp = scope !== "online" && awardsCp(season, kind);
   const people = Number(playerCount) || 0;
   const isRegional = isRegionalTournament(kind, people > 0 ? people : null);
   const maxRounds = people > 1 ? suggestedRounds(people, kind) : null;
@@ -103,7 +104,9 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             <p className="text-xs text-muted">
               {givesCp
                 ? "Reparte Championship Points: se calculan solos con el puesto y la asistencia."
-                : "No da Championship Points, pero cuenta igual para tus estadísticas."}
+                : scope === "online" && awardsCp(season, kind)
+                  ? "Online: los torneos online no reparten Championship Points. Cuenta igual para tus estadísticas."
+                  : "No da Championship Points, pero cuenta igual para tus estadísticas."}
             </p>
           </div>
 

@@ -295,7 +295,7 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel, maxRound,
+  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [],
 }: {
   tournamentId: string;
   playerId: string;
@@ -309,8 +309,21 @@ export function RoundForm({
   onCancel?: () => void;
   /** Última ronda que admite el torneo (v0.13). Nulo = sin tope conocido. */
   maxRound?: number | null;
+  /** v0.15 — gente del grupo que puede ser tu rival (todos menos tú). */
+  rivalPlayers?: Array<{ id: string; name: string }>;
 }) {
   const m = existing?.match;
+  /* v0.15 — el rival puede ser alguien del grupo o un nombre cualquiera. Si
+     tocas un nombre del grupo, se rellena el campo y la ronda queda enlazada
+     a su perfil (mapa de enfrentamientos). Si escribes otra cosa, el enlace
+     se suelta solo: no puede quedar «Pepe» enlazado a la cuenta de Alex. */
+  const [rivalName, setRivalName] = useState<string>(m?.opponentName ?? "");
+  const [rivalId, setRivalId] = useState<string>(m?.opponentPlayerId ?? "");
+  const pickRival = (p: { id: string; name: string }) => {
+    if (rivalId === p.id) { setRivalId(""); return; }
+    setRivalId(p.id);
+    setRivalName(p.name);
+  };
   const hasGames = (m?.games.length ?? 0) > 0;
 
   /* Los mazos registrados primero y los arquetipos después: si tu rival llevaba
@@ -409,10 +422,35 @@ export function RoundForm({
           <label className="label" htmlFor={`opp-${round}`}>Rival</label>
           <input
             className="input" id={`opp-${round}`} name="opponentName" required maxLength={60}
-            autoComplete="off" defaultValue={m?.opponentName ?? ""} placeholder="Como salga en el emparejamiento"
+            autoComplete="off" value={rivalName} placeholder="Como salga en el emparejamiento"
+            onChange={(e) => {
+              setRivalName(e.target.value);
+              const elegido = rivalPlayers.find((p) => p.id === rivalId);
+              if (elegido && e.target.value.trim() !== elegido.name) setRivalId("");
+            }}
           />
+          <input type="hidden" name="opponentPlayerId" value={rivalId} />
         </div>
       </div>
+
+      {rivalPlayers.length > 0 && (
+        <div className="-mt-1.5 flex flex-col gap-1.5">
+          <span className="text-[11px] text-muted">
+            ¿Es alguien del grupo? Tócalo y queda enlazado a su perfil. Si no, escribe el nombre.
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {rivalPlayers.map((p) => (
+              <button
+                key={p.id} type="button" onClick={() => pickRival(p)}
+                aria-pressed={rivalId === p.id}
+                className={`chip ${rivalId === p.id ? "chip-brand" : ""}`}
+              >
+                {rivalId === p.id ? "✓ " : ""}{p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Contra qué jugó. En la misma lista van los mazos de la biblioteca
           —con su lista de 60 cartas, si alguien la apuntó— y los arquetipos

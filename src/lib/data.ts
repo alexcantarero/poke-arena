@@ -11,7 +11,7 @@ import type {
   TournamentResult,
 } from "./types";
 import { deckArchetypeIndex, eloTable } from "./stats";
-import { computeCp, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
+import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
 
 export type Snapshot = Awaited<ReturnType<typeof loadSnapshot>>;
@@ -259,9 +259,12 @@ export function playerCp(snap: Snapshot, playerId: string, season?: number): CpT
       // que no hacemos es darlo por bueno para cualquier temporada: eso hacía
       // que el mismo resultado sumara en 2026 y en 2027 a la vez.
       if ((t.season ?? seasonOfDate(t.date)) !== target) return null;
+      // v0.15: lo online no reparte CP, aunque se apuntara como Challenge.
+      const kind = cpKindOf(t);
+      if (!awardsCp(target, kind)) return null;
       return {
         id: r.id,
-        kind: t.kind,
+        kind,
         date: t.date,
         placement: r.placement,
         playerCount: t.playerCount,

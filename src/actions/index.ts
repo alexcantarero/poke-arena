@@ -16,9 +16,10 @@ import {
 } from "@/lib/auth";
 import { parseDeckList, suggestArchetype } from "@/lib/decklist";
 import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
+import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { isIsoDate, newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
-import { cpForPlacement, seasonOfDate } from "@/lib/cp";
+import { awardsCp, cpForPlacement, cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
 import { familiaDe, maxRondasDe } from "@/lib/estructura";
@@ -649,13 +650,20 @@ export async function saveMatch(fd: FormData) {
   // cualquiera podía inventar resultados entre terceros y mover el ranking.
   if (!canManageLeague(actor.role) && playerAId !== actor.id && playerBId !== actor.id) return;
 
+  let current: typeof matches.$inferSelect | undefined;
   if (editing) {
-    const current = (await db.select().from(matches).where(eq(matches.id, editing)))[0];
+    current = (await db.select().from(matches).where(eq(matches.id, editing)))[0];
     if (!current) return;
     const mine = current.playerAId === actor.id || current.playerBId === actor.id
       || current.createdBy === actor.id;
     if (!mine && !canManageLeague(actor.role)) return;
   }
+  /* v0.15 — el enlace al rival del grupo de una ronda de torneo se conserva
+     al editar desde aquí solo si el rival sigue siendo el mismo nombre. */
+  const keepRivalLink = Boolean(
+    current?.opponentPlayerId && !playerBId
+    && (current.opponentName ?? "") === externalName.slice(0, 60),
+  );
 
   const values = {
     competitionId: str(fd, "competitionId") || null,
@@ -665,6 +673,7 @@ export async function saveMatch(fd: FormData) {
     playerAId,
     playerBId: playerBId || null,
     opponentName: playerBId ? null : (externalName.slice(0, 60) || null),
+    opponentPlayerId: keepRivalLink ? current!.opponentPlayerId : null,
     deckAId: str(fd, "deckAId") || null,
     deckBId: playerBId ? (str(fd, "deckBId") || null) : null,
     opponentArchetypeId: playerBId ? null : (str(fd, "opponentArchetypeId") || null),
@@ -794,7 +803,7 @@ export async function saveTournament(fd: FormData) {
      los CP guardados se vuelven a calcular. */
   if (editing) {
     await recalcTournamentCp(id, {
-      kind: values.kind,
+      kind: cpKindOf(values),
       playerCount: values.playerCount,
       season: values.season ?? seasonOfDate(date) ?? undefined,
     });
@@ -836,10 +845,14 @@ async function recalcTournamentCp(
     season = row?.season ?? seasonOfDate(row?.date) ?? new Date().getFullYear();
   }
 
+  const temporada: number = season ?? new Date().getFullYear();
   let cambiadas = 0;
   for (const r of rows) {
-    if (r.cpManual) continue;
-    const cp = cpForPlacement(season, t.kind, r.placement, t.playerCount) ?? 0;
+    const auto = cpForPlacement(temporada, t.kind, r.placement, t.playerCount);
+    // Un CP a mano se respeta… salvo que el torneo ya no reparta CP (p. ej.
+    // porque se ha marcado como online): entonces no hay nada que respetar.
+    if (r.cpManual && awardsCp(temporada, t.kind)) continue;
+    const cp = auto ?? 0;
     if (cp !== r.cpEarned) {
       await db.update(tournamentResults).set({ cpEarned: cp })
         .where(eq(tournamentResults.id, r.id));
@@ -891,7 +904,7 @@ export async function setTournamentAttendance(fd: FormData) {
     .where(eq(tournaments.id, id));
 
   const cambiadas = await recalcTournamentCp(id, {
-    kind: t.kind,
+    kind: cpKindOf(t),
     playerCount,
     season: t.season ?? seasonOfDate(t.date) ?? undefined,
   });
@@ -1090,7 +1103,10 @@ async function upsertResult(
   const cfg = (await db.select().from(settings).where(eq(settings.id, "default")))[0];
   const useSeason = season ?? cfg?.cpSeason ?? new Date().getFullYear();
   const auto = cpForPlacement(useSeason, kind, placement, playerCount);
-  const cpEarned = cpManual ? int(fd, "cpEarned", 0, 0, 5000) : (auto ?? 0);
+  // `auto` es null cuando el tipo no reparte CP (online incluido, v0.15): ahí
+  // no se guarda ningún número, tampoco uno tecleado a mano.
+  const cpEarned = !awardsCp(useSeason, kind) ? 0
+    : cpManual ? int(fd, "cpEarned", 0, 0, 5000) : (auto ?? 0);
 
   /* Dos maneras de decir qué récord hiciste, y las dos son legítimas:
      · "rounds": sale de las rondas apuntadas. Es la buena cuando las hay,
@@ -1160,7 +1176,7 @@ export async function saveTournamentResult(fd: FormData) {
   const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
   if (!tour) return;
 
-  await upsertResult(tournamentId, targetId, fd, tour.kind, tour.playerCount, tour.season);
+  await upsertResult(tournamentId, targetId, fd, cpKindOf(tour), tour.playerCount, tour.season);
 
   /* Con «de mis rondas», el récord lo pone el contador y no el formulario. Hay
      que recalcularlo aquí mismo: si no, lo guardado seguía siendo lo que
@@ -1393,6 +1409,61 @@ export async function importEuropeanEvents() {
   ));
 }
 
+/**
+ * v0.15 — Importar los torneos de la zona de octubre y noviembre de 2026
+ * (`src/data/torneos-zona-2026.ts`) como borradores.
+ *
+ * Solo inserta: si el torneo ya existe —por id, o porque alguien lo creó a
+ * mano el mismo día, del mismo tipo y en la misma tienda— se salta y no se
+ * toca. Así se puede pulsar las veces que haga falta sin pisar correcciones.
+ *
+ * Los Regionales se enlazan con su evento del calendario (los de Europa), y
+ * el calendario deja de pintar el evento suelto: si no, Niza salía dos veces.
+ */
+export async function importLocalTournaments() {
+  const actor = await requireManager();
+
+  const existentes = await db.select({
+    id: tournaments.id, date: tournaments.date, kind: tournaments.kind,
+    name: tournaments.name, venue: tournaments.venue, city: tournaments.city,
+  }).from(tournaments);
+
+  let nuevos = 0;
+  let saltados = 0;
+  for (const z of TORNEOS_ZONA_2026) {
+    if (yaExiste(z, existentes)) { saltados++; continue; }
+    await db.insert(tournaments).values({
+      id: z.id,
+      name: z.name,
+      kind: z.kind,
+      status: "draft",
+      scope: "onsite",
+      format: "standard",
+      bestOf: z.bestOf,
+      date: z.date,
+      endDate: z.endDate ?? null,
+      startTime: z.startTime ?? null,
+      venue: z.venue,
+      city: z.city,
+      country: z.country,
+      season: seasonOfDate(z.date),
+      division: "masters",
+      notes: z.revisar ? `Revisar la fecha: ${z.revisar}` : "",
+      createdBy: actor.id,
+    }).onConflictDoNothing();
+    existentes.push({ id: z.id, date: z.date, kind: z.kind, name: z.name, venue: z.venue, city: z.city });
+    if (z.eventoId) {
+      await db.update(events).set({ tournamentId: z.id })
+        .where(and(eq(events.id, z.eventoId), isNull(events.tournamentId)));
+    }
+    nuevos++;
+  }
+
+  refresh();
+  redirect(withFlash("/torneos", "ok",
+    `Torneos de la zona: ${nuevos} nuevo(s)${saltados ? `, ${saltados} ya estaban` : ""}.`));
+}
+
 export async function deleteEvent(fd: FormData) {
   await requireManager();
   await db.delete(events).where(eq(events.id, str(fd, "id")));
@@ -1491,7 +1562,16 @@ export async function saveTournamentRound(fd: FormData) {
   }
 
   const bestOf = [1, 3, 5].includes(tour.bestOf) ? tour.bestOf : 3;
-  const opponentName = str(fd, "opponentName").slice(0, 60);
+
+  /* v0.15 — el rival puede ser alguien del grupo. Se comprueba que exista y
+     que no seas tú; si llega algo raro, se ignora y la ronda se guarda con el
+     nombre a secas, como siempre. */
+  const rivalPick = str(fd, "opponentPlayerId");
+  const rivalPlayer = rivalPick && rivalPick !== playerId
+    ? (await db.select({ id: players.id, name: players.name }).from(players)
+      .where(eq(players.id, rivalPick)))[0]
+    : undefined;
+  const opponentName = (str(fd, "opponentName") || rivalPlayer?.name || "").slice(0, 60);
   if (!opponentName) return;
 
   // Quién salió primero en el JUEGO 1. Del resto se encarga `g{i}_first`, que
@@ -1597,6 +1677,7 @@ export async function saveTournamentRound(fd: FormData) {
     playerAId: playerId,
     playerBId: null,
     opponentName,
+    opponentPlayerId: rivalPlayer?.id ?? null,
     deckAId,
     archetypeAId,
     deckBId: rivalDeckId,
@@ -1636,6 +1717,14 @@ export async function saveTournamentRound(fd: FormData) {
     || existing.playerAId !== playerId
     || existing.playerBId !== null
   )) return;
+
+  /* v0.15 — el drop. Con «No he acabado el torneo» guardado no se aceptan
+     rondas NUEVAS; corregir las que ya estaban sí. La ficha ya no enseña el
+     formulario, pero esto es la comprobación de verdad. */
+  if (!existing && existingResult?.dropped) {
+    redirect(withFlash(`/torneos/${tournamentId}`, "error",
+      "Marcaste que no acabaste el torneo (DROP): no se pueden apuntar más rondas."));
+  }
 
   const id = existing?.id ?? newId("m");
   if (existing) {
