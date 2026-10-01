@@ -105,6 +105,8 @@ export type JugadorRondas = {
   premios?: string;
   retirado?: boolean;
   invitacion?: boolean;
+  /** v0.16 — panel de organizador para este jugador (rondas y resultado). */
+  gestion?: ReactNode;
   /** Acciones sobre el resultado final (borrar). Se pintan al abrir. */
   acciones?: ReactNode;
 };
@@ -208,20 +210,6 @@ export function RondasDelGrupo({
                   className={`size-4 flex-none text-muted transition-transform ${abierto ? "-rotate-90" : ""}`}
                 />
 
-                {/* Puesto final, con la asistencia debajo: «410 de 3342». En una fase concreta no se muestra puesto. */}
-                {!filtro && (
-                  <span className="w-10 flex-none text-center">
-                    <span className="block font-display text-lg font-extrabold tabular leading-none">
-                      {j.placement ?? "—"}
-                    </span>
-                    {j.placement != null && asistencia ? (
-                      <span className="block text-[10px] text-muted tabular">
-                        de {asistencia}
-                      </span>
-                    ) : null}
-                  </span>
-                )}
-
                 <span className="flex w-12 flex-none items-center justify-center" aria-hidden="true">
                   {j.main ? (
                     <>
@@ -262,6 +250,21 @@ export function RondasDelGrupo({
                     </span>
                   )}
                 </span>
+
+                {/* v0.16 — el puesto final, a la derecha y grande, cuando está
+                    puesto: es lo primero que se mira al final de un torneo. */}
+                {j.placement != null && (
+                  <span className="flex-none border-r border-line-soft pr-3 text-right" title="Puesto final">
+                    <span className="block font-display text-xl font-extrabold tabular leading-none">
+                      {j.placement}.º
+                    </span>
+                    {asistencia ? (
+                      <span className="block text-[10px] text-muted tabular">de {asistencia}</span>
+                    ) : (
+                      <span className="block text-[10px] text-muted">puesto</span>
+                    )}
+                  </span>
+                )}
 
                 <span className="flex flex-none flex-col items-end gap-1">
                   {/* V–D–E, en ese orden y con sus colores, como en toda la app. */}
@@ -314,6 +317,10 @@ export function RondasDelGrupo({
                           <Ronda key={r.round} r={r} />
                         ))}
                     </ul>
+                  )}
+
+                  {j.gestion && (
+                    <div className="border-t border-line-soft bg-surface-2 p-3">{j.gestion}</div>
                   )}
 
                   {yo && formulario && (

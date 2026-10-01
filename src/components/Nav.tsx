@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
-import { MOBILE_HREFS, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
+import { MOBILE_HREFS, NAV_GROUPS, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
 
 function useActive() {
   const path = usePathname();
@@ -13,26 +13,36 @@ function useActive() {
   };
 }
 
-/** Barra lateral: solo en pantallas anchas. */
+/** Barra lateral: solo en pantallas anchas. Agrupada (v0.16, ver `lib/nav.ts`). */
 export function Sidebar({ meId }: { meId: string }) {
   const isActive = useActive();
-  const items = [...NAV_ITEMS, { href: `/perfil/${meId}`, label: "Mi perfil", icon: "user" }];
+  const groups = NAV_GROUPS.map((g) =>
+    g.title === "Cuenta"
+      ? { ...g, items: [{ href: `/perfil/${meId}`, label: "Mi perfil", icon: "user" }, ...g.items] }
+      : g);
   return (
-    <nav aria-label="Secciones" className="flex flex-col gap-0.5">
-      {items.map((it) => (
-        <Link
-          key={it.href}
-          href={it.href}
-          aria-current={isActive(it.href) ? "page" : undefined}
-          data-on={isActive(it.href) ? "true" : "false"}
-          className={`nav-side tap relative justify-start rounded-lg px-3 text-sm font-medium transition-colors
-            ${isActive(it.href)
-              ? "bg-surface-3 font-semibold text-ink"
-              : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
-        >
-          <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
-          {it.label}
-        </Link>
+    <nav aria-label="Secciones" className="flex flex-col gap-3">
+      {groups.map((g) => (
+        <div key={g.title} className="flex flex-col gap-0.5">
+          <span className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+            {g.title}
+          </span>
+          {g.items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              aria-current={isActive(it.href) ? "page" : undefined}
+              data-on={isActive(it.href) ? "true" : "false"}
+              className={`nav-side tap relative justify-start rounded-lg px-3 text-sm font-medium transition-colors
+                ${isActive(it.href)
+                  ? "bg-surface-3 font-semibold text-ink"
+                  : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
+            >
+              <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
+              {it.label}
+            </Link>
+          ))}
+        </div>
       ))}
     </nav>
   );

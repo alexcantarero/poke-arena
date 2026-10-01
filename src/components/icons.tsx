@@ -8,6 +8,8 @@ const P: Record<string, string> = {
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c0-4 3.6-6 8-6s8 2 8 6",
   deck: "M8 4h11v13H8zM5 7v13h11",
   cup: "M7 4h10v4a5 5 0 0 1-10 0zM9 18h6M12 13v5M5 6H3v2a4 4 0 0 0 4 4M19 6h2v2a4 4 0 0 1-4 4",
+  // v0.16 — la Liga: un escudo con la tabla dentro, para no confundirla con Torneos.
+  league: "M12 3 4.5 5.8v5.7c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V5.8zM8.5 10h7M8.5 13.5h7M8.5 17h4",
   trophy: "M6 3h12v5a6 6 0 0 1-12 0zM9 21h6M12 14v7M4 5H2v2a4 4 0 0 0 4 4M20 5h2v2a4 4 0 0 1-4 4",
   cog: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM12 2v3m0 14v3M2 12h3m14 0h3M4.5 4.5 6.6 6.6m10.8 10.8 2.1 2.1M19.5 4.5 17.4 6.6M6.6 17.4 4.5 19.5",
   plus: "M12 5v14M5 12h14",

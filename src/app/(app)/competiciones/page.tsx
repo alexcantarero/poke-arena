@@ -7,7 +7,7 @@ import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
 import { Empty, PageHead, PlayerTag, Record, SectionTitle } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 
-export const metadata = { title: "Competiciones" };
+export const metadata = { title: "Liga" };
 
 export default async function CompetitionsPage() {
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
@@ -17,7 +17,7 @@ export default async function CompetitionsPage() {
   return (
     <>
       <PageHead
-        title="Competiciones"
+        title="Liga"
         sub="Vuestras competiciones internas: liga todos contra todos, suizo con top cut, eliminatoria o amistosos."
       />
 

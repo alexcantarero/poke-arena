@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import {
   awardsCp, bflBucket, getSeason, resolveEventDef, tierFor,
   type CpBreakdownRow, type CpTotals,
 } from "@/lib/cp";
+import { medallaDe, usaEscalaRegional } from "@/lib/rangos";
 import { fmtDate } from "@/lib/format";
 
 /* =========================================================================
@@ -189,19 +189,6 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
   );
 }
 
-/**
- * La medalla de un hueco según su tramo: 0 = 1.º (oro), 1 = 2.º (plata),
- * 2 = 3.º–4.º (bronce). Del 5.º para abajo, gris, más oscuro cuanto más bajo.
- */
-function medalla(tierIndex: number): { className: string; style?: CSSProperties } {
-  if (tierIndex === 0) return { className: "cp-ball-gold" };
-  if (tierIndex === 1) return { className: "cp-ball-silver" };
-  if (tierIndex === 2) return { className: "cp-ball-bronze" };
-  const grises = ["#6b7588", "#5a6375", "#4a5263", "#3d4453", "#323845"];
-  const g = grises[Math.min(Math.max(tierIndex - 3, 0), grises.length - 1)];
-  return { className: "", style: { "--ball": g } as CSSProperties };
-}
-
 function Bucket({ view }: { view: BucketView }) {
   const shared = view.mainKinds.length > 1;
   // Los huecos ocupados: solo lo que suma y no está fuera por el límite.
@@ -245,13 +232,12 @@ function Bucket({ view }: { view: BucketView }) {
                 </span>
               );
             }
-            const med = medalla(slot.tierIndex);
+            const med = medallaDe(slot.row.kind, slot.row.placement, slot.tierIndex);
             return (
               <span
                 key={i}
                 className={`cp-ball ${med.className}`}
-                style={med.style}
-                title={`${slot.row.tournamentName}${slot.row.placement ? ` · ${slot.row.placement}.º` : ""} · ${slot.row.counted} CP${slot.maxed ? " · maxeado" : ""}`}
+                title={`${slot.row.tournamentName}${slot.row.placement ? ` · ${slot.row.placement}.º` : ""} · ${slot.row.counted} CP · ${med.nombre}${slot.maxed ? " · maxeado" : ""}`}
               >
                 {slot.row.counted}
               </span>
@@ -295,10 +281,14 @@ function Bucket({ view }: { view: BucketView }) {
                   {row.placement ? ` · puesto ${row.placement}` : ""}
                   {row.playerCount ? ` · ${row.playerCount} jugadores` : ""}
                 </span>
-                {(invite || row.excluded || needed > 0 || row.cpManual || maxed) && (
+                {(invite || row.excluded || needed > 0 || row.cpManual || maxed
+                  || (usaEscalaRegional(row.kind) && row.counted > 0)) && (
                   <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {invite && <span className="chip chip-brand">invitación al Mundial</span>}
                     {maxed && <span className="chip chip-brand">★ maxeado</span>}
+                    {usaEscalaRegional(row.kind) && !row.excluded && row.counted > 0 && (
+                      <span className="chip">{medallaDe(row.kind, row.placement, tierIndex).nombre}</span>
+                    )}
                     {row.excluded && (
                       <span className="chip chip-tie">no suma · fuera por Best Finish Limit</span>
                     )}
@@ -316,8 +306,8 @@ function Bucket({ view }: { view: BucketView }) {
                 )}
               </span>
               <span
-                className={`cp-ball cp-ball-sm ${row.excluded || row.counted === 0 ? "cp-ball-empty" : medalla(tierIndex).className}`}
-                style={row.excluded || row.counted === 0 ? undefined : medalla(tierIndex).style}
+                className={`cp-ball cp-ball-sm ${row.excluded || row.counted === 0 ? "cp-ball-empty" : medallaDe(row.kind, row.placement, tierIndex).className}`}
+                title={row.excluded || row.counted === 0 ? undefined : medallaDe(row.kind, row.placement, tierIndex).nombre}
               >
                 {row.excluded ? <s>{row.value}</s> : row.counted}
               </span>

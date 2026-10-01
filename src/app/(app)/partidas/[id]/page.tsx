@@ -89,7 +89,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <PageHead
         title={pending ? "Anotar resultado" : "Partida"}
         sub={`${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
-        actions={<Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> Resultados</Link>}
+        actions={match.tournamentId
+          // v0.16 — si la partida es de un torneo, se vuelve al torneo.
+          ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> Volver al torneo</Link>
+          : match.competitionId
+            ? <Link className="btn btn-ghost btn-sm" href={`/competiciones/${match.competitionId}`}><Icon name="back" className="size-4" /> Volver a la liga</Link>
+            : <Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> Resultados</Link>}
       />
 
       {!pending && (

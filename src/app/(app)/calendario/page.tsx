@@ -29,7 +29,7 @@ export const metadata = { title: "Calendario" };
 
 export default async function CalendarPage({
   searchParams,
-}: { searchParams: Promise<{ y?: string; m?: string; tipo?: string }> }) {
+}: { searchParams: Promise<{ y?: string; m?: string; tipo?: string; vista?: string }> }) {
   const q = await searchParams;
   const now = new Date();
   const year = Number(q.y) || now.getFullYear();
@@ -40,6 +40,9 @@ export default async function CalendarPage({
   const today = todayISO();
 
   const tipo = q.tipo && CALENDAR_KINDS[q.tipo] ? q.tipo : "";
+  /** v0.16 — Calendario (rejilla del mes) o Agenda (lista grande de lo que viene). */
+  const vista: "calendario" | "agenda" = q.vista === "agenda" ? "agenda" : "calendario";
+  const vistaQs = vista === "agenda" ? "&vista=agenda" : "";
 
   /* Los tipos que de verdad hay entre los eventos y los torneos apuntados.
      Ofrecer un filtro de «Mundial» cuando no hay ninguno es ruido. */
@@ -48,7 +51,7 @@ export default async function CalendarPage({
     ...snap.tournaments.map((t) => t.kind),
   ]);
 
-  type Mark = { text: string; color: string; label: string; url?: string };
+  type Mark = { text: string; color: string; label: string; url?: string; href?: string };
   const byDay = new Map<string, Mark[]>();
   const push = (date: string, m: Mark) => {
     const list = byDay.get(date);
@@ -80,7 +83,8 @@ export default async function CalendarPage({
   for (const t of snap.tournaments) {
     if (tipo && t.kind !== tipo) continue;
     const tone = toneOf(t.kind, "event");
-    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label });
+    // v0.16: un torneo del calendario lleva a su ficha.
+    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}` });
   }
   // Las partidas solo cuando no hay filtro de tipo puesto: si alguien está
   // mirando «Regionales», las partidas del martes no le interesan.
@@ -91,6 +95,7 @@ export default async function CalendarPage({
         text: `${snap.playersById.get(m.playerAId)?.name ?? "?"} ${o.ga}–${o.gb} ${m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "?" : m.opponentName ?? "?"}`,
         color: "var(--muted)",
         label: "Partida",
+        href: `/partidas/${m.id}`,
       });
     }
   }
@@ -106,7 +111,9 @@ export default async function CalendarPage({
   const mesHref = (y: number, m: number) =>
     `/calendario?y=${y}&m=${m}${tipo ? `&tipo=${tipo}` : ""}`;
   const tipoHref = (t: string) =>
-    `/calendario?y=${year}&m=${month}${t ? `&tipo=${t}` : ""}`;
+    `/calendario?y=${year}&m=${month}${t ? `&tipo=${t}` : ""}${vistaQs}`;
+  const vistaHref = (v: "calendario" | "agenda") =>
+    `/calendario?y=${year}&m=${month}${tipo ? `&tipo=${tipo}` : ""}${v === "agenda" ? "&vista=agenda" : ""}`;
 
   /* La agenda: todo lo que viene por delante, del más cercano al más lejano.
      Antes solo enseñaba los eventos; ahora también los torneos apuntados,
@@ -142,6 +149,17 @@ export default async function CalendarPage({
         title="Calendario"
         sub="Vuestras jornadas y fechas límite, los torneos apuntados, los oficiales de Europa y las partidas ya jugadas. Cada tipo, con su color."
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+          {/* v0.16 — selector de vista */}
+          <div className="seg" role="tablist" aria-label="Vista">
+            <Link href={vistaHref("calendario")} data-on={vista === "calendario"} aria-current={vista === "calendario" ? "page" : undefined}>
+              <Icon name="calendar" className="size-4" /> Calendario
+            </Link>
+            <Link href={vistaHref("agenda")} data-on={vista === "agenda"} aria-current={vista === "agenda" ? "page" : undefined}>
+              <Icon name="results" className="size-4" /> Agenda
+            </Link>
+          </div>
+          {vista === "calendario" && (
           <div className="flex items-center gap-1.5">
             <Link className="btn btn-sm px-3" href={mesHref(prev.y, prev.m)} aria-label="Mes anterior">
               <Icon name="back" className="size-4" />
@@ -155,6 +173,8 @@ export default async function CalendarPage({
               <Icon name="back" className="size-4 rotate-180" />
             </Link>
             <Link className="btn btn-sm" href={tipo ? `/calendario?tipo=${tipo}` : "/calendario"}>Hoy</Link>
+          </div>
+          )}
           </div>
         }
       />
@@ -187,6 +207,7 @@ export default async function CalendarPage({
       )}
 
       {/* ------------------------------ la rejilla ---------------------------- */}
+      {vista === "calendario" && (
       <div className="card mb-5 overflow-hidden">
         <div className="grid grid-cols-7">
           {DOWS.map((d) => (
@@ -207,21 +228,27 @@ export default async function CalendarPage({
                 <span className={`text-[11px] font-mono ${isToday
                   ? "grid size-5 place-items-center rounded-full bg-brand font-bold text-on-brand"
                   : "text-muted"}`}>{d}</span>
-                {marks.slice(0, 2).map((m, j) => (
-                  <span
-                    key={j}
-                    title={`${m.label}: ${m.text}`}
-                    className="truncate rounded px-1 py-px text-[9px] font-semibold sm:text-[10px]"
-                    style={{
-                      // Fondo tintado y texto del color: el contraste depende
-                      // solo del par color/página, que es el que está medido.
-                      background: `color-mix(in oklab, ${m.color} 16%, transparent)`,
-                      color: m.color,
-                    }}
-                  >
-                    {m.text}
-                  </span>
-                ))}
+                {marks.slice(0, 2).map((m, j) => {
+                  const estilo = {
+                    // Fondo tintado y texto del color: el contraste depende
+                    // solo del par color/página, que es el que está medido.
+                    background: `color-mix(in oklab, ${m.color} 16%, transparent)`,
+                    color: m.color,
+                  };
+                  const clase = "block truncate rounded px-1 py-px text-[9px] font-semibold sm:text-[10px]";
+                  // v0.16: torneos y partidas llevan a su ficha; un evento con web, a su web.
+                  return m.href ? (
+                    <Link key={j} href={m.href} title={`${m.label}: ${m.text}`} className={`${clase} hover:brightness-125`} style={estilo}>
+                      {m.text}
+                    </Link>
+                  ) : m.url ? (
+                    <a key={j} href={m.url} target="_blank" rel="noopener noreferrer" title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
+                      {m.text}
+                    </a>
+                  ) : (
+                    <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>{m.text}</span>
+                  );
+                })}
                 {marks.length > 2 && <span className="text-[9px] text-muted">+{marks.length - 2}</span>}
               </div>
             );
@@ -231,6 +258,10 @@ export default async function CalendarPage({
           ))}
         </div>
       </div>
+      )}
+
+      {/* --------------------------- la agenda grande ------------------------ */}
+      {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         {manager && (
@@ -286,6 +317,7 @@ export default async function CalendarPage({
           </div>
         )}
 
+        {vista === "calendario" && (
         <section className="card">
           <div className="card-head">
             <h2 className="text-lg font-bold">Agenda</h2>
@@ -337,7 +369,105 @@ export default async function CalendarPage({
             </Empty>
           )}
         </section>
+        )}
       </div>
     </>
+  );
+}
+
+/* =========================================================================
+   v0.16 — La agenda grande.
+
+   Pensada para mirarse de un vistazo, con el móvil en la mano. Por cada
+   evento, en este orden de importancia:
+
+     1. LA FECHA — un bloque grande: día del mes, mes y día de la semana.
+     2. El nombre, en grande.
+     3. El tipo, como chip de color, debajo, junto a dónde y cuánto falta.
+
+   Va agrupada por mes, y respeta el filtro de tipo de arriba.
+   ========================================================================= */
+type ItemAgenda = {
+  id: string; date: string; endDate: string | null; title: string;
+  kindLabel: string; color: string; sub: string; url?: string; href?: string;
+};
+
+function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
+  if (!agenda.length) {
+    return (
+      <div className="card mb-5">
+        <Empty icon="calendar" title={tipo ? "Nada de ese tipo por delante" : "Agenda vacía"}>
+          {tipo ? "Prueba a quitar el filtro." : "Cuando haya torneos o eventos por delante, saldrán aquí."}
+        </Empty>
+      </div>
+    );
+  }
+  const porMes = new Map<string, ItemAgenda[]>();
+  for (const e of agenda) {
+    const k = e.date.slice(0, 7);
+    const l = porMes.get(k);
+    if (l) l.push(e); else porMes.set(k, [e]);
+  }
+  const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const dia = (iso: string) => DIAS[new Date(`${iso}T12:00:00Z`).getUTCDay()];
+
+  return (
+    <div className="mb-5 flex flex-col gap-5">
+      {[...porMes.entries()].map(([mes, items]) => {
+        const [y, m] = mes.split("-").map(Number);
+        return (
+          <section key={mes}>
+            <h2 className="mb-2 px-1 font-display text-xl font-bold capitalize">
+              {MONTHS[m - 1]} <span className="text-muted">{y}</span>
+            </h2>
+            <ul className="card divide-y divide-line-soft">
+              {items.map((e) => {
+                const varios = e.endDate && e.endDate !== e.date;
+                const contenido = (
+                  <>
+                    <span
+                      className="flex w-16 flex-none flex-col items-center rounded-xl border py-1.5 text-center sm:w-20"
+                      style={{ borderColor: `color-mix(in oklab, ${e.color} 45%, transparent)`, background: `color-mix(in oklab, ${e.color} 10%, transparent)` }}
+                    >
+                      <span className="font-display text-3xl font-extrabold leading-none tabular sm:text-4xl">
+                        {Number(e.date.slice(8, 10))}
+                        {varios ? <span className="text-lg">–{Number(e.endDate!.slice(8, 10))}</span> : null}
+                      </span>
+                      <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-2">
+                        {dia(e.date).slice(0, 3)}
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-display text-xl font-bold leading-tight sm:text-2xl">{e.title}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+                        <span
+                          className="chip"
+                          style={{ background: `color-mix(in oklab, ${e.color} 16%, transparent)`, color: e.color, borderColor: "transparent" }}
+                        >
+                          {e.kindLabel}
+                        </span>
+                        <span>{relDays(e.date)}</span>
+                        {e.sub && <span className="truncate">· {e.sub}</span>}
+                      </span>
+                    </span>
+                    {(e.href || e.url) && <Icon name="back" className="size-5 flex-none rotate-180 text-muted" />}
+                  </>
+                );
+                const clase = "flex items-center gap-4 px-4 py-4 hover:bg-surface-2";
+                return (
+                  <li key={e.id}>
+                    {e.href
+                      ? <Link href={e.href} className={clase}>{contenido}</Link>
+                      : e.url
+                        ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
+                        : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }

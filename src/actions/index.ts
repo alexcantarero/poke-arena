@@ -1191,13 +1191,31 @@ export async function saveTournamentResult(fd: FormData) {
   redirect(withFlash(`/torneos/${tournamentId}`, "ok", "Resultado guardado."));
 }
 
+/**
+ * v0.16 — Borrar la participación de alguien en un torneo: su resultado Y
+ * sus rondas.
+ *
+ * EL FALLO QUE ARREGLA: antes solo borraba la fila de `tournament_results`.
+ * Las rondas seguían ahí (así que «no borraba nada», visto desde la ficha),
+ * y con el resultado se iba también el mazo fijado del torneo, con lo que la
+ * ronda siguiente volvía a pedir el arquetipo. Borrar a medias deja un estado
+ * que no corresponde a nada: o estás en el torneo o no estás.
+ *
+ * Para borrar una sola ronda está el botón «Eliminar» de cada ronda.
+ */
 export async function deleteTournamentResult(fd: FormData) {
   const actor = await requireActor();
   const id = str(fd, "id");
   const row = (await db.select().from(tournamentResults).where(eq(tournamentResults.id, id)))[0];
   if (!row || !owns(actor, row.playerId)) return;
+  await db.delete(matches).where(and(
+    eq(matches.tournamentId, row.tournamentId),
+    eq(matches.playerAId, row.playerId),
+    isNull(matches.playerBId),
+  ));
   await db.delete(tournamentResults).where(eq(tournamentResults.id, id));
   refresh();
+  redirect(withFlash(`/torneos/${row.tournamentId}`, "ok", "Participación borrada: resultado y rondas."));
 }
 
 /* ------------------------------------------------------- competiciones -- */
@@ -1542,7 +1560,8 @@ export async function saveTournamentRound(fd: FormData) {
      cerrarlo —si se pudiera seguir escribiendo, «cerrado» sería un adorno—; y
      en borrador, porque la ficha ni siquiera enseña el formulario, así que una
      ronda ahí solo puede llegar por un POST a mano. */
-  if (tour.status !== "open") return;
+  // v0.16: el organizador puede corregir rondas también con el torneo cerrado.
+  if (tour.status !== "open" && !canManageLeague(actor.role)) return;
 
   const round = int(fd, "round", 1, 1, 50);
 
@@ -1839,7 +1858,8 @@ export async function deleteTournamentRound(fd: FormData) {
   // La misma puerta que al guardar: la ficha esconde el botón en un torneo
   // cerrado, pero esconder un botón no protege nada.
   const tour = (await db.select().from(tournaments).where(eq(tournaments.id, row.tournamentId)))[0];
-  if (tour?.status !== "open") return;
+  // v0.16: un organizador puede corregir también un torneo ya cerrado.
+  if (!tour || (tour.status !== "open" && !canManageLeague(actor.role))) return;
 
   await db.delete(matches).where(eq(matches.id, id));
   await syncTournamentRecord(row.tournamentId, row.playerAId);

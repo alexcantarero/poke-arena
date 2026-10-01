@@ -6,7 +6,8 @@ import { readSession } from "@/lib/auth";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
 import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle } from "@/components/ui";
-import { ScopeTabs } from "@/components/ScopeTabs";
+import { agruparTorneos, filtrarTorneos } from "@/lib/torneosLista";
+import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { canManageLeague } from "@/lib/auth";
 import { importLocalTournaments } from "@/actions";
@@ -19,7 +20,7 @@ const SCOPE_LABEL: Record<string, string> = { onsite: "Presencial", online: "Onl
 export default async function TournamentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jugador?: string }>;
+  searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string }>;
 }) {
   const [snap, session, sp] = await Promise.all([loadSnapshot(), readSession(), searchParams]);
   const season = snap.config.cpSeason;
@@ -41,11 +42,27 @@ export default async function TournamentsPage({
      que el filtro se pueda compartir por WhatsApp y para que la vuelta atrás
      del navegador funcione. Lo pedía Alex. */
   const filterId = sp.jugador && snap.playersById.has(sp.jugador) ? sp.jugador : "all";
-  const filtered = filterId === "all"
-    ? snap.tournaments
-    : snap.tournaments.filter((t) => t.results.some((r) => r.playerId === filterId)
-        || snap.matches.some((m) => m.tournamentId === t.id && m.playerAId === filterId));
   const filterPlayer = filterId === "all" ? undefined : snap.playersById.get(filterId);
+
+  /* v0.16 — filtros de fecha, tipo y estado, además de persona. Todo por URL
+     (formulario GET): compartible y funciona sin JavaScript. */
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const tiposPresentes = [...new Set(snap.tournaments.map((t) => t.kind))];
+  const fTipo = sp.tipo && tiposPresentes.includes(sp.tipo) ? sp.tipo : "";
+  const fEstado = sp.estado && sp.estado in TOURNAMENT_STATUS ? sp.estado : "";
+  const fDesde = sp.desde && ISO.test(sp.desde) ? sp.desde : "";
+  const fHasta = sp.hasta && ISO.test(sp.hasta) ? sp.hasta : "";
+  const conFiltros = Boolean(filterPlayer || fTipo || fEstado || fDesde || fHasta);
+
+  const filtered = filtrarTorneos(snap.tournaments, {
+    dePersona: filterPlayer
+      ? new Set(snap.tournaments
+        .filter((t) => t.results.some((r) => r.playerId === filterId)
+          || snap.matches.some((m) => m.tournamentId === t.id && m.playerAId === filterId))
+        .map((t) => t.id))
+      : null,
+    tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta,
+  });
 
   /* --- el orden ---
      La base los devuelve del más nuevo al más viejo, que para un histórico
@@ -54,7 +71,9 @@ export default async function TournamentsPage({
      lejano; detrás lo ya jugado, del más reciente al más antiguo. */
   const today = todayISO();
   const ordenados = [...filtered].sort(byAgenda(today));
-  const proximos = ordenados.filter((t) => t.date >= today).length;
+  // v0.16: tres grupos en orden estricto — hoy, próximos, pasados.
+  const grupos = agruparTorneos(filtered, today);
+  const proximos = grupos.hoy.length + grupos.proximos.length;
 
   // Solo se ofrece filtrar por quien de verdad ha ido a algo: una lista de
   // chips con gente que no tiene torneos es ruido.
@@ -145,18 +164,62 @@ export default async function TournamentsPage({
         {filterPlayer ? `Torneos de ${filterPlayer.name}` : "Todos los torneos"}
       </SectionTitle>
 
-      {playerOptions.length > 1 && (
-        <div className="mb-3">
-          <ScopeTabs
-            basePath="/torneos" param="jugador" current={filterId}
-            options={playerOptions} allLabel="Todos"
-          />
+      {/* v0.16 — filtros: persona, tipo, estado y fechas. */}
+      <form method="get" action="/torneos" className="card mb-4 grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-6">
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">Persona</span>
+          <select className="input" name="jugador" defaultValue={filterId === "all" ? "" : filterId}>
+            <option value="">Todas</option>
+            {playerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">Tipo</span>
+          <select className="input" name="tipo" defaultValue={fTipo}>
+            <option value="">Todos</option>
+            {tiposPresentes.map((k) => (
+              <option key={k} value={k}>{table.events[k]?.label ?? k}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">Estado</span>
+          <select className="input" name="estado" defaultValue={fEstado}>
+            <option value="">Todos</option>
+            {Object.entries(TOURNAMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">Desde</span>
+          <input className="input" type="date" name="desde" defaultValue={fDesde} />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">Hasta</span>
+          <input className="input" type="date" name="hasta" defaultValue={fHasta} />
+        </label>
+        <div className="flex items-end gap-2">
+          <button className="btn btn-brand flex-1" type="submit">Filtrar</button>
+          {conFiltros && <Link className="btn btn-ghost" href="/torneos">Quitar</Link>}
         </div>
-      )}
+      </form>
 
       {ordenados.length ? (
-        <div className="card divide-y divide-line-soft">
-          {ordenados.map((t) => {
+        <div className="flex flex-col gap-5">
+          {([
+            ["Hoy", "Sucediendo ahora", grupos.hoy],
+            ["Próximos", "Del más cercano al más lejano", grupos.proximos],
+            ["Pasados", "Del más reciente al más antiguo", grupos.pasados],
+          ] as const).filter(([, , lista]) => lista.length > 0).map(([titulo, nota, lista]) => (
+          <section key={titulo}>
+            <h3 className="mb-2 flex items-baseline justify-between gap-2 px-1">
+              <span className={`font-display text-lg font-bold ${titulo === "Hoy" ? "text-brand" : ""}`}>
+                {titulo === "Hoy" && <span className="mr-1.5 inline-block size-2 animate-pulse rounded-full bg-brand align-middle" />}
+                {titulo} <span className="text-sm font-normal text-muted tabular">· {lista.length}</span>
+              </span>
+              <span className="text-[11px] text-muted">{nota}</span>
+            </h3>
+        <div className={`card divide-y divide-line-soft ${titulo === "Hoy" ? "border-brand-line" : ""}`}>
+          {lista.map((t): ReactNode => {
             const results = t.results;
             const best = results.filter((r) => r.placement != null)
               .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))[0];
@@ -248,6 +311,15 @@ export default async function TournamentsPage({
               </Link>
             );
           })}
+        </div>
+          </section>
+          ))}
+        </div>
+      ) : conFiltros ? (
+        <div className="card">
+          <Empty title="Ningún torneo con estos filtros">
+            <Link className="underline" href="/torneos">Quítalos</Link> y vuelve a mirar.
+          </Empty>
         </div>
       ) : filterPlayer ? (
         <div className="card">

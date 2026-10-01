@@ -21,7 +21,8 @@ import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/TournamentRounds";
 import { etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
 import type { Pestana } from "@/components/CaminoAlCorte";
-import { deleteTournament, deleteTournamentResult, undoDrop } from "@/actions";
+import { deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { Icon } from "@/components/icons";
 
 /* =========================================================================
@@ -161,6 +162,77 @@ export default async function TournamentPage({
     }
   }
 
+  /* v0.16 — Panel de organizador en el bloque de cada jugador: apuntarle la
+     siguiente ronda y editar su resultado final, como si fuera él. Las Server
+     Actions ya aceptaban `playerId` de otro para un organizador; faltaba la
+     pantalla. */
+  const gestionDe = (
+    pid: string,
+    res: (typeof t.results)[number] | undefined,
+    rondasHechas: number[],
+  ) => {
+    const nombre = snap.playersById.get(pid)?.name ?? "esta persona";
+    const hechas = new Set(rondasHechas);
+    let siguiente = 1;
+    while (hechas.has(siguiente)) siguiente++;
+    const tope = maxRonda != null && siguiente > maxRonda;
+    const susDecks = deckOptions(snap, pid, { includeOthers: false });
+    return (
+      <details className="rounded-lg border border-info/40 bg-info-soft/40">
+        <summary className="tap cursor-pointer justify-between px-3 text-sm font-semibold">
+          <span className="flex items-center gap-2">
+            <Icon name="edit" className="size-4 text-info" /> Gestionar a {nombre}
+          </span>
+          <span className="text-[11px] font-normal text-muted">organizador</span>
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-line-soft p-3">
+          {res?.dropped ? (
+            <p className="text-xs text-muted">
+              <span className="chip chip-drop mr-1">DROP</span>
+              Está retirado: no se apuntan rondas nuevas.
+            </p>
+          ) : tope ? (
+            <p className="text-xs text-muted">Tiene todas las rondas apuntadas.</p>
+          ) : (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                Apuntarle la ronda {siguiente}
+              </h4>
+              <RoundForm
+                tournamentId={t.id}
+                playerId={pid}
+                round={siguiente}
+                bestOf={t.bestOf}
+                rivalDecks={deckOptions(snap, pid)}
+                archetypeOptions={archOptions}
+                myDecks={susDecks}
+                lockedDeckId={lockValueOf(res)}
+                maxRound={maxRonda}
+                rivalPlayers={snap.players
+                  .filter((x) => x.active && x.id !== pid)
+                  .map((x) => ({ id: x.id, name: x.name }))}
+              />
+            </div>
+          )}
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              Su resultado final
+            </h4>
+            <TournamentResultForm
+              season={season}
+              tournament={t}
+              result={res}
+              deckOptions={susDecks}
+              archetypeOptions={archOptions}
+              roundRecord={rondasHechas.length ? recordOf(roundsOf(snap.matches, t.id, pid)) : null}
+              playerId={pid}
+            />
+          </div>
+        </div>
+      </details>
+    );
+  };
+
   const participantes = Array.from(participantIds).map((pid) => {
     const p = snap.playersById.get(pid);
     const theirResult = t.results.find((r) => r.playerId === pid);
@@ -200,8 +272,9 @@ export default async function TournamentPage({
       ? (pRounds.length ? pRecord.ties : (theirResult?.ties ?? 0))
       : pRecordFase.ties;
 
+    // v0.16: el organizador corrige rondas de cualquiera, también con el torneo cerrado.
     const canEditPlayerRounds = Boolean(
-      me && (manager || pid === me.id) && status !== "closed",
+      me && (manager || (pid === me.id && status !== "closed")),
     );
     const canEditResult = Boolean(me && theirResult && (pid === me.id || manager));
     const tier =
@@ -225,16 +298,23 @@ export default async function TournamentPage({
       acciones: canEditResult && theirResult ? (
         <form action={deleteTournamentResult}>
           <input type="hidden" name="id" value={theirResult.id} />
-          <button className="btn btn-ghost btn-sm btn-danger" type="submit">
-            Borrar este resultado
-          </button>
+          {/* v0.16 — borra resultado Y rondas: ver `deleteTournamentResult`. */}
+          <ConfirmButton
+            message={`¿Borrar la participación de ${pid === me?.id ? "ti" : (p?.name ?? "esta persona")} en este torneo? Se borran el resultado y las ${pRounds.length} ronda(s) apuntadas.`}
+          >
+            {pid === me?.id ? "Borrar mi participación" : "Borrar su participación"} (resultado y rondas)
+          </ConfirmButton>
         </form>
       ) : undefined,
+      gestion: manager && pid !== me?.id && status !== "draft"
+        ? gestionDe(pid, theirResult, pRounds.map((x) => x.round))
+        : undefined,
       wins,
       losses,
       ties,
       puntos: wins * 3 + ties,
-      placement: fase === "general" ? (theirResult?.placement ?? null) : null,
+      // v0.16: el puesto final se enseña siempre que esté puesto (a la derecha).
+      placement: theirResult?.placement ?? null,
       apuntadas: pRounds.length,
       rondas: pRoundsEnFase.map((r) => {
         const oppArch = r.match.opponentArchetypeId
@@ -281,13 +361,26 @@ export default async function TournamentPage({
           etapa: etiquetaEtapa,
           corte: etapa.tipo === "corte",
           editar: canEditPlayerRounds ? (
-            <Link
-              href={`/partidas/${r.match.id}`}
-              className="btn btn-ghost btn-sm text-xs"
-              title="Editar ronda"
-            >
-              Editar
-            </Link>
+            <span className="flex items-center gap-0.5">
+              <Link
+                href={`/partidas/${r.match.id}`}
+                className="btn btn-ghost btn-sm text-xs"
+                title="Editar ronda"
+              >
+                Editar
+              </Link>
+              {/* v0.16 — borrar la ronda desde aquí mismo. */}
+              <form action={deleteTournamentRound}>
+                <input type="hidden" name="id" value={r.match.id} />
+                <ConfirmButton
+                  message={`¿Eliminar la ronda ${r.round}? No se puede deshacer.`}
+                  className="btn btn-ghost btn-sm text-xs text-loss"
+                  title="Eliminar ronda"
+                >
+                  Eliminar
+                </ConfirmButton>
+              </form>
+            </span>
           ) : undefined,
         };
       }),
