@@ -21,6 +21,11 @@ import { bestFinishes, convStats, type PlacementRow } from "@/lib/tournamentStat
 import { Icon } from "@/components/icons";
 import { LadderClear, LadderEditor, RankBadge, RankProgress } from "@/components/Ladder";
 import { canManageLeague } from "@/lib/auth";
+import { setZoneRanks } from "@/actions";
+import { FavStar } from "@/components/FavStar";
+import { estadoMundial } from "@/lib/mundial";
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
 
 /* De dónde salen las cifras de arriba.
    Mezclar la liga, los torneos de fuera y los amistosos da un número que no
@@ -53,7 +58,7 @@ export default async function ProfilePage({
   searchParams: Promise<{ ambito?: string }>;
 }) {
   const [{ id }, q] = await Promise.all([params, searchParams]);
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+  const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
   const player = snap.playersById.get(id);
   if (!player) notFound();
 
@@ -84,6 +89,12 @@ export default async function ProfilePage({
   // organizador. La comprobación de verdad está dentro de la Server Action.
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const canEditLadder = Boolean(me && (isMe || canManageLeague(me.role)));
+
+  /* v0.17 — puesto en el leaderboard oficial (España y Europa) y a cuánto
+     está de las plazas del Mundial de su zona. */
+  const plazas = getSeason(cp.season).invites[snap.config.ratingZone] ?? null;
+  const mundial = estadoMundial(player.rankEurope, plazas);
+  const sigo = Boolean(session && snap.favoritePlayers.get(session.playerId)?.has(id));
 
   /* --- torneos: conversión, mejores puestos y medallas ---
      Las tres cosas salen de la misma lista de resultados, así que se arma
@@ -149,11 +160,13 @@ export default async function ProfilePage({
             </p>
           )}
         </div>
-        {isMe && (
+        {isMe ? (
           <Link className="btn btn-sm" href="/perfil/editar">
             <Icon name="cog" className="size-4" /> Editar perfil
           </Link>
-        )}
+        ) : session ? (
+          <FavStar playerId={player.id} on={sigo} back={`/perfil/${player.id}`} lang={lang} withLabel />
+        ) : null}
       </div>
 
       {/* ------------------------------ balance ------------------------------ */}
@@ -178,7 +191,54 @@ export default async function ProfilePage({
           note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
         <Kpi label={`CP ${cp.season}`} value={cp.total}
           note={cpTable.confirmed ? `${myTours.length} torneos` : "cifras provisionales"} />
+        {/* v0.17 — puesto en los leaderboards oficiales, junto a los CP. */}
+        <Kpi label={`Top ${tr(lang, "zone.spain")}`}
+          value={player.rankSpain != null ? `${player.rankSpain}.º` : "—"}
+          note={player.rankSpain != null ? "leaderboard de CP" : tr(lang, "zone.none")} />
+        <Kpi label={`Top ${tr(lang, "zone.europe")}`}
+          value={player.rankEurope != null ? `${player.rankEurope}.º` : "—"}
+          highlight={mundial.tipo === "dentro"}
+          note={mundial.tipo === "dentro"
+            ? `${tr(lang, "zone.in")} (Top ${mundial.plazas}) · ${tr(lang, "zone.margin")} ${mundial.margen}`
+            : mundial.tipo === "fuera"
+              ? `${mundial.faltan} ${tr(lang, "zone.places")} · Top ${mundial.plazas}`
+              : player.rankEurope != null ? "leaderboard de CP" : tr(lang, "zone.none")} />
       </div>
+
+      {(canEditLadder || player.rankZoneUpdatedAt) && (
+        <details className="card mt-2.5">
+          <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
+            {canEditLadder ? tr(lang, "zone.edit") : tr(lang, "zone.title")}
+            <span className="text-[11px] font-normal text-muted">
+              {player.rankZoneUpdatedAt
+                ? `${tr(lang, "zone.updated")} ${fmtDate(player.rankZoneUpdatedAt.toISOString().slice(0, 10))}`
+                : tr(lang, "zone.none")}
+            </span>
+          </summary>
+          <div className="border-t border-line-soft p-4">
+            {canEditLadder && (
+              <form action={setZoneRanks} className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <input type="hidden" name="playerId" value={player.id} />
+                <label className="flex flex-col gap-1.5">
+                  <span className="label">{tr(lang, "zone.spain")}</span>
+                  <input className="input tabular" name="rankSpain" type="number" inputMode="numeric"
+                    min={1} max={100000} defaultValue={player.rankSpain ?? ""} placeholder="—" />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="label">{tr(lang, "zone.europe")}</span>
+                  <input className="input tabular" name="rankEurope" type="number" inputMode="numeric"
+                    min={1} max={100000} defaultValue={player.rankEurope ?? ""} placeholder="—" />
+                </label>
+                <button className="btn btn-brand col-span-2 sm:col-span-1" type="submit">{tr(lang, "zone.save")}</button>
+              </form>
+            )}
+            <p className="mt-3 text-xs text-muted">{canEditLadder ? tr(lang, "zone.howto") + " " : ""}{tr(lang, "zone.caveat")}</p>
+            <Link href="/ranking#mundial" className="mt-2 inline-block text-xs font-semibold text-info hover:underline">
+              {tr(lang, "zone.title")} →
+            </Link>
+          </div>
+        </details>
+      )}
 
       {/* El Elo es de toda la liga y los CP son de toda la temporada: filtrarlos
           por ámbito no querría decir nada, y callárselo dejaría a alguien

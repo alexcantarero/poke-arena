@@ -238,9 +238,11 @@ export function StreakChip({ kind, n }: { kind: string; n: number }) {
  * torneo— es un callejón sin salida si no la pones.
  */
 export function PageHead({
-  title, sub, actions, back, gradient,
+  title, sub, actions, back, gradient, icon,
 }: {
   title: string;
+  /** v0.17 — un emblema a la izquierda del título (p. ej. el logo de Regionales). */
+  icon?: ReactNode;
   sub?: ReactNode;
   actions?: ReactNode;
   back?: { href: string; label: string };
@@ -260,11 +262,17 @@ export function PageHead({
         </Link>
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className={`text-3xl font-extrabold leading-none sm:text-4xl ${gradient ? "title-grad" : ""}`}>
-            {title}
-          </h1>
-          {sub && <p className="mt-2 max-w-prose text-sm text-muted">{sub}</p>}
+        <div className="flex min-w-0 items-start gap-3">
+          {icon && <span className="flex-none">{icon}</span>}
+          <div className="min-w-0">
+            {/* v0.17: un punto menos en el móvil. Un título de Regional
+                («2027 Frankfurt Pokémon TCG Regional Championships») ocupaba
+                tres líneas a 30px y empujaba la ficha medio pantallazo abajo. */}
+            <h1 className={`break-words text-[1.7rem] font-extrabold leading-[1.05] sm:text-4xl sm:leading-none ${gradient ? "title-grad" : ""}`}>
+              {title}
+            </h1>
+            {sub && <p className="mt-2 max-w-prose text-sm text-muted">{sub}</p>}
+          </div>
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -368,11 +376,19 @@ type MatchRowProps = {
 export function MatchCard({ match, playerA, playerB, archA, archB, context }: MatchRowProps) {
   const o = outcome(match);
   const wA = o.winner === "a", wB = o.winner === "b";
+  /* v0.17 — la tarjeta entera lleva a la partida, pero el avatar y el
+     nombre de cada lado llevan a su perfil. Como un enlace no puede ir dentro
+     de otro, el de la partida es una capa transparente debajo (`absolute
+     inset-0`) y los de perfil van por encima con `relative z-10`. */
+  const perfil = (p: PublicPlayer | null | undefined, child: ReactNode, cls = "") =>
+    p ? (
+      <Link href={`/perfil/${p.id}`} className={`relative z-10 min-w-0 hover:text-info ${cls}`}>{child}</Link>
+    ) : <span className={`min-w-0 ${cls}`}>{child}</span>;
   return (
-    <Link
-      href={`/partidas/${match.id}`}
-      className="block border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-surface-2 active:bg-surface-2"
+    <div
+      className="relative block border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-surface-2 active:bg-surface-2"
     >
+      <Link href={`/partidas/${match.id}`} className="absolute inset-0" aria-label="Ver la partida" />
       <div className="mb-2 flex items-center gap-2 text-[11px] text-muted">
         <span className="font-mono">{match.date}</span>
         {context && <><span aria-hidden="true">·</span><span className="truncate">{context}</span></>}
@@ -383,9 +399,9 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
 
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Avatar player={playerA} size="sm" />
+          {perfil(playerA, <Avatar player={playerA} size="sm" />, "flex-none rounded-full")}
           <span className="min-w-0">
-            <span className={`block truncate text-sm ${wA ? "font-bold" : "font-medium"}`}>{playerA?.name ?? "—"}</span>
+            {perfil(playerA, <span className={`block truncate text-sm ${wA ? "font-bold" : "font-medium"}`}>{playerA?.name ?? "—"}</span>, "block")}
             {/* El mazo con su sprite y no solo el nombre: en una lista larga se
                 reconoce antes el dibujo que el texto. Lo pedía Alex. */}
             {archA && (
@@ -411,9 +427,11 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right">
           <span className="min-w-0">
-            <span className={`block truncate text-sm ${wB ? "font-bold" : "font-medium"}`}>
-              {playerB?.name ?? match.opponentName ?? "—"}
-            </span>
+            {perfil(playerB, (
+              <span className={`block truncate text-sm ${wB ? "font-bold" : "font-medium"}`}>
+                {playerB?.name ?? match.opponentName ?? "—"}
+              </span>
+            ), "block")}
             {archB && (
               <span className="flex min-w-0 items-center justify-end gap-1 text-[11px] text-muted">
                 <span className="truncate">{archB.name}</span>
@@ -422,13 +440,13 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
             )}
           </span>
           {playerB
-            ? <Avatar player={playerB} size="sm" />
+            ? perfil(playerB, <Avatar player={playerB} size="sm" />, "flex-none rounded-full")
             : <span className="grid size-7 flex-none place-items-center rounded-full border border-dashed border-line text-[11px] text-muted">
                 {(match.opponentName ?? "?").slice(0, 1).toUpperCase()}
               </span>}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -439,4 +457,38 @@ export function MatchList({ children }: { children: ReactNode }) {
 
 export function pctText(v: number | null | undefined, digits = 0) {
   return pct(v, digits);
+}
+
+/* ------------------------------------------------- v0.17: emblemas --- */
+
+/**
+ * Logo de los Regional Championships, para los torneos de tipo `regional`.
+ * El fichero está en `public/logos/` (lo aportó Ibai). Es una marca de The
+ * Pokémon Company: se usa tal cual, sin modificarlo, y solo en esta web privada.
+ */
+export const REGIONAL_LOGO = "/logos/regional-championships.png";
+
+export function TournamentEmblem({ kind, size = "md" }: { kind: string; size?: "sm" | "md" | "lg" }) {
+  if (kind !== "regional") return null;
+  const cls = size === "sm" ? "size-7" : size === "lg" ? "size-14 sm:size-16" : "size-10";
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={REGIONAL_LOGO} alt="Regional Championships" title="Regional Championships"
+      className={`${cls} flex-none object-contain`} loading="lazy" />
+  );
+}
+
+/**
+ * Avatar + nombre que llevan al perfil. Igual que `PlayerTag` pero aceptando
+ * solo id/nombre/avatar ya pintado, para los sitios donde no hay `PublicPlayer`.
+ */
+export function ProfileLink({
+  id, children, className = "",
+}: { id: string | null | undefined; children: ReactNode; className?: string }) {
+  if (!id) return <span className={className}>{children}</span>;
+  return (
+    <Link href={`/perfil/${id}`} className={`hover:text-info ${className}`}>
+      {children}
+    </Link>
+  );
 }

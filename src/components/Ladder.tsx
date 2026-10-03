@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { clearLadderElo, setLadderElo } from "@/actions";
 import { LADDER_MAX, LADDER_MIN, TIERS, rankOf, type Rank } from "@/lib/rank";
@@ -156,6 +157,7 @@ export function LadderTable({
           <span className="w-5 flex-none text-center font-display text-lg font-extrabold tabular text-muted">
             {position}
           </span>
+          <Link href={`/perfil/${player.id}`} className="flex min-w-0 flex-1 items-center gap-3 hover:text-info">
           <Avatar player={player} size="sm" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold">{player.name}</span>
@@ -163,6 +165,7 @@ export function LadderTable({
               <span className="block truncate text-[11px] text-muted">{player.ladderNote}</span>
             )}
           </span>
+          </Link>
           <RankBadge elo={rank.elo} size="sm" />
         </li>
       ))}

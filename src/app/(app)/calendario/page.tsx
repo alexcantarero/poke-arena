@@ -3,7 +3,7 @@ import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
 import { isPlayed, outcome } from "@/lib/stats";
 import { CALENDAR_KINDS, kindsPresent, toneOf } from "@/lib/calendar";
-import { DOWS, MONTHS, byAgenda, fmtDateLong, relDays, todayISO } from "@/lib/format";
+import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
@@ -216,7 +216,7 @@ export default async function CalendarPage({
             </div>
           ))}
           {Array.from({ length: start }, (_, i) => (
-            <div key={`p${i}`} className="min-h-16 border-b border-r border-line-soft bg-surface-2/60 p-1" />
+            <div key={`p${i}`} className="min-h-20 sm:min-h-28 border-b border-r border-line-soft bg-surface-2/60 p-1" />
           ))}
           {Array.from({ length: days }, (_, i) => {
             const d = i + 1;
@@ -224,11 +224,12 @@ export default async function CalendarPage({
             const marks = byDay.get(key) ?? [];
             const isToday = key === today;
             return (
-              <div key={key} className="flex min-h-16 flex-col gap-0.5 border-b border-r border-line-soft p-1 last:border-r-0 sm:min-h-20">
+              <div key={key} className="flex min-h-20 flex-col gap-0.5 border-b border-r border-line-soft p-1 last:border-r-0 sm:min-h-28 lg:min-h-32">
                 <span className={`text-[11px] font-mono ${isToday
                   ? "grid size-5 place-items-center rounded-full bg-brand font-bold text-on-brand"
                   : "text-muted"}`}>{d}</span>
-                {marks.slice(0, 2).map((m, j) => {
+                {/* v0.17: la rejilla es la vista principal, así que caben tres. */}
+                {marks.slice(0, 3).map((m, j) => {
                   const estilo = {
                     // Fondo tintado y texto del color: el contraste depende
                     // solo del par color/página, que es el que está medido.
@@ -249,12 +250,12 @@ export default async function CalendarPage({
                     <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>{m.text}</span>
                   );
                 })}
-                {marks.length > 2 && <span className="text-[9px] text-muted">+{marks.length - 2}</span>}
+                {marks.length > 3 && <span className="text-[9px] text-muted">+{marks.length - 3}</span>}
               </div>
             );
           })}
           {Array.from({ length: tail }, (_, i) => (
-            <div key={`n${i}`} className="min-h-16 border-b border-r border-line-soft bg-surface-2/60 p-1 last:border-r-0" />
+            <div key={`n${i}`} className="min-h-20 sm:min-h-28 border-b border-r border-line-soft bg-surface-2/60 p-1 last:border-r-0" />
           ))}
         </div>
       </div>
@@ -263,9 +264,11 @@ export default async function CalendarPage({
       {/* --------------------------- la agenda grande ------------------------ */}
       {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} />}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        {manager && (
-          <div className="flex flex-col gap-4">
+      {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
+          importar eventos, para organizadores); la agenda ya NO sale debajo:
+          para eso está la vista «Agenda». Y con «Agenda» solo sale la agenda. */}
+      {vista === "calendario" && manager && (
+          <div className="grid items-start gap-4 lg:grid-cols-3">
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">Añadir al calendario</h2></div>
               <div className="p-4"><EventForm competitions={snap.competitions} tournaments={snap.tournaments} /></div>
@@ -317,60 +320,6 @@ export default async function CalendarPage({
           </div>
         )}
 
-        {vista === "calendario" && (
-        <section className="card">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Agenda</h2>
-            <span className="text-xs text-muted">{agenda.length} por delante</span>
-          </div>
-          {agenda.length ? (
-            <ul className="divide-y divide-line-soft">
-              {agenda.map((e) => {
-                const fila = (
-                  <>
-                    <span
-                      className="chip flex-none"
-                      style={{
-                        background: `color-mix(in oklab, ${e.color} 16%, transparent)`,
-                        color: e.color,
-                        borderColor: "transparent",
-                      }}
-                    >
-                      {e.kindLabel}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{e.title}</span>
-                      <span className="block text-xs text-muted">
-                        {fmtDateLong(e.date)}
-                        {e.endDate && e.endDate !== e.date ? ` – ${fmtDateLong(e.endDate)}` : ""}
-                        {" · "}{relDays(e.date)}{e.sub ? ` · ${e.sub}` : ""}
-                      </span>
-                    </span>
-                    {e.url && <Icon name="share" className="size-4 flex-none text-muted" />}
-                  </>
-                );
-                const clase = "flex items-center gap-3 px-4 py-3 hover:bg-surface-2";
-                return (
-                  <li key={e.id}>
-                    {e.href
-                      ? <Link href={e.href} className={clase}>{fila}</Link>
-                      : e.url
-                        ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{fila}</a>
-                        : <div className={`${clase} hover:bg-transparent`}>{fila}</div>}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <Empty icon="calendar" title={tipo ? "Nada de ese tipo por delante" : "Agenda vacía"}>
-              {tipo
-                ? "Prueba a quitar el filtro, o mira meses siguientes."
-                : "Añade la próxima jornada para que todos la vean. Y si eres organizador, importa de una vez los eventos oficiales de Europa."}
-            </Empty>
-          )}
-        </section>
-        )}
-      </div>
     </>
   );
 }

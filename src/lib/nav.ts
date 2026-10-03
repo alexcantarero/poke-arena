@@ -1,5 +1,6 @@
 export type NavItem = { href: string; label: string; icon: string };
-export type NavGroup = { title: string; items: NavItem[] };
+/** `key` es la clave de traducción del título del grupo (`lib/i18n.ts`). */
+export type NavGroup = { key: string; title: string; items: NavItem[] };
 
 /* =========================================================================
    v0.16 — El menú, agrupado.
@@ -20,6 +21,7 @@ export type NavGroup = { title: string; items: NavItem[] };
    ========================================================================= */
 export const NAV_GROUPS: NavGroup[] = [
   {
+    key: "nav.group.main",
     title: "Principal",
     items: [
       { href: "/", label: "Inicio", icon: "home" },
@@ -27,6 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: "nav.group.compete",
     title: "Competir",
     items: [
       { href: "/torneos", label: "Torneos", icon: "trophy" },
@@ -35,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: "nav.group.analysis",
     title: "Análisis",
     items: [
       { href: "/ranking", label: "Ranking", icon: "rank" },
@@ -44,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: "nav.group.account",
     title: "Cuenta",
     items: [{ href: "/ajustes", label: "Ajustes", icon: "cog" }],
   },

@@ -4,7 +4,11 @@ import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
 import {
   archetypeStats, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings,
 } from "@/lib/stats";
-import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput } from "@/lib/cp";
+import { awardsCp, computeCp, cpKindOf, getSeason, seasonOfDate, type CpResultInput } from "@/lib/cp";
+import { estadoMundial, porPuestoZona } from "@/lib/mundial";
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
+import { FavStar } from "@/components/FavStar";
 import { rankingTorneos, type EntradaTorneo } from "@/lib/rankingTorneos";
 import { claveRonda, matrizH2H, type Encuentro } from "@/lib/h2h";
 import { TournamentRankingTable, type TourRankRow } from "@/components/TournamentRankingTable";
@@ -58,10 +62,18 @@ const VISTAS: Array<{ v: Vista; label: string; hint: string }> = [
 export default async function RankingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ comp?: string; ambito?: string; donde?: string; temporada?: string }>;
+  searchParams: Promise<{ comp?: string; ambito?: string; donde?: string; temporada?: string; fav?: string }>;
 }) {
   const q = await searchParams;
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+  const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
+
+  /* v0.17 — «¿A quién?»: todos, o solo los que sigues (más tú). Recorta las
+     tablas, el cara a cara y el camino al Mundial; no cambia los cálculos
+     (el Elo y los puestos siguen siendo los de toda la liga). */
+  const meId = session?.playerId ?? null;
+  const misFavs = meId ? snap.favoritePlayers.get(meId) ?? new Set<string>() : new Set<string>();
+  const soloFavs = q.fav === "1" && meId != null;
+  const visible = (pid: string) => !soloFavs || pid === meId || misFavs.has(pid);
   const played = snap.matches.filter(isPlayed);
   const cpSeason = snap.config.cpSeason;
 
@@ -138,7 +150,7 @@ export default async function RankingPage({
 
   let tabla: ReactNode;
   if (vista === "all") {
-    const filas: TodoRow[] = snap.activePlayerIds.map((pid) => {
+    const filas: TodoRow[] = snap.activePlayerIds.filter(visible).map((pid) => {
       const r = playerRecord(scoped, pid);
       const extra = recordSinRondas.get(pid) ?? { wins: 0, losses: 0, ties: 0 };
       const wins = r.wins + extra.wins, losses = r.losses + extra.losses, ties = r.ties + extra.ties;
@@ -157,7 +169,9 @@ export default async function RankingPage({
     });
     tabla = <RankingTodoTable rows={filas} />;
   } else if (vista === "tournament") {
-    const filas: TourRankRow[] = [...porTorneo.values()].map((f) => ({ ...f, ...avatarDe(f.playerId) }));
+    const filas: TourRankRow[] = [...porTorneo.values()]
+      .filter((f) => visible(f.playerId))
+      .map((f) => ({ ...f, ...avatarDe(f.playerId) }));
     tabla = (
       <>
         <TournamentRankingTable rows={filas} cpLabel={`CP ${cpSeason}`} />
@@ -168,7 +182,9 @@ export default async function RankingPage({
     );
   } else {
     const ids = competition ? compPlayers(snap, competition.id) : snap.activePlayerIds;
-    const rows: RankRow[] = standings(scoped, ids, snap.elo.rating, snap.config).map((r) => {
+    const rows: RankRow[] = standings(scoped, ids, snap.elo.rating, snap.config)
+      .filter((r) => visible(r.playerId))
+      .map((r) => {
       const own = archetypeStats(
         scoped.filter((m) => m.playerAId === r.playerId || m.playerBId === r.playerId),
         snap.archIndex, r.playerId, snap.archById,
@@ -200,7 +216,17 @@ export default async function RankingPage({
     }
   }
   const h2h = matrizH2H(encuentros);
-  const h2hJugadores = snap.players.map((p) => ({ id: p.id, name: p.name, avatar: <Avatar player={p} size="sm" /> }));
+  const h2hJugadores = snap.players
+    .filter((p) => visible(p.id))
+    .map((p) => ({ id: p.id, name: p.name, avatar: <Avatar player={p} size="sm" /> }));
+
+  /* v0.17 — camino al Mundial: puesto en el leaderboard oficial de la zona,
+     apuntado a mano. La línea es el Top N de invitaciones de la temporada. */
+  const plazas = getSeason(cpSeason).invites[snap.config.ratingZone] ?? null;
+  const zona = snap.players
+    .filter((p) => p.active && visible(p.id))
+    .sort(porPuestoZona);
+  const conPuesto = zona.filter((p) => p.rankEurope != null).length;
 
   const ladder = ladderStandings(snap.players.filter((p) => p.active));
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
@@ -212,6 +238,7 @@ export default async function RankingPage({
       donde: vista === "tournament" && donde !== "both" ? donde : null,
       comp: competition?.id ?? null,
       temporada: soloTemporada ? "1" : null,
+      fav: soloFavs ? "1" : null,
       ...cambios,
     };
     const sp = new URLSearchParams();
@@ -279,6 +306,17 @@ export default async function RankingPage({
           </div>
         )}
 
+        {meId && (
+          <div className="flex flex-col gap-1.5">
+            <span className="label">{tr(lang, "fav.who")}</span>
+            <Seg items={[
+              { href: hrefCon({ fav: null }), label: tr(lang, "fav.everyone"), on: !soloFavs },
+              { href: hrefCon({ fav: "1" }), label: `★ ${tr(lang, "fav.mine")} (${misFavs.size})`, on: soloFavs },
+            ]} />
+            <p className="text-xs text-muted">{soloFavs && misFavs.size === 0 ? tr(lang, "fav.empty") : tr(lang, "fav.hint")}</p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-1.5">
           <span className="label">Temporada</span>
           <Seg items={[
@@ -301,6 +339,73 @@ export default async function RankingPage({
       </section>
 
       {tabla}
+
+      {/* ---------------------- v0.17: camino al Mundial ---------------------- */}
+      <section className="card mt-5" id="mundial">
+        <div className="card-head">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold">{tr(lang, "zone.title")} · {tr(lang, "zone.europe")}</h2>
+            <p className="text-xs text-muted">{tr(lang, "zone.sub")}</p>
+          </div>
+          {plazas != null && (
+            <span className="chip chip-brand flex-none tabular" title={tr(lang, "zone.slots")}>Top {plazas}</span>
+          )}
+        </div>
+        {zona.length ? (
+          <ol className="divide-y divide-line-soft">
+            {zona.map((p, i) => {
+              const e = estadoMundial(p.rankEurope, plazas);
+              /* La línea se dibuja entre el último que está dentro y el
+                 primero que está fuera (o sin puesto). */
+              const anterior = zona[i - 1];
+              const linea = plazas != null && i > 0 && anterior?.rankEurope != null
+                && anterior.rankEurope <= plazas && (p.rankEurope == null || p.rankEurope > plazas);
+              return (
+                <li key={p.id}>
+                  {linea && (
+                    <div className="flex items-center gap-2 bg-brand-soft px-4 py-1 text-[10px] font-bold uppercase tracking-wide text-brand">
+                      <span className="h-px flex-1 bg-brand/50" />
+                      {tr(lang, "zone.line")} · Top {plazas}
+                      <span className="h-px flex-1 bg-brand/50" />
+                    </div>
+                  )}
+                  <div className={`flex items-center gap-2 px-3 py-2.5 xs:gap-3 xs:px-4 ${p.id === meId ? "bg-surface-2" : ""}`}>
+                    <PlayerTag player={p} size="sm" className="min-w-0 flex-1" />
+                    <span className="flex w-14 flex-none flex-col items-center text-center xs:w-16">
+                      <span className="font-display text-lg font-extrabold leading-none tabular">
+                        {p.rankEurope != null ? `${p.rankEurope}.º` : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted">{tr(lang, "zone.europe")}</span>
+                    </span>
+                    <span className="hidden w-14 flex-none flex-col items-center text-center xs:flex">
+                      <span className="font-display text-base font-bold leading-none tabular text-ink-2">
+                        {p.rankSpain != null ? `${p.rankSpain}.º` : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted">{tr(lang, "zone.spain")}</span>
+                    </span>
+                    <span className="w-20 flex-none text-right text-[11px]">
+                      {e.tipo === "dentro" ? (
+                        <span className="chip chip-brand">{tr(lang, "zone.in")} · {e.margen}</span>
+                      ) : e.tipo === "fuera" ? (
+                        <span className="chip">{tr(lang, "zone.out")} · {e.faltan}</span>
+                      ) : null}
+                    </span>
+                    {meId && p.id !== meId ? (
+                      <FavStar playerId={p.id} on={misFavs.has(p.id)} back={hrefCon({}) + "#mundial"} lang={lang} />
+                    ) : <span className="w-9 flex-none" />}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="px-4 py-6 text-center text-sm text-muted">{tr(lang, "fav.empty")}</p>
+        )}
+        <p className="border-t border-line-soft px-4 py-3 text-xs text-muted">
+          {conPuesto}/{zona.length} · {tr(lang, "zone.caveat")}
+          {" "}«{tr(lang, "zone.in")} · N» = {tr(lang, "zone.margin")}; «{tr(lang, "zone.out")} · N» = {tr(lang, "zone.places")}.
+        </p>
+      </section>
 
       <section className="card mt-5 min-w-0 overflow-hidden">
         <div className="card-head">

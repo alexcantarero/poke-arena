@@ -107,6 +107,13 @@ export const players = pgTable("players", {
   ladderEloUpdatedAt: timestamp("ladder_elo_updated_at", { withTimezone: true }),
   ladderNote: text("ladder_note").notNull().default(""),
 
+  /* --- v0.17: puesto en la clasificación oficial de CP ---
+     Lo pone cada uno a mano (o un organizador): Play! Pokémon no publica el
+     ranking por API y pokemon.com prohíbe extraerlo. Nulo = sin apuntar. */
+  rankSpain: integer("rank_spain"),
+  rankEurope: integer("rank_europe"),
+  rankZoneUpdatedAt: timestamp("rank_zone_updated_at", { withTimezone: true }),
+
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -186,6 +193,22 @@ export const deckFavorites = pgTable("deck_favorites", {
 }, (t) => [
   uniqueIndex("deck_fav_unique_idx").on(t.playerId, t.deckId),
   index("deck_fav_player_idx").on(t.playerId),
+]);
+
+/**
+ * v0.17 — Jugadores que alguien sigue («favoritos»).
+ *
+ * Pensado para cuando la liga crezca: cada uno marca a quien quiere ver y el
+ * Ranking se puede recortar a esa lista. Es de quien marca: nadie más ve a
+ * quién sigues.
+ */
+export const playerFavorites = pgTable("player_favorites", {
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  favoriteId: text("favorite_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("player_fav_unique_idx").on(t.playerId, t.favoriteId),
+  index("player_fav_player_idx").on(t.playerId),
 ]);
 
 /* --------------------------------------------- competiciones internas --- */

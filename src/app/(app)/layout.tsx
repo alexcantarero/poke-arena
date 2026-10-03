@@ -5,6 +5,9 @@ import { BottomNav, Sidebar } from "@/components/Nav";
 import { Wordmark } from "@/components/Wordmark";
 import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LangToggle } from "@/components/LangToggle";
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
@@ -17,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await readSession();
   if (!session) redirect("/entrar");
 
-  const snap = await loadSnapshot();
+  const [snap, lang] = await Promise.all([loadSnapshot(), getLang()]);
   const me = snap.playersById.get(session.playerId);
   if (!me || !me.active) redirect("/entrar");
 
@@ -26,26 +29,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* ------------------------------ escritorio ------------------------------ */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line bg-surface p-3 md:flex">
         <div className="px-2 pb-4 pt-2">
-          <Wordmark name={snap.config.name} season={snap.config.season} compact />
+          {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
+          <Wordmark name={tr(lang, "app.name")} season={`${snap.config.name} · ${snap.config.season}`} compact />
         </div>
 
-        <Sidebar meId={me.id} />
+        <Sidebar meId={me.id} lang={lang} />
 
         <div className="mt-auto flex flex-col gap-2 pt-4">
           <Link className="btn btn-brand w-full" href="/partidas/nueva">
-            <Icon name="plus" className="size-4" /> Registrar partida
+            <Icon name="plus" className="size-4" /> {tr(lang, "shell.newMatch")}
           </Link>
           <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 p-2">
             <Avatar player={me} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
               <span className="block text-[11px] text-muted">
-                {me.role === "owner" ? "organizador" : me.role === "admin" ? "admin" : "jugador"}
+                {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
               </span>
             </span>
+            <LangToggle lang={lang} />
             <ThemeToggle />
             <form action={logout}>
-              <button className="btn btn-ghost btn-sm px-2" type="submit" title="Salir" aria-label="Salir">
+              <button className="btn btn-ghost btn-sm px-2" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
                 <Icon name="logout" className="size-4" />
               </button>
             </form>
@@ -63,10 +68,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface/95 px-4 pb-2 backdrop-blur md:hidden"
           style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
         >
-          <Wordmark name={snap.config.name} compact />
-          <div className="flex-1" />
+          {/* `min-w-0 flex-1` y no un hueco aparte: con un nombre de liga largo
+              lo que se recorta es el texto, no los botones de la derecha. */}
+          <div className="min-w-0 flex-1">
+            <Wordmark name={tr(lang, "app.name")} season={snap.config.name} compact />
+          </div>
+          <LangToggle lang={lang} />
           <ThemeToggle />
-          <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label="Más secciones">
+          <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label={tr(lang, "nav.moreSections")}>
             <Icon name="more" className="size-5" />
           </Link>
         </header>
@@ -76,7 +85,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
 
-      <BottomNav meId={me.id} />
+      <BottomNav meId={me.id} lang={lang} />
 
       {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
           Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una

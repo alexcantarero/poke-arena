@@ -54,12 +54,12 @@ export function H2HHeatmap({
               </th>
               {ids.map((id) => (
                 <th key={id} scope="col" className="px-0.5 align-bottom">
-                  <span className="flex flex-col items-center gap-1" title={byId.get(id)!.name}>
+                  <Link href={`/perfil/${id}`} className="flex flex-col items-center gap-1 hover:text-info" title={byId.get(id)!.name}>
                     {byId.get(id)!.avatar}
                     <span className="block max-w-[3.25rem] truncate text-[10px] font-semibold text-ink-2">
                       {byId.get(id)!.name}
                     </span>
-                  </span>
+                  </Link>
                 </th>
               ))}
             </tr>

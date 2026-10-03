@@ -739,12 +739,16 @@ export const CP_2027: CpSeason = {
     "Regionales e Internacionales comparten un único límite de 5 mejores resultados. " +
     "El campeón de un Regional y el Top 4 de un Internacional tienen invitación directa al Mundial.",
   invites: {
-    // Top N por zona, no un corte de puntos: solo se sabe al acabar la temporada.
-    europe: null,
-    "us-canada": null,
-    latam: null,
-    oceania: null,
-    mesa: null,
+    // Top N por zona del leaderboard de CP (Masters), NO un corte de puntos:
+    // dónde cae la línea en puntos solo se sabe al acabar la temporada.
+    // Fuente: championships.pokemon.com/en-us/about/2027-season-changes
+    // (consultada el 02/10/2026). Juniors y Seniors: 100/100 en Europa y
+    // EE. UU./Canadá; esta tabla es la de Masters.
+    europe: 140,
+    "us-canada": 140,
+    latam: 125,
+    oceania: 20,
+    mesa: 10,
   },
   events: {
     league_challenge: {

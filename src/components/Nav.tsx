@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
 import { MOBILE_HREFS, NAV_GROUPS, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
+import { tr, type Lang } from "@/lib/i18n";
+
+/** v0.17: el texto de una sección en el idioma elegido (la clave es la ruta). */
+const labelOf = (lang: Lang, it: Item) => (it.href.startsWith("/perfil/") ? it.label : tr(lang, `nav.${it.href}`));
 
 function useActive() {
   const path = usePathname();
@@ -14,18 +18,18 @@ function useActive() {
 }
 
 /** Barra lateral: solo en pantallas anchas. Agrupada (v0.16, ver `lib/nav.ts`). */
-export function Sidebar({ meId }: { meId: string }) {
+export function Sidebar({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
   const isActive = useActive();
   const groups = NAV_GROUPS.map((g) =>
-    g.title === "Cuenta"
-      ? { ...g, items: [{ href: `/perfil/${meId}`, label: "Mi perfil", icon: "user" }, ...g.items] }
+    g.key === "nav.group.account"
+      ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user" }, ...g.items] }
       : g);
   return (
-    <nav aria-label="Secciones" className="flex flex-col gap-3">
+    <nav aria-label={tr(lang, "nav.sections")} className="flex flex-col gap-3">
       {groups.map((g) => (
         <div key={g.title} className="flex flex-col gap-0.5">
           <span className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-            {g.title}
+            {tr(lang, g.key)}
           </span>
           {g.items.map((it) => (
             <Link
@@ -39,7 +43,7 @@ export function Sidebar({ meId }: { meId: string }) {
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
             >
               <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
-              {it.label}
+              {labelOf(lang, it)}
             </Link>
           ))}
         </div>
@@ -52,7 +56,7 @@ export function Sidebar({ meId }: { meId: string }) {
  * Barra inferior en móvil. Cuatro destinos y un botón central grande para lo
  * que más se hace: registrar una partida durante el torneo.
  */
-export function BottomNav({ meId }: { meId: string }) {
+export function BottomNav({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
   const isActive = useActive();
   // En el orden de MOBILE_HREFS, no en el de la barra lateral: Estadísticas
   // ocupa el hueco que tenía Ranking, a la izquierda del «+».
@@ -62,17 +66,17 @@ export function BottomNav({ meId }: { meId: string }) {
 
   return (
     <nav
-      aria-label="Secciones"
+      aria-label={tr(lang, "nav.sections")}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur
                  pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="mx-auto grid max-w-lg grid-cols-5 items-end px-1 pt-1">
-        {items.slice(0, 2).map((it) => <Tab key={it.href} item={it} active={isActive(it.href)} />)}
+        {items.slice(0, 2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} />)}
 
         <div className="flex justify-center">
           <Link
             href="/partidas/nueva"
-            aria-label="Registrar partida"
+            aria-label={tr(lang, "shell.newMatch")}
             className="press -mt-5 flex size-14 items-center justify-center rounded-full border-4 border-ground
                        bg-brand text-on-brand active:scale-95"
             style={{ boxShadow: "var(--shadow-3)" }}
@@ -81,8 +85,8 @@ export function BottomNav({ meId }: { meId: string }) {
           </Link>
         </div>
 
-        {items.slice(2).map((it) => <Tab key={it.href} item={it} active={isActive(it.href)} />)}
-        <Tab item={{ href: `/perfil/${meId}`, label: "Perfil", icon: "user" }} active={isActive("/perfil")} />
+        {items.slice(2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} />)}
+        <Tab item={{ href: `/perfil/${meId}`, label: tr(lang, "nav.profile"), icon: "user" }} active={isActive("/perfil")} />
       </div>
     </nav>
   );

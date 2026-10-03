@@ -1,6 +1,6 @@
 {
-  "name": "Arena — liga de Pokémon TCG",
-  "short_name": "Arena",
+  "name": "PokéArena TCG",
+  "short_name": "PokéArena",
   "description": "Ranking, resultados, torneos y estadísticas de la liga.",
   "start_url": "/",
   "scope": "/",

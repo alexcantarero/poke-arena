@@ -296,18 +296,26 @@ export default async function HomePage({
               const B = m.playerBId ? snap.playersById.get(m.playerBId) : undefined;
               return (
                 <li key={m.id}>
-                  <Link href={`/partidas/${m.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                  {/* v0.17: los dos lados llevan a su perfil; «Anotar», a la partida. */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <Link href={A ? `/perfil/${A.id}` : `/partidas/${m.id}`} className="flex min-w-0 flex-1 items-center gap-2 hover:text-info">
                       <Avatar player={A} size="sm" />
                       <span className="truncate text-sm font-medium">{A?.name}</span>
-                    </div>
+                    </Link>
                     <span className="flex-none font-display text-xs font-bold text-muted">VS</span>
-                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                      <span className="truncate text-right text-sm font-medium">{B?.name ?? m.opponentName}</span>
-                      <Avatar player={B} size="sm" />
-                    </div>
-                    <span className="btn btn-brand btn-sm flex-none">Anotar</span>
-                  </Link>
+                    {B ? (
+                      <Link href={`/perfil/${B.id}`} className="flex min-w-0 flex-1 items-center justify-end gap-2 hover:text-info">
+                        <span className="truncate text-right text-sm font-medium">{B.name}</span>
+                        <Avatar player={B} size="sm" />
+                      </Link>
+                    ) : (
+                      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                        <span className="truncate text-right text-sm font-medium">{m.opponentName}</span>
+                        <Avatar player={B} size="sm" />
+                      </div>
+                    )}
+                    <Link href={`/partidas/${m.id}`} className="btn btn-brand btn-sm flex-none">Anotar</Link>
+                  </div>
                 </li>
               );
             })}

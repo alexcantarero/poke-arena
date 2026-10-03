@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { getLang } from "@/lib/lang";
 
 export const metadata: Metadata = {
-  title: { default: "Arena", template: "%s · Arena" },
+  title: { default: "PokeArena TCG", template: "%s · PokeArena TCG" },
   description: "Liga privada de Pokémon TCG: ranking, resultados, torneos y estadísticas.",
-  applicationName: "Arena",
+  applicationName: "PokeArena TCG",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Arena" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "PokeArena" },
   formatDetection: { telephone: false },
   robots: { index: false, follow: false },
 };
@@ -47,9 +48,11 @@ const THEME_SCRIPT = `
 })();
 `;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // v0.17: el idioma elegido, para lectores de pantalla y para el traductor del navegador.
+  const lang = await getLang();
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

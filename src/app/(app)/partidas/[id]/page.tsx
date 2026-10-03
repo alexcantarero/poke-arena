@@ -108,8 +108,18 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                  `truncate` no se recortaba y empujaba el lado derecho fuera
                  de la pantalla («Slowking / Kyur…» cortado en el borde). */
               <div key={i} className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center ${i === 1 ? "order-3" : ""}`}>
-                <Avatar player={s.p} size="lg" />
-                <span className={`max-w-full truncate text-sm ${s.win ? "font-bold" : "font-medium"}`}>{s.name ?? "—"}</span>
+                {/* v0.17: avatar y nombre llevan al perfil cuando es alguien del grupo. */}
+                {s.p ? (
+                  <Link href={`/perfil/${s.p.id}`} className="flex max-w-full min-w-0 flex-col items-center gap-1.5 hover:text-info">
+                    <Avatar player={s.p} size="lg" />
+                    <span className={`max-w-full truncate text-sm ${s.win ? "font-bold" : "font-medium"}`}>{s.name ?? "—"}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <Avatar player={s.p} size="lg" />
+                    <span className={`max-w-full truncate text-sm ${s.win ? "font-bold" : "font-medium"}`}>{s.name ?? "—"}</span>
+                  </>
+                )}
                 {s.arch && (
                   <span className="flex max-w-full min-w-0 items-center justify-center gap-1 text-xs text-muted">
                     <Sprites archetype={s.arch} size="sm" />

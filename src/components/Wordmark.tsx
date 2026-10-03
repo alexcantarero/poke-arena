@@ -1,7 +1,7 @@
 /** La marca: una Poké Ball dibujada con CSS y el nombre de la liga. */
 export function Wordmark({ name, season, compact }: { name: string; season?: string; compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3">
       <span
         aria-hidden="true"
         className={`relative flex-none rounded-full border-2 border-ink bg-surface

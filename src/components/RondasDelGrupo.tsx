@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { spriteUrl } from "@/lib/pokemon";
@@ -75,6 +76,8 @@ export type RondaDetalle = {
   etapa?: string | null;
   /** true si la etapa es de eliminatoria, para pintarla con otro color. */
   corte?: boolean;
+  /** v0.17 — perfil del rival, cuando es alguien del grupo. */
+  rivalHref?: string;
 };
 
 export type JugadorRondas = {
@@ -109,6 +112,10 @@ export type JugadorRondas = {
   gestion?: ReactNode;
   /** Acciones sobre el resultado final (borrar). Se pintan al abrir. */
   acciones?: ReactNode;
+  /** v0.17 — enlace a su perfil (va dentro del bloque abierto). */
+  perfilHref?: string;
+  /** v0.17 — lo acaba de añadir un organizador y aún no tiene nada guardado. */
+  pendiente?: boolean;
 };
 
 type Props = {
@@ -123,6 +130,10 @@ type Props = {
   filtro?: string | null;
   /** El formulario de añadir ronda. Se pinta al final de tu bloque. */
   formulario?: ReactNode;
+  /** v0.17 — un bloque más que sale abierto (el participante recién añadido). */
+  abrir?: string | null;
+  /** Textos que dependen del idioma. */
+  textos?: { verPerfil: string; pendiente: string };
 };
 
 export function RondasDelGrupo({
@@ -132,6 +143,8 @@ export function RondasDelGrupo({
   asistencia,
   filtro,
   formulario,
+  abrir,
+  textos = { verPerfil: "Ver perfil", pendiente: "Todavía no está guardado." },
 }: Props) {
   /* Tú primero; el resto por puesto final si lo hay —es lo que ordenaba la
      lista de resultados que esto sustituye— y, sin puesto, por puntos. */
@@ -143,7 +156,9 @@ export function RondasDelGrupo({
       a.name.localeCompare(b.name, "es"),
   );
 
-  const [abiertos, setAbiertos] = useState<Set<string>>(new Set([yoId]));
+  const [abiertos, setAbiertos] = useState<Set<string>>(
+    new Set(abrir ? [yoId, abrir] : [yoId]),
+  );
   const alternar = (id: string) =>
     setAbiertos((prev) => {
       const s = new Set(prev);
@@ -210,7 +225,7 @@ export function RondasDelGrupo({
                   className={`size-4 flex-none text-muted transition-transform ${abierto ? "-rotate-90" : ""}`}
                 />
 
-                <span className="flex w-12 flex-none items-center justify-center" aria-hidden="true">
+                <span className="flex w-10 flex-none items-center justify-center xs:w-12" aria-hidden="true">
                   {j.main ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -254,7 +269,9 @@ export function RondasDelGrupo({
                 {/* v0.16 — el puesto final, a la derecha y grande, cuando está
                     puesto: es lo primero que se mira al final de un torneo. */}
                 {j.placement != null && (
-                  <span className="flex-none border-r border-line-soft pr-3 text-right" title="Puesto final">
+                  /* v0.17: centrado en una columna de ancho fijo, para que
+                     «119.º» y «1.º» queden alineados de un bloque al otro. */
+                  <span className="flex w-14 flex-none flex-col items-center border-r border-line-soft pr-2 text-center xs:w-16 xs:pr-3" title="Puesto final">
                     <span className="block font-display text-xl font-extrabold tabular leading-none">
                       {j.placement}.º
                     </span>
@@ -289,6 +306,18 @@ export function RondasDelGrupo({
 
               {abierto && (
                 <div className="border-t border-line-soft">
+                  {(j.perfilHref || j.pendiente) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft bg-surface px-3 py-2">
+                      {j.pendiente ? (
+                        <span className="text-xs text-info">{textos.pendiente}</span>
+                      ) : <span />}
+                      {j.perfilHref && (
+                        <Link href={j.perfilHref} className="inline-flex items-center gap-1 text-xs font-semibold text-info hover:underline">
+                          {textos.verPerfil} <Icon name="back" className="size-3.5 rotate-180" />
+                        </Link>
+                      )}
+                    </div>
+                  )}
                   {(j.comentario || j.retirado || j.invitacion || j.acciones) && (
                     <div className="flex flex-col gap-2 border-b border-line-soft bg-surface px-3 py-2.5">
                       {j.comentario && (
@@ -388,8 +417,17 @@ function Ronda({ r }: { r: RondaDetalle }) {
 
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
-          {r.rivalAvatar}
-          <span className="truncate text-sm font-semibold">{r.rival}</span>
+          {r.rivalHref ? (
+            <Link href={r.rivalHref} className="flex min-w-0 items-center gap-1.5 hover:text-info">
+              {r.rivalAvatar}
+              <span className="truncate text-sm font-semibold">{r.rival}</span>
+            </Link>
+          ) : (
+            <>
+              {r.rivalAvatar}
+              <span className="truncate text-sm font-semibold">{r.rival}</span>
+            </>
+          )}
         </span>
         <span className="block truncate text-[11px] text-muted">
           {r.mazoRival || "Mazo sin anotar"}

@@ -5,17 +5,19 @@ import { moreGroups } from "@/lib/nav";
 import { Icon } from "@/components/icons";
 import { Avatar, PageHead } from "@/components/ui";
 import { logout } from "@/actions";
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
 
 export const metadata = { title: "Más" };
 
 /** Las secciones que no caben en la barra inferior del móvil. */
 export default async function MorePage() {
-  const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
+  const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
 
   return (
     <>
-      <PageHead title="Más" />
+      <PageHead title={tr(lang, "nav.more")} />
 
       {me && (
         <Link href={`/perfil/${me.id}`} className="card mb-4 flex items-center gap-3 p-4 hover:bg-surface-2">
@@ -23,7 +25,7 @@ export default async function MorePage() {
           <span className="min-w-0 flex-1">
             <span className="block truncate text-lg font-bold">{me.name}</span>
             <span className="block text-sm text-muted">
-              {me.role === "owner" ? "Organizador" : me.role === "admin" ? "Administrador" : "Jugador"}
+              {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
             </span>
           </span>
           <Icon name="back" className="size-5 rotate-180 text-muted" />
@@ -31,13 +33,13 @@ export default async function MorePage() {
       )}
 
       {moreGroups().map((g) => (
-        <section key={g.title} className="mb-4">
-          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{g.title}</h2>
+        <section key={g.key} className="mb-4">
+          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{tr(lang, g.key)}</h2>
           <nav className="card divide-y divide-line-soft">
             {g.items.map((s) => (
               <Link key={s.href} href={s.href} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2">
                 <Icon name={s.icon} className="size-5 text-muted" />
-                <span className="flex-1 font-medium">{s.label}</span>
+                <span className="flex-1 font-medium">{tr(lang, `nav.${s.href}`)}</span>
                 <Icon name="back" className="size-4 rotate-180 text-muted" />
               </Link>
             ))}
@@ -47,7 +49,7 @@ export default async function MorePage() {
 
       <form action={logout} className="mt-4">
         <button className="btn btn-danger w-full" type="submit">
-          <Icon name="logout" className="size-4" /> Salir de la cuenta
+          <Icon name="logout" className="size-4" /> {tr(lang, "shell.logoutLong")}
         </button>
       </form>
     </>

@@ -3,7 +3,8 @@ import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  matches, metaEntries, metaEvents, players, settings, tournamentResults, tournaments,
+  matches, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
+  tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
 import type {
@@ -39,6 +40,10 @@ export const PUBLIC_PLAYER_COLUMNS = {
   ladderElo: players.ladderElo,
   ladderEloUpdatedAt: players.ladderEloUpdatedAt,
   ladderNote: players.ladderNote,
+  // v0.17: el puesto en la clasificación oficial también es para verse.
+  rankSpain: players.rankSpain,
+  rankEurope: players.rankEurope,
+  rankZoneUpdatedAt: players.rankZoneUpdatedAt,
   joined: players.joined,
   lastSeenAt: players.lastSeenAt,
   createdAt: players.createdAt,
@@ -84,7 +89,10 @@ export async function loadSnapshot() {
     db.select().from(tournaments).orderBy(desc(tournaments.date)),
   ]);
 
-  const favRows = await db.select().from(deckFavorites);
+  const [favRows, playerFavRows] = await Promise.all([
+    db.select().from(deckFavorites),
+    db.select().from(playerFavorites),
+  ]);
 
   const matchIds = matchRows.map((m) => m.id);
   const tourIds = tourRows.map((t) => t.id);
@@ -146,6 +154,14 @@ export async function loadSnapshot() {
     else favoriteDecks.set(f.playerId, new Set([f.deckId]));
   }
 
+  // v0.17: a quién sigue cada uno.
+  const favoritePlayers = new Map<string, Set<string>>();
+  for (const f of playerFavRows) {
+    const set = favoritePlayers.get(f.playerId);
+    if (set) set.add(f.favoriteId);
+    else favoritePlayers.set(f.playerId, new Set([f.favoriteId]));
+  }
+
   const elo = eloTable(matchesFull, playerRows, config);
 
   return {
@@ -166,6 +182,7 @@ export async function loadSnapshot() {
     playersOfComp,
     resultsByPlayer,
     favoriteDecks,
+    favoritePlayers,
     elo,
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };

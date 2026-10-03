@@ -1,14 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, matches, metaEntries, metaEvents, players, settings, tournamentResults,
-  tournaments,
+  ladderEntries, matches, metaEntries, metaEvents, playerFavorites, players, settings,
+  tournamentResults, tournaments,
 } from "@/db/schema";
+import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
   isOwner, newInviteToken, normalizeEmail, passwordProblem, readSession, verifyPassword,
@@ -2477,4 +2479,78 @@ export async function importPastedEvents(fd: FormData) {
   refresh();
   redirect(withFlash("/calendario", "ok",
     `${nuevos} evento(s) nuevo(s), ${eventos.length - nuevos} actualizado(s)${ignorados ? `, ${ignorados} ignorado(s) (otros juegos o tipos)` : ""}.`));
+}
+
+/* ================================================================ v0.17 -- */
+
+/**
+ * Cambiar de idioma. Se guarda en una cookie de un año y se vuelve a la
+ * misma pantalla. No necesita sesión: también sirve en la de entrar.
+ */
+export async function setLang(fd: FormData) {
+  const lang = asLang(str(fd, "lang"));
+  const jar = await cookies();
+  jar.set(LANG_COOKIE, lang, {
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  refresh();
+  redirect(safeBack(fd, "/"));
+}
+
+/**
+ * Seguir / dejar de seguir a alguien. Siempre sobre la lista de quien está
+ * firmado: el `playerId` del formulario es a QUIÉN se sigue, nunca el dueño.
+ */
+export async function togglePlayerFavorite(fd: FormData) {
+  const actor = await requireActor();
+  const favoriteId = str(fd, "playerId");
+  if (!favoriteId || favoriteId === actor.id) return;
+
+  const target = (await db.select({ id: players.id }).from(players).where(eq(players.id, favoriteId)))[0];
+  if (!target) return;
+
+  const where = and(eq(playerFavorites.playerId, actor.id), eq(playerFavorites.favoriteId, favoriteId));
+  const existing = (await db.select().from(playerFavorites).where(where))[0];
+  if (existing) await db.delete(playerFavorites).where(where);
+  else {
+    await db.insert(playerFavorites)
+      .values({ playerId: actor.id, favoriteId })
+      // Dos toques seguidos en el móvil no deben reventar con un 23505.
+      .onConflictDoNothing();
+  }
+  refresh();
+  redirect(safeBack(fd, `/perfil/${favoriteId}`));
+}
+
+/** Un puesto de leaderboard: entero entre 1 y 100.000, o nulo si viene vacío. */
+const puestoDe = (fd: FormData, k: string): number | null => {
+  const n = maybeNum(fd, k);
+  if (n == null) return null;
+  const r = Math.round(n);
+  return r >= 1 && r <= 100_000 ? r : null;
+};
+
+/**
+ * Apuntar el puesto en el leaderboard oficial (España y Europa).
+ * El propio, cada uno; el de otra persona, un organizador.
+ */
+export async function setZoneRanks(fd: FormData) {
+  const actor = await requireActor();
+  const playerId = str(fd, "playerId") || actor.id;
+  if (!owns(actor, playerId)) return;
+
+  const borrar = str(fd, "clear") === "1";
+  await db.update(players)
+    .set({
+      rankSpain: borrar ? null : puestoDe(fd, "rankSpain"),
+      rankEurope: borrar ? null : puestoDe(fd, "rankEurope"),
+      rankZoneUpdatedAt: new Date(),
+    })
+    .where(eq(players.id, playerId));
+
+  refresh();
+  redirect(withFlash(`/perfil/${playerId}`, "ok", borrar ? "Puestos borrados." : "Puestos guardados."));
 }

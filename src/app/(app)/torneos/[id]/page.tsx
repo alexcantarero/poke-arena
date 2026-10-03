@@ -12,7 +12,9 @@ import { fmtDateLong } from "@/lib/format";
 import { recordOf, roundsOf } from "@/lib/stats";
 import { primerTurno, textoLado } from "@/lib/primerTurno";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
-import { Avatar, Empty, Kpi, PageHead } from "@/components/ui";
+import { Avatar, Empty, Kpi, PageHead, TournamentEmblem } from "@/components/ui";
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { CaminoAlCorte } from "@/components/CaminoAlCorte";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
@@ -49,11 +51,11 @@ export default async function TournamentPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ fase?: string }>;
+  searchParams: Promise<{ fase?: string; anadir?: string }>;
 }) {
   const { id } = await params;
   const q = await searchParams;
-  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
+  const [snap, me, lang] = await Promise.all([loadSnapshot(), currentPlayer(), getLang()]);
   const t = snap.toursById.get(id);
   if (!t) notFound();
 
@@ -161,6 +163,22 @@ export default async function TournamentPage({
       participantIds.add(m.playerAId);
     }
   }
+
+  /* v0.17 — «Añadir participante». Un organizador elige a alguien del grupo
+     que todavía no sale aquí (`?anadir=<id>`) y su bloque aparece abierto con
+     el panel «Gestionar a X»: ronda 1 y resultado final. No se guarda nada al
+     elegir: la persona queda en el torneo en cuanto se le apunta la primera
+     ronda o el resultado, con las mismas Server Actions de siempre (que ya
+     comprueban que quien escribe es organizador). */
+  const candidatos = manager && status !== "draft"
+    ? snap.players
+      .filter((p) => p.active && !participantIds.has(p.id))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    : [];
+  const anadido = manager && status !== "draft" && q.anadir && candidatos.some((p) => p.id === q.anadir)
+    ? q.anadir
+    : null;
+  if (anadido) participantIds.add(anadido);
 
   /* v0.16 — Panel de organizador en el bloque de cada jugador: apuntarle la
      siguiente ronda y editar su resultado final, como si fuera él. Las Server
@@ -285,6 +303,8 @@ export default async function TournamentPage({
     return {
       id: pid,
       name: p?.name ?? "Alguien",
+      perfilHref: p ? `/perfil/${pid}` : undefined,
+      pendiente: pid === anadido,
       mazo: mazoNombre,
       main: finalArch?.main || undefined,
       secondary: finalArch?.secondary || undefined,
@@ -348,6 +368,9 @@ export default async function TournamentPage({
           round: r.round,
           rival: (r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)?.name)
             || r.match.opponentName || "Rival sin nombre",
+          rivalHref: r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)
+            ? `/perfil/${r.match.opponentPlayerId}`
+            : undefined,
           rivalAvatar: r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)
             ? <Avatar player={snap.playersById.get(r.match.opponentPlayerId)} size="xs" />
             : undefined,
@@ -493,6 +516,8 @@ export default async function TournamentPage({
     <>
       <PageHead
         title={t.name}
+        icon={<TournamentEmblem kind={t.kind} size="lg" />}
+        back={{ href: "/torneos", label: "Torneos" }}
         sub={
           <>
             {table.events[t.kind]?.label ?? t.kind} · {fmtDateLong(t.date)}
@@ -507,7 +532,9 @@ export default async function TournamentPage({
           </>
         }
         actions={
-          <Link className="btn btn-ghost btn-sm" href="/torneos">
+          /* En el móvil el «‹ Torneos» va encima del título (`back`); este
+             botón ocupaba una fila entera debajo de la cabecera. */
+          <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
             <Icon name="back" className="size-4" /> Torneos
           </Link>
         }
@@ -544,9 +571,11 @@ export default async function TournamentPage({
           label="Mejor puesto"
           value={ordered[0]?.placement ?? "—"}
           note={
-            ordered[0]
-              ? (snap.playersById.get(ordered[0].playerId)?.name ?? "")
-              : "sin resultados"
+            ordered[0] ? (
+              <Link href={`/perfil/${ordered[0].playerId}`} className="hover:text-info hover:underline">
+                {snap.playersById.get(ordered[0].playerId)?.name ?? ""}
+              </Link>
+            ) : "sin resultados"
           }
         />
       </div>
@@ -629,7 +658,42 @@ export default async function TournamentPage({
             }
             jugadores={participantes}
             formulario={roundFormNode}
+            abrir={anadido}
+            textos={{ verPerfil: tr(lang, "tour.viewProfile"), pendiente: tr(lang, "tour.addPlayerPending") }}
           />
+
+          {/* Aquí ya no puede ser borrador (estamos en la otra rama). */}
+          {manager && (
+            <details className="card mt-3" open={Boolean(q.anadir) && !anadido}>
+              <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
+                <span className="flex items-center gap-2">
+                  <Icon name="plus" className="size-4 text-info" /> {tr(lang, "tour.addPlayer")}
+                </span>
+                <span className="text-[11px] font-normal text-muted">{tr(lang, "role.owner").toLowerCase()}</span>
+              </summary>
+              <div className="border-t border-line-soft p-4">
+                {candidatos.length ? (
+                  /* GET y no Server Action: elegir no escribe nada, solo
+                     abre el bloque. Funciona sin JavaScript y el enlace se
+                     puede compartir con otro organizador. */
+                  <form method="get" action={`/torneos/${t.id}`} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    {fase !== "dia1" && <input type="hidden" name="fase" value={fase} />}
+                    <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <span className="label">{tr(lang, "tour.addPlayerPick")}</span>
+                      <select className="input" name="anadir" required defaultValue={anadido ?? ""}>
+                        <option value="" disabled>—</option>
+                        {candidatos.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </label>
+                    <button className="btn btn-brand" type="submit">{tr(lang, "tour.addPlayerGo")}</button>
+                  </form>
+                ) : (
+                  <p className="text-sm text-muted">{tr(lang, "tour.addPlayerNone")}</p>
+                )}
+                <p className="mt-2 text-xs text-muted">{tr(lang, "tour.addPlayerHint")}</p>
+              </div>
+            </details>
+          )}
 
           {firstTurn.total >= 2 && (
             <p className="mt-2 px-1 text-xs text-muted">

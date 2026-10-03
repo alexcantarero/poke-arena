@@ -123,17 +123,17 @@ export default async function CompetitionPage({
                         <span className="w-5 flex-none text-center font-mono text-xs text-muted">
                           {i + 1}
                         </span>
-                        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                        <Link href={`/perfil/${a}`} className="flex min-w-0 flex-1 items-center justify-end gap-2 hover:text-info">
                           <span className="truncate text-sm">{A?.name}</span>
                           <Avatar player={A} size="sm" />
-                        </span>
+                        </Link>
                         <span className="flex-none font-display text-xs font-bold text-muted">
                           VS
                         </span>
-                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <Link href={`/perfil/${b}`} className="flex min-w-0 flex-1 items-center gap-2 hover:text-info">
                           <Avatar player={B} size="sm" />
                           <span className="truncate text-sm">{B?.name}</span>
-                        </span>
+                        </Link>
                       </li>
                     );
                   })}

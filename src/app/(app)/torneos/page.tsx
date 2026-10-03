@@ -5,7 +5,7 @@ import { loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
-import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle } from "@/components/ui";
+import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle, TournamentEmblem } from "@/components/ui";
 import { agruparTorneos, filtrarTorneos } from "@/lib/torneosLista";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
@@ -235,7 +235,11 @@ export default async function TournamentsPage({
             const own = filterPlayer ? results.find((r) => r.playerId === filterPlayer.id) : undefined;
             const ownRounds = filterPlayer ? roundsOf(snap.matches, t.id, filterPlayer.id) : [];
             return (
-              <Link key={t.id} href={`/torneos/${t.id}`} className="block px-4 py-3 hover:bg-surface-2">
+              /* v0.17 — la fila ya no es un <a> entero: dentro van los avatares,
+                 que llevan cada uno a su perfil, y un enlace no puede ir dentro
+                 de otro. El nombre del torneo estira su zona de toque a toda la
+                 fila (`after:inset-0`) y los avatares quedan por encima (`z-10`). */
+              <div key={t.id} className="relative block px-4 py-3 hover:bg-surface-2">
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
                   <span className="font-mono">{fmtDate(t.date)}</span>
                   {/* «en 3 días» / «hace 2 semanas»: con el orden de agenda es
@@ -260,8 +264,12 @@ export default async function TournamentsPage({
                 </div>
 
                 <div className="flex items-start gap-3">
+                  <TournamentEmblem kind={t.kind} size="md" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{t.name}</span>
+                    <Link href={`/torneos/${t.id}`}
+                      className="block truncate font-semibold after:absolute after:inset-0 after:content-['']">
+                      {t.name}
+                    </Link>
                     <span className="block truncate text-xs text-muted">
                       {getSeason(t.season ?? season).events[t.kind]?.label ?? t.kind}
                       {t.playerCount ? ` · ${t.playerCount} jugadores` : ""}
@@ -270,7 +278,10 @@ export default async function TournamentsPage({
 
                   <span className="flex flex-none items-center gap-2">
                     {results.slice(0, 3).map((r) => (
-                      <Avatar key={r.id} player={snap.playersById.get(r.playerId)} size="sm" />
+                      <Link key={r.id} href={`/perfil/${r.playerId}`} className="relative z-10 rounded-full"
+                        title={snap.playersById.get(r.playerId)?.name}>
+                        <Avatar player={snap.playersById.get(r.playerId)} size="sm" />
+                      </Link>
                     ))}
                     {results.length > 3 && <span className="text-xs text-muted">+{results.length - 3}</span>}
                   </span>
@@ -308,7 +319,7 @@ export default async function TournamentsPage({
                     {best?.deckId && <ArchTag archetype={snap.archIndex.get(best.deckId)} />}
                   </div>
                 ) : null}
-              </Link>
+              </div>
             );
           })}
         </div>
