@@ -2463,25 +2463,56 @@ export async function importPastedEvents(fd: FormData) {
   const { eventos, ignorados } = parseEventosPegados(texto);
   if (!eventos.length) {
     redirect(withFlash("/calendario", "error",
-      "No he reconocido ningún League Challenge ni League Cup de TCG en lo pegado. Copia la lista de resultados del buscador, con fechas."));
+      "No he reconocido ningún torneo en lo pegado. Puedes pegar la lista del buscador oficial o un listado por meses (CHALLENGE / CUP / REGIONAL)."));
   }
-  const ya = new Set((await db.select({ id: events.id }).from(events)
-    .where(inArray(events.id, eventos.map((e) => e.id)))).map((r) => r.id));
+  const [yaRegistrados, toursExistentes, evOficiales] = await Promise.all([
+    db.select({ id: events.id }).from(events).where(inArray(events.id, eventos.map((e) => e.id))),
+    db.select({ id: tournaments.id, date: tournaments.date, kind: tournaments.kind, venue: tournaments.venue }).from(tournaments),
+    db.select({ id: events.id, date: events.date, tournamentKind: events.tournamentKind, title: events.title }).from(events),
+  ]);
+  const ya = new Set(yaRegistrados.map((r) => r.id));
+
   let nuevos = 0;
   for (const e of eventos) {
+    // Si ya existe un evento oficial en esa fecha para ese Regional (ej: eu-2027-nice), reutilizamos su id
+    const evCoincidente = evOficiales.find((x) =>
+      x.id === e.id ||
+      (e.kind === "regional" && x.tournamentKind === "regional" && x.date === e.date)
+    );
+    const idAGuardar = evCoincidente ? evCoincidente.id : e.id;
+
+    // Si ya existe un torneo en la app para este día y tienda, lo enlazamos para evitar duplicados en calendario
+    const tourCoincidente = toursExistentes.find((t) =>
+      t.date === e.date && t.kind === e.kind && (
+        t.venue.toLowerCase().includes(e.store.toLowerCase()) ||
+        e.store.toLowerCase().includes(t.venue.toLowerCase())
+      )
+    );
+
     const values = {
-      title: e.title.slice(0, 120), date: e.date, endDate: null, kind: "tourney",
-      tournamentKind: e.kind, location: e.location, url: "",
-      competitionId: null, tournamentId: null,
-      note: [e.time ? `Empieza a las ${e.time}` : "", "Del buscador de eventos oficial"].filter(Boolean).join(" · "),
+      title: e.title.slice(0, 120),
+      date: e.date,
+      endDate: e.endDate ?? null,
+      kind: "tourney",
+      tournamentKind: e.kind,
+      location: e.location,
+      url: "",
+      competitionId: null,
+      tournamentId: tourCoincidente?.id ?? null,
+      note: [e.time ? `Empieza a las ${e.time}` : "", e.note ?? "Del listado pegado"].filter(Boolean).join(" · "),
     };
-    if (ya.has(e.id)) await db.update(events).set(values).where(eq(events.id, e.id));
-    else { await db.insert(events).values({ id: e.id, ...values }); nuevos++; }
+    if (ya.has(idAGuardar) || evCoincidente) {
+      await db.update(events).set(values).where(eq(events.id, idAGuardar));
+    } else {
+      await db.insert(events).values({ id: idAGuardar, ...values });
+      nuevos++;
+    }
   }
   refresh();
   redirect(withFlash("/calendario", "ok",
     `${nuevos} evento(s) nuevo(s), ${eventos.length - nuevos} actualizado(s)${ignorados ? `, ${ignorados} ignorado(s) (otros juegos o tipos)` : ""}.`));
 }
+
 
 /* ================================================================ v0.17 -- */
 

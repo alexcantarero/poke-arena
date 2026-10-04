@@ -313,15 +313,15 @@ export default async function CalendarPage({
               <div className="card-head"><h2 className="text-lg font-bold">Challenges y Cups de la zona</h2></div>
               <form action={importPastedEvents} className="flex flex-col gap-3 p-4">
                 <p className="text-sm text-muted">
-                  Abre el{" "}
+                  Pega aquí la lista copiada del{" "}
                   <a className="underline" href="https://events.pokemon.com/EventLocator/" target="_blank" rel="noopener noreferrer">
                     buscador de eventos oficial
-                  </a>, busca <b>Barcelona</b> con TCG, League Challenge y League Cup, selecciona la
-                  lista de resultados, cópiala y pégala aquí. Se quedan solo los Challenges y Cups de
-                  TCG; pegar otra vez la misma lista actualiza y no duplica.
+                  </a>{" "}
+                  o un mensaje de WhatsApp/chat organizado por meses (ej. OCTUBRE con CHALLENGE, CUP y REGIONAL).
+                  Pegar otra vez la misma lista actualiza y no duplica.
                 </p>
                 <textarea className="input min-h-32 font-mono text-xs" name="texto" required
-                  placeholder={"League Challenge\nSat, Oct 4, 2026 10:00 AM\nTienda\nCarrer…, Barcelona"} />
+                  placeholder={"OCTUBRE\nCHALLENGE Sábado 3 - 16:30 Freakshow (Girona)\nCUP Domingo 4 - 10:30 Mythic (Calella)\nREGIONAL NIZA 17-18"} />
                 <button className="btn btn-brand w-full" type="submit">
                   <Icon name="calendar" className="size-4" /> Añadir al calendario
                 </button>
