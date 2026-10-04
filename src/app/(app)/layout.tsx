@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav, Sidebar } from "@/components/Nav";
 import { Wordmark } from "@/components/Wordmark";
+import { subtituloLiga } from "@/lib/marca";
 import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
@@ -30,7 +31,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line bg-surface p-3 md:flex">
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
-          <Wordmark name={tr(lang, "app.name")} season={`${snap.config.name} · ${snap.config.season}`} compact />
+          {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
+          <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
         </div>
 
         <Sidebar meId={me.id} lang={lang} />
@@ -71,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* `min-w-0 flex-1` y no un hueco aparte: con un nombre de liga largo
               lo que se recorta es el texto, no los botones de la derecha. */}
           <div className="min-w-0 flex-1">
-            <Wordmark name={tr(lang, "app.name")} season={snap.config.name} compact />
+            <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
           </div>
           <LangToggle lang={lang} />
           <ThemeToggle />

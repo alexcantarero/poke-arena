@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
+  ladderEntries, leagueDecks, matches, seasonResets, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
   tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
@@ -409,4 +409,20 @@ export async function ladderHistory(playerId: string, since: Date | null) {
     : eq(ladderEntries.playerId, playerId);
   return db.select({ elo: ladderEntries.elo, at: ladderEntries.createdAt })
     .from(ladderEntries).where(where).orderBy(asc(ladderEntries.createdAt));
+}
+
+/* ================================================================ v0.19 -- */
+
+/**
+ * Todo lo que necesita la gráfica del ladder: cada cambio de rango de cada
+ * uno y las fechas de los resets de temporada. Va aparte del snapshot (solo
+ * lo usa el Ranking) y solo lleva id, número y fecha.
+ */
+export async function ladderChartData() {
+  const [entries, resets] = await Promise.all([
+    db.select({ playerId: ladderEntries.playerId, elo: ladderEntries.elo, at: ladderEntries.createdAt })
+      .from(ladderEntries).orderBy(asc(ladderEntries.createdAt)),
+    db.select({ at: seasonResets.at }).from(seasonResets).orderBy(asc(seasonResets.at)),
+  ]);
+  return { entries, resets: resets.map((r) => r.at) };
 }

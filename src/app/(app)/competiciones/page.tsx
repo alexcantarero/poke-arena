@@ -6,6 +6,7 @@ import { fmtDate, pct, wrColor } from "@/lib/format";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
 import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
+import { LigaStats } from "@/components/LigaStats";
 
 export const metadata = { title: "Liga" };
 
@@ -18,7 +19,13 @@ export default async function CompetitionsPage() {
     <>
       <PageHead
         title="Liga"
-        sub="Vuestras competiciones internas: liga todos contra todos, suizo con top cut, eliminatoria o amistosos."
+        sub="Vuestras competiciones internas: liga todos contra todos, suizo con top cut o eliminatoria."
+      />
+
+      {/* v0.19 — estadísticas globales de la liga, aquí mismo. */}
+      <LigaStats
+        matches={snap.matches.filter((m) => m.competitionId && snap.compsById.get(m.competitionId)?.kind !== "casual")}
+        playersById={snap.playersById}
       />
 
       {snap.competitions.length ? (

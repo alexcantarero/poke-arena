@@ -158,7 +158,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                   <Link href={`/perfil/${r.playerId}`} className="inline-flex items-center gap-2 hover:text-info">
                     <span className="flex-none">{r.avatarSm}</span>
                     <span className="font-semibold">{r.name}</span>
-                    {r.drops > 0 && <span className="chip chip-drop text-[10px]">{r.drops} DROP</span>}
+                    {/* v0.19: sin etiqueta de drop en el ranking (sigue en la ficha del torneo). */}
                   </Link>
                 </td>
                 <td className="font-mono text-[13px]">

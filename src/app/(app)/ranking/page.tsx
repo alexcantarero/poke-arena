@@ -1,13 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { compPlayers, ladderHistory, loadSnapshot, playerCp } from "@/lib/data";
-import { LadderTimeline } from "@/components/LadderTimeline";
+import { compPlayers, ladderChartData, loadSnapshot, playerCp } from "@/lib/data";
+import { LadderChart, type SerieLadder } from "@/components/statistics/LadderChart";
+import { seriesLadder } from "@/lib/ladderSeries";
 import { RankBadge } from "@/components/Ladder";
 import {
   archetypeStats, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings,
 } from "@/lib/stats";
 import { awardsCp, computeCp, cpKindOf, getSeason, seasonOfDate, type CpResultInput } from "@/lib/cp";
 import { estadoMundial, porPuestoZona } from "@/lib/mundial";
+import { FECHAS_RANKING, dentroDeRango, filtroAQuery, parseFiltroRanking, rangoDeFechas } from "@/lib/rankingFiltro";
+import { AutoSubmitForm } from "@/components/AutoSubmitForm";
+import { CALENDAR_KINDS } from "@/lib/calendar";
+import { todayISO } from "@/lib/format";
 import { getLang } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { FavStar } from "@/components/FavStar";
@@ -55,18 +60,21 @@ type Vista = "all" | "league" | "tournament" | "casual";
 type Donde = "both" | "onsite" | "online";
 
 const VISTAS: Array<{ v: Vista; label: string; hint: string }> = [
-  { v: "all", label: "Todo", hint: "Todas tus partidas —liga, torneos y sueltas— sumadas en una sola tabla, con tus torneos y CP al lado." },
+  { v: "all", label: "Todo", hint: "Todas tus partidas —liga, torneos y amistosos— sumadas en una sola tabla, con tus torneos y CP al lado." },
   { v: "league", label: "Liga", hint: "Solo las partidas de competiciones internas, entre gente del grupo. Con resistencia y diferencia de juegos." },
   { v: "tournament", label: "Torneos", hint: "Solo los torneos de fuera: rondas, conversión al top cut, puesto medio y CP." },
-  { v: "casual", label: "Sueltos", hint: "Partidas que no son de ninguna competición ni torneo (lo que el formulario llama «amistoso suelto»)." },
+  { v: "casual", label: "Amistosos", hint: "Partidas que no son de ninguna competición ni torneo: los amistosos." },
 ];
 
 export default async function RankingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ comp?: string; ambito?: string; donde?: string; temporada?: string; fav?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = await searchParams;
+  /* v0.19 — todos los filtros en un sitio (`lib/rankingFiltro.ts`). */
+  const filtro = parseFiltroRanking(q);
+  const rango = rangoDeFechas(filtro, todayISO());
   const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
 
   /* v0.17 — «¿A quién?»: todos, o solo los que sigues (más tú). Recorta las
@@ -74,31 +82,36 @@ export default async function RankingPage({
      (el Elo y los puestos siguen siendo los de toda la liga). */
   const meId = session?.playerId ?? null;
   const misFavs = meId ? snap.favoritePlayers.get(meId) ?? new Set<string>() : new Set<string>();
-  const soloFavs = q.fav === "1" && meId != null;
+  const soloFavs = filtro.fav && meId != null;
   const visible = (pid: string) => !soloFavs || pid === meId || misFavs.has(pid);
   const played = snap.matches.filter(isPlayed);
   const cpSeason = snap.config.cpSeason;
 
   /* --- qué se mira --- */
-  const legacyDonde: Donde | null = q.ambito === "onsite" ? "onsite" : q.ambito === "online" ? "online" : null;
-  const vista: Vista = legacyDonde ? "tournament"
-    : q.ambito === "league" || q.ambito === "tournament" || q.ambito === "casual" ? q.ambito : "all";
-  const donde: Donde = legacyDonde ?? (q.donde === "onsite" || q.donde === "online" ? q.donde : "both");
-  const soloTemporada = q.temporada === "1";
-  const competition = vista === "league" && q.comp ? snap.compsById.get(q.comp) ?? null : null;
+  const vista: Vista = filtro.vista;
+  const donde: Donde = filtro.donde;
+  const tipo = filtro.tipo;
+  const soloTemporada = filtro.fecha === "temporada";
+  const competition = filtro.comp ? snap.compsById.get(filtro.comp) ?? null : null;
 
-  const enTemporada = (fecha: string) => !soloTemporada || seasonOfDate(fecha) === cpSeason;
+  const enFechas = (fecha: string) =>
+    (!soloTemporada || seasonOfDate(fecha) === cpSeason) && dentroDeRango(fecha, rango);
   const tourOk = (t: TournamentFull | undefined) =>
     Boolean(t)
     && (donde === "both" || (donde === "online" ? t!.scope === "online" : t!.scope !== "online"))
-    && (!soloTemporada || (t!.season ?? seasonOfDate(t!.date)) === cpSeason);
+    && (!tipo || t!.kind === tipo)
+    && (!soloTemporada || (t!.season ?? seasonOfDate(t!.date)) === cpSeason)
+    && dentroDeRango(t!.date, rango);
 
   /** Las partidas que entran con la vista elegida. */
   const scoped: MatchFull[] = played.filter((m) => {
-    if (!enTemporada(m.date)) return false;
+    if (!enFechas(m.date)) return false;
     if (vista === "league") return m.competitionId != null && (!competition || m.competitionId === competition.id);
     if (vista === "casual") return !m.competitionId && !m.tournamentId;
     if (vista === "tournament") return m.tournamentId != null && tourOk(snap.toursById.get(m.tournamentId));
+    // «Todo» con un tipo o un «dónde» puesto: esos filtros son de torneo, así
+    // que solo quedan las rondas de los torneos que cumplen.
+    if (tipo || donde !== "both") return m.tournamentId != null && tourOk(snap.toursById.get(m.tournamentId));
     return true;
   });
 
@@ -233,17 +246,26 @@ export default async function RankingPage({
   const ladder = ladderStandings(snap.players.filter((p) => p.active));
   /* v0.18 — el líder del ladder y su evolución desde el último reset. */
   const lider = ladder[0]?.player ?? null;
-  const historialLider = lider ? await ladderHistory(lider.id, snap.config.ladderSince ?? null) : [];
+  /* v0.19 — gráfica de evolución: todos los que tienen historial, con hueco en
+     cada reset. Solo viaja id, nombre, color y números al cliente. */
+  const datosLadder = await ladderChartData();
+  const porSerie = seriesLadder(datosLadder.entries, datosLadder.resets);
+  const seriesGrafica: SerieLadder[] = snap.players
+    .filter((p) => p.active && porSerie.has(p.id))
+    .map((p, i) => ({
+      id: p.id,
+      name: p.name,
+      color: p.color || `var(--series-${(i % 7) + 1})`,
+      actual: p.ladderElo,
+      puntos: porSerie.get(p.id)!,
+    }));
+  const resetsGrafica = datosLadder.resets.map((r) => new Date(r).getTime());
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
   /** La URL de ahora con cambios. `null` quita el parámetro. */
   const hrefCon = (cambios: Record<string, string | null>) => {
     const base: Record<string, string | null> = {
-      ambito: vista === "all" ? null : vista,
-      donde: vista === "tournament" && donde !== "both" ? donde : null,
-      comp: competition?.id ?? null,
-      temporada: soloTemporada ? "1" : null,
-      fav: soloFavs ? "1" : null,
+      ...Object.fromEntries(filtroAQuery(filtro).entries()),
       ...cambios,
     };
     const sp = new URLSearchParams();
@@ -254,16 +276,11 @@ export default async function RankingPage({
   const vistaInfo = VISTAS.find((x) => x.v === vista)!;
   const nTorneos = new Set(entradas.map((e) => e.tournamentId)).size;
 
-  const Seg = ({ items }: { items: Array<{ href: string; label: string; on: boolean }> }) => (
-    <div className="seg w-full sm:w-auto">
-      {items.map((it) => (
-        <Link key={it.label} href={it.href} data-on={it.on} aria-current={it.on ? "page" : undefined}
-          className="items-center justify-center whitespace-nowrap">
-          {it.label}
-        </Link>
-      ))}
-    </div>
-  );
+  /* v0.19 — tipos de torneo que de verdad hay, para el desplegable. */
+  const tiposPresentes = [...new Set(snap.tournaments.map((t) => t.kind))]
+    .filter((k) => CALENDAR_KINDS[k])
+    .sort((x, y) => Object.keys(CALENDAR_KINDS).indexOf(x) - Object.keys(CALENDAR_KINDS).indexOf(y));
+  const fechaLabel = FECHAS_RANKING.find((x) => x.v === filtro.fecha)?.label ?? "";
 
   return (
     <>
@@ -278,70 +295,101 @@ export default async function RankingPage({
       />
 
       {/* ------------------------------ filtros ------------------------------ */}
-      <section className="card mb-4 flex flex-col gap-3 p-4">
-        <div className="flex flex-col gap-1.5">
-          <span className="label">¿Qué partidas cuentan?</span>
-          <Seg items={VISTAS.map((x) => ({
-            href: hrefCon({ ambito: x.v === "all" ? null : x.v, donde: null, comp: null }),
-            label: x.label, on: vista === x.v,
-          }))} />
-          <p className="text-xs text-muted">{vistaInfo.hint}</p>
-        </div>
+      {/* v0.19 — desplegables en vez de botones segmentados: caben en una fila
+          en escritorio y en dos en el móvil, y se envían solos al cambiar. */}
+      <AutoSubmitForm action="/ranking" className="card mb-4 flex flex-col gap-3 p-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="label">Partidas</span>
+            <select className="input" name="ambito" defaultValue={vista === "all" ? "" : vista}>
+              {VISTAS.map((x) => <option key={x.v} value={x.v === "all" ? "" : x.v}>{x.label}</option>)}
+            </select>
+          </label>
 
-        {vista === "league" && snap.competitions.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <span className="label">Competición</span>
-            <div className="flex flex-wrap gap-1.5">
-              <Link href={hrefCon({ comp: null })} className={`chip ${!competition ? "chip-brand" : ""}`}>Todas</Link>
-              {snap.competitions.map((c) => (
-                <Link key={c.id} href={hrefCon({ comp: c.id })}
-                  className={`chip ${competition?.id === c.id ? "chip-brand" : ""}`}>
-                  {c.name}
-                </Link>
+          {vista === "league" ? (
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="label">Competición</span>
+              <select className="input" name="comp" defaultValue={competition?.id ?? ""}>
+                <option value="">Todas</option>
+                {snap.competitions.filter((c) => c.kind !== "casual").map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+          ) : vista !== "casual" ? (
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="label">Tipo de torneo</span>
+              <select className="input" name="tipo" defaultValue={tipo}>
+                <option value="">Todos los tipos</option>
+                {tiposPresentes.map((k) => <option key={k} value={k}>{CALENDAR_KINDS[k].label}</option>)}
+              </select>
+            </label>
+          ) : null}
+
+          {(vista === "all" || vista === "tournament") && (
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="label">Dónde</span>
+              <select className="input" name="donde" defaultValue={donde === "both" ? "" : donde}>
+                <option value="">Presencial y online</option>
+                <option value="onsite">Presencial</option>
+                <option value="online">Online</option>
+              </select>
+            </label>
+          )}
+
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="label">Fechas</span>
+            <select className="input" name="fecha" defaultValue={filtro.fecha}>
+              {FECHAS_RANKING.map((x) => (
+                <option key={x.v} value={x.v}>{x.v === "temporada" ? `Temporada ${cpSeason}` : x.label}</option>
               ))}
-            </div>
-          </div>
-        )}
+            </select>
+          </label>
 
-        {vista === "tournament" && (
-          <div className="flex flex-col gap-1.5">
-            <span className="label">Dónde</span>
-            <Seg items={([["both", "Ambos"], ["onsite", "Presencial"], ["online", "Online"]] as const)
-              .map(([v, label]) => ({ href: hrefCon({ donde: v === "both" ? null : v }), label, on: donde === v }))} />
-          </div>
-        )}
+          {filtro.fecha === "rango" && (
+            <>
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className="label">Desde</span>
+                <input className="input" type="date" name="desde" defaultValue={filtro.desde} />
+              </label>
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className="label">Hasta</span>
+                <input className="input" type="date" name="hasta" defaultValue={filtro.hasta} />
+              </label>
+            </>
+          )}
 
-        {meId && (
-          <div className="flex flex-col gap-1.5">
-            <span className="label">{tr(lang, "fav.who")}</span>
-            <Seg items={[
-              { href: hrefCon({ fav: null }), label: tr(lang, "fav.everyone"), on: !soloFavs },
-              { href: hrefCon({ fav: "1" }), label: `★ ${tr(lang, "fav.mine")} (${misFavs.size})`, on: soloFavs },
-            ]} />
-            <p className="text-xs text-muted">{soloFavs && misFavs.size === 0 ? tr(lang, "fav.empty") : tr(lang, "fav.hint")}</p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-1.5">
-          <span className="label">Temporada</span>
-          <Seg items={[
-            { href: hrefCon({ temporada: null }), label: "Todas", on: !soloTemporada },
-            { href: hrefCon({ temporada: "1" }), label: `Solo ${cpSeason}`, on: soloTemporada },
-          ]} />
-          <p className="text-xs text-muted">
-            La temporada de Play! Pokémon va de julio a junio. Los CP son siempre los de la temporada {cpSeason}.
-          </p>
+          {meId && (
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="label">{tr(lang, "fav.who")}</span>
+              <select className="input" name="fav" defaultValue={soloFavs ? "1" : ""}>
+                <option value="">{tr(lang, "fav.everyone")}</option>
+                <option value="1">★ {tr(lang, "fav.mine")} ({misFavs.size})</option>
+              </select>
+            </label>
+          )}
         </div>
 
-        <p className="border-t border-line-soft pt-3 text-xs text-ink-2">
-          {scoped.length === 0 && !nTorneos
-            ? "Con este filtro no queda nada, así que la tabla sale a cero."
-            : <>Cuentan <b className="tabular">{scoped.length}</b> partida{scoped.length === 1 ? "" : "s"}
-              {vista === "all" || vista === "tournament" ? <> y <b className="tabular">{nTorneos}</b> torneo{nTorneos === 1 ? "" : "s"}</> : null}
-              {competition ? <> de <b>{competition.name}</b></> : null}
-              {soloTemporada ? <>, temporada {cpSeason}</> : null}.</>}
+        <p className="text-xs text-muted">
+          {vistaInfo.hint}
+          {soloFavs && misFavs.size === 0 ? <> {tr(lang, "fav.empty")}</> : null}
         </p>
-      </section>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3 text-xs text-ink-2">
+          <p>
+            {scoped.length === 0 && !nTorneos
+              ? "Con este filtro no queda nada, así que la tabla sale a cero."
+              : <>Cuentan <b className="tabular">{scoped.length}</b> partida{scoped.length === 1 ? "" : "s"}
+                {vista === "all" || vista === "tournament" ? <> y <b className="tabular">{nTorneos}</b> torneo{nTorneos === 1 ? "" : "s"}</> : null}
+                {competition ? <> de <b>{competition.name}</b></> : null}
+                {tipo ? <> · <b>{CALENDAR_KINDS[tipo]?.label ?? tipo}</b></> : null}
+                {filtro.fecha ? <> · {filtro.fecha === "temporada" ? `temporada ${cpSeason}` : fechaLabel.toLowerCase()}</> : null}.</>}
+          </p>
+          {filtroAQuery(filtro).toString() && (
+            <Link href="/ranking" className="font-semibold text-info hover:underline">Quitar filtros</Link>
+          )}
+        </div>
+      </AutoSubmitForm>
 
       {tabla}
 
@@ -461,19 +509,25 @@ export default async function RankingPage({
           </div>
           <span className="text-xs text-muted">{ladder.length} con rango</span>
         </div>
-        {lider && (
+        {(lider || seriesGrafica.length > 0) && (
           <div className="border-b border-line-soft">
             <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-              <span className="label">Líder</span>
-              <PlayerTag player={lider} size="sm" />
-              <RankBadge elo={lider.ladderElo} size="sm" />
+              {lider ? (
+                <>
+                  <span className="label">Líder</span>
+                  <PlayerTag player={lider} size="sm" />
+                  <RankBadge elo={lider.ladderElo} size="sm" />
+                </>
+              ) : (
+                <span className="label">Evolución del ladder</span>
+              )}
               <span className="ml-auto text-[11px] text-muted">
-                {snap.config.ladderSince
-                  ? `temporada desde ${snap.config.ladderSince.toISOString().slice(0, 10)}`
-                  : "desde el principio"}
+                {resetsGrafica.length
+                  ? `${resetsGrafica.length} reset${resetsGrafica.length === 1 ? "" : "s"} de temporada`
+                  : "toda la historia"}
               </span>
             </div>
-            <LadderTimeline puntos={historialLider} />
+            <LadderChart series={seriesGrafica} resets={resetsGrafica} />
           </div>
         )}
         <LadderTable rows={ladder} meId={session?.playerId} />

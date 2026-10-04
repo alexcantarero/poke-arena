@@ -27,6 +27,7 @@ import { CompetitionForm } from "@/components/CompetitionForm";
 import { createPairings } from "@/actions";
 import { Sprites } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
 export default async function CompetitionPage({
@@ -123,6 +124,9 @@ export default async function CompetitionPage({
           <Empty title="Sin partidas todavía" />
         )}
       </section>
+
+      {/* v0.19 — gráficos y cifras de esta competición. */}
+      <LigaStats matches={inComp} playersById={snap.playersById} titulo="Estadísticas de esta liga" />
 
       {/* ------------------- v0.18: mazo de liga bloqueado ------------------- */}
       {(participo || manager) && (

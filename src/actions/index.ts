@@ -8,9 +8,10 @@ import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
   ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites, players,
-  settings, tournamentResults, tournaments,
+  seasonResets, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
+import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
   isOwner, newInviteToken, normalizeEmail, passwordProblem, readSession, verifyPassword,
@@ -1229,7 +1230,8 @@ export async function saveCompetition(fd: FormData) {
   const id = editing || newId("c");
   const values = {
     name: str(fd, "name").slice(0, 120),
-    kind: pick(fd, "kind", ["league", "swiss", "bracket", "casual"] as const, "league"),
+    // v0.19: sin «casual». Los amistosos son partidas sin competición.
+    kind: pick(fd, "kind", ["league", "swiss", "bracket"] as const, "league"),
     bestOf: int(fd, "bestOf", 3, 1, 5),
     status: pick(fd, "status", ["draft", "live", "done"] as const, "live"),
     start: isoDate(fd, "start") ?? todayISO(),
@@ -2659,7 +2661,7 @@ export async function unlockLeagueDeck(fd: FormData) {
  * también el Elo de la liga (fecha de corte, reversible).
  */
 export async function resetLadderSeason(fd: FormData) {
-  await requireManager();
+  const actor = await requireManager();
   if (!confirmed(fd, "nueva temporada")) {
     redirect(withFlash("/ajustes", "error", "Escribe «nueva temporada» para confirmar."));
   }
@@ -2674,6 +2676,9 @@ export async function resetLadderSeason(fd: FormData) {
     ...(tambienPuestos ? { rankSpain: null, rankEurope: null, rankZoneUpdatedAt: ahora } : {}),
   });
 
+  // v0.19: queda apuntado, para la línea roja de la gráfica del ladder.
+  await db.insert(seasonResets).values({ id: newId("sr"), at: ahora, createdBy: actor.id });
+
   const cambios = { ladderSince: ahora, updatedAt: ahora, ...(tambienElo ? { eloSince: todayISO() } : {}) };
   const existing = await db.select({ id: settings.id }).from(settings).where(eq(settings.id, "default"));
   if (existing[0]) await db.update(settings).set(cambios).where(eq(settings.id, "default"));
@@ -2682,4 +2687,14 @@ export async function resetLadderSeason(fd: FormData) {
   refresh();
   redirect(withFlash("/ajustes", "ok",
     `Temporada nueva: rangos del ladder a cero${tambienElo ? ", Elo de la liga desde hoy" : ""}${tambienPuestos ? " y puestos oficiales borrados" : ""}.`));
+}
+
+/** v0.19 — Lo mismo que el cron diario, a mano. Solo organizadores. */
+export async function limpiarTorneosAbandonados() {
+  await requireManager();
+  const borrados = await borrarTorneosAbandonados();
+  refresh();
+  redirect(withFlash("/ajustes", "ok", borrados.length
+    ? `Borrados ${borrados.length} torneo(s) sin participación: ${borrados.map((t) => t.name).join(", ").slice(0, 160)}.`
+    : "No había ningún torneo abandonado."));
 }

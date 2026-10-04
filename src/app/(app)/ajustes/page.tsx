@@ -12,8 +12,9 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
-import { clearEloReset, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
+import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const metadata = { title: "Ajustes" };
 
@@ -193,6 +194,21 @@ export default async function SettingsPage() {
               las partidas cada vez que se pinta el ranking, así que esto es del todo
               reversible.
             </p>
+          </div>
+
+          {/* --- v0.19: limpieza de torneos abandonados --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">Torneos abandonados</p>
+            <p className="mb-3 text-sm text-muted">
+              Cada noche se borran solos los torneos creados hace más de 3 días sin ninguna
+              participación (ni resultado ni ronda). Los que todavía no se han jugado no se
+              tocan hasta 3 días después de su fecha. Aquí puedes lanzarlo ahora.
+            </p>
+            <form action={limpiarTorneosAbandonados}>
+              <ConfirmButton className="btn" message="¿Borrar ahora los torneos sin participación de hace más de 3 días?">
+                <Icon name="trash" className="size-4" /> Limpiar ahora
+              </ConfirmButton>
+            </form>
           </div>
 
           {/* --- v0.18: reset global para el cambio de temporada --- */}

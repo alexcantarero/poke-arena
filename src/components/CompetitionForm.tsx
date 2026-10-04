@@ -37,7 +37,9 @@ export function CompetitionForm({
         <div className="flex flex-col gap-1.5">
           <label className="label">Formato</label>
           <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(COMPETITION_KINDS) as CompetitionKind[]).map((k) => (
+            {/* v0.19 — «Amistosos» ya no es un tipo de competición: un amistoso es
+                una partida sin competición. */}
+            {(Object.keys(COMPETITION_KINDS) as CompetitionKind[]).filter((k) => k !== "casual").map((k) => (
               <button
                 key={k} type="button" onClick={() => setKind(k)}
                 className={`tap flex-col items-start justify-center rounded-lg border px-3 py-2 text-left

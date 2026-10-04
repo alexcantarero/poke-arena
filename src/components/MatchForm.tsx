@@ -262,8 +262,11 @@ export function MatchForm({
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="competitionId">Competición</label>
             <select className="input" id="competitionId" name="competitionId" defaultValue={match?.competitionId ?? ""}>
-              <option value="">Amistoso suelto</option>
-              {competitions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {/* v0.19 — una sola categoría «Amistoso»: sin competición. Las
+                  competiciones de tipo «Amistosos» ya no se ofrecen (la
+                  migración 0012 las funde aquí). */}
+              <option value="">Amistoso</option>
+              {competitions.filter((c) => c.kind !== "casual").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">

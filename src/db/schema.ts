@@ -240,6 +240,17 @@ export const competitionPlayers = pgTable("competition_players", {
 }, (t) => [index("cp_comp_idx").on(t.competitionId)]);
 
 /**
+ * v0.19 — Historial de resets de temporada del ladder. `settings.ladder_since`
+ * solo guarda el último; esto guarda todos, para marcarlos en la gráfica.
+ */
+export const seasonResets = pgTable("season_resets", {
+  id: text("id").primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  note: text("note").notNull().default(""),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+});
+
+/**
  * v0.18 — El mazo con el que cada uno juega una liga, declarado y BLOQUEADO.
  *
  * Tabla aparte y no columnas en `competition_players`: `saveCompetition`
