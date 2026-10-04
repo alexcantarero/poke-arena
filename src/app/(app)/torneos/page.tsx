@@ -264,7 +264,7 @@ export default async function TournamentsPage({
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <TournamentEmblem kind={t.kind} size="md" />
+                  <TournamentEmblem kind={t.kind} scope={t.scope} size="md" />
                   <span className="min-w-0 flex-1">
                     <Link href={`/torneos/${t.id}`}
                       className="block truncate font-semibold after:absolute after:inset-0 after:content-['']">

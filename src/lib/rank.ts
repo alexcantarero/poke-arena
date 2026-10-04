@@ -2,7 +2,8 @@
    Ladder manual.
 
    El rango que cada uno se pone a mano en su perfil, para picarse entre
-   vosotros. Va de 1500 (Bronce IV) a 2000 (Challenger).
+   vosotros. Desde la v0.18: de 1 a 550 (Novato) y de 1350 (Hierro) a 2100
+   (Challenger), con el «salto Arceus» de 550 a 1500 en medio.
 
    No tiene nada que ver con el Elo de la liga: ese lo calcula `stats.ts`
    sobre las partidas reales, empieza en 1000 y no se puede editar. Son dos
@@ -13,10 +14,32 @@
    Server Component y desde el cliente.
    ========================================================================= */
 
-export const LADDER_MIN = 1500;
-export const LADDER_MAX = 2000;
+/* -------------------------------------------------------------------------
+   v0.18 — Escala nueva.
+
+     1 – 550      Novato. Fuera de la Liga Arceus.
+     551 – 1349   No existe como valor guardado: pasar de 550 es el «salto
+                  Arceus» y se guarda 1500. Desde ahí se puede volver a bajar.
+     1350 – 1449  Hierro, el escalón de entrada de la Liga Arceus.
+     1450 – 2100  El sistema de siempre (Bronce → Challenger), estirado para
+                  que Challenger sea 2100.
+
+   Valores que se pueden escribir a mano: 1–550 y 1350–2100. Uno entre 551 y
+   1349 no se rechaza: es exactamente el caso de «he pasado de Novato», así
+   que se convierte en 1500.
+   ------------------------------------------------------------------------- */
+
+export const LADDER_MIN = 1;
+export const LADDER_MAX = 2100;
+/** Techo de Novato. Pasar de aquí es el salto a la Liga Arceus. */
+export const NOVATO_MAX = 550;
+/** Suelo de la Liga Arceus (Hierro). */
+export const ARCEUS_MIN = 1350;
+/** A dónde se salta al superar `NOVATO_MAX`. */
+export const ARCEUS_JUMP = 1500;
 
 export type TierId =
+  | "novato" | "hierro"
   | "bronce" | "plata" | "oro" | "platino" | "diamante"
   | "maestro" | "granmaestro" | "challenger";
 
@@ -30,23 +53,26 @@ export type Tier = {
 };
 
 /**
- * Ocho tiers. Los cinco de abajo ocupan 80 puntos y se parten en cuatro
- * divisiones de 20; los tres de arriba son más estrechos y sin divisiones,
- * igual que en el juego. 1500 es el suelo y 2000 es Challenger, tal cual.
+ * Diez tiers. Novato va aparte (1–550). De Hierro a Diamante, cuatro
+ * divisiones; los tres de arriba sin divisiones, como en el juego.
  *
- * Los colores viven en `globals.css` como `--tier-*`, no aquí: están medidos
- * a 4,5:1 sobre los dos fondos reales de Arena y quien los toque tiene que
- * volver a medirlos.
+ * Bronce–Diamante conservan su anchura de siempre (80 puntos, divisiones de
+ * 20); Maestro y Gran Maestro se ensanchan para que Challenger caiga en 2100.
+ * Si se quiere otro reparto, es esta tabla y nada más (y los tests).
+ *
+ * Los colores viven en `globals.css` como `--tier-*`.
  */
 export const TIERS: Tier[] = [
-  { id: "bronce",      label: "Bronce",       floor: 1500, divisions: 4 },
-  { id: "plata",       label: "Plata",        floor: 1580, divisions: 4 },
-  { id: "oro",         label: "Oro",          floor: 1660, divisions: 4 },
-  { id: "platino",     label: "Platino",      floor: 1740, divisions: 4 },
-  { id: "diamante",    label: "Diamante",     floor: 1820, divisions: 4 },
-  { id: "maestro",     label: "Maestro",      floor: 1900, divisions: 1 },
-  { id: "granmaestro", label: "Gran Maestro", floor: 1950, divisions: 1 },
-  { id: "challenger",  label: "Challenger",   floor: 2000, divisions: 1 },
+  { id: "novato",      label: "Novato",       floor: 1,    divisions: 1 },
+  { id: "hierro",      label: "Hierro",       floor: 1350, divisions: 4 },
+  { id: "bronce",      label: "Bronce",       floor: 1450, divisions: 4 },
+  { id: "plata",       label: "Plata",        floor: 1530, divisions: 4 },
+  { id: "oro",         label: "Oro",          floor: 1610, divisions: 4 },
+  { id: "platino",     label: "Platino",      floor: 1690, divisions: 4 },
+  { id: "diamante",    label: "Diamante",     floor: 1770, divisions: 4 },
+  { id: "maestro",     label: "Maestro",      floor: 1850, divisions: 1 },
+  { id: "granmaestro", label: "Gran Maestro", floor: 1975, divisions: 1 },
+  { id: "challenger",  label: "Challenger",   floor: 2100, divisions: 1 },
 ];
 
 const ROMAN = ["IV", "III", "II", "I"];
@@ -58,20 +84,37 @@ export type Rank = {
   divisionLabel: string | null;
   /** "Oro II" o "Challenger". */
   label: string;
-  /** El valor ya acotado a [1500, 2000]. */
+  /** El valor ya normalizado a la escala. */
   elo: number;
+  /** true de Hierro para arriba. */
+  arceus: boolean;
   /** 0..1 dentro del tier. Challenger siempre 1: no hay siguiente. */
   progress: number;
-  /** Puntos hasta el siguiente tier, o null en Challenger. */
+  /** Puntos hasta el siguiente tier (o hasta el salto, en Novato), o null en Challenger. */
   toNext: number | null;
   nextLabel: string | null;
 };
 
-/** Acota al rango del ladder. Acepta basura y devuelve el suelo. */
+/**
+ * Lo que se guarda a partir de lo que se escribe. `null` = fuera de rango
+ * (menos de 1, más de 2100 o no es un número): la Server Action lo rechaza.
+ */
+export function normalizeLadderInput(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  const v = Math.round(n);
+  if (v < LADDER_MIN || v > LADDER_MAX) return null;
+  if (v <= NOVATO_MAX) return v;
+  if (v < ARCEUS_MIN) return ARCEUS_JUMP; // el salto Arceus
+  return v;
+}
+
+/** Normaliza para pintar. Acepta basura y devuelve el suelo. */
 export function clampElo(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return LADDER_MIN;
-  return Math.min(LADDER_MAX, Math.max(LADDER_MIN, Math.round(n)));
+  const v = Math.min(LADDER_MAX, Math.max(LADDER_MIN, Math.round(n)));
+  return normalizeLadderInput(v) ?? LADDER_MIN;
 }
 
 export function rankOf(value: unknown): Rank {
@@ -82,8 +125,11 @@ export function rankOf(value: unknown): Rank {
     if (elo >= TIERS[k].floor) { i = k; break; }
   }
   const tier = TIERS[i];
+  const novato = tier.id === "novato";
   const next = TIERS[i + 1] ?? null;
-  const span = (next ? next.floor : LADDER_MAX + 1) - tier.floor;
+  // En Novato, el «siguiente» es el salto: se llega al pasar de 550.
+  const ceiling = novato ? NOVATO_MAX + 1 : next ? next.floor : LADDER_MAX + 1;
+  const span = ceiling - tier.floor;
 
   let division: number | null = null;
   let divisionLabel: string | null = null;
@@ -99,9 +145,10 @@ export function rankOf(value: unknown): Rank {
     divisionLabel,
     label: divisionLabel ? `${tier.label} ${divisionLabel}` : tier.label,
     elo,
+    arceus: !novato,
     progress: !next || span <= 0 ? 1 : Math.min(1, (elo - tier.floor) / span),
-    toNext: next ? next.floor - elo : null,
-    nextLabel: next ? next.label : null,
+    toNext: novato ? NOVATO_MAX + 1 - elo : next ? next.floor - elo : null,
+    nextLabel: novato ? "Liga Arceus" : next ? next.label : null,
   };
 }
 

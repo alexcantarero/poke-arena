@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageLeague, readSession } from "@/lib/auth";
-import { compPlayers, loadSnapshot } from "@/lib/data";
+import { compPlayers, deckOptions, archetypeOptions, leagueDecksOf, leagueDeckSubmitters, loadSnapshot } from "@/lib/data";
+import { DeckPicker } from "@/components/DeckPicker";
+import { submitLeagueDeck, unlockLeagueDeck } from "@/actions";
+import { fmtDate } from "@/lib/format";
 import {
   isPlayed,
   pairRound,
@@ -22,7 +25,9 @@ import {
 } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { createPairings } from "@/actions";
+import { Sprites } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 export default async function CompetitionPage({
   params,
@@ -46,6 +51,23 @@ export default async function CompetitionPage({
   const preview = pairRound(comp.kind, ids, played, snap.elo.rating, snap.config);
   const kind =
     COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
+
+  /* v0.18 — Mazo de liga bloqueado. `leagueDecksOf` ya devuelve solo lo que
+     quien mira puede ver: todo si es organizador, el suyo si no. Del resto
+     solo se sabe SI lo han entregado, nunca cuál. */
+  const participo = Boolean(me && ids.includes(me.id));
+  const [visibles, entregados] = await Promise.all([
+    leagueDecksOf(id, me ? { id: me.id, manager } : null),
+    leagueDeckSubmitters(id),
+  ]);
+  const miMazo = me ? visibles.find((d) => d.playerId === me.id) : undefined;
+  const archDe = (d: { deckId: string | null; archetypeId: string | null }) =>
+    d.deckId ? snap.archIndex.get(d.deckId) : d.archetypeId ? snap.archById.get(d.archetypeId) : undefined;
+  const nombreMazo = (d: { deckId: string | null; archetypeId: string | null }) =>
+    (d.deckId && snap.decksById.get(d.deckId)?.name) || archDe(d)?.name || "Mazo sin nombre";
+  const opcionesMazo = me
+    ? [...deckOptions(snap, me.id, { includeOthers: false }), ...archetypeOptions(snap)]
+    : [];
 
   return (
     <>
@@ -102,13 +124,107 @@ export default async function CompetitionPage({
         )}
       </section>
 
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <section className="card">
+      {/* ------------------- v0.18: mazo de liga bloqueado ------------------- */}
+      {(participo || manager) && (
+        <section className="card mb-4 min-w-0">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Jornada {nextRound}</h2>
-            <span className="text-xs text-muted">{kind.hint}</span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Mazo de liga</h2>
+              <p className="text-xs text-muted">
+                Se entrega una vez y queda bloqueado. Solo lo ven su dueño y los organizadores.
+              </p>
+            </div>
+            <span className="flex-none text-xs text-muted tabular">{entregados.size}/{ids.length}</span>
           </div>
-          <div className="p-4">
+
+          {participo && me && (
+            <div className="border-b border-line-soft p-4">
+              {miMazo ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Icon name="lock" className="size-5 flex-none text-brand" />
+                  {archDe(miMazo) ? <Sprites archetype={archDe(miMazo)!} size="md" /> : null}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{nombreMazo(miMazo)}</span>
+                    <span className="block text-xs text-muted">
+                      Bloqueado el {fmtDate(miMazo.lockedAt.toISOString().slice(0, 10))}. Para cambiarlo, habla con un organizador.
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <form action={submitLeagueDeck} className="flex flex-col gap-3">
+                  <input type="hidden" name="competitionId" value={comp.id} />
+                  <label className="label" htmlFor="league-deck">Con qué mazo juegas esta liga</label>
+                  <DeckPicker
+                    id="league-deck" name="deck" options={opcionesMazo}
+                    emptyLabel={null} placeholder="Elige tu mazo, o solo el arquetipo"
+                  />
+                  <p className="text-xs text-muted">
+                    Al enviarlo se bloquea: no podrás cambiarlo tú. El resto de jugadores solo verá
+                    que lo has entregado, no cuál es.
+                  </p>
+                  <ConfirmButton
+                    className="btn btn-brand w-full sm:w-auto"
+                    message="¿Entregar este mazo? Quedará bloqueado para toda la liga."
+                  >
+                    <Icon name="lock" className="size-4" /> Entregar y bloquear
+                  </ConfirmButton>
+                </form>
+              )}
+            </div>
+          )}
+
+          {manager ? (
+            <ul className="divide-y divide-line-soft">
+              {ids.map((pid) => {
+                const d = visibles.find((x) => x.playerId === pid);
+                const p = snap.playersById.get(pid);
+                return (
+                  <li key={pid} className="flex items-center gap-2 px-3 py-2.5 xs:gap-3 xs:px-4">
+                    <PlayerTag player={p} size="sm" className="min-w-0 flex-1" />
+                    {d ? (
+                      <>
+                        <span className="flex min-w-0 max-w-[45%] items-center gap-1.5 text-xs">
+                          {archDe(d) ? <Sprites archetype={archDe(d)!} size="sm" /> : null}
+                          <span className="truncate">{nombreMazo(d)}</span>
+                        </span>
+                        <form action={unlockLeagueDeck} className="flex-none">
+                          <input type="hidden" name="competitionId" value={comp.id} />
+                          <input type="hidden" name="playerId" value={pid} />
+                          <ConfirmButton
+                            className="btn btn-ghost btn-sm px-2 text-xs"
+                            title="Desbloquear"
+                            message={`¿Desbloquear el mazo de ${p?.name ?? "esta persona"}? Tendrá que entregarlo otra vez.`}
+                          >
+                            <Icon name="refresh" className="size-4" />
+                          </ConfirmButton>
+                        </form>
+                      </>
+                    ) : (
+                      <span className="chip flex-none text-[11px]">pendiente</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="px-4 py-3 text-xs text-muted">
+              {entregados.size} de {ids.length} participantes han entregado su mazo.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* v0.18 — `grid-cols-1` explícito y `min-w-0` en cada tarjeta: sin ellos,
+          en el móvil la columna implícita se ensanchaba con el contenido (la
+          pista «Round robin…», los nombres largos) y la tarjeta se salía de la
+          pantalla por la derecha, cortando «Crear partidas» y «Anotar». */}
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="card min-w-0">
+          <div className="card-head">
+            <h2 className="flex-none text-lg font-bold">Jornada {nextRound}</h2>
+            <span className="min-w-0 truncate text-right text-xs text-muted" title={kind.hint}>{kind.hint}</span>
+          </div>
+          <div className="p-3 xs:p-4">
             {preview.pairs.length ? (
               <>
                 <ul className="mb-3 divide-y divide-line-soft rounded-xl border border-line">
@@ -118,7 +234,7 @@ export default async function CompetitionPage({
                     return (
                       <li
                         key={`${a}-${b}`}
-                        className="flex items-center gap-2 px-3 py-2.5"
+                        className="flex items-center gap-1.5 px-2 py-2.5 xs:gap-2 xs:px-3"
                       >
                         <span className="w-5 flex-none text-center font-mono text-xs text-muted">
                           {i + 1}
@@ -172,7 +288,7 @@ export default async function CompetitionPage({
           </div>
         </section>
 
-        <section className="card">
+        <section className="card min-w-0">
           <div className="card-head">
             <h2 className="text-lg font-bold">Pendientes</h2>
             <span className="text-xs text-muted">{pending.length}</span>
@@ -183,7 +299,7 @@ export default async function CompetitionPage({
                 <li key={m.id}>
                   <Link
                     href={`/partidas/${m.id}`}
-                    className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2"
+                    className="flex min-h-14 items-center gap-2 px-3 hover:bg-surface-2 xs:gap-3 xs:px-4"
                   >
                     <span className="chip flex-none">J{m.round}</span>
                     <span className="min-w-0 flex-1 truncate text-sm">
@@ -193,7 +309,7 @@ export default async function CompetitionPage({
                         ? snap.playersById.get(m.playerBId)?.name
                         : m.opponentName}
                     </span>
-                    <span className="btn btn-brand btn-sm flex-none">
+                    <span className="btn btn-brand btn-sm flex-none px-3">
                       Anotar
                     </span>
                   </Link>
@@ -238,16 +354,21 @@ export default async function CompetitionPage({
         </>
       )}
 
+      {/* v0.18 — plegado por defecto: es una herramienta de vez en cuando y
+          ocupaba media pantalla al final de cada liga. */}
       {manager && (
-        <>
-          <SectionTitle>Editar competición</SectionTitle>
+        <details className="mb-6">
+          <summary className="card tap mb-3 cursor-pointer justify-between px-4 font-display text-lg font-bold">
+            Editar competición
+            <span className="text-xs font-normal text-muted">organizador</span>
+          </summary>
           <CompetitionForm
             competition={comp}
             players={snap.players}
             selectedPlayerIds={snap.playersOfComp.get(id) ?? []}
             canDelete={manager}
           />
-        </>
+        </details>
       )}
     </>
   );

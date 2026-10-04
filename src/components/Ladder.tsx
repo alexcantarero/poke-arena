@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { clearLadderElo, setLadderElo } from "@/actions";
-import { LADDER_MAX, LADDER_MIN, TIERS, rankOf, type Rank } from "@/lib/rank";
+import {
+  ARCEUS_JUMP, ARCEUS_MIN, LADDER_MAX, LADDER_MIN, NOVATO_MAX, TIERS, normalizeLadderInput, rankOf, type Rank,
+} from "@/lib/rank";
 import type { PublicPlayer } from "@/lib/types";
 import { Avatar } from "./ui";
 
@@ -48,7 +50,11 @@ export function RankProgress({ elo }: { elo: number | null }) {
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.round(rank.progress * 100)}%` }} />
       </div>
       <p className="text-[11px] text-muted">
-        {rank.toNext !== null ? `${rank.toNext} puntos para ${rank.nextLabel}` : "Techo del ladder"}
+        {rank.toNext !== null
+          ? rank.tier.id === "novato"
+            ? `${rank.toNext} para el salto a la Liga Arceus (${ARCEUS_JUMP})`
+            : `${rank.toNext} puntos para ${rank.nextLabel}`
+          : "Techo del ladder"}
       </p>
     </div>
   );
@@ -62,8 +68,13 @@ export function RankProgress({ elo }: { elo: number | null }) {
 export function LadderEditor({
   playerId, currentElo, currentNote,
 }: { playerId: string; currentElo: number | null; currentNote: string }) {
-  const [elo, setElo] = useState<number>(currentElo ?? LADDER_MIN);
+  /* v0.18 — lo que se escribe y lo que se guardaría. Sin deslizador: con el
+     hueco del salto Arceus (551–1349) un deslizador continuo mentía. */
+  const [raw, setRaw] = useState<string>(currentElo != null ? String(currentElo) : String(ARCEUS_JUMP));
+  const guardado = normalizeLadderInput(raw);
+  const elo = guardado ?? ARCEUS_JUMP;
   const rank = rankOf(elo);
+  const salto = guardado === ARCEUS_JUMP && Number(raw) > NOVATO_MAX && Number(raw) < ARCEUS_MIN;
 
   return (
     <form action={setLadderElo} className="flex flex-col gap-4">
@@ -78,17 +89,15 @@ export function LadderEditor({
 
       <RankProgress elo={elo} />
 
-      <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="ladderRange">Rango</label>
-        <input
-          id="ladderRange" type="range" className="w-full"
-          min={LADDER_MIN} max={LADDER_MAX} step={5}
-          value={elo} onChange={(e) => setElo(Number(e.target.value))}
-          list="tier-marks" aria-describedby="ladder-help"
-        />
-        <datalist id="tier-marks">
-          {TIERS.map((t) => <option key={t.id} value={t.floor} label={t.label} />)}
-        </datalist>
+      {/* Atajos a cada tier: un toque y queda en su suelo. */}
+      <div className="flex flex-wrap gap-1.5" aria-label="Ir al suelo de un tier">
+        {TIERS.map((t) => (
+          <button key={t.id} type="button" data-tier={t.id}
+            className="tier rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+            onClick={() => setRaw(String(t.floor))}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-[7rem_1fr] gap-3">
@@ -96,8 +105,8 @@ export function LadderEditor({
           <label className="label" htmlFor="ladderElo">Exacto</label>
           <input
             className="input px-2 text-center" id="ladderElo" name="ladderElo"
-            type="number" min={LADDER_MIN} max={LADDER_MAX} inputMode="numeric"
-            value={elo} onChange={(e) => setElo(Number(e.target.value))}
+            type="number" min={LADDER_MIN} max={LADDER_MAX} inputMode="numeric" required
+            value={raw} onChange={(e) => setRaw(e.target.value)} aria-describedby="ladder-help"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -109,13 +118,28 @@ export function LadderEditor({
         </div>
       </div>
 
+      {salto && (
+        <p className="rounded-lg border border-brand-line bg-brand-soft px-3 py-2 text-xs font-semibold text-brand">
+          Salto Arceus: pasar de {NOVATO_MAX} te sube directamente a {ARCEUS_JUMP} (Liga Arceus).
+        </p>
+      )}
+      {guardado == null && raw.trim() !== "" && (
+        <p className="text-xs font-semibold text-loss">
+          Fuera de rango: de {LADDER_MIN} a {NOVATO_MAX} o de {ARCEUS_MIN} a {LADDER_MAX}.
+        </p>
+      )}
+
       <p id="ladder-help" className="text-xs text-muted">
-        {LADDER_MIN} es Bronce IV y {LADDER_MAX} es Challenger. Este número lo pones tú y no
-        afecta a nada: el Elo de la liga se calcula solo con vuestras partidas y no se puede editar.
+        {LADDER_MIN}–{NOVATO_MAX} es Novato. Al pasar de {NOVATO_MAX} se salta a {ARCEUS_JUMP}{" "}
+        (Liga Arceus), y desde ahí se puede volver a bajar hasta {ARCEUS_MIN} (Hierro).{" "}
+        {LADDER_MAX} es Challenger. Este número lo pones tú y no afecta a nada: el Elo de la liga
+        se calcula solo con vuestras partidas.
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-brand min-w-40 flex-1" type="submit">Guardar rango</button>
+        <button className="btn btn-brand min-w-40 flex-1" type="submit" disabled={guardado == null}>
+          Guardar rango
+        </button>
       </div>
     </form>
   );

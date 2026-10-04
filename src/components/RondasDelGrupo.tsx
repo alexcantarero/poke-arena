@@ -213,13 +213,21 @@ export function RondasDelGrupo({
               key={j.id}
               className={`overflow-hidden rounded-xl border ${yo ? "border-brand-line" : "border-line"}`}
             >
-              <button
-                type="button"
-                onClick={() => alternar(j.id)}
-                aria-expanded={abierto}
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors
+              {/* v0.18 — la cabecera ya no es un <button> entero: dentro va el
+                  enlace al perfil (nombre y avatar) y un enlace no puede ir
+                  dentro de un botón. El botón de abrir/plegar es una capa que
+                  cubre la fila (`absolute inset-0`) y el enlace va por encima. */}
+              <div
+                className={`relative flex w-full items-center gap-2 px-2.5 py-2.5 text-left transition-colors xs:gap-3 xs:px-3
                   ${yo ? "bg-brand-soft" : "bg-surface hover:bg-surface-2"}`}
               >
+                <button
+                  type="button"
+                  onClick={() => alternar(j.id)}
+                  aria-expanded={abierto}
+                  aria-label={`${abierto ? "Plegar" : "Abrir"} las rondas de ${j.name}`}
+                  className="absolute inset-0 cursor-pointer"
+                />
                 <Icon
                   name={abierto ? "back" : "more"}
                   className={`size-4 flex-none text-muted transition-transform ${abierto ? "-rotate-90" : ""}`}
@@ -242,8 +250,17 @@ export function RondasDelGrupo({
 
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    {j.avatar}
-                    <span className="truncate text-sm font-bold">{j.name}</span>
+                    {j.perfilHref ? (
+                      <Link href={j.perfilHref} className="relative z-10 flex min-w-0 items-center gap-1.5 hover:text-info">
+                        {j.avatar}
+                        <span className="truncate text-sm font-bold">{j.name}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        {j.avatar}
+                        <span className="truncate text-sm font-bold">{j.name}</span>
+                      </>
+                    )}
                     {yo && (
                       <span className="chip chip-brand flex-none text-[10px]">
                         tú
@@ -283,7 +300,10 @@ export function RondasDelGrupo({
                   </span>
                 )}
 
-                <span className="flex flex-none flex-col items-end gap-1">
+                {/* v0.18 — ancho fijo: así la columna del puesto, que va justo a
+                    la izquierda, cae en el mismo sitio en todas las filas. Antes
+                    se movía según lo largo que fuera el chip de premios. */}
+                <span className="flex w-[5.5rem] flex-none flex-col items-end gap-1 xs:w-28">
                   {/* V–D–E, en ese orden y con sus colores, como en toda la app. */}
                   <span className="font-display text-base font-extrabold tabular leading-none">
                     <span className="text-win">{j.wins}</span>–<span className="text-loss">{j.losses}</span>–<span className="text-tie">{j.ties}</span>
@@ -297,12 +317,12 @@ export function RondasDelGrupo({
                     ) : null}
                   </span>
                   {j.premios && (
-                    <span className="chip max-w-[9rem] truncate text-[10px]" title={j.premios}>
+                    <span className="chip block max-w-full truncate text-[10px]" title={j.premios}>
                       {j.premios}
                     </span>
                   )}
                 </span>
-              </button>
+              </div>
 
               {abierto && (
                 <div className="border-t border-line-soft">

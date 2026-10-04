@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { compPlayers, loadSnapshot, playerCp } from "@/lib/data";
+import { compPlayers, ladderHistory, loadSnapshot, playerCp } from "@/lib/data";
+import { LadderTimeline } from "@/components/LadderTimeline";
+import { RankBadge } from "@/components/Ladder";
 import {
   archetypeStats, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings,
 } from "@/lib/stats";
@@ -229,6 +231,9 @@ export default async function RankingPage({
   const conPuesto = zona.filter((p) => p.rankEurope != null).length;
 
   const ladder = ladderStandings(snap.players.filter((p) => p.active));
+  /* v0.18 — el líder del ladder y su evolución desde el último reset. */
+  const lider = ladder[0]?.player ?? null;
+  const historialLider = lider ? await ladderHistory(lider.id, snap.config.ladderSince ?? null) : [];
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
   /** La URL de ahora con cambios. `null` quita el parámetro. */
@@ -456,6 +461,21 @@ export default async function RankingPage({
           </div>
           <span className="text-xs text-muted">{ladder.length} con rango</span>
         </div>
+        {lider && (
+          <div className="border-b border-line-soft">
+            <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+              <span className="label">Líder</span>
+              <PlayerTag player={lider} size="sm" />
+              <RankBadge elo={lider.ladderElo} size="sm" />
+              <span className="ml-auto text-[11px] text-muted">
+                {snap.config.ladderSince
+                  ? `temporada desde ${snap.config.ladderSince.toISOString().slice(0, 10)}`
+                  : "desde el principio"}
+              </span>
+            </div>
+            <LadderTimeline puntos={historialLider} />
+          </div>
+        )}
         <LadderTable rows={ladder} meId={session?.playerId} />
       </section>
     </>

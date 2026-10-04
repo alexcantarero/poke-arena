@@ -210,9 +210,24 @@ function Desvios({ rows }: { rows: ChartRow[] }) {
           const arriba = r.diff > 0;
           return (
             <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="flex size-8 flex-none items-center justify-center" aria-hidden="true">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={spriteUrl(r.name)} alt="" className="size-8 object-contain" loading="lazy" />
+              {/* v0.18 — el sprite sale de `main`/`secondary`, no del NOMBRE del
+                  arquetipo: «Dragapult Dusknoir» no es un Pokémon y la imagen
+                  daba 404 (era el icono roto que salía al pulsar Comparar). */}
+              <span className="flex w-10 flex-none items-center justify-center" aria-hidden="true">
+                {r.main ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={spriteUrl(r.main)} alt="" className="size-8 object-contain" loading="lazy" />
+                    {r.secondary && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={spriteUrl(r.secondary)} alt="" className="-ml-3 size-6 object-contain" loading="lazy" />
+                    )}
+                  </>
+                ) : (
+                  // Sin Pokémon («Other»): hueco discreto. No se importa
+                  // `OtherMark` de ui.tsx porque arrastraría lib/stats al cliente.
+                  <span className="size-7 rounded-full border border-dashed border-line" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{r.name}</span>

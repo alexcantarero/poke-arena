@@ -56,6 +56,8 @@
   /* rangos del ladder manual — medidos a 4,5:1 sobre este fondo.
      Plata, oro y platino están más oscuros de lo que uno pondría a ojo
      justamente porque a ojo no llegaban. Si tocas uno, vuelve a medirlo. */
+  --tier-novato: #4f7a2c;
+  --tier-hierro: #6b5e57;
   --tier-bronce: #966034;
   --tier-plata: #5f6b78;
   --tier-oro: #8a6300;
@@ -129,6 +131,8 @@
   --info-soft: #1a2648;
 
   /* los mismos ocho rangos, subidos para el fondo oscuro */
+  --tier-novato: #9ccc6a;
+  --tier-hierro: #b8aaa1;
   --tier-bronce: #c08553;
   --tier-plata: #aab7c4;
   --tier-oro: #e0ac2b;
@@ -553,6 +557,8 @@
      El chip lo pone en el texto y el borde, sobre un fondo tintado al 12 %, y
      no como relleno. Es lo que hace que el contraste dependa solo del par
      color/página —que es el que está medido— y no de qué texto caiga encima. */
+  [data-tier="novato"]      { --tier: var(--tier-novato); }
+  [data-tier="hierro"]      { --tier: var(--tier-hierro); }
   [data-tier="bronce"]      { --tier: var(--tier-bronce); }
   [data-tier="plata"]       { --tier: var(--tier-plata); }
   [data-tier="oro"]         { --tier: var(--tier-oro); }

@@ -59,6 +59,11 @@ export const settings = pgTable("settings", {
    * se quita la fecha y vuelve todo, porque las partidas siguen ahí.
    */
   eloSince: date("elo_since"),
+  /**
+   * v0.18 — Inicio de la temporada del ladder: el último «reset global».
+   * El historial anterior no se borra; la gráfica del líder empieza aquí.
+   */
+  ladderSince: timestamp("ladder_since", { withTimezone: true }),
   /** Zona de clasificación, para el panel de ruta al Mundial. */
   ratingZone: text("rating_zone").notNull().default("europe"),
   /** Si está abierta, cualquiera con el enlace de invitación puede darse de alta. */
@@ -233,6 +238,26 @@ export const competitionPlayers = pgTable("competition_players", {
   seed: integer("seed").notNull().default(0),
   dropped: boolean("dropped").notNull().default(false),
 }, (t) => [index("cp_comp_idx").on(t.competitionId)]);
+
+/**
+ * v0.18 — El mazo con el que cada uno juega una liga, declarado y BLOQUEADO.
+ *
+ * Tabla aparte y no columnas en `competition_players`: `saveCompetition`
+ * borra y vuelve a crear esas filas cada vez que se edita la competición, y
+ * con ellas se iría el mazo bloqueado.
+ *
+ * Privado: solo lo ven su dueño y los organizadores. Por eso NO entra en el
+ * snapshot (que acaba serializado en el HTML): se pide con `leagueDecksOf`
+ * y se filtra por permisos en el servidor.
+ */
+export const leagueDecks = pgTable("league_decks", {
+  competitionId: text("competition_id").notNull().references(() => competitions.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  deckId: text("deck_id").references(() => decks.id, { onDelete: "set null" }),
+  archetypeId: text("archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
+  lockedAt: timestamp("locked_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+}, (t) => [uniqueIndex("league_decks_unique_idx").on(t.competitionId, t.playerId)]);
 
 /* ------------------------------------------------------------ partidas --- */
 

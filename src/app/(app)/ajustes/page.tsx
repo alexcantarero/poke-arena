@@ -12,7 +12,7 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
-import { clearEloReset, purgePlayer, resetElo, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
+import { clearEloReset, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Ajustes" };
@@ -194,6 +194,37 @@ export default async function SettingsPage() {
               reversible.
             </p>
           </div>
+
+          {/* --- v0.18: reset global para el cambio de temporada --- */}
+          <details className="card mb-6 border-loss/40">
+            <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <Icon name="refresh" className="size-4 text-loss" /> Nueva temporada: reset de todos
+              </span>
+              <span className="text-[11px] font-normal text-muted">organizador</span>
+            </summary>
+            <form action={resetLadderSeason} className="flex flex-col gap-3 border-t border-line-soft p-4">
+              <p className="text-sm text-ink-2">
+                Quita el rango del ladder a <b>todos</b> los jugadores ({snap.players.filter((p) => p.ladderElo != null).length}{" "}
+                con rango ahora mismo) y empieza la temporada hoy. El historial no se borra: la
+                gráfica del líder empezará a contar desde aquí.
+                {snap.config.ladderSince && (
+                  <> Última temporada empezada el <b className="font-mono">{snap.config.ladderSince.toISOString().slice(0, 10)}</b>.</>
+                )}
+              </p>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="elo" value="1" className="size-4" defaultChecked />
+                Reiniciar también el Elo de la liga (contar desde hoy; reversible)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="puestos" value="1" className="size-4" />
+                Borrar también los puestos de España y Europa
+              </label>
+              <label className="label" htmlFor="reset-confirm">Escribe «nueva temporada» para confirmar</label>
+              <input className="input" id="reset-confirm" name="confirm" required autoComplete="off" placeholder="nueva temporada" />
+              <button className="btn btn-danger w-full sm:w-auto" type="submit">Empezar temporada nueva</button>
+            </form>
+          </details>
 
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />

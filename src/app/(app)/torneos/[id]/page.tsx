@@ -516,7 +516,7 @@ export default async function TournamentPage({
     <>
       <PageHead
         title={t.name}
-        icon={<TournamentEmblem kind={t.kind} size="lg" />}
+        icon={<TournamentEmblem kind={t.kind} scope={t.scope} size="lg" />}
         back={{ href: "/torneos", label: "Torneos" }}
         sub={
           <>

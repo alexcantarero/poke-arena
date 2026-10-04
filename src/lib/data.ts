@@ -1,9 +1,9 @@
 import "server-only";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  matches, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
+  ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
   tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
@@ -61,6 +61,7 @@ const DEFAULT_SETTINGS: Settings = {
   eloStart: 1000, eloK: 24,
   eloScope: "competitive",
   eloSince: null,
+  ladderSince: null,
   ratingZone: "europe",
   registrationOpen: true,
   updatedAt: new Date(),
@@ -361,4 +362,51 @@ export async function loadMetaEvents(): Promise<Array<MetaEvent & { entries: num
 /** Invitaciones vigentes. Solo se cargan cuando hacen falta (pantalla de ajustes). */
 export async function loadInvites() {
   return db.select().from(invites).orderBy(desc(invites.createdAt));
+}
+
+/* ================================================================ v0.18 -- */
+
+export type LeagueDeckRow = {
+  playerId: string;
+  deckId: string | null;
+  archetypeId: string | null;
+  lockedAt: Date;
+};
+
+/**
+ * Mazos de liga bloqueados de una competición, YA FILTRADOS por permisos:
+ * un organizador recibe todos; cualquier otro, solo el suyo. El filtro va
+ * aquí, en el servidor, y no en la pantalla: lo que se devuelve es lo único
+ * que puede acabar en el HTML.
+ */
+export async function leagueDecksOf(
+  competitionId: string,
+  viewer: { id: string; manager: boolean } | null,
+): Promise<LeagueDeckRow[]> {
+  if (!viewer) return [];
+  const where = viewer.manager
+    ? eq(leagueDecks.competitionId, competitionId)
+    : and(eq(leagueDecks.competitionId, competitionId), eq(leagueDecks.playerId, viewer.id));
+  return db.select({
+    playerId: leagueDecks.playerId,
+    deckId: leagueDecks.deckId,
+    archetypeId: leagueDecks.archetypeId,
+    lockedAt: leagueDecks.lockedAt,
+  }).from(leagueDecks).where(where);
+}
+
+/** Quién ha entregado ya su mazo (sin decir cuál): eso sí lo puede ver todo el mundo. */
+export async function leagueDeckSubmitters(competitionId: string): Promise<Set<string>> {
+  const rows = await db.select({ playerId: leagueDecks.playerId }).from(leagueDecks)
+    .where(eq(leagueDecks.competitionId, competitionId));
+  return new Set(rows.map((r) => r.playerId));
+}
+
+/** Historial del ladder de una persona desde una fecha (el último reset), en orden. */
+export async function ladderHistory(playerId: string, since: Date | null) {
+  const where = since
+    ? and(eq(ladderEntries.playerId, playerId), gte(ladderEntries.createdAt, since))
+    : eq(ladderEntries.playerId, playerId);
+  return db.select({ elo: ladderEntries.elo, at: ladderEntries.createdAt })
+    .from(ladderEntries).where(where).orderBy(asc(ladderEntries.createdAt));
 }

@@ -5,6 +5,7 @@ import { prettyPokemon, spriteUrl, typeOf } from "@/lib/pokemon";
 import { outcome } from "@/lib/stats";
 import { clamp, pct } from "@/lib/format";
 import { Icon } from "./icons";
+import { KindEmblem, emblemKindOf } from "./Emblems";
 
 /* `Kpi` y los esqueletos viven en `primitives.tsx` y se reexportan aquí.
    
@@ -468,9 +469,14 @@ export function pctText(v: number | null | undefined, digits = 0) {
  */
 export const REGIONAL_LOGO = "/logos/regional-championships.png";
 
-export function TournamentEmblem({ kind, size = "md" }: { kind: string; size?: "sm" | "md" | "lg" }) {
-  if (kind !== "regional") return null;
-  const cls = size === "sm" ? "size-7" : size === "lg" ? "size-14 sm:size-16" : "size-10";
+export function TournamentEmblem({
+  kind, scope, size = "md",
+}: { kind: string | null | undefined; scope?: string | null; size?: "xs" | "sm" | "md" | "lg" }) {
+  const cls = size === "xs" ? "size-4" : size === "sm" ? "size-7" : size === "lg" ? "size-14 sm:size-16" : "size-10";
+  // v0.18: Challenge, Cup y Online llevan un escudo propio a juego (Emblems.tsx).
+  const e = emblemKindOf(kind, scope);
+  if (!e) return null;
+  if (e !== "regional") return <KindEmblem kind={e} className={cls} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={REGIONAL_LOGO} alt="Regional Championships" title="Regional Championships"

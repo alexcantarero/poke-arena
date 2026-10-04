@@ -52,8 +52,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // v0.17: el idioma elegido, para lectores de pantalla y para el traductor del navegador.
   const lang = await getLang();
   return (
-    <html lang={lang} suppressHydrationWarning>
+    /* v0.18 — `translate="no"` + la meta `notranslate`: el navegador (Chrome,
+       Safari, Edge) ya no traduce las páginas por su cuenta. El único cambio
+       de idioma es el botón ES/EN de la app; antes, con la cookie en inglés,
+       Chrome «ayudaba» traduciendo a máquina todo lo que aún está en español. */
+    <html lang={lang} translate="no" className="notranslate" suppressHydrationWarning>
       <head>
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

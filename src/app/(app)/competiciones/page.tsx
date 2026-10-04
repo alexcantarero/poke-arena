@@ -4,7 +4,7 @@ import { canManageLeague } from "@/lib/auth";
 import { isPlayed, standings } from "@/lib/stats";
 import { fmtDate, pct, wrColor } from "@/lib/format";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
-import { Empty, PageHead, PlayerTag, Record, SectionTitle } from "@/components/ui";
+import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 
 export const metadata = { title: "Liga" };
@@ -74,11 +74,18 @@ export default async function CompetitionsPage() {
         <div className="card mb-6"><Empty title="Sin competiciones">Crea una liga o un torneo para agrupar las partidas.</Empty></div>
       )}
 
+      {/* v0.18 — plegado por defecto (abierto solo si todavía no hay ninguna). */}
       {manager && (
-        <>
-          <SectionTitle>Nueva competición</SectionTitle>
+        <details className="mb-6" open={snap.competitions.length === 0}>
+          {/* El formulario ya trae sus propias tarjetas: aquí solo la cabecera es tarjeta. */}
+          <summary className="card tap mb-3 cursor-pointer justify-between px-4 font-display text-lg font-bold">
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true">+</span> Nueva competición
+            </span>
+            <span className="text-xs font-normal text-muted">organizador</span>
+          </summary>
           <CompetitionForm players={snap.players} />
-        </>
+        </details>
       )}
     </>
   );

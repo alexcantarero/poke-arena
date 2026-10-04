@@ -7,8 +7,8 @@ import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, matches, metaEntries, metaEvents, playerFavorites, players, settings,
-  tournamentResults, tournaments,
+  ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites, players,
+  settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import {
@@ -25,7 +25,7 @@ import { awardsCp, cpForPlacement, cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
 import { familiaDe, maxRondasDe } from "@/lib/estructura";
-import { LADDER_MAX, LADDER_MIN, rankOf } from "@/lib/rank";
+import { normalizeLadderInput, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { fetchArchetypeCatalog } from "@/lib/sources/limitless";
 import { recogerCityLeagues, recogerRegionales } from "@/lib/sources/limitlessWeb";
@@ -1972,9 +1972,11 @@ export async function setLadderElo(fd: FormData) {
   const playerId = str(fd, "playerId") || actor.id;
   if (!owns(actor, playerId)) return;
 
-  const raw = maybeNum(fd, "ladderElo");
-  if (raw == null) return;
-  const elo = Math.min(LADDER_MAX, Math.max(LADDER_MIN, Math.round(raw)));
+  // v0.18: 1–550 y 1350–2100; entre medias es el salto Arceus (→ 1500).
+  const elo = normalizeLadderInput(maybeNum(fd, "ladderElo"));
+  if (elo == null) {
+    redirect(withFlash(`/perfil/${playerId}`, "error", "El rango va de 1 a 550 (Novato) o de 1350 a 2100."));
+  }
   const note = str(fd, "ladderNote").slice(0, 200);
 
   await db.update(players)
@@ -2553,4 +2555,100 @@ export async function setZoneRanks(fd: FormData) {
 
   refresh();
   redirect(withFlash(`/perfil/${playerId}`, "ok", borrar ? "Puestos borrados." : "Puestos guardados."));
+}
+
+/* ================================================================ v0.18 -- */
+
+/**
+ * Entregar el mazo de liga. Una vez guardado queda BLOQUEADO: su dueño ya no
+ * puede cambiarlo; solo un organizador puede desbloquearlo (o ponerlo por
+ * otra persona). La comprobación va aquí y no en la pantalla.
+ */
+export async function submitLeagueDeck(fd: FormData) {
+  const actor = await requireActor();
+  const competitionId = str(fd, "competitionId");
+  const playerId = str(fd, "playerId") || actor.id;
+  const manager = canManageLeague(actor.role);
+  const back = `/competiciones/${competitionId}`;
+  if (!competitionId || !owns(actor, playerId)) return;
+
+  const comp = (await db.select({ id: competitions.id }).from(competitions)
+    .where(eq(competitions.id, competitionId)))[0];
+  if (!comp) return;
+
+  // Solo participantes: los apuntados a la competición o, si no hay lista, cualquiera activo.
+  const apuntados = await db.select({ playerId: competitionPlayers.playerId }).from(competitionPlayers)
+    .where(eq(competitionPlayers.competitionId, competitionId));
+  if (apuntados.length && !apuntados.some((r) => r.playerId === playerId)) {
+    redirect(withFlash(back, "error", "Esa persona no participa en esta liga."));
+  }
+
+  const { deckId, archetypeId } = deckOrArchetype(fd, "deck");
+  if (!deckId && !archetypeId) redirect(withFlash(back, "error", "Elige un mazo o, al menos, el arquetipo."));
+
+  const where = and(eq(leagueDecks.competitionId, competitionId), eq(leagueDecks.playerId, playerId));
+  const existing = (await db.select({ playerId: leagueDecks.playerId }).from(leagueDecks).where(where))[0];
+  if (existing && !manager) {
+    redirect(withFlash(back, "error", "Tu mazo de liga ya está bloqueado. Pídele a un organizador que lo desbloquee."));
+  }
+
+  if (existing) {
+    await db.update(leagueDecks)
+      .set({ deckId, archetypeId, lockedAt: new Date(), createdBy: actor.id })
+      .where(where);
+  } else {
+    await db.insert(leagueDecks)
+      .values({ competitionId, playerId, deckId, archetypeId, createdBy: actor.id })
+      // Dos envíos seguidos no deben pisar el primero: el bloqueo es el bloqueo.
+      .onConflictDoNothing();
+  }
+  refresh();
+  redirect(withFlash(back, "ok", "Mazo de liga entregado y bloqueado."));
+}
+
+/** Desbloquear el mazo de liga de alguien (borra la entrega). Solo organizadores. */
+export async function unlockLeagueDeck(fd: FormData) {
+  await requireManager();
+  const competitionId = str(fd, "competitionId");
+  const playerId = str(fd, "playerId");
+  if (!competitionId || !playerId) return;
+  await db.delete(leagueDecks)
+    .where(and(eq(leagueDecks.competitionId, competitionId), eq(leagueDecks.playerId, playerId)));
+  refresh();
+  redirect(withFlash(`/competiciones/${competitionId}`, "ok", "Mazo desbloqueado: ya puede entregarlo otra vez."));
+}
+
+/**
+ * Reset global del ladder para el cambio de temporada. Solo organizadores y
+ * con la frase escrita, porque toca a todo el mundo a la vez.
+ *
+ * Quita el rango de todos y marca el inicio de temporada (`ladder_since`).
+ * El historial (`ladder_entries`) NO se borra: queda como archivo y la
+ * gráfica del líder empieza a contar desde aquí. Opcionalmente reinicia
+ * también el Elo de la liga (fecha de corte, reversible).
+ */
+export async function resetLadderSeason(fd: FormData) {
+  await requireManager();
+  if (!confirmed(fd, "nueva temporada")) {
+    redirect(withFlash("/ajustes", "error", "Escribe «nueva temporada» para confirmar."));
+  }
+  const ahora = new Date();
+  const tambienElo = str(fd, "elo") === "1";
+  const tambienPuestos = str(fd, "puestos") === "1";
+
+  await db.update(players).set({
+    ladderElo: null,
+    ladderNote: "",
+    ladderEloUpdatedAt: ahora,
+    ...(tambienPuestos ? { rankSpain: null, rankEurope: null, rankZoneUpdatedAt: ahora } : {}),
+  });
+
+  const cambios = { ladderSince: ahora, updatedAt: ahora, ...(tambienElo ? { eloSince: todayISO() } : {}) };
+  const existing = await db.select({ id: settings.id }).from(settings).where(eq(settings.id, "default"));
+  if (existing[0]) await db.update(settings).set(cambios).where(eq(settings.id, "default"));
+  else await db.insert(settings).values({ id: "default", ...cambios });
+
+  refresh();
+  redirect(withFlash("/ajustes", "ok",
+    `Temporada nueva: rangos del ladder a cero${tambienElo ? ", Elo de la liga desde hoy" : ""}${tambienPuestos ? " y puestos oficiales borrados" : ""}.`));
 }

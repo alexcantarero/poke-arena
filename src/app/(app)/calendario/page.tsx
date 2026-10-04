@@ -4,7 +4,7 @@ import { canManageLeague } from "@/lib/auth";
 import { isPlayed, outcome } from "@/lib/stats";
 import { CALENDAR_KINDS, kindsPresent, toneOf } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
-import { Empty, PageHead } from "@/components/ui";
+import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
@@ -51,7 +51,8 @@ export default async function CalendarPage({
     ...snap.tournaments.map((t) => t.kind),
   ]);
 
-  type Mark = { text: string; color: string; label: string; url?: string; href?: string };
+  /** v0.18: `kind`/`scope` para el emblema (Regional, Challenge, Cup, Online). */
+  type Mark = { text: string; color: string; label: string; url?: string; href?: string; kind?: string | null; scope?: string | null };
   const byDay = new Map<string, Mark[]>();
   const push = (date: string, m: Mark) => {
     const list = byDay.get(date);
@@ -78,13 +79,13 @@ export default async function CalendarPage({
   for (const e of eventos) {
     if (tipo && e.tournamentKind !== tipo) continue;
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
-    pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined });
+    pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind });
   }
   for (const t of snap.tournaments) {
     if (tipo && t.kind !== tipo) continue;
     const tone = toneOf(t.kind, "event");
     // v0.16: un torneo del calendario lleva a su ficha.
-    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}` });
+    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope });
   }
   // Las partidas solo cuando no hay filtro de tipo puesto: si alguien está
   // mirando «Regionales», las partidas del martes no le interesan.
@@ -129,6 +130,8 @@ export default async function CalendarPage({
         sub: [e.location, e.note].filter(Boolean).join(" · "),
         url: e.url || undefined,
         href: undefined as string | undefined,
+        kind: e.tournamentKind as string | null,
+        scope: null as string | null,
       })),
     ...snap.tournaments
       .filter((t) => (t.endDate ?? t.date) >= today)
@@ -138,6 +141,8 @@ export default async function CalendarPage({
         kindLabel: toneOf(t.kind, "event").label,
         color: toneOf(t.kind, "event").color,
         sub: [t.city, t.venue].filter(Boolean).join(" · "),
+        kind: t.kind as string | null,
+        scope: t.scope as string | null,
         url: undefined,
         href: `/torneos/${t.id}`,
       })),
@@ -236,18 +241,23 @@ export default async function CalendarPage({
                     background: `color-mix(in oklab, ${m.color} 16%, transparent)`,
                     color: m.color,
                   };
-                  const clase = "block truncate rounded px-1 py-px text-[9px] font-semibold sm:text-[10px]";
+                  const clase = "flex min-w-0 items-center gap-0.5 rounded px-0.5 py-px text-[9px] font-semibold sm:px-1 sm:text-[10px]";
                   // v0.16: torneos y partidas llevan a su ficha; un evento con web, a su web.
                   return m.href ? (
                     <Link key={j} href={m.href} title={`${m.label}: ${m.text}`} className={`${clase} hover:brightness-125`} style={estilo}>
-                      {m.text}
+                      <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
+                      <span className="truncate">{m.text}</span>
                     </Link>
                   ) : m.url ? (
                     <a key={j} href={m.url} target="_blank" rel="noopener noreferrer" title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
-                      {m.text}
+                      <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
+                      <span className="truncate">{m.text}</span>
                     </a>
                   ) : (
-                    <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>{m.text}</span>
+                    <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
+                      <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
+                      <span className="truncate">{m.text}</span>
+                    </span>
                   );
                 })}
                 {marks.length > 3 && <span className="text-[9px] text-muted">+{marks.length - 3}</span>}
@@ -339,6 +349,7 @@ export default async function CalendarPage({
 type ItemAgenda = {
   id: string; date: string; endDate: string | null; title: string;
   kindLabel: string; color: string; sub: string; url?: string; href?: string;
+  kind?: string | null; scope?: string | null;
 };
 
 function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
@@ -387,7 +398,11 @@ function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) 
                       </span>
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-display text-xl font-bold leading-tight sm:text-2xl">{e.title}</span>
+                      <span className="flex items-start gap-2">
+                        {/* v0.18: el emblema del tipo, a juego con el del Regional. */}
+                        <TournamentEmblem kind={e.kind} scope={e.scope} size="sm" />
+                        <span className="block min-w-0 font-display text-xl font-bold leading-tight sm:text-2xl">{e.title}</span>
+                      </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
                         <span
                           className="chip"
