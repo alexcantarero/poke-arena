@@ -1,6 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Saira_Condensed } from "next/font/google";
 import "./globals.css";
 import { getLang } from "@/lib/lang";
+
+/* v0.20 — tipografías con `next/font`: se descargan al compilar y se sirven
+   desde el propio dominio. Antes era una hoja de Google Fonts que BLOQUEABA
+   el primer pintado (en 4G, medio segundo con la pantalla en blanco) y un
+   salto de letra al llegar. Ahora hay `size-adjust` automático: sin salto. */
+const saira = Saira_Condensed({
+  subsets: ["latin"], weight: ["500", "600", "700", "800"], display: "swap", variable: "--font-saira",
+});
+const plexSans = IBM_Plex_Sans({
+  subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-plex-sans",
+});
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--font-plex-mono",
+});
 
 export const metadata: Metadata = {
   title: { default: "PokeArena TCG", template: "%s · PokeArena TCG" },
@@ -56,16 +71,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
        Safari, Edge) ya no traduce las páginas por su cuenta. El único cambio
        de idioma es el botón ES/EN de la app; antes, con la cookie en inglés,
        Chrome «ayudaba» traduciendo a máquina todo lo que aún está en español. */
-    <html lang={lang} translate="no" className="notranslate" suppressHydrationWarning>
+    <html lang={lang} translate="no"
+      className={`notranslate ${saira.variable} ${plexSans.variable} ${plexMono.variable}`}
+      suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
+        {/* v0.20: los sprites vienen de este CDN; abrir la conexión antes ahorra
+            un viaje en la primera imagen de cada pantalla. */}
+        <link rel="preconnect" href="https://r2.limitlesstcg.net" />
+        <link rel="dns-prefetch" href="https://r2.limitlesstcg.net" />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-        />
       </head>
       <body>{children}</body>
     </html>

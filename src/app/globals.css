@@ -211,9 +211,10 @@
   --color-source-diff: var(--source-diff);
   --color-source-diff-soft: var(--source-diff-soft);
 
-  --font-display: "Saira Condensed", "Arial Narrow", Impact, sans-serif;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* v0.20: las variables `--font-saira`/`--font-plex-*` las pone next/font en <html>. */
+  --font-display: var(--font-saira), "Saira Condensed", "Arial Narrow", Impact, sans-serif;
+  --font-sans: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* alto de la barra inferior del móvil, para reservar hueco al final del scroll */
   --spacing-nav: 4.75rem;
@@ -273,6 +274,12 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* v0.20: sin el recuadro gris al tocar en Android/iOS (cada botón ya tiene
+       su estado :active) y sin el retardo de doble toque en enlaces y botones. */
+    -webkit-tap-highlight-color: transparent;
+  }
+  a, button, summary, select, label, [role="button"] {
+    touch-action: manipulation;
   }
   body {
     background: var(--ground);
@@ -474,7 +481,10 @@
     transform: translateY(0) scale(0.995);
   }
   .card-head {
-    @apply flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3 sm:px-5;
+    /* v0.20: `flex-wrap` — en el móvil, si el título y los controles de la
+       derecha (orden, pestañas) no caben, los controles bajan a otra línea en
+       vez de aplastar el título o salirse de la tarjeta. */
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line-soft px-4 py-3 sm:px-5;
   }
   /* El primer hijo de una cabecera es siempre el título, y un título largo
      sin `min-width: 0` no se deja truncar: empuja y ensancha la tarjeta. Es

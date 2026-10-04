@@ -67,11 +67,11 @@ export function KindEmblem({ kind, className = "size-10" }: { kind: EmblemKind; 
       <path d="M50 13 L81 21 V42 H19 V21 Z" fill="#fff" />
       {c.sub && (
         <text x="50" y="25" textAnchor="middle" fontSize="8.5" fontWeight="800" letterSpacing="1.5"
-          fill={NAVY} fontFamily="'Saira Condensed', 'Arial Narrow', sans-serif">{c.sub}</text>
+          fill={NAVY} style={{ fontFamily: "var(--font-display)" }}>{c.sub}</text>
       )}
       <text x="50" y={c.sub ? 38 : 34} textAnchor="middle"
         fontSize={c.titulo.length > 6 ? 14 : c.sub ? 18 : 16} fontWeight="800" letterSpacing="0.5"
-        fill={NAVY} fontFamily="'Saira Condensed', 'Arial Narrow', sans-serif"
+        fill={NAVY} style={{ fontFamily: "var(--font-display)" }}
         textLength={c.titulo.length > 6 ? 58 : undefined} lengthAdjust="spacingAndGlyphs">
         {c.titulo}
       </text>

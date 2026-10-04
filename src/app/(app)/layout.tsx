@@ -82,7 +82,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl px-4 pb-nav-safe pt-4 sm:px-6 md:pb-10 md:pt-6">
+        {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
+            móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
+        <main className="mx-auto w-full max-w-5xl px-3 pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
       </div>

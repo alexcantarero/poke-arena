@@ -21,8 +21,7 @@ import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
-import { ArchetypeChart } from "@/components/statistics/Charts";
-import { ConversionChart } from "@/components/statistics/ConversionChart";
+import { ConversionChartLazy } from "@/components/statistics/lazy";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 
@@ -401,30 +400,9 @@ export default async function StatsPage({
         </section>
       </div>
 
-      {archs.filter((a) => a.played >= 2).length > 1 && (
-        <section className="card mt-4 p-4">
-          <div className="mb-1 flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-bold">Victorias por arquetipo</h2>
-            <SortToggle dir={orden} href={ordenHref} />
-          </div>
-          <p className="mb-3 text-xs text-muted">
-            Los más jugados de tu liga, con el filtro que tengas puesto.
-          </p>
-          <ArchetypeChart
-            mode="local"
-            rows={sortRows(archs.filter((a) => a.played >= 2), (a) => a.winRate, orden).map((a) => ({
-              id: a.archetypeId,
-              name: a.archetype?.name ?? a.archetypeId,
-              // Los sprites del eje salen de aquí: sin ellos la gráfica cae al
-              // nombre corto, que es lo que había antes.
-              main: a.archetype?.main ?? "",
-              secondary: a.archetype?.secondary ?? "",
-              local: a.winRate,
-              played: a.played,
-            }))}
-          />
-        </section>
-      )}
+      {/* v0.20 — fuera la gráfica «Victorias por arquetipo»: enseñaba exactamente
+          lo mismo que las barras de «Rendimiento» de arriba (mismos mazos, mismo
+          %V, mismo mínimo de 2 usos) y obligaba a cargar Recharts entero. */}
 
       {/* -------------------- rendimiento en torneos ------------------- */}
       {placements.length > 0 && (
@@ -480,7 +458,7 @@ export default async function StatsPage({
                 Todos los resultados del grupo juntos, agrupados por mes. Los meses sin
                 torneos no salen: rellenarlos con ceros dibujaría caídas que no han pasado.
               </p>
-              <ConversionChart points={evolucion} />
+              <ConversionChartLazy points={evolucion} />
             </section>
           )}
         </>

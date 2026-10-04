@@ -39,14 +39,15 @@ export function Avatar({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={spriteUrl(player.avatarValue)} alt=""
-          className="size-full scale-110 object-contain" loading="lazy"
+          className="size-full scale-110 object-contain" loading="lazy" decoding="async"
+          width={96} height={96}
         />
       </span>
     );
   }
   if (player.avatarKind === "image" && player.avatarValue) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={player.avatarValue} alt="" className={`${cls} object-cover`} loading="lazy" />;
+    return <img src={player.avatarValue} alt="" className={`${cls} object-cover`} loading="lazy" decoding="async" width={96} height={96} />;
   }
   return (
     <span className={cls} style={{ background: player.color }}>
@@ -158,6 +159,8 @@ export function Sprites({
           alt={prettyPokemon(slug)}
           title={prettyPokemon(slug)}
           loading="lazy"
+          decoding="async"
+          width={96} height={96}
           className={`${SPRITE_SIZES[size]} flex-none object-contain ${i > 0 ? "-ml-2.5" : ""}`}
         />
       ))}

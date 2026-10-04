@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { compPlayers, ladderChartData, loadSnapshot, playerCp } from "@/lib/data";
-import { LadderChart, type SerieLadder } from "@/components/statistics/LadderChart";
+import type { SerieLadder } from "@/components/statistics/LadderChart";
+import { LadderChartLazy } from "@/components/statistics/lazy";
 import { seriesLadder } from "@/lib/ladderSeries";
 import { RankBadge } from "@/components/Ladder";
 import {
@@ -75,7 +76,11 @@ export default async function RankingPage({
   /* v0.19 — todos los filtros en un sitio (`lib/rankingFiltro.ts`). */
   const filtro = parseFiltroRanking(q);
   const rango = rangoDeFechas(filtro, todayISO());
-  const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
+  // v0.20: los datos de la gráfica del ladder se piden a la vez que el resto,
+  // no después (antes era un viaje más a la base, en cadena).
+  const [snap, session, lang, datosLadder] = await Promise.all([
+    loadSnapshot(), readSession(), getLang(), ladderChartData(),
+  ]);
 
   /* v0.17 — «¿A quién?»: todos, o solo los que sigues (más tú). Recorta las
      tablas, el cara a cara y el camino al Mundial; no cambia los cálculos
@@ -248,7 +253,6 @@ export default async function RankingPage({
   const lider = ladder[0]?.player ?? null;
   /* v0.19 — gráfica de evolución: todos los que tienen historial, con hueco en
      cada reset. Solo viaja id, nombre, color y números al cliente. */
-  const datosLadder = await ladderChartData();
   const porSerie = seriesLadder(datosLadder.entries, datosLadder.resets);
   const seriesGrafica: SerieLadder[] = snap.players
     .filter((p) => p.active && porSerie.has(p.id))
@@ -527,7 +531,7 @@ export default async function RankingPage({
                   : "toda la historia"}
               </span>
             </div>
-            <LadderChart series={seriesGrafica} resets={resetsGrafica} />
+            <LadderChartLazy series={seriesGrafica} resets={resetsGrafica} />
           </div>
         )}
         <LadderTable rows={ladder} meId={session?.playerId} />

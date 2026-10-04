@@ -2,7 +2,7 @@ import Link from "next/link";
 import { loadSnapshot } from "@/lib/data";
 import { archetypesOfMatch, isPlayed, porRecientes } from "@/lib/stats";
 import {
-  applyMatchFilter, describeFilter, isFiltered, parseMatchFilter, type FilterIndex,
+  applyMatchFilter, describeFilter, filterToQuery, isFiltered, parseMatchFilter, type FilterIndex,
 } from "@/lib/filters";
 import { COMPETITION_KINDS, TOURNAMENT_FORMATS } from "@/lib/types";
 import { getSeason } from "@/lib/cp";
@@ -42,6 +42,20 @@ export default async function ResultsPage({
 
   const played = snap.matches.filter(isPlayed);
   const rows = applyMatchFilter(played, filter, index).slice().sort(porRecientes);
+
+  /* v0.20 — de 40 en 40. Con 180 partidas eran 180 tarjetas con 4 sprites
+     cada una (más de 700 imágenes) en una sola página del móvil. «Ver más»
+     es un enlace normal (`?n=80`): funciona sin JS y la vuelta atrás vuelve
+     al mismo punto. */
+  const POR_PAGINA = 40;
+  const nRaw = Number(Array.isArray(q.n) ? q.n[0] : q.n);
+  const limite = Number.isFinite(nRaw) && nRaw > POR_PAGINA ? Math.min(Math.floor(nRaw), 5000) : POR_PAGINA;
+  const visibles = rows.slice(0, limite);
+  const masHref = (() => {
+    const sp = filterToQuery(filter);
+    sp.set("n", String(limite + POR_PAGINA));
+    return `/resultados?${sp.toString()}`;
+  })();
 
   // Las pendientes respetan el filtro de competición y de torneo, que es lo
   // único que tiene sentido en algo que aún no se ha jugado.
@@ -123,7 +137,7 @@ export default async function ResultsPage({
       <div className="card">
         {rows.length ? (
           <MatchList>
-            {rows.map((m) => (
+            {visibles.map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}
@@ -146,6 +160,14 @@ export default async function ResultsPage({
           </Empty>
         )}
       </div>
+      {rows.length > limite && (
+        <div className="mt-3 flex flex-col items-center gap-1">
+          <Link href={masHref} scroll={false} className="btn w-full sm:w-auto">
+            Ver {Math.min(POR_PAGINA, rows.length - limite)} más
+          </Link>
+          <span className="text-xs text-muted tabular">{limite} de {rows.length}</span>
+        </div>
+      )}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -74,10 +75,23 @@ const DEFAULT_SETTINGS: Settings = {
  * partidas: cabe de sobra en memoria y evita tener una consulta distinta por
  * pantalla. Si algún día crece, este es el sitio por donde empezar a paginar.
  */
-export async function loadSnapshot() {
+/**
+ * v0.20 — RENDIMIENTO. Dos cambios que no se ven y se notan:
+ *
+ *  1. `cache()` de React: dentro de UNA petición, la primera llamada hace
+ *     el trabajo y las demás reciben el mismo resultado. Antes el layout y la
+ *     página llamaban a `loadSnapshot()` cada uno por su lado: dos cargas
+ *     completas de la base por cada pantalla. No cachea ENTRE peticiones, así
+ *     que nunca se ven datos viejos.
+ *  2. Un solo viaje a la base en vez de tres en cadena. Las partidas y los
+ *     torneos se cargan enteros, así que sus juegos y resultados también se
+ *     pueden pedir enteros, a la vez, sin esperar a saber los ids (y sin un
+ *     `IN (…)` con cientos de ids, que además era más lento).
+ */
+export const loadSnapshot = cache(async () => {
   const [
     cfgRows, playerRows, archRows, deckRows, compRows, compPlayerRows,
-    matchRows, eventRows, tourRows,
+    matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows,
   ] = await Promise.all([
     db.select().from(settings).where(eq(settings.id, "default")),
     db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)),
@@ -88,23 +102,12 @@ export async function loadSnapshot() {
     db.select().from(matches).orderBy(asc(matches.date)),
     db.select().from(events).orderBy(asc(events.date)),
     db.select().from(tournaments).orderBy(desc(tournaments.date)),
-  ]);
-
-  const [favRows, playerFavRows] = await Promise.all([
     db.select().from(deckFavorites),
     db.select().from(playerFavorites),
-  ]);
-
-  const matchIds = matchRows.map((m) => m.id);
-  const tourIds = tourRows.map((t) => t.id);
-
-  const [gameRows, resultRows] = await Promise.all([
-    matchIds.length
-      ? db.select().from(games).where(inArray(games.matchId, matchIds)).orderBy(asc(games.number))
-      : Promise.resolve([] as Game[]),
-    tourIds.length
-      ? db.select().from(tournamentResults).where(inArray(tournamentResults.tournamentId, tourIds))
-      : Promise.resolve([] as TournamentResult[]),
+    // Todos los juegos y resultados: cuelgan de partidas y torneos con
+    // ON DELETE CASCADE, así que no hay huérfanos que filtrar.
+    db.select().from(games).orderBy(asc(games.number)) as Promise<Game[]>,
+    db.select().from(tournamentResults) as Promise<TournamentResult[]>,
   ]);
 
   const gamesByMatch = new Map<string, Game[]>();
@@ -187,7 +190,7 @@ export async function loadSnapshot() {
     elo,
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };
-}
+});
 
 /**
  * Los mazos que se le pueden ofrecer a alguien, en el orden en que los quiere.
@@ -308,14 +311,15 @@ export function playerCp(snap: Snapshot, playerId: string, season?: number): CpT
  * se sobrescribe; mientras tanto es inofensiva, porque aquí se comprueba
  * `active` contra la base de datos en cada petición.
  */
-export async function currentPlayer(): Promise<PublicPlayer | null> {
+/** v0.20: también con `cache()` — layout y página lo pedían por separado. */
+export const currentPlayer = cache(async (): Promise<PublicPlayer | null> => {
   const session = await readSession();
   if (!session) return null;
   const rows = await db.select(PUBLIC_PLAYER_COLUMNS).from(players)
     .where(eq(players.id, session.playerId));
   const me = rows[0];
   return me?.active ? me : null;
-}
+});
 
 /**
  * Los correos de todos, por id.
