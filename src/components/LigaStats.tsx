@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { MatchFull, PublicPlayer } from "@/lib/types";
-import { activityByMonth, firstTurnStats, isPlayed, outcome } from "@/lib/stats";
+import type { Archetype, MatchFull, PublicPlayer } from "@/lib/types";
+import { activityByMonth, archetypesOfMatch, firstTurnStats, isPlayed, outcome } from "@/lib/stats";
 import { MONTHS, pct, wrColor } from "@/lib/format";
 import { Kpi } from "@/components/primitives";
-import { Avatar } from "@/components/ui";
+import { Avatar, Sprites } from "@/components/ui";
 
 /* =========================================================================
    v0.19 — Estadísticas de la liga, dentro de la propia sección de Liga.
@@ -19,8 +19,12 @@ import { Avatar } from "@/components/ui";
 type Fila = { id: string; player?: PublicPlayer; w: number; l: number; t: number };
 
 export function LigaStats({
-  matches, playersById, titulo = "Estadísticas de la liga",
-}: { matches: MatchFull[]; playersById: Map<string, PublicPlayer>; titulo?: string }) {
+  matches, playersById, titulo = "Estadísticas de la liga", archIndex, archById,
+}: {
+  matches: MatchFull[]; playersById: Map<string, PublicPlayer>; titulo?: string;
+  /** v0.24: para los arquetipos de la liga. Sin ellos, ese bloque no sale. */
+  archIndex?: Map<string, Archetype | undefined>; archById?: Map<string, Archetype>;
+}) {
   const jugadas = matches.filter(isPlayed).filter((m) => m.playerBId);
   if (!jugadas.length) return null;
 
@@ -48,6 +52,43 @@ export function LigaStats({
   const maxMes = Math.max(1, ...meses.map((m) => m.n));
   const ft = firstTurnStats(jugadas);
   const empates = jugadas.filter((m) => outcome(m).winner === "tie").length;
+
+  /* v0.24 — Arquetipos de la liga: cuánto se juega cada uno (los dos lados de
+     cada partida) y su %V. Los 8 más jugados. */
+  const porArch = new Map<string, { a: Archetype; n: number; w: number; t: number }>();
+  if (archIndex) {
+    for (const m of jugadas) {
+      const o = outcome(m);
+      const { a, b } = archetypesOfMatch(m, archIndex, archById);
+      for (const [arch, gano, empata] of [[a, o.winner === "a", o.winner === "tie"], [b, o.winner === "b", o.winner === "tie"]] as const) {
+        if (!arch) continue;
+        const r = porArch.get(arch.id) ?? { a: arch, n: 0, w: 0, t: 0 };
+        r.n++; if (gano) r.w++; if (empata) r.t++;
+        porArch.set(arch.id, r);
+      }
+    }
+  }
+  const arquetipos = [...porArch.values()].sort((x, y) => y.n - x.n).slice(0, 8);
+  const usosTotales = [...porArch.values()].reduce((s, r) => s + r.n, 0);
+
+  /* v0.24 — Rachas: la actual de cada uno (V o D seguidas, contando desde la
+     última partida) y la mejor racha de victorias de la liga. */
+  const rachas = new Map<string, { actual: number; tipo: "V" | "D" | null; mejor: number; seguidas: number }>();
+  for (const m of [...jugadas].sort((x, y) => x.date.localeCompare(y.date))) {
+    const o = outcome(m);
+    for (const [pid, res] of [[m.playerAId, o.winner === "a" ? "V" : o.winner === "b" ? "D" : "E"], [m.playerBId!, o.winner === "b" ? "V" : o.winner === "a" ? "D" : "E"]] as const) {
+      const r = rachas.get(pid) ?? { actual: 0, tipo: null, mejor: 0, seguidas: 0 };
+      if (res === "E") { r.actual = 0; r.tipo = null; r.seguidas = 0; }
+      else if (r.tipo === res) r.actual++;
+      else { r.tipo = res; r.actual = 1; }
+      r.seguidas = res === "V" ? r.seguidas + 1 : 0;
+      r.mejor = Math.max(r.mejor, r.seguidas);
+      rachas.set(pid, r);
+    }
+  }
+  const listaRachas = [...rachas.entries()]
+    .map(([id, r]) => ({ id, ...r, player: playersById.get(id) }))
+    .sort((x, y) => (y.tipo === "V" ? y.actual : -y.actual) - (x.tipo === "V" ? x.actual : -x.actual));
 
   return (
     <section className="mb-5">
@@ -100,6 +141,50 @@ export function LigaStats({
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* v0.24 — más análisis de la temporada */}
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {arquetipos.length > 0 && (
+          <div className="card min-w-0 p-4">
+            <h3 className="mb-3 font-bold">Arquetipos de la liga</h3>
+            <ul className="flex flex-col gap-2.5">
+              {arquetipos.map((r) => {
+                const wr = r.n ? (r.w + 0.5 * r.t) / r.n : null;
+                return (
+                  <li key={r.a.id} className="flex items-center gap-2">
+                    <Sprites archetype={r.a} size="sm" />
+                    <span className="w-28 min-w-0 flex-none truncate text-sm font-semibold xs:w-36">{r.a.name}</span>
+                    <span className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-2" title={`${r.n} usos`}>
+                      <span className="block h-full bg-info/70" style={{ width: `${(r.n / Math.max(1, usosTotales)) * 100}%` }} />
+                    </span>
+                    <span className="w-10 flex-none text-right font-mono text-[11px] text-muted tabular">{pct(r.n / Math.max(1, usosTotales), 0)}</span>
+                    <span className="w-11 flex-none text-right font-mono text-xs font-semibold tabular" style={{ color: wrColor(wr) }}>{pct(wr, 0)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-[11px] text-muted">Barra: cuota de uso (cada lado de cada partida). Número de color: % de victorias.</p>
+          </div>
+        )}
+
+        <div className="card min-w-0 p-4">
+          <h3 className="mb-3 font-bold">Rachas</h3>
+          <ul className="flex flex-col gap-2">
+            {listaRachas.map((r) => (
+              <li key={r.id} className="flex items-center gap-2">
+                <Link href={`/perfil/${r.id}`} className="flex min-w-0 flex-1 items-center gap-1.5 hover:text-info">
+                  <Avatar player={r.player} size="sm" />
+                  <span className="truncate text-sm font-semibold">{r.player?.name ?? "—"}</span>
+                </Link>
+                <span className={`chip chip-dot flex-none text-[11px] ${r.tipo === "V" ? "text-win" : r.tipo === "D" ? "text-loss" : "text-muted"}`}>
+                  {r.tipo ? `${r.actual} ${r.tipo === "V" ? "victoria" : "derrota"}${r.actual === 1 ? "" : "s"} seguida${r.actual === 1 ? "" : "s"}` : "sin racha"}
+                </span>
+                <span className="w-16 flex-none text-right text-[11px] text-muted tabular">mejor {r.mejor}V</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

@@ -13,7 +13,7 @@ import {
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
 import { creaCiclo } from "@/lib/arquetipos";
-import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, mazoDePartida, partidasDeDuelo } from "@/lib/modalidades";
+import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
   isOwner, newInviteToken, normalizeEmail, passwordProblem, readSession, verifyPassword,
@@ -679,45 +679,29 @@ export async function saveMatch(fd: FormData) {
     playerBId: playerBId || null,
     opponentName: playerBId ? null : (externalName.slice(0, 60) || null),
     opponentPlayerId: keepRivalLink ? current!.opponentPlayerId : null,
-    deckAId: str(fd, "deckAId") || null,
-    deckBId: playerBId ? (str(fd, "deckBId") || null) : null,
-    opponentArchetypeId: playerBId ? null : (str(fd, "opponentArchetypeId") || null),
+    // v0.24: en el selector de mazo también se puede elegir solo un ARQUETIPO
+    // (`arch:<id>`), para los dos lados. El de A va a `archetypeAId`; el del
+    // rival del grupo, a `opponentArchetypeId` (mismo hueco que el de fuera).
+    deckAId: str(fd, "deckAId").startsWith("arch:") ? null : (str(fd, "deckAId") || null),
+    archetypeAId: str(fd, "deckAId").startsWith("arch:") ? str(fd, "deckAId").slice(5) || null : null,
+    deckBId: playerBId && !str(fd, "deckBId").startsWith("arch:") ? (str(fd, "deckBId") || null) : null,
+    opponentArchetypeId: playerBId
+      ? (str(fd, "deckBId").startsWith("arch:") ? str(fd, "deckBId").slice(5) || null : null)
+      : (str(fd, "opponentArchetypeId") || null),
     bestOf,
     status: "done" as const,
     note: str(fd, "note").slice(0, 500),
     createdBy: actor.id,
   };
 
-  /* v0.23 — Mazos de liga. Si la persona entregó mazo(s) para esta liga, la
-     partida tiene que ir con uno de ellos (mazo fijo: ese; Bo3 · 3 mazos:
-     uno de los tres). Para TU lado (o cualquiera, si eres organizador) un
-     mazo que no vale es un error con mensaje. Para el lado del rival se
-     corrige en silencio: decir «ese no es su mazo» sería ir revelando los
-     mazos que entregó, que son privados. */
+  /* v0.24 — Ya no se imponen mazos de liga: cada partida lleva el mazo o
+     arquetipo que se apunte. Solo queda la regla de la modalidad «Bo3». */
   if (values.competitionId) {
-    const comp = (await db.select({ modality: competitions.modality, bestOf: competitions.bestOf })
+    const comp = (await db.select({ modality: competitions.modality })
       .from(competitions).where(eq(competitions.id, values.competitionId)))[0];
-    if (comp) {
-      const back = editing ? `/partidas/${editing}` : "/partidas/nueva";
-      if (asModalidad(comp.modality) === "tres_mazos" && bestOf !== 3) {
-        redirect(withFlash(back, "error", "En esta liga las series son al mejor de tres (Bo3)."));
-      }
-      const quienes = [playerAId, ...(playerBId ? [playerBId] : [])];
-      const filas = await db.select({ playerId: leagueDecks.playerId, deckId: leagueDecks.deckId })
-        .from(leagueDecks)
-        .where(and(eq(leagueDecks.competitionId, values.competitionId), inArray(leagueDecks.playerId, quienes)));
-      const entregadosDe = (pid: string) =>
-        filas.filter((r) => r.playerId === pid && r.deckId).map((r) => r.deckId!);
-      const manda = canManageLeague(actor.role);
-      for (const [pid, campo] of [[playerAId, "deckAId"], [playerBId, "deckBId"]] as const) {
-        if (!pid) continue;
-        const r = mazoDePartida(entregadosDe(pid), values[campo]);
-        if (r.ok) { values[campo] = r.deckId; continue; }
-        if (manda || pid === actor.id) redirect(withFlash(back, "error", r.error));
-        // Rival: con un solo mazo entregado, ese; con varios, sin mazo antes que uno falso.
-        const suyos = entregadosDe(pid);
-        values[campo] = suyos.length === 1 ? suyos[0] : null;
-      }
+    if (comp && asModalidad(comp.modality) === "tres_mazos" && bestOf !== 3) {
+      redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error",
+        "En esta liga las series son al mejor de tres (Bo3)."));
     }
   }
 

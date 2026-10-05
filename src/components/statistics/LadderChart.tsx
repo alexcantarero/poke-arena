@@ -29,8 +29,10 @@ const fecha = (t: number) =>
   new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" });
 
 export function LadderChart({
-  series, resets, inicial = 5, destacados = [], pie, etiquetaReset = "Reset",
+  series, resets, inicial = 5, destacados = [], pie, etiquetaReset = "Reset", fechas,
 }: {
+  /** v0.24: si viene, el eje X es el Nº DE PARTIDA y esto da su fecha. */
+  fechas?: Array<[number, string]>;
   series: SerieLadder[]; resets: number[]; inicial?: number;
   /** v0.22: ids que salen marcados sí o sí (p. ej. el dueño del perfil). */
   destacados?: string[];
@@ -57,6 +59,14 @@ export function LadderChart({
     });
 
   const visibles = series.filter((s) => elegidos.has(s.id));
+  // Eje por orden de partida: la etiqueta es la fecha de esa partida.
+  const fechaDe = useMemo(() => new Map(fechas ?? []), [fechas]);
+  const porOrden = Boolean(fechas);
+  const etiquetaX = (t: number) => {
+    if (!porOrden) return fecha(t);
+    const iso = fechaDe.get(Math.round(t));
+    return iso ? fecha(new Date(`${iso}T12:00:00Z`).getTime()) : `#${Math.round(t)}`;
+  };
   const todos = visibles.flatMap((s) => s.puntos);
   const tiempos = todos.map((p) => p.t);
   const elos = todos.map((p) => p.elo).filter((v): v is number => v != null);
@@ -98,12 +108,13 @@ export function LadderChart({
             <LineChart margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
               <XAxis
-                dataKey="t" type="number" scale="time" domain={[tMin, tMax]}
-                tickFormatter={fecha} tick={EJE} minTickGap={24} allowDuplicatedCategory={false}
+                dataKey="t" type="number" scale={porOrden ? "linear" : "time"}
+                domain={porOrden ? ["dataMin", "dataMax"] : [tMin, tMax]}
+                tickFormatter={etiquetaX} tick={EJE} minTickGap={28} allowDuplicatedCategory={false}
               />
               <YAxis dataKey="elo" domain={[yMin, yMax]} tick={EJE} width={48} allowDecimals={false} />
               <Tooltip
-                labelFormatter={(t) => fecha(Number(t))}
+                labelFormatter={(t) => porOrden ? `Partida ${Math.round(Number(t))} · ${etiquetaX(Number(t))}` : fecha(Number(t))}
                 formatter={(v, name) => [v as number, name as string]}
                 contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, fontSize: 12 }}
               />
@@ -112,7 +123,7 @@ export function LadderChart({
                   label={{ value: etiquetaReset, position: "insideTopRight", fill: "var(--loss)", fontSize: 10 }} />
               ))}
               {visibles.map((s) => (
-                <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type="monotone"
+                <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "monotone"}
                   stroke={s.color} strokeWidth={2.25} dot={{ r: 3 }} activeDot={{ r: 5 }}
                   connectNulls={false} isAnimationActive={false} />
               ))}

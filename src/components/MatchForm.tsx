@@ -32,8 +32,10 @@ export function MatchForm({
   const [aId, setAId] = useState(match?.playerAId ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
   const [bId, setBId] = useState(match?.playerBId ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
-  const [aDeckId, setADeckId] = useState(match?.deckAId ?? "");
-  const [bDeckId, setBDeckId] = useState(match?.deckBId ?? "");
+  const [aDeckId, setADeckId] = useState(
+    match?.deckAId ?? (match?.archetypeAId ? `arch:${match.archetypeAId}` : ""));
+  const [bDeckId, setBDeckId] = useState(
+    match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId ? `arch:${match.opponentArchetypeId}` : ""));
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
   const [bestOf, setBestOf] = useState(match?.bestOf ?? 3);
   const [games, setGames] = useState<Array<{ winner: string; first: string }>>(() => {
@@ -116,7 +118,7 @@ export function MatchForm({
             <label className="label" htmlFor="deckAId">Su mazo</label>
             <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
               <option value="">— sin asignar —</option>
-              <DeckOptions decks={decks} playerId={aId} />
+              <DeckOptions decks={decks} playerId={aId} archetypes={archetypes} />
             </select>
           </div>
 
@@ -159,7 +161,7 @@ export function MatchForm({
                 <label className="label" htmlFor="deckBId">Su mazo</label>
                 <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
                   <option value="">— sin asignar —</option>
-                  <DeckOptions decks={decks} playerId={bId} />
+                  <DeckOptions decks={decks} playerId={bId} archetypes={archetypes} />
                 </select>
               </div>
             </>
@@ -316,7 +318,7 @@ export function MatchForm({
  * para esto: poder decir qué llevaba alguien sin tener que apropiarse el mazo
  * ni inventarle una cuenta al rival.
  */
-function DeckOptions({ decks, playerId }: { decks: Deck[]; playerId: string }) {
+function DeckOptions({ decks, playerId, archetypes = [] }: { decks: Deck[]; playerId: string; archetypes?: Archetype[] }) {
   const own = decks.filter((d) => d.playerId === playerId && !d.retired);
   const shared = decks.filter((d) => d.playerId == null && !d.retired);
   return (
@@ -325,6 +327,14 @@ function DeckOptions({ decks, playerId }: { decks: Deck[]; playerId: string }) {
       {shared.length > 0 && (
         <optgroup label="De la liga">
           {shared.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </optgroup>
+      )}
+      {/* v0.24: cualquier arquetipo, sin tener el mazo registrado. */}
+      {archetypes.length > 0 && (
+        <optgroup label="Solo el arquetipo">
+          {[...archetypes].sort((x, y) => x.name.localeCompare(y.name, "es")).map((a) => (
+            <option key={a.id} value={`arch:${a.id}`}>{a.name}</option>
+          ))}
         </optgroup>
       )}
     </>

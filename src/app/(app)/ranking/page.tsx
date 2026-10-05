@@ -265,7 +265,6 @@ export default async function RankingPage({
     }));
   const resetsGrafica = datosLadder.resets.map((r) => new Date(r).getTime());
   const eloGrafica = eloChartData(snap);
-  const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
   /** La URL de ahora con cambios. `null` quita el parámetro. */
   const hrefCon = (cambios: Record<string, string | null>) => {
@@ -407,7 +406,7 @@ export default async function RankingPage({
               <p className="text-xs text-muted">Todos en la misma gráfica, en el tiempo. Elige a quién ver.</p>
             </div>
           </div>
-          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets}
+          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} fechas={eloGrafica.fechas}
             destacados={meId ? [meId] : []} inicial={5}
             pie="Un punto por cada partida que mueve el Elo." etiquetaReset="Corte del Elo" />
         </section>
@@ -490,35 +489,8 @@ export default async function RankingPage({
         <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
       </section>
 
-      {withHistory.length > 0 && (
-        <section className="card mt-4">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Evolución del Elo</h2>
-            <span className="text-xs text-muted">desde {snap.config.eloStart}</span>
-          </div>
-          <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
-            {withHistory.map((p) => {
-              const values = (snap.elo.history[p.id] ?? []).map((h) => h.value);
-              const last = Math.round(values[values.length - 1]);
-              const delta = last - snap.config.eloStart;
-              return (
-                <div key={p.id}>
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <PlayerTag player={p} size="sm" />
-                    <span className="font-mono text-sm font-bold tabular">
-                      {last}{" "}
-                      <span className={`text-xs ${delta >= 0 ? "text-win" : "text-loss"}`}>
-                        {delta >= 0 ? "+" : ""}{delta}
-                      </span>
-                    </span>
-                  </div>
-                  <Sparkline values={values} width={240} height={44} />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* v0.24: fuera la cuadrícula de mini-gráficas por jugador; la evolución
+          del Elo es UNA gráfica con todos (arriba). */}
 
       {/* El ladder es otra clasificación: la escribís vosotros, no sale de las partidas. */}
       <section className="card mt-4">

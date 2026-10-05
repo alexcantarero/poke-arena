@@ -16,19 +16,20 @@
 export type Modalidad = "mazo_fijo" | "tres_mazos" | "equipos";
 
 export const MODALIDADES: Record<Modalidad, { label: string; hint: string; maxMazos: number }> = {
+  // v0.24: sin entrega ni bloqueo previo; los mazos se apuntan en cada partida.
   mazo_fijo: {
     label: "Mazo fijo",
-    hint: "Cada uno entrega un mazo y juega con él hasta que acabe la liga.",
+    hint: "Se juega toda la liga con el mismo mazo, por acuerdo. El mazo se apunta en cada partida.",
     maxMazos: 1,
   },
   tres_mazos: {
     label: "Bo3 · hasta 3 mazos",
-    hint: "Series al mejor de tres. Cada uno entrega hasta tres mazos y en cada serie usa uno de ellos.",
+    hint: "Series al mejor de tres, con hasta tres mazos por persona. El mazo se apunta en cada partida.",
     maxMazos: 3,
   },
   equipos: {
     label: "Duelo por equipos",
-    hint: "Equipos de 3. Cada jornada, equipo contra equipo: tres partidas, una por puesto. Mazo fijo por jugador.",
+    hint: "Equipos de 3. Cada jornada, equipo contra equipo: tres partidas, una por puesto.",
     maxMazos: 1,
   },
 };

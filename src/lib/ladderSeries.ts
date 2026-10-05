@@ -42,22 +42,30 @@ export function seriesLadder(
 }
 
 /**
- * v0.22 — Series del Elo de la liga a partir de `eloTable().history`. El
- * primer punto de cada historial es el valor inicial sin fecha y se salta;
- * varias partidas el mismo día se separan un minuto para que se vean en orden.
+ * v0.24 — Series del Elo de la liga sobre el ORDEN de las partidas.
+ *
+ * La v0.22 ponía el eje X en fechas reales y casi todo caía el mismo día (un
+ * torneo son 8 rondas en una tarde): salían columnas de puntos apilados y
+ * saltos. Ahora el eje X es el nº de partida de la liga (1, 2, 3…), igual
+ * para todos, así que cada línea avanza partida a partida y se conecta bien;
+ * las fechas van en las etiquetas del eje (`fechas`). El valor inicial (sin
+ * fecha) entra como punto 0 para que cada línea arranque en el Elo inicial.
  */
-export function seriesElo(history: Record<string, Array<{ date: string; value: number }>>): Map<string, PuntoSerie[]> {
-  const out = new Map<string, PuntoSerie[]>();
+export function seriesElo(history: Record<string, Array<{ date: string; value: number; i?: number }>>): {
+  series: Map<string, PuntoSerie[]>; fechas: Array<[number, string]>;
+} {
+  const series = new Map<string, PuntoSerie[]>();
+  const fechas = new Map<number, string>();
   for (const [id, h] of Object.entries(history)) {
     const puntos: PuntoSerie[] = [];
-    let ultimoDia = "", n = 0;
     for (const p of h) {
       if (!p.date) continue;
-      n = p.date === ultimoDia ? n + 1 : 0;
-      ultimoDia = p.date;
-      puntos.push({ t: new Date(`${p.date}T12:00:00Z`).getTime() + n * 60_000, elo: Math.round(p.value) });
+      const x = p.i ?? 0;
+      if (!puntos.length) puntos.push({ t: Math.max(0, x - 1), elo: Math.round(h[0]?.date ? p.value : h[0]!.value) });
+      puntos.push({ t: x, elo: Math.round(p.value) });
+      if (!fechas.has(x)) fechas.set(x, p.date);
     }
-    if (puntos.length) out.set(id, puntos);
+    if (puntos.length) series.set(id, puntos);
   }
-  return out;
+  return { series, fechas: [...fechas.entries()].sort((a, b) => a[0] - b[0]) };
 }

@@ -28,7 +28,6 @@ import {
 } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { createPairings } from "@/actions";
-import { Sprites } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -56,20 +55,10 @@ export default async function CompetitionPage({
   const kind =
     COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
 
-  /* v0.18 — Mazo de liga bloqueado. `leagueDecksOf` ya devuelve solo lo que
-     quien mira puede ver: todo si es organizador, el suyo si no. Del resto
-     solo se sabe SI lo han entregado, nunca cuál. */
-  const participo = Boolean(me && ids.includes(me.id));
   // v0.23: modalidad y, si es por equipos, los equipos.
   const modalidad = asModalidad(comp.modality);
   const infoModalidad = MODALIDADES[modalidad];
-  const [visibles, entregados, equipos] = await Promise.all([
-    leagueDecksOf(id, me ? { id: me.id, manager } : null),
-    leagueDeckSubmitters(id),
-    modalidad === "equipos" ? teamsOf(id) : Promise.resolve([]),
-  ]);
-  const misMazos = me ? visibles.filter((d) => d.playerId === me.id).sort((a, b) => a.slot - b.slot) : [];
-  const miMazo = misMazos[0];
+  const equipos = modalidad === "equipos" ? await teamsOf(id) : [];
   const equiposCompletos = equipos.filter((e) => e.members.length === TAM_EQUIPO).sort((a, b) => a.id.localeCompare(b.id));
   const equipoById = new Map(equipos.map((e) => [e.id, e]));
   const tablaEquipos = modalidad === "equipos"
@@ -87,13 +76,6 @@ export default async function CompetitionPage({
         bye: null as string | null,
       }
     : previewLiga;
-  const archDe = (d: { deckId: string | null; archetypeId: string | null }) =>
-    d.deckId ? snap.archIndex.get(d.deckId) : d.archetypeId ? snap.archById.get(d.archetypeId) : undefined;
-  const nombreMazo = (d: { deckId: string | null; archetypeId: string | null }) =>
-    (d.deckId && snap.decksById.get(d.deckId)?.name) || archDe(d)?.name || "Mazo sin nombre";
-  const opcionesMazo = me
-    ? [...deckOptions(snap, me.id, { includeOthers: false }), ...archetypeOptions(snap)]
-    : [];
 
   return (
     <>
@@ -159,116 +141,11 @@ export default async function CompetitionPage({
       </div>
 
       {/* v0.19 — gráficos y cifras de esta competición. */}
-      <LigaStats matches={inComp} playersById={snap.playersById} titulo="Estadísticas de esta liga" />
+      <LigaStats matches={inComp} playersById={snap.playersById} titulo="Estadísticas de esta liga"
+        archIndex={snap.archIndex} archById={snap.archById} />
 
-      {/* ------------------- v0.18: mazo de liga bloqueado ------------------- */}
-      {(participo || manager) && (
-        <section className="card mb-4 min-w-0">
-          <div className="card-head">
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold">Mazo de liga</h2>
-              <p className="text-xs text-muted">
-                Se entrega una vez y queda bloqueado. Solo lo ven su dueño y los organizadores.
-              </p>
-            </div>
-            <span className="flex-none text-xs text-muted tabular">{entregados.size}/{ids.length}</span>
-          </div>
-
-          {participo && me && (
-            <div className="border-b border-line-soft p-4">
-              {miMazo ? (
-                <div className="flex flex-col gap-2">
-                  {misMazos.map((d) => (
-                    <div key={d.slot} className="flex items-center gap-3">
-                      <Icon name="lock" className="size-5 flex-none text-brand" />
-                      {archDe(d) ? <Sprites archetype={archDe(d)!} size="md" /> : null}
-                      <span className="min-w-0 flex-1 truncate font-semibold">
-                        {misMazos.length > 1 && <span className="meta-kv mr-1"><b>{d.slot}</b></span>}
-                        {nombreMazo(d)}
-                      </span>
-                    </div>
-                  ))}
-                  <span className="text-xs text-muted">
-                    Bloqueado{misMazos.length > 1 ? "s" : ""} el {fmtDate(miMazo.lockedAt.toISOString().slice(0, 10))}. Para cambiarlo, habla con un organizador.
-                  </span>
-                </div>
-              ) : (
-                <form action={submitLeagueDeck} className="flex flex-col gap-3">
-                  <input type="hidden" name="competitionId" value={comp.id} />
-                  {infoModalidad.maxMazos > 1 ? (
-                    <>
-                      <span className="label">Tus {infoModalidad.maxMazos} mazos para esta liga (en cada serie juegas uno)</span>
-                      {Array.from({ length: infoModalidad.maxMazos }, (_, i) => (
-                        <DeckPicker key={i} id={`league-deck-${i + 1}`} name={`deck${i + 1}`} options={opcionesMazo}
-                          emptyLabel={i === 0 ? null : "— ninguno —"}
-                          placeholder={i === 0 ? "Mazo 1 (obligatorio)" : `Mazo ${i + 1} (opcional)`} />
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <label className="label" htmlFor="league-deck">Con qué mazo juegas esta liga</label>
-                      <DeckPicker
-                        id="league-deck" name="deck" options={opcionesMazo}
-                        emptyLabel={null} placeholder="Elige tu mazo, o solo el arquetipo"
-                      />
-                    </>
-                  )}
-                  <p className="text-xs text-muted">
-                    Al enviarlo se bloquea: no podrás cambiarlo tú. El resto de jugadores solo verá
-                    que lo has entregado, no cuál es.
-                  </p>
-                  <ConfirmButton
-                    className="btn btn-brand w-full sm:w-auto"
-                    message="¿Entregar este mazo? Quedará bloqueado para toda la liga."
-                  >
-                    <Icon name="lock" className="size-4" /> Entregar y bloquear
-                  </ConfirmButton>
-                </form>
-              )}
-            </div>
-          )}
-
-          {manager ? (
-            <ul className="divide-y divide-line-soft">
-              {ids.map((pid) => {
-                const suyos = visibles.filter((x) => x.playerId === pid).sort((a, b) => a.slot - b.slot);
-                const d = suyos[0];
-                const p = snap.playersById.get(pid);
-                return (
-                  <li key={pid} className="flex items-center gap-2 px-3 py-2.5 xs:gap-3 xs:px-4">
-                    <PlayerTag player={p} size="sm" className="min-w-0 flex-1" />
-                    {d ? (
-                      <>
-                        <span className="flex min-w-0 max-w-[45%] items-center gap-1.5 text-xs">
-                          {archDe(d) ? <Sprites archetype={archDe(d)!} size="sm" /> : null}
-                          <span className="truncate">{suyos.map(nombreMazo).join(" · ")}</span>
-                        </span>
-                        <form action={unlockLeagueDeck} className="flex-none">
-                          <input type="hidden" name="competitionId" value={comp.id} />
-                          <input type="hidden" name="playerId" value={pid} />
-                          <ConfirmButton
-                            className="btn btn-ghost btn-sm px-2 text-xs"
-                            title="Desbloquear"
-                            message={`¿Desbloquear el mazo de ${p?.name ?? "esta persona"}? Tendrá que entregarlo otra vez.`}
-                          >
-                            <Icon name="refresh" className="size-4" />
-                          </ConfirmButton>
-                        </form>
-                      </>
-                    ) : (
-                      <span className="chip flex-none text-[11px]">pendiente</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="px-4 py-3 text-xs text-muted">
-              {entregados.size} de {ids.length} participantes han entregado su mazo.
-            </p>
-          )}
-        </section>
-      )}
+      {/* v0.24: fuera la entrega y el bloqueo de mazos de liga. Los mazos se
+          apuntan en cada partida, y vale cualquier mazo o arquetipo. */}
 
       {/* ------------------- v0.23: equipos (duelo por equipos) ------------------- */}
       {modalidad === "equipos" && (

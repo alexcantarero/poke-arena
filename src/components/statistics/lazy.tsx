@@ -31,3 +31,9 @@ export const ConversionChartLazy = dynamic(
   () => import("./ConversionChart").then((m) => m.ConversionChart),
   { ssr: false, loading: () => <Hueco /> },
 );
+
+/** v0.24: conversión mes a mes por grupo, jugadores y mazos. */
+export const ConversionEvolucionLazy = dynamic(
+  () => import("./ConversionEvolucion").then((m) => m.ConversionEvolucion),
+  { ssr: false, loading: () => <Hueco alto="h-80" /> },
+);

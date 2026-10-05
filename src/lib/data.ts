@@ -444,7 +444,7 @@ export async function ladderChartData() {
  * línea de reset. Misma forma que la del ladder (`SerieLadder`).
  */
 export function eloChartData(snap: Snapshot) {
-  const por = seriesElo(snap.elo.history);
+  const { series: por, fechas } = seriesElo(snap.elo.history);
   const series = snap.players
     .filter((p) => p.active && por.has(p.id))
     .map((p, i) => ({
@@ -454,8 +454,9 @@ export function eloChartData(snap: Snapshot) {
       actual: snap.elo.rating[p.id] ?? null,
       puntos: por.get(p.id)!,
     }));
-  const resets = snap.config.eloSince ? [new Date(`${snap.config.eloSince}T00:00:00Z`).getTime()] : [];
-  return { series, resets };
+  // Con el eje en nº de partida, el corte del Elo ya está fuera (las partidas
+  // anteriores no cuentan): no hay línea de reset que pintar.
+  return { series, resets: [] as number[], fechas };
 }
 
 /* ================================================================ v0.23 -- */

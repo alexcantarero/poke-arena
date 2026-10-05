@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
-import { PageHead, SectionTitle, Sprites } from "@/components/ui";
+import { PageHead, Sprites } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
 import { MetaImport } from "@/components/MetaImport";
 import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
@@ -66,10 +67,11 @@ export default async function SettingsPage() {
 
       {manager && (
         <>
-          <SectionTitle aside="cualquiera con el enlace puede darse de alta">Invitaciones</SectionTitle>
+          <Grupo titulo="Invitaciones" aside="cualquiera con el enlace puede darse de alta">
           <InviteManager invites={invites} />
 
-          <SectionTitle>La liga</SectionTitle>
+          </Grupo>
+          <Grupo titulo="La liga">
           <form action={saveSettings} className="card mb-6 flex flex-col gap-4 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -244,7 +246,8 @@ export default async function SettingsPage() {
             </form>
           </details>
 
-          <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
+          </Grupo>
+          <Grupo titulo="Datos del metagame" aside="desde Limitless">
           <ArchetypeSync total={snap.archetypes.length} />
 
           {/* --- v0.21: familias de arquetipos --- */}
@@ -305,7 +308,8 @@ export default async function SettingsPage() {
               conviene pulsarlos. */}
           {/* v0.14 — Regionales y City Leagues sin pegar nada. Solo mazos: ni
               los parsers leen nombres ni la tabla tiene dónde guardarlos. */}
-          <SectionTitle aside="limitlesstcg.com">Regionales y City Leagues automáticos</SectionTitle>
+          </Grupo>
+          <Grupo titulo="Regionales y City Leagues automáticos" aside="limitlesstcg.com">
           <div className="card mb-3 p-4 text-sm">
             <p className="text-ink-2">
               Trae de <b>Limitless TCG</b> los Regionales de la temporada y las últimas City Leagues
@@ -327,7 +331,8 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          <SectionTitle aside="pegando la clasificación">Metagame presencial</SectionTitle>
+          </Grupo>
+          <Grupo titulo="Metagame presencial" aside="pegando la clasificación">
           <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
 
           {/* Saber en qué estado están las fuentes de fuera evita la pregunta
@@ -357,23 +362,27 @@ export default async function SettingsPage() {
             </ul>
           </div>
 
-          <SectionTitle aside={`${snap.players.length} en total`}>Jugadores</SectionTitle>
+          </Grupo>
+          <Grupo titulo="Jugadores" aside={`${snap.players.length} en total`}>
           <PlayerAdmin
             players={snap.players} counts={counts} emails={emails}
             meId={me.id} meRole={me.role}
           />
+          </Grupo>
         </>
       )}
 
       {/* v0.22: preferencia de animaciones, de cada uno (vive en el navegador). */}
-      <SectionTitle>Apariencia</SectionTitle>
+      <Grupo titulo="Apariencia">
       <div className="card mb-6 p-4">
         <MotionToggle />
       </div>
 
-      <SectionTitle>Tu cuenta</SectionTitle>
+      </Grupo>
+      <Grupo titulo="Tu cuenta">
       <PasswordForm />
 
+      </Grupo>
       {/* ---------------------------------------------------------------
           Zona de riesgo.
 
@@ -387,7 +396,7 @@ export default async function SettingsPage() {
           --------------------------------------------------------------- */}
       {owner && (
         <>
-          <SectionTitle aside="solo el propietario">Zona de riesgo</SectionTitle>
+          <Grupo titulo="Zona de riesgo" aside="solo el propietario">
           <div className="flex flex-col gap-3">
 
             {seasonsWithTournaments.length > 0 && (
@@ -481,6 +490,7 @@ export default async function SettingsPage() {
               </form>
             </details>
           </div>
+          </Grupo>
         </>
       )}
 
@@ -497,5 +507,24 @@ export default async function SettingsPage() {
         </div>
       </section>
     </>
+  );
+}
+
+/**
+ * v0.24 — Un grupo de Ajustes, plegado por defecto (acordeón nativo con
+ * <details>: funciona sin JavaScript). La cabecera dice qué hay dentro.
+ */
+function Grupo({ titulo, aside, children }: { titulo: string; aside?: string; children: ReactNode }) {
+  return (
+    <details className="group mb-3">
+      <summary className="card tap cursor-pointer list-none justify-between gap-3 px-4">
+        <span className="font-display text-lg font-bold">{titulo}</span>
+        <span className="flex min-w-0 items-center gap-2 text-xs text-muted">
+          {aside && <span className="hidden truncate sm:inline">{aside}</span>}
+          <span aria-hidden="true" className="transition-transform group-open:rotate-180">▾</span>
+        </span>
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
   );
 }

@@ -21,7 +21,8 @@ import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
-import { ConversionChartLazy } from "@/components/statistics/lazy";
+import { ConversionEvolucionLazy } from "@/components/statistics/lazy";
+import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
 import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
@@ -262,6 +263,28 @@ export default async function StatsPage({
 
   const evolucion = overTime(placements);
 
+  /* v0.24 — la misma conversión mes a mes, también por jugador y por mazo
+     (los 6 con más resultados en cada caso). */
+  const serieConv = (id: string, name: string, color: string, rows: typeof placements): SerieConv => ({
+    id, name, color,
+    puntos: overTime(rows).map((p) => ({
+      key: p.key, entries: p.entries, cutRate: p.cutRate, top8Rate: p.top8Rate, winRate: p.winRate,
+    })),
+  });
+  const top6 = (clave: (r: (typeof placements)[number]) => string | null) => {
+    const n = new Map<string, number>();
+    for (const r of placements) { const k = clave(r); if (k) n.set(k, (n.get(k) ?? 0) + 1); }
+    return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
+  };
+  const convGrupo: SerieConv[] = [serieConv("grupo", "Grupo", "var(--series-1)", placements)];
+  const convJugadores: SerieConv[] = top6((r) => r.playerId).map((pid, i) =>
+    serieConv(pid, snap.playersById.get(pid)?.name ?? "—",
+      snap.playersById.get(pid)?.color || `var(--series-${(i % 7) + 1})`,
+      placements.filter((r) => r.playerId === pid)));
+  const convMazos: SerieConv[] = top6((r) => r.archetypeId).map((aid, i) =>
+    serieConv(aid, agr.arquetipo(aid)?.name ?? aid, `var(--series-${(i % 7) + 1})`,
+      placements.filter((r) => r.archetypeId === aid)));
+
   /** v0.21: la URL de ahora con la vista agrupada encendida o apagada. */
   const agruparHref = (on: boolean) => {
     const p = new URLSearchParams(query);
@@ -497,10 +520,10 @@ export default async function StatsPage({
             <section className="card mt-4 p-4">
               <h2 className="mb-1 text-lg font-bold">Conversión mes a mes</h2>
               <p className="mb-3 text-xs text-muted">
-                Todos los resultados del grupo juntos, agrupados por mes. Los meses sin
-                torneos no salen: rellenarlos con ceros dibujaría caídas que no han pasado.
+                Del grupo entero, de cada jugador o de cada mazo. Respeta los filtros de arriba
+                (y la vista agrupada de arquetipos).
               </p>
-              <ConversionChartLazy points={evolucion} />
+              <ConversionEvolucionLazy grupo={convGrupo} jugadores={convJugadores} mazos={convMazos} />
             </section>
           )}
         </>

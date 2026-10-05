@@ -231,7 +231,7 @@ export function eloTable(
   torneos: Map<string, { kind: string; scope?: string | null }> = new Map(),
 ) {
   const rating: Record<string, number> = {};
-  const history: Record<string, { date: string; value: number }[]> = {};
+  const history: Record<string, { date: string; value: number; i?: number }[]> = {};
   const touch = (id: string) => {
     if (rating[id] == null) {
       rating[id] = cfg.eloStart;
@@ -253,10 +253,13 @@ export function eloTable(
        devuelve el Elo de antes tal cual, porque nunca se perdió nada. */
     .filter((m) => !desde || m.date >= desde);
 
+  // v0.24: nº de orden de cada partida que mueve el Elo (eje X de la gráfica).
+  let orden = 0;
   for (const m of elegibles.sort(byDate)) {
     const o = outcome(m);
     // Una ronda sin juegos ni resultado declarado no es un empate: no se jugó.
     if (!m.games.length && !o.declared) continue;
+    orden++;
     const scoreA = o.winner === "a" ? 1 : o.winner === "b" ? 0 : 0.5;
     const k = cfg.eloK * pesoElo(m, m.tournamentId ? torneos.get(m.tournamentId) : undefined);
     touch(m.playerAId);
@@ -268,15 +271,15 @@ export function eloTable(
       const delta = k * (scoreA - expectedA);
       rating[m.playerAId] += delta;
       rating[m.playerBId] -= delta;
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId] });
-      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId] });
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
+      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden });
     } else {
       // Ronda de torneo: solo se mueve quien la apuntó.
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
         ? rating[m.opponentPlayerId] : cfg.eloStart;
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
       rating[m.playerAId] += k * (scoreA - expectedA);
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId] });
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
     }
   }
   const rounded: Record<string, number> = {};
@@ -438,7 +441,8 @@ export function archetypesOfMatch(
   let a = m.deckAId ? index.get(m.deckAId) : undefined;
   if (!a && m.archetypeAId) a = archById?.get(m.archetypeAId);
   let b = m.deckBId ? index.get(m.deckBId) : undefined;
-  if (!b && !m.playerBId && m.opponentArchetypeId) b = archById?.get(m.opponentArchetypeId);
+  // v0.24: también para un rival del grupo que se apuntó solo con arquetipo.
+  if (!b && m.opponentArchetypeId) b = archById?.get(m.opponentArchetypeId);
   return { a, b };
 }
 

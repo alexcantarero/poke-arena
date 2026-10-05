@@ -268,7 +268,7 @@ export default async function ProfilePage({
               </span>
             )}
           </div>
-          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} destacados={[id]} inicial={4}
+          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} fechas={eloGrafica.fechas} destacados={[id]} inicial={4}
             pie="Un punto por cada partida que mueve el Elo." etiquetaReset="Corte del Elo" />
         </section>
 
