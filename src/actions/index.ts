@@ -7,12 +7,13 @@ import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites, players,
-  seasonResets, settings, tournamentResults, tournaments,
+  competitionTeams, ladderEntries, leagueDecks, matches, metaEntries, metaEvents, playerFavorites,
+  players, seasonResets, settings, tournamentResults, tournaments,
 } from "@/db/schema";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
 import { creaCiclo } from "@/lib/arquetipos";
+import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, mazoDePartida, partidasDeDuelo } from "@/lib/modalidades";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
   isOwner, newInviteToken, normalizeEmail, passwordProblem, readSession, verifyPassword,
@@ -687,6 +688,39 @@ export async function saveMatch(fd: FormData) {
     createdBy: actor.id,
   };
 
+  /* v0.23 — Mazos de liga. Si la persona entregó mazo(s) para esta liga, la
+     partida tiene que ir con uno de ellos (mazo fijo: ese; Bo3 · 3 mazos:
+     uno de los tres). Para TU lado (o cualquiera, si eres organizador) un
+     mazo que no vale es un error con mensaje. Para el lado del rival se
+     corrige en silencio: decir «ese no es su mazo» sería ir revelando los
+     mazos que entregó, que son privados. */
+  if (values.competitionId) {
+    const comp = (await db.select({ modality: competitions.modality, bestOf: competitions.bestOf })
+      .from(competitions).where(eq(competitions.id, values.competitionId)))[0];
+    if (comp) {
+      const back = editing ? `/partidas/${editing}` : "/partidas/nueva";
+      if (asModalidad(comp.modality) === "tres_mazos" && bestOf !== 3) {
+        redirect(withFlash(back, "error", "En esta liga las series son al mejor de tres (Bo3)."));
+      }
+      const quienes = [playerAId, ...(playerBId ? [playerBId] : [])];
+      const filas = await db.select({ playerId: leagueDecks.playerId, deckId: leagueDecks.deckId })
+        .from(leagueDecks)
+        .where(and(eq(leagueDecks.competitionId, values.competitionId), inArray(leagueDecks.playerId, quienes)));
+      const entregadosDe = (pid: string) =>
+        filas.filter((r) => r.playerId === pid && r.deckId).map((r) => r.deckId!);
+      const manda = canManageLeague(actor.role);
+      for (const [pid, campo] of [[playerAId, "deckAId"], [playerBId, "deckBId"]] as const) {
+        if (!pid) continue;
+        const r = mazoDePartida(entregadosDe(pid), values[campo]);
+        if (r.ok) { values[campo] = r.deckId; continue; }
+        if (manda || pid === actor.id) redirect(withFlash(back, "error", r.error));
+        // Rival: con un solo mazo entregado, ese; con varios, sin mazo antes que uno falso.
+        const suyos = entregadosDe(pid);
+        values[campo] = suyos.length === 1 ? suyos[0] : null;
+      }
+    }
+  }
+
   // Los juegos: solo los del 1 al bestOf, solo con ganador reconocible, y sin
   // pasarse de la mayoría. Un "3-0 en un Bo3" no debe poder guardarse, y un
   // ganador escrito a mano tipo "x" contaba como empate sin avisar.
@@ -1239,7 +1273,10 @@ export async function saveCompetition(fd: FormData) {
     end: isoDate(fd, "end", null),
     rounds: int(fd, "rounds", 0, 0, 50),
     topCut: int(fd, "topCut", 0, 0, 64),
+    // v0.23: modalidad. «Bo3 · hasta 3 mazos» fuerza series al mejor de tres.
+    modality: asModalidad(str(fd, "modality")),
   };
+  if (values.modality === "tres_mazos") values.bestOf = 3;
   if (!values.name) return;
 
   if (editing) await db.update(competitions).set(values).where(eq(competitions.id, id));
@@ -1281,7 +1318,23 @@ export async function createPairings(fd: FormData) {
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
   if (comp.rounds > 0 && nextRound > comp.rounds) return;
 
-  const { pairs } = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config);
+  // v0.23 — duelo por equipos: la jornada cruza EQUIPOS (todos contra todos)
+  // y cada cruce son tres partidas, puesto contra puesto.
+  let pairs: Array<[string, string]>;
+  if (asModalidad(comp.modality) === "equipos") {
+    const equipos = (await db.select().from(competitionTeams)
+      .where(eq(competitionTeams.competitionId, compId)))
+      .filter((e) => e.members.length === TAM_EQUIPO)
+      .sort((a, b) => a.id.localeCompare(b.id));
+    if (equipos.length < 2) {
+      redirect(withFlash(`/competiciones/${compId}`, "error", "Hacen falta al menos dos equipos completos de 3."));
+    }
+    const byId = new Map(equipos.map((e) => [e.id, e]));
+    pairs = jornadaEquipos(equipos.map((e) => e.id), nextRound).cruces
+      .flatMap(([a, b]) => partidasDeDuelo(byId.get(a)!, byId.get(b)!));
+  } else {
+    pairs = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config).pairs;
+  }
   if (!pairs.length) return;
 
   await db.insert(matches).values(
@@ -2617,27 +2670,40 @@ export async function submitLeagueDeck(fd: FormData) {
     redirect(withFlash(back, "error", "Esa persona no participa en esta liga."));
   }
 
-  const { deckId, archetypeId } = deckOrArchetype(fd, "deck");
-  if (!deckId && !archetypeId) redirect(withFlash(back, "error", "Elige un mazo o, al menos, el arquetipo."));
+  // v0.23: según la modalidad, uno (`deck`) o hasta tres (`deck1`…`deck3`).
+  const compRow = (await db.select({ modality: competitions.modality }).from(competitions)
+    .where(eq(competitions.id, competitionId)))[0];
+  const max = MODALIDADES[asModalidad(compRow?.modality)].maxMazos;
+  const campos = max > 1 ? Array.from({ length: max }, (_, i) => `deck${i + 1}`) : ["deck"];
+  const elegidos = campos
+    .map((k) => deckOrArchetype(fd, k))
+    .filter((d) => d.deckId || d.archetypeId);
+  // Sin repetir el mismo mazo en dos huecos.
+  const vistos = new Set<string>();
+  const unicos = elegidos.filter((d) => {
+    const k = d.deckId ?? `a:${d.archetypeId}`;
+    if (vistos.has(k)) return false;
+    vistos.add(k); return true;
+  });
+  if (!unicos.length) redirect(withFlash(back, "error", "Elige un mazo o, al menos, el arquetipo."));
 
   const where = and(eq(leagueDecks.competitionId, competitionId), eq(leagueDecks.playerId, playerId));
   const existing = (await db.select({ playerId: leagueDecks.playerId }).from(leagueDecks).where(where))[0];
   if (existing && !manager) {
-    redirect(withFlash(back, "error", "Tu mazo de liga ya está bloqueado. Pídele a un organizador que lo desbloquee."));
+    redirect(withFlash(back, "error", "Tus mazos de liga ya están bloqueados. Pídele a un organizador que los desbloquee."));
   }
 
-  if (existing) {
-    await db.update(leagueDecks)
-      .set({ deckId, archetypeId, lockedAt: new Date(), createdBy: actor.id })
-      .where(where);
-  } else {
-    await db.insert(leagueDecks)
-      .values({ competitionId, playerId, deckId, archetypeId, createdBy: actor.id })
-      // Dos envíos seguidos no deben pisar el primero: el bloqueo es el bloqueo.
-      .onConflictDoNothing();
-  }
+  // Un organizador que rehace la entrega: se cambia entera.
+  if (existing) await db.delete(leagueDecks).where(where);
+  await db.insert(leagueDecks)
+    .values(unicos.map((d, i) => ({
+      competitionId, playerId, slot: i + 1, deckId: d.deckId, archetypeId: d.archetypeId, createdBy: actor.id,
+    })))
+    // Dos envíos seguidos no deben pisar el primero: el bloqueo es el bloqueo.
+    .onConflictDoNothing();
   refresh();
-  redirect(withFlash(back, "ok", "Mazo de liga entregado y bloqueado."));
+  redirect(withFlash(back, "ok", unicos.length > 1
+    ? `${unicos.length} mazos de liga entregados y bloqueados.` : "Mazo de liga entregado y bloqueado."));
 }
 
 /** Desbloquear el mazo de liga de alguien (borra la entrega). Solo organizadores. */
@@ -2728,4 +2794,54 @@ export async function saveArchetypeParents(fd: FormData) {
   refresh();
   redirect(withFlash("/ajustes", rechazados ? "error" : "ok",
     `${cambios} arquetipo(s) actualizado(s)${rechazados ? `; ${rechazados} sin cambiar porque harían un círculo` : ""}.`));
+}
+
+/* ================================================================ v0.23 -- */
+
+/**
+ * Crear o editar un equipo de una liga «Duelo por equipos». Solo
+ * organizadores. Tres miembros, distintos, que participen en la liga y que no
+ * estén ya en otro equipo de la misma liga. El orden es el puesto.
+ */
+export async function saveTeam(fd: FormData) {
+  await requireManager();
+  const competitionId = str(fd, "competitionId");
+  const back = `/competiciones/${competitionId}`;
+  const editing = str(fd, "teamId");
+  const name = str(fd, "name").slice(0, 40);
+  const members = [1, 2, 3].map((i) => str(fd, `member${i}`)).filter(Boolean);
+  if (!competitionId || !name) redirect(withFlash(back, "error", "El equipo necesita un nombre."));
+  if (members.length !== TAM_EQUIPO || new Set(members).size !== TAM_EQUIPO) {
+    redirect(withFlash(back, "error", "Un equipo son tres personas distintas."));
+  }
+  const apuntados = await db.select({ playerId: competitionPlayers.playerId }).from(competitionPlayers)
+    .where(eq(competitionPlayers.competitionId, competitionId));
+  if (apuntados.length && members.some((m) => !apuntados.some((a) => a.playerId === m))) {
+    redirect(withFlash(back, "error", "Todos los miembros tienen que participar en la liga."));
+  }
+  const otros = (await db.select().from(competitionTeams)
+    .where(eq(competitionTeams.competitionId, competitionId)))
+    .filter((e) => e.id !== editing);
+  const repetido = members.find((m) => otros.some((e) => e.members.includes(m)));
+  if (repetido) redirect(withFlash(back, "error", "Alguien ya está en otro equipo de esta liga."));
+
+  if (editing) {
+    await db.update(competitionTeams).set({ name, members })
+      .where(and(eq(competitionTeams.id, editing), eq(competitionTeams.competitionId, competitionId)));
+  } else {
+    await db.insert(competitionTeams).values({ id: newId("tm"), competitionId, name, members });
+  }
+  refresh();
+  redirect(withFlash(back, "ok", `Equipo «${name}» guardado.`));
+}
+
+export async function deleteTeam(fd: FormData) {
+  await requireManager();
+  const competitionId = str(fd, "competitionId");
+  const teamId = str(fd, "teamId");
+  if (!competitionId || !teamId) return;
+  await db.delete(competitionTeams)
+    .where(and(eq(competitionTeams.id, teamId), eq(competitionTeams.competitionId, competitionId)));
+  refresh();
+  redirect(withFlash(`/competiciones/${competitionId}`, "ok", "Equipo borrado."));
 }

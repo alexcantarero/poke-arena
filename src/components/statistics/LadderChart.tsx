@@ -29,16 +29,24 @@ const fecha = (t: number) =>
   new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" });
 
 export function LadderChart({
-  series, resets, inicial = 5,
-}: { series: SerieLadder[]; resets: number[]; inicial?: number }) {
+  series, resets, inicial = 5, destacados = [], pie, etiquetaReset = "Reset",
+}: {
+  series: SerieLadder[]; resets: number[]; inicial?: number;
+  /** v0.22: ids que salen marcados sí o sí (p. ej. el dueño del perfil). */
+  destacados?: string[];
+  /** v0.22: texto bajo la gráfica (la del Elo no habla de «rango»). */
+  pie?: string;
+  etiquetaReset?: string;
+}) {
   const porDefecto = useMemo(
-    () => new Set(
-      [...series]
+    () => new Set([
+      ...destacados.filter((d) => series.some((s) => s.id === d)),
+      ...[...series]
         .sort((a, b) => (b.actual ?? -1) - (a.actual ?? -1) || b.puntos.length - a.puntos.length)
-        .slice(0, inicial)
+        .slice(0, Math.max(0, inicial - destacados.length))
         .map((s) => s.id),
-    ),
-    [series, inicial],
+    ]),
+    [series, inicial, destacados],
   );
   const [elegidos, setElegidos] = useState<Set<string>>(porDefecto);
   const alternar = (id: string) =>
@@ -101,7 +109,7 @@ export function LadderChart({
               />
               {resets.filter((r) => r >= tMin && r <= tMax).map((r) => (
                 <ReferenceLine key={r} x={r} stroke="var(--loss)" strokeWidth={2}
-                  label={{ value: "Reset", position: "insideTopRight", fill: "var(--loss)", fontSize: 10 }} />
+                  label={{ value: etiquetaReset, position: "insideTopRight", fill: "var(--loss)", fontSize: 10 }} />
               ))}
               {visibles.map((s) => (
                 <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type="monotone"
@@ -113,7 +121,8 @@ export function LadderChart({
         </div>
       )}
       <p className="mt-1 text-[11px] text-muted">
-        Un punto por cada vez que alguien actualiza su rango. <span className="font-semibold text-loss">Rojo</span>: reset de temporada.
+        {pie ?? "Un punto por cada vez que alguien actualiza su rango."}{" "}
+        <span className="font-semibold text-loss">Rojo</span>: reset de temporada.
       </p>
     </div>
   );

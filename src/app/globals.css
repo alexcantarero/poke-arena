@@ -722,15 +722,116 @@ details[open] > :not(summary) {
   animation: page-in 160ms ease-out both;
 }
 
+/* v0.22 — Movimiento: el sistema manda solo en «Automático». Con el ajuste
+   «Sí» (`data-motion="on"`) se ignora «reducir movimiento»; con «No», se
+   apaga todo aunque el sistema no lo pida. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not([data-motion="on"]) *,
+  html:not([data-motion="on"]) *::before,
+  html:not([data-motion="on"]) *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  html:not([data-motion="on"]) .season-fx { display: none; }
 }
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+html[data-motion="off"] .season-fx { display: none; }
+
+/* =========================================================================
+   v0.22 — Temporadas. `data-season` en <html> lo pone el layout raíz con la
+   fecha de Madrid. Cada estación cambia dos acentos: la franja de arriba de
+   la cabecera y la barra lateral, el degradado de los títulos y el color de
+   las partículas. Los colores de datos (victoria, derrota, series) NO
+   cambian: una estación no puede cambiar lo que significa un color.
+   ========================================================================= */
+html { --season-a: #e8892c; --season-b: #c2410c; }               /* otoño */
+html[data-season="invierno"]  { --season-a: #60a5fa; --season-b: #a5b4fc; }
+html[data-season="primavera"] { --season-a: #f472b6; --season-b: #4ade80; }
+html[data-season="verano"]    { --season-a: #fbbf24; --season-b: #fb923c; }
+html[data-evento="halloween"] { --season-a: #f97316; --season-b: #a855f7; }
+html[data-evento="navidad"]   { --season-a: #ef4444; --season-b: #22c55e; }
+
+.season-strip {
+  height: 3px;
+  background: linear-gradient(90deg, var(--season-a), var(--season-b), var(--season-a));
+  background-size: 200% 100%;
+  animation: season-strip 12s linear infinite;
+}
+@keyframes season-strip { to { background-position: 200% 0; } }
+
+/* z-index -1 DENTRO de `.app-shell` (que crea su propio contexto con z 1):
+   queda por encima del fondo de la página y por debajo de todo el contenido,
+   que no está posicionado. Con z 0 taparía las tarjetas. */
+.season-fx {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+}
+.season-p {
+  position: absolute; top: -40px; opacity: 0.5; will-change: transform;
+  animation-name: season-fall; animation-timing-function: linear; animation-iteration-count: infinite;
+  filter: saturate(0.9);
+}
+html[data-season="verano"] .season-p, html[data-season="invierno"] .season-p { color: var(--season-a); }
+@keyframes season-fall {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(var(--drift), 55vh, 0) rotate(180deg); }
+  100% { transform: translate3d(0, 110vh, 0) rotate(360deg); }
+}
+/* El contenido por encima de la capa de partículas. */
+.app-shell { position: relative; z-index: 1; }
+
+/* =========================================================================
+   v0.22 — Ideas de Argo CD.
+
+   1. Barra lateral y cabecera móvil OSCURAS en los dos temas, como la barra
+      de navegación de Argo CD: se redefinen los tokens dentro de `.shell-dark`
+      y todo lo que va dentro se re-tiñe solo.
+   2. «Tiles» con franja de estado a la izquierda (`.tile-status`), como las
+      aplicaciones de Argo CD: el color de la franja es el estado.
+   3. Metadatos en pares «CLAVE valor» en fuente mono (`.meta-kv`).
+   ========================================================================= */
+.shell-dark {
+  --surface: #13263a;
+  --surface-2: #1b3349;
+  --surface-3: #24405b;
+  --line: #29445f;
+  --line-soft: #213a52;
+  --ink: #e9f1f8;
+  --ink-2: #c4d3e1;
+  --muted: #8ea6bd;
+  --ground: #0f2032;
+  --info: #5cc8d6;
+  --brand: #f2b544;
+  --brand-strong: #ffc65c;
+  --brand-soft: rgb(242 181 68 / 0.16);
+  --brand-line: #8a6a2a;
+  --on-brand: #1b1405;
+  color-scheme: dark;
+  background: var(--surface);
+  color: var(--ink);
+}
+.shell-dark .nav-side[data-on="true"] { background: rgb(255 255 255 / 0.07); color: #fff; }
+.shell-dark .nav-side[data-on="true"]::before { background: var(--info); }
+
+.tile-status { position: relative; }
+.tile-status::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--status, var(--line));
+}
+.meta-kv {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em; color: var(--muted);
+}
+.meta-kv b { font-weight: 600; text-transform: uppercase; margin-right: 0.35em; color: var(--ink-2); }
+
+/* Pulsación con onda: cualquier .btn hace un pequeño «latido» de color. */
+.btn:active { box-shadow: 0 0 0 4px var(--info-soft); }
 
 /* =========================================================================
    v0.15.1 — Medallas de CP en los huecos del Best Finish Limit.

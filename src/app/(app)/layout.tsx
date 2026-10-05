@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { FilterMemory } from "@/components/FilterMemory";
+import { SeasonFx } from "@/components/SeasonFx";
+import { estacionDe } from "@/lib/estacion";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav, Sidebar } from "@/components/Nav";
@@ -23,17 +25,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) redirect("/entrar");
 
   const [snap, lang] = await Promise.all([loadSnapshot(), getLang()]);
+  const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const me = snap.playersById.get(session.playerId);
   if (!me || !me.active) redirect("/entrar");
 
   return (
-    <div className="md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
+      {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
+      <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line bg-surface p-3 md:flex">
+      {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
+      <aside className="shell-dark sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex">
+        <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
           {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
+          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} · ${estacion.evento}` : estacion.nombre}>
+            <span aria-hidden="true">{estacion.emblema}</span> <b>estación</b>{estacion.nombre.toLowerCase()}
+          </p>
         </div>
 
         <Sidebar meId={me.id} lang={lang} />
@@ -68,7 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             medio tapado. `--safe-extra` es el padding que tendría de todas
             formas, porque en un móvil sin muesca `env()` vale 0. */}
         <header
-          className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface/95 px-4 pb-2 backdrop-blur md:hidden"
+          className="shell-dark safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line px-4 pb-2 md:hidden"
           style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
         >
           {/* `min-w-0 flex-1` y no un hueco aparte: con un nombre de liga largo
@@ -76,6 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="min-w-0 flex-1">
             <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
           </div>
+          <span className="flex-none text-lg" aria-label={estacion.nombre} title={estacion.nombre}>{estacion.emblema}</span>
           <LangToggle lang={lang} />
           <ThemeToggle />
           <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label={tr(lang, "nav.moreSections")}>

@@ -16,6 +16,7 @@ import { saveArchetypeParents } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { MotionToggle } from "@/components/MotionToggle";
 
 export const metadata = { title: "Ajustes" };
 
@@ -269,9 +270,9 @@ export default async function SettingsPage() {
                 </summary>
                 <form action={saveArchetypeParents} className="border-t border-line-soft">
                   <p className="px-4 pt-3 text-xs text-muted">
-                    Di de qué arquetipo principal es variante cada uno (p. ej. «Grookey / Applin» →
-                    «Festival Lead»). En Estadísticas, la «Vista agrupada» suma las variantes bajo
-                    su principal y recalcula usos, %V y conversión.
+                    Las variantes se agrupan SOLAS por su primer Pokémon («Dragapult / Dudunsparce»
+                    y «Dragapult / Blaziken» → Dragapult). Aquí solo hace falta lo que no se puede
+                    deducir así, como «Grookey / Applin» → «Festival Lead»: lo que pongas manda.
                   </p>
                   <ul className="divide-y divide-line-soft">
                     {lista.map((a) => (
@@ -363,6 +364,12 @@ export default async function SettingsPage() {
           />
         </>
       )}
+
+      {/* v0.22: preferencia de animaciones, de cada uno (vive en el navegador). */}
+      <SectionTitle>Apariencia</SectionTitle>
+      <div className="card mb-6 p-4">
+        <MotionToggle />
+      </div>
 
       <SectionTitle>Tu cuenta</SectionTitle>
       <PasswordForm />

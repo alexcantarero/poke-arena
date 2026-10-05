@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Saira_Condensed } from "next/font/google";
 import "./globals.css";
 import { getLang } from "@/lib/lang";
+import { estacionDe } from "@/lib/estacion";
 
 /* v0.20 — tipografías con `next/font`: se descargan al compilar y se sirven
    desde el propio dominio. Antes era una hoja de Google Fonts que BLOQUEABA
@@ -60,18 +61,26 @@ const THEME_SCRIPT = `
   }catch(e){
     document.documentElement.dataset.theme = "light";
   }
+  /* v0.22: preferencia de animaciones (Ajustes). Antes de pintar, como el tema. */
+  try{
+    var mo = localStorage.getItem("arena-motion");
+    document.documentElement.dataset.motion = mo === "on" || mo === "off" ? mo : "auto";
+  }catch(e){}
 })();
 `;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // v0.17: el idioma elegido, para lectores de pantalla y para el traductor del navegador.
   const lang = await getLang();
+  // v0.22: estación y fecha señalada de hoy en Madrid → acentos y partículas.
+  const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date());
+  const estacion = estacionDe(hoy);
   return (
     /* v0.18 — `translate="no"` + la meta `notranslate`: el navegador (Chrome,
        Safari, Edge) ya no traduce las páginas por su cuenta. El único cambio
        de idioma es el botón ES/EN de la app; antes, con la cookie en inglés,
        Chrome «ayudaba» traduciendo a máquina todo lo que aún está en español. */
-    <html lang={lang} translate="no"
+    <html lang={lang} translate="no" data-season={estacion.id} data-evento={estacion.evento ?? undefined}
       className={`notranslate ${saira.variable} ${plexSans.variable} ${plexMono.variable}`}
       suppressHydrationWarning>
       <head>

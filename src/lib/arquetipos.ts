@@ -64,3 +64,51 @@ export function agruparFilas<A>(
   for (const r of lista) r.winRate = r.played ? (r.wins + r.ties * 0.5) / r.played : null;
   return lista.sort((x, y) => y.played - x.played || (y.winRate ?? 0) - (x.winRate ?? 0));
 }
+
+/* -------------------------------------------------------------------------
+   v0.22 — Agrupación AUTOMÁTICA por el primer Pokémon.
+
+   «Dragapult / Dudunsparce», «Dragapult / Blaziken» y «Dragapult / Martillos»
+   son todos Dragapult: el primer Pokémon (`main`) es el que define el mazo.
+   Reglas, en este orden:
+     1. Si un organizador puso un padre a mano, manda ese (Grookey / Applin →
+        Festival Lead no se puede deducir del primer Pokémon).
+     2. Si no, la familia es el `main`. Si existe un arquetipo con ese `main`
+        y SIN secundario («Dragapult» a secas), es él quien da nombre y
+        sprite a la familia; si no, se crea uno virtual (`fam:dragapult`).
+     3. Sin `main` (el cajón «Other»), cada uno va solo.
+   ------------------------------------------------------------------------- */
+
+export type ArqMin = { id: string; name: string; main: string; secondary: string; parentId?: string | null };
+
+/** «raging-bolt» → «Raging Bolt»; «excadrill-mega» → «Mega Excadrill». */
+export function nombreFamilia(slug: string): string {
+  const partes = slug.split("-").filter(Boolean);
+  const mega = partes[partes.length - 1] === "mega";
+  const base = (mega ? partes.slice(0, -1) : partes).map((p) => p[0].toUpperCase() + p.slice(1)).join(" ");
+  return mega ? `Mega ${base}` : base;
+}
+
+export function crearAgrupador<A extends ArqMin>(arquetipos: A[]) {
+  const byId = new Map(arquetipos.map((a) => [a.id, a]));
+  const parentOf = new Map(arquetipos.map((a) => [a.id, a.parentId ?? null]));
+  const basePorMain = new Map<string, string>();
+  for (const a of arquetipos) if (a.main && !a.secondary && !a.parentId) basePorMain.set(a.main, a.id);
+  const virtuales = new Map<string, A>();
+
+  const raiz = (id: string): string => {
+    const explicito = raizDe(id, parentOf);
+    if (explicito !== id) return explicito; // regla 1
+    const a = byId.get(id);
+    if (!a?.main) return id; // regla 3
+    const base = basePorMain.get(a.main);
+    if (base) return base; // regla 2, con arquetipo real
+    const v = `fam:${a.main}`;
+    if (!virtuales.has(v)) {
+      virtuales.set(v, { ...a, id: v, name: nombreFamilia(a.main), secondary: "", parentId: null });
+    }
+    return v;
+  };
+  const arquetipo = (id: string): A | undefined => byId.get(id) ?? virtuales.get(id);
+  return { raiz, arquetipo };
+}

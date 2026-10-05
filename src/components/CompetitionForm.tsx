@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MODALIDADES, asModalidad, type Modalidad } from "@/lib/modalidades";
 import { deleteCompetition, saveCompetition } from "@/actions";
 import { COMPETITION_KINDS, type Competition, type CompetitionKind, type PublicPlayer } from "@/lib/types";
 import { suggestedRounds } from "@/lib/stats";
@@ -19,19 +20,42 @@ export function CompetitionForm({
   const [chosen, setChosen] = useState<string[]>(
     selectedPlayerIds ?? players.filter((p) => p.active).map((p) => p.id),
   );
+  // v0.23: modalidad (mazo fijo, Bo3 con 3 mazos, equipos).
+  const [modalidad, setModalidad] = useState<Modalidad>(asModalidad(competition?.modality));
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
   return (
     <form action={saveCompetition} className="flex flex-col gap-4">
       {competition && <input type="hidden" name="id" value={competition.id} />}
       <input type="hidden" name="kind" value={kind} />
-      <input type="hidden" name="bestOf" value={bestOf} />
+      <input type="hidden" name="bestOf" value={modalidad === "tres_mazos" ? 3 : bestOf} />
+      <input type="hidden" name="modality" value={modalidad} />
 
       <section className="card flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor="c-name">Nombre</label>
           <input className="input" id="c-name" name="name" required maxLength={80}
             defaultValue={competition?.name ?? ""} placeholder="Liga Regular 2026" />
+        </div>
+
+        {/* v0.23 — modalidad de la liga */}
+        <div className="flex flex-col gap-1.5">
+          <span className="label">Modalidad</span>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(Object.keys(MODALIDADES) as Modalidad[]).map((m) => (
+              <button key={m} type="button" onClick={() => setModalidad(m)} aria-pressed={modalidad === m}
+                className={`rounded-md border p-3 text-left transition-colors ${modalidad === m
+                  ? "border-brand bg-brand-soft" : "border-line bg-surface hover:bg-surface-2"}`}>
+                <span className="block text-sm font-bold">{MODALIDADES[m].label}</span>
+                <span className="mt-0.5 block text-xs text-muted">{MODALIDADES[m].hint}</span>
+              </button>
+            ))}
+          </div>
+          {modalidad === "equipos" && (
+            <p className="text-xs text-muted">
+              Los equipos se forman después, en la ficha de la liga (tres personas por equipo).
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -56,7 +80,9 @@ export function CompetitionForm({
           <label className="label">Serie por defecto</label>
           <div className="seg seg-brand w-full">
             {[1, 3, 5].map((n) => (
-              <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
+              <button key={n} type="button" data-on={(modalidad === "tres_mazos" ? 3 : bestOf) === n}
+                disabled={modalidad === "tres_mazos" && n !== 3}
+                onClick={() => setBestOf(n)}>Bo{n}</button>
             ))}
           </div>
         </div>

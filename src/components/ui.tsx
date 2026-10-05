@@ -390,7 +390,10 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
     ) : <span className={`min-w-0 ${cls}`}>{child}</span>;
   return (
     <div
-      className="relative block border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-surface-2 active:bg-surface-2"
+      /* v0.22: franja del resultado del jugador de la izquierda (verde gana,
+         rojo pierde, gris empate), como el estado de un tile de Argo CD. */
+      className="tile-status relative block border-b border-line-soft px-4 py-3 transition-colors last:border-b-0 hover:bg-surface-2 active:bg-surface-2"
+      style={{ ["--status" as string]: wA ? "var(--win)" : wB ? "var(--loss)" : "var(--tie)" }}
     >
       <Link href={`/partidas/${match.id}`} className="absolute inset-0" aria-label="Ver la partida" />
       <div className="mb-2 flex items-center gap-2 text-[11px] text-muted">

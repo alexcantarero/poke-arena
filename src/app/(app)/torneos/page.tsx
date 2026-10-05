@@ -239,7 +239,11 @@ export default async function TournamentsPage({
                  que llevan cada uno a su perfil, y un enlace no puede ir dentro
                  de otro. El nombre del torneo estira su zona de toque a toda la
                  fila (`after:inset-0`) y los avatares quedan por encima (`z-10`). */
-              <div key={t.id} className="relative block px-4 py-3 hover:bg-surface-2">
+              <div key={t.id}
+                /* v0.22: franja de estado a la izquierda, como los «tiles» de Argo CD. */
+                className="tile-status relative block px-4 py-3 transition-colors hover:bg-surface-2"
+                style={{ ["--status" as string]: asStatus(t.status) === "open" ? "var(--info)"
+                  : asStatus(t.status) === "draft" ? "var(--brand-line)" : "var(--line)" }}>
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
                   <span className="font-mono">{fmtDate(t.date)}</span>
                   {/* «en 3 días» / «hace 2 semanas»: con el orden de agenda es

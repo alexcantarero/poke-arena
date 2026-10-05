@@ -22,7 +22,7 @@ import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { ConversionChartLazy } from "@/components/statistics/lazy";
-import { agruparFilas, raizDe } from "@/lib/arquetipos";
+import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 
@@ -133,12 +133,14 @@ export default async function StatsPage({
      con los totales de la familia, no se promedian. */
   const agruparRaw = Array.isArray(q.agrupar) ? q.agrupar[0] : q.agrupar;
   const agrupar = agruparRaw === "1";
-  const parentOf = new Map(snap.archetypes.map((a) => [a.id, a.parentId ?? null]));
-  const hayFamilias = snap.archetypes.some((a) => a.parentId);
-  const raiz = (id: string) => (agrupar ? raizDe(id, parentOf) : id);
+  /* v0.22: agrupación AUTOMÁTICA por el primer Pokémon (Dragapult / X →
+     Dragapult), con los padres puestos a mano por encima. */
+  const agr = crearAgrupador(snap.archetypes);
+  const hayFamilias = true;
+  const raiz = (id: string) => (agrupar ? agr.raiz(id) : id);
   const archsDetalle = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
   const archs = agrupar
-    ? agruparFilas(archsDetalle, raiz, (id) => snap.archById.get(id))
+    ? agruparFilas(archsDetalle, raiz, agr.arquetipo)
     : archsDetalle;
   const ft = firstTurnStats(rows);
   // A nivel de serie. Es la única lectura posible de las rondas de torneo
@@ -207,13 +209,14 @@ export default async function StatsPage({
 
   const porMazo: ConvRow[] = [...byArchetype(placements).entries()]
     .map(([archetypeId, stats]) => {
-      const a = snap.archById.get(archetypeId);
+      const a = agr.arquetipo(archetypeId);
       return {
         ...stats,
         id: archetypeId,
         label: a?.name ?? archetypeId,
         icon: <Sprites archetype={a} size="sm" />,
-        href: `/estadisticas?arch=${archetypeId}`,
+        // Una familia virtual (`fam:…`) no es un arquetipo filtrable.
+        href: archetypeId.startsWith("fam:") ? undefined : `/estadisticas?arch=${archetypeId}`,
       };
     })
     .sort((a, b) =>
@@ -396,7 +399,7 @@ export default async function StatsPage({
             <Link href={agruparHref(true)} data-on={agrupar}>Vista agrupada</Link>
           </div>
           <span className="text-[11px] text-muted">
-            {agrupar ? "Variantes sumadas bajo su arquetipo principal." : "Cada variante por separado."}
+            {agrupar ? "Variantes sumadas por su primer Pokémon (y las familias de Ajustes)." : "Cada variante por separado."}
           </span>
         </div>
       )}

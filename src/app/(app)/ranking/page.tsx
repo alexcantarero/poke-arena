@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { compPlayers, ladderChartData, loadSnapshot, playerCp } from "@/lib/data";
+import { compPlayers, eloChartData, ladderChartData, loadSnapshot, playerCp } from "@/lib/data";
 import type { SerieLadder } from "@/components/statistics/LadderChart";
 import { LadderChartLazy } from "@/components/statistics/lazy";
 import { seriesLadder } from "@/lib/ladderSeries";
@@ -264,6 +264,7 @@ export default async function RankingPage({
       puntos: porSerie.get(p.id)!,
     }));
   const resetsGrafica = datosLadder.resets.map((r) => new Date(r).getTime());
+  const eloGrafica = eloChartData(snap);
   const withHistory = snap.players.filter((p) => (snap.elo.history[p.id]?.length ?? 0) > 2);
 
   /** La URL de ahora con cambios. `null` quita el parámetro. */
@@ -396,6 +397,21 @@ export default async function RankingPage({
       </AutoSubmitForm>
 
       {tabla}
+
+      {/* ---------------------- v0.22: evolución del Elo ---------------------- */}
+      {eloGrafica.series.length > 0 && (
+        <section className="card mt-5">
+          <div className="card-head">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Evolución del Elo</h2>
+              <p className="text-xs text-muted">Todos en la misma gráfica, en el tiempo. Elige a quién ver.</p>
+            </div>
+          </div>
+          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets}
+            destacados={meId ? [meId] : []} inicial={5}
+            pie="Un punto por cada partida que mueve el Elo." etiquetaReset="Corte del Elo" />
+        </section>
+      )}
 
       {/* ---------------------- v0.17: camino al Mundial ---------------------- */}
       <section className="card mt-5" id="mundial">

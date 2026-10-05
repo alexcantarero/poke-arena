@@ -236,7 +236,22 @@ export const competitions = pgTable("competitions", {
   end: date("end"),
   rounds: integer("rounds").notNull().default(0),
   topCut: integer("top_cut").notNull().default(0),
+  /** v0.23 — mazo_fijo · tres_mazos · equipos. Ver `lib/modalidades.ts`. */
+  modality: text("modality").notNull().default("mazo_fijo"),
 });
+
+/**
+ * v0.23 — Equipos de una liga «Duelo por equipos». `members` en orden: el
+ * puesto 1 juega contra el puesto 1 del otro equipo, y así. Tabla aparte
+ * (no columna en `competition_players`) porque `saveCompetition` borra y
+ * rehace esas filas en cada edición.
+ */
+export const competitionTeams = pgTable("competition_teams", {
+  id: text("id").primaryKey(),
+  competitionId: text("competition_id").notNull().references(() => competitions.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  members: jsonb("members").$type<string[]>().notNull().default([]),
+}, (t) => [index("competition_teams_comp_idx").on(t.competitionId)]);
 
 export const competitionPlayers = pgTable("competition_players", {
   competitionId: text("competition_id").notNull().references(() => competitions.id, { onDelete: "cascade" }),
@@ -274,7 +289,9 @@ export const leagueDecks = pgTable("league_decks", {
   archetypeId: text("archetype_id").references(() => archetypes.id, { onDelete: "set null" }),
   lockedAt: timestamp("locked_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
-}, (t) => [uniqueIndex("league_decks_unique_idx").on(t.competitionId, t.playerId)]);
+  /** v0.23 — 1 a 3. «Bo3 · hasta 3 mazos» usa varios; las demás, solo el 1. */
+  slot: integer("slot").notNull().default(1),
+}, (t) => [uniqueIndex("league_decks_slot_idx").on(t.competitionId, t.playerId, t.slot)]);
 
 /* ------------------------------------------------------------ partidas --- */
 

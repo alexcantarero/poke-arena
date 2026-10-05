@@ -4,10 +4,11 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
-  ladderEntries, leagueDecks, matches, seasonResets, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
+  competitionTeams, ladderEntries, leagueDecks, matches, seasonResets, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
   tournaments,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
+import { seriesElo } from "./ladderSeries";
 import type {
   DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
   TournamentResult,
@@ -374,6 +375,7 @@ export async function loadInvites() {
 
 export type LeagueDeckRow = {
   playerId: string;
+  slot: number;
   deckId: string | null;
   archetypeId: string | null;
   lockedAt: Date;
@@ -395,6 +397,7 @@ export async function leagueDecksOf(
     : and(eq(leagueDecks.competitionId, competitionId), eq(leagueDecks.playerId, viewer.id));
   return db.select({
     playerId: leagueDecks.playerId,
+    slot: leagueDecks.slot,
     deckId: leagueDecks.deckId,
     archetypeId: leagueDecks.archetypeId,
     lockedAt: leagueDecks.lockedAt,
@@ -431,4 +434,35 @@ export async function ladderChartData() {
     db.select({ at: seasonResets.at }).from(seasonResets).orderBy(asc(seasonResets.at)),
   ]);
   return { entries, resets: resets.map((r) => r.at) };
+}
+
+/* ================================================================ v0.22 -- */
+
+/**
+ * La gráfica de evolución del Elo de la liga, para todos a la vez: una serie
+ * por jugador activo con historial, y la fecha de corte (`elo_since`) como
+ * línea de reset. Misma forma que la del ladder (`SerieLadder`).
+ */
+export function eloChartData(snap: Snapshot) {
+  const por = seriesElo(snap.elo.history);
+  const series = snap.players
+    .filter((p) => p.active && por.has(p.id))
+    .map((p, i) => ({
+      id: p.id,
+      name: p.name,
+      color: p.color || `var(--series-${(i % 7) + 1})`,
+      actual: snap.elo.rating[p.id] ?? null,
+      puntos: por.get(p.id)!,
+    }));
+  const resets = snap.config.eloSince ? [new Date(`${snap.config.eloSince}T00:00:00Z`).getTime()] : [];
+  return { series, resets };
+}
+
+/* ================================================================ v0.23 -- */
+
+/** Equipos de una liga por equipos, por nombre. */
+export async function teamsOf(competitionId: string) {
+  return db.select().from(competitionTeams)
+    .where(eq(competitionTeams.competitionId, competitionId))
+    .orderBy(asc(competitionTeams.name));
 }

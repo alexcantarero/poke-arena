@@ -40,3 +40,24 @@ export function seriesLadder(
   }
   return out;
 }
+
+/**
+ * v0.22 — Series del Elo de la liga a partir de `eloTable().history`. El
+ * primer punto de cada historial es el valor inicial sin fecha y se salta;
+ * varias partidas el mismo día se separan un minuto para que se vean en orden.
+ */
+export function seriesElo(history: Record<string, Array<{ date: string; value: number }>>): Map<string, PuntoSerie[]> {
+  const out = new Map<string, PuntoSerie[]>();
+  for (const [id, h] of Object.entries(history)) {
+    const puntos: PuntoSerie[] = [];
+    let ultimoDia = "", n = 0;
+    for (const p of h) {
+      if (!p.date) continue;
+      n = p.date === ultimoDia ? n + 1 : 0;
+      ultimoDia = p.date;
+      puntos.push({ t: new Date(`${p.date}T12:00:00Z`).getTime() + n * 60_000, elo: Math.round(p.value) });
+    }
+    if (puntos.length) out.set(id, puntos);
+  }
+  return out;
+}

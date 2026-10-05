@@ -24,3 +24,13 @@ test("un reset antes del primer punto no mete hueco al principio", () => {
   const s = seriesLadder([{ playerId: "a", elo: 500, at: d("2026-10-03") }], [d("2026-10-01")]);
   assert.deepEqual(s.get("a")!.map((p) => p.elo), [500]);
 });
+
+import { seriesElo } from "../src/lib/ladderSeries.ts";
+
+test("Elo: se salta el valor inicial sin fecha y separa partidas del mismo día", () => {
+  const s = seriesElo({ a: [{ date: "", value: 1000 }, { date: "2026-09-01", value: 1012 }, { date: "2026-09-01", value: 1020.4 }] });
+  const p = s.get("a")!;
+  assert.equal(p.length, 2);
+  assert.equal(p[1].t - p[0].t, 60_000);
+  assert.equal(p[1].elo, 1020);
+});
