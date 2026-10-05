@@ -166,7 +166,8 @@ export function FilterPanel({
           {n > 0 && (
             // Un enlace y no un botón: quitar los filtros es ir a la pantalla
             // sin query, y eso es navegar, no enviar un formulario.
-            <a className="btn btn-ghost" href={queryOf(action, keep)}>Quitar filtros</a>
+            /* v0.21: `limpiar=1` borra también los filtros recordados (FilterMemory). */
+            <a className="btn btn-ghost" href={queryOf(action, { ...keep, limpiar: "1" })}>Quitar filtros</a>
           )}
         </div>
 

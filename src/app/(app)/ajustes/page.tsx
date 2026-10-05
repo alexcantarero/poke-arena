@@ -3,7 +3,7 @@ import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
-import { PageHead, SectionTitle } from "@/components/ui";
+import { PageHead, SectionTitle, Sprites } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
 import { MetaImport } from "@/components/MetaImport";
 import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
@@ -12,6 +12,7 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
+import { saveArchetypeParents } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -244,6 +245,58 @@ export default async function SettingsPage() {
 
           <SectionTitle aside="desde Limitless">Datos del metagame</SectionTitle>
           <ArchetypeSync total={snap.archetypes.length} />
+
+          {/* --- v0.21: familias de arquetipos --- */}
+          {(() => {
+            // Solo los que de verdad salen en la liga: el catálogo de Limitless
+            // trae cientos y la lista sería inmanejable en el móvil.
+            const usados = new Set<string>();
+            for (const d of snap.decks) if (d.archetypeId) usados.add(d.archetypeId);
+            for (const t of snap.tournaments) for (const r of t.results) if (r.archetypeId) usados.add(r.archetypeId);
+            for (const m of snap.matches) {
+              if (m.archetypeAId) usados.add(m.archetypeAId);
+              if (m.opponentArchetypeId) usados.add(m.opponentArchetypeId);
+            }
+            for (const a of snap.archetypes) if (a.parentId) { usados.add(a.id); usados.add(a.parentId); }
+            const lista = snap.archetypes.filter((a) => usados.has(a.id))
+              .sort((x, y) => x.name.localeCompare(y.name, "es"));
+            const variantes = lista.filter((a) => a.parentId).length;
+            return (
+              <details className="card mb-6">
+                <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
+                  Familias de arquetipos
+                  <span className="text-[11px] font-normal text-muted">{variantes} variante(s) agrupada(s)</span>
+                </summary>
+                <form action={saveArchetypeParents} className="border-t border-line-soft">
+                  <p className="px-4 pt-3 text-xs text-muted">
+                    Di de qué arquetipo principal es variante cada uno (p. ej. «Grookey / Applin» →
+                    «Festival Lead»). En Estadísticas, la «Vista agrupada» suma las variantes bajo
+                    su principal y recalcula usos, %V y conversión.
+                  </p>
+                  <ul className="divide-y divide-line-soft">
+                    {lista.map((a) => (
+                      <li key={a.id} className="flex flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                          <Sprites archetype={a} size="sm" />
+                          <span className="truncate text-sm font-semibold">{a.name}</span>
+                        </span>
+                        <select className="input sm:w-64" name={`parent:${a.id}`} defaultValue={a.parentId ?? ""}
+                          aria-label={`Arquetipo principal de ${a.name}`}>
+                          <option value="">— Es principal —</option>
+                          {lista.filter((p) => p.id !== a.id).map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="border-t border-line-soft p-4">
+                    <button className="btn btn-brand w-full sm:w-auto" type="submit">Guardar familias</button>
+                  </div>
+                </form>
+              </details>
+            );
+          })()}
 
           {/* El metagame presencial. Va justo después del catálogo a
               propósito: el importador casa los mazos contra él, así que el

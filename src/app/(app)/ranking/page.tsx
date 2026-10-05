@@ -293,7 +293,7 @@ export default async function RankingPage({
         sub={
           <>
             {snap.config.ptsWin} puntos por victoria y {snap.config.ptsTie} por empate. El <b>Elo</b> solo
-            se mueve con partidas entre gente del grupo y es el mismo en todas las vistas.
+            se alimenta de la liga y de los torneos, con más peso cuanto más importante es el evento.
           </>
         }
       />
@@ -390,7 +390,7 @@ export default async function RankingPage({
                 {filtro.fecha ? <> · {filtro.fecha === "temporada" ? `temporada ${cpSeason}` : fechaLabel.toLowerCase()}</> : null}.</>}
           </p>
           {filtroAQuery(filtro).toString() && (
-            <Link href="/ranking" className="font-semibold text-info hover:underline">Quitar filtros</Link>
+            <Link href="/ranking?limpiar=1" className="font-semibold text-info hover:underline">Quitar filtros</Link>
           )}
         </div>
       </AutoSubmitForm>

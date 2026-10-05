@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { FilterMemory } from "@/components/FilterMemory";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav, Sidebar } from "@/components/Nav";
@@ -103,6 +104,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           `next build` falla al prerenderizar. */}
       <Suspense fallback={null}>
         <Snackbar />
+        {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
+        <FilterMemory />
       </Suspense>
     </div>
   );

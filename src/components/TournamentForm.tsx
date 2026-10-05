@@ -44,6 +44,11 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
       ?? (tournament?.kind === "league_challenge" || tournament?.kind === "pokemon_challenge" ? 1 : 3),
   );
   const [status, setStatus] = useState(tournament?.status ?? "open");
+  // v0.21: ¿hay eliminatoria? Al editar, lo que tenga; nuevo, todos menos los
+  // League Challenge (que por reglamento son solo suizo).
+  const [hayTopCut, setHayTopCut] = useState<boolean>(
+    tournament ? (tournament.topCut ?? 0) > 0 : true,
+  );
   const [playerCount, setPlayerCount] = useState<string>(
     tournament?.playerCount != null ? String(tournament.playerCount) : "",
   );
@@ -263,10 +268,23 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             </summary>
             <div className="flex flex-col gap-4 border-t border-line-soft p-3">
               <div className="grid grid-cols-2 gap-3">
+                {/* v0.21 — interruptor «¿Hay top cut?». Apagado: se guarda 0 y
+                    desaparece la casilla del tamaño; la ficha deja de pedir rondas
+                    de eliminatoria. */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="label" htmlFor="topCut">Top cut</label>
-                  <input className="input" id="topCut" name="topCut" type="number" min={0} inputMode="numeric"
-                    defaultValue={tournament?.topCut ?? ""} placeholder={recTopCut != null ? String(recTopCut) : "8"} />
+                  <span className="label">Top cut</span>
+                  <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+                    <input type="checkbox" className="size-5" checked={hayTopCut}
+                      onChange={(e) => setHayTopCut(e.target.checked)} />
+                    {hayTopCut ? "Hay eliminatoria" : "Sin top cut"}
+                  </label>
+                  {hayTopCut ? (
+                    <input className="input" id="topCut" name="topCut" type="number" min={2} inputMode="numeric"
+                      aria-label="Tamaño del top cut"
+                      defaultValue={tournament?.topCut || ""} placeholder={recTopCut ? String(recTopCut) : "8"} />
+                  ) : (
+                    <input type="hidden" name="topCut" value="0" />
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="division">División</label>

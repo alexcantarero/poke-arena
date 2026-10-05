@@ -256,7 +256,7 @@ export default async function TournamentsPage({
                       se veían exactamente igual, y saber si a un torneo sin
                       puesto le falta jugarse o le falta rellenarse es justo
                       para lo que existe el ciclo. */}
-                  <span className={`chip ${TOURNAMENT_STATUS[asStatus(t.status)].chip}`}>
+                  <span className={`chip chip-dot ${TOURNAMENT_STATUS[asStatus(t.status)].chip}`}>
                     {TOURNAMENT_STATUS[asStatus(t.status)].short}
                   </span>
                   <span className="chip">Bo{t.bestOf}</span>

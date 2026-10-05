@@ -244,6 +244,7 @@ export default async function TournamentPage({
               archetypeOptions={archOptions}
               roundRecord={rondasHechas.length ? recordOf(roundsOf(snap.matches, t.id, pid)) : null}
               playerId={pid}
+              organizador
             />
           </div>
         </div>
@@ -432,6 +433,12 @@ export default async function TournamentPage({
     <p className="text-xs text-muted">
       Tienes todas las rondas apuntadas, suizo y top cut incluidos.
     </p>
+  ) : t.topCut === 0 ? (
+    /* v0.21: el torneo se marcó «Sin top cut» al crearlo o editarlo. */
+    <p className="text-xs text-muted">
+      Tienes las {t.rounds} rondas apuntadas y este torneo no tiene top cut: ya no hay
+      más rondas que apuntar. Falta tu puesto final, justo debajo.
+    </p>
   ) : (
     <p className="text-xs text-muted">
       Tienes las {t.rounds} rondas de suizo apuntadas. Si pasaste al top cut,
@@ -463,7 +470,8 @@ export default async function TournamentPage({
       yoDrop ? avisoDrop : (
       <div className="flex flex-col gap-2">
         {avisoFin}
-        {!topeAlcanzado && <RoundForm
+        {/* v0.21: sin top cut y con el suizo completo, no hay ronda que añadir. */}
+        {!topeAlcanzado && !(finished && t.topCut === 0) && <RoundForm
           tournamentId={t.id}
           playerId={me.id}
           round={nextRound}

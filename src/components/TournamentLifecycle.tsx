@@ -42,7 +42,7 @@ export function TournamentLifecycle({
   return (
     <section className="card mb-5">
       <div className="flex flex-wrap items-center gap-3 border-b border-line-soft px-4 py-3">
-        <span className={`chip ${meta.chip}`}>{meta.label}</span>
+        <span className={`chip chip-dot ${meta.chip}`}>{meta.label}</span>
         <span className="min-w-0 flex-1 text-xs text-muted">
           {status === "closed" && closedAt
             ? `Cerrado el ${fmtDateLong(isoInLeagueTz(closedAt))}`

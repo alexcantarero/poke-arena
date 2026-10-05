@@ -353,7 +353,7 @@ function Fase({
         </span>
         <span className="text-sm text-muted tabular">{puntos} puntos</span>
         {veredicto && (
-          <span className={`chip ${TONO[veredicto].chip}`}>{TONO[veredicto].texto}</span>
+          <span className={`chip chip-dot ${TONO[veredicto].chip}`}>{TONO[veredicto].texto}</span>
         )}
       </div>
 

@@ -171,6 +171,54 @@ function byDate(a: MatchFull, b: MatchFull) {
  * partidas jugadas. Se puntúa la serie completa, no cada juego: ganar 2-1
  * y ganar 2-0 valen lo mismo, igual que en los rankings oficiales.
  */
+/* -------------------------------------------------------------------------
+   v0.21 — Elo multievento.
+
+   Antes solo contaban las partidas entre dos del grupo (liga y amistosos):
+   las rondas de torneo no movían el Elo y la mayoría del grupo se quedaba
+   en 1000. Ahora cuentan también las rondas de torneo, con un PESO según la
+   importancia del evento, que multiplica la K:
+
+     Liga interna 1 · League Challenge 1 · League Cup 1,25 · Regional y
+     Special 1,5 · Internacional 1,75 · Mundial 2 · Online, tienda y otros
+     0,75 · Amistoso 0,5 (solo si el ajuste de Elo los cuenta).
+
+   Contra alguien de fuera no hay rating guardado: se toma como rival a uno
+   de referencia con el Elo inicial de la liga (1000 por defecto) y solo se
+   mueve el Elo de quien apuntó la ronda. Contra alguien del grupo
+   (`opponentPlayerId`), se usa el Elo real del rival, pero igualmente solo se
+   mueve el de quien la apuntó: el rival apunta su propia ronda y moverlo
+   también contaría el mismo cruce dos veces.
+
+   Los byes no cuentan (no hubo partida), ni las rondas sin resultado.
+   ------------------------------------------------------------------------- */
+
+export const ELO_PESOS: Record<string, number> = {
+  league: 1,
+  amistoso: 0.5,
+  league_challenge: 1,
+  league_cup: 1.25,
+  regional: 1.5,
+  special: 1.5,
+  international: 1.75,
+  worlds: 2,
+  online: 0.75,
+  store: 0.75,
+  other: 0.75,
+};
+
+/** El peso de una partida según dónde se jugó. */
+export function pesoElo(m: Pick<MatchFull, "competitionId" | "tournamentId">, tour?: { kind: string; scope?: string | null }): number {
+  if (m.tournamentId) {
+    if (!tour) return ELO_PESOS.other;
+    if (tour.scope === "online") return ELO_PESOS.online;
+    return ELO_PESOS[tour.kind] ?? ELO_PESOS.other;
+  }
+  return m.competitionId ? ELO_PESOS.league : ELO_PESOS.amistoso;
+}
+
+const esBye = (m: MatchFull) => /^\s*bye\s*$/i.test(m.opponentName ?? "");
+
 export function eloTable(
   allMatches: MatchFull[],
   players: PublicPlayer[],
@@ -179,6 +227,8 @@ export function eloTable(
     /** ISO. Las partidas anteriores a este día no cuentan. */
     eloSince?: string | null;
   } = DEFAULT_SETTINGS,
+  /** v0.21: tipo y modalidad de cada torneo, para el peso. Sin esto, peso 0,75. */
+  torneos: Map<string, { kind: string; scope?: string | null }> = new Map(),
 ) {
   const rating: Record<string, number> = {};
   const history: Record<string, { date: string; value: number }[]> = {};
@@ -195,9 +245,8 @@ export function eloTable(
 
   const elegibles = allMatches
     .filter(isPlayed)
-    // Elo es entre dos personas de la liga: contra alguien de fuera no hay
-    // rating del rival con el que compararse.
-    .filter(isInternal)
+    // v0.21: entre dos del grupo, o rondas de torneo (contra quien sea).
+    .filter((m) => isInternal(m) || (m.tournamentId != null && !esBye(m)))
     .filter((m) => countsForElo(m, scope))
     /* La fecha de corte. Es lo que hace de «reset»: no se borra ninguna
        partida, simplemente se empieza a contar desde aquí. Quitar la fecha
@@ -205,16 +254,30 @@ export function eloTable(
     .filter((m) => !desde || m.date >= desde);
 
   for (const m of elegibles.sort(byDate)) {
-    if (!m.playerBId) continue;
-    touch(m.playerAId); touch(m.playerBId);
     const o = outcome(m);
+    // Una ronda sin juegos ni resultado declarado no es un empate: no se jugó.
+    if (!m.games.length && !o.declared) continue;
     const scoreA = o.winner === "a" ? 1 : o.winner === "b" ? 0 : 0.5;
-    const expectedA = 1 / (1 + Math.pow(10, (rating[m.playerBId] - rating[m.playerAId]) / 400));
-    const delta = cfg.eloK * (scoreA - expectedA);
-    rating[m.playerAId] += delta;
-    rating[m.playerBId] -= delta;
-    history[m.playerAId].push({ date: m.date, value: rating[m.playerAId] });
-    history[m.playerBId].push({ date: m.date, value: rating[m.playerBId] });
+    const k = cfg.eloK * pesoElo(m, m.tournamentId ? torneos.get(m.tournamentId) : undefined);
+    touch(m.playerAId);
+
+    if (m.playerBId) {
+      // Partida interna: suma cero, como siempre.
+      touch(m.playerBId);
+      const expectedA = 1 / (1 + Math.pow(10, (rating[m.playerBId] - rating[m.playerAId]) / 400));
+      const delta = k * (scoreA - expectedA);
+      rating[m.playerAId] += delta;
+      rating[m.playerBId] -= delta;
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId] });
+      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId] });
+    } else {
+      // Ronda de torneo: solo se mueve quien la apuntó.
+      const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
+        ? rating[m.opponentPlayerId] : cfg.eloStart;
+      const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
+      rating[m.playerAId] += k * (scoreA - expectedA);
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId] });
+    }
   }
   const rounded: Record<string, number> = {};
   for (const k of Object.keys(rating)) rounded[k] = Math.round(rating[k]);

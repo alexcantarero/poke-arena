@@ -155,7 +155,7 @@ export default async function ResultsPage({
         ) : (
           <Empty title="Ninguna partida con estos filtros">
             {isFiltered(filter)
-              ? <><a className="underline underline-offset-2" href="/resultados">Quítalos</a> y vuelve a mirar.</>
+              ? <><a className="underline underline-offset-2" href="/resultados?limpiar=1">Quítalos</a> y vuelve a mirar.</>
               : "Registra la primera y aparecerá aquí."}
           </Empty>
         )}

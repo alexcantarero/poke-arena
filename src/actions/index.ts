@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
+import { creaCiclo } from "@/lib/arquetipos";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
   isOwner, newInviteToken, normalizeEmail, passwordProblem, readSession, verifyPassword,
@@ -2697,4 +2698,34 @@ export async function limpiarTorneosAbandonados() {
   redirect(withFlash("/ajustes", "ok", borrados.length
     ? `Borrados ${borrados.length} torneo(s) sin participación: ${borrados.map((t) => t.name).join(", ").slice(0, 160)}.`
     : "No había ningún torneo abandonado."));
+}
+
+/* ================================================================ v0.21 -- */
+
+/**
+ * Familias de arquetipos: guarda de una vez el padre de cada arquetipo
+ * (campos `parent:<id>`). Solo organizadores. Rechaza ciclos en silencio
+ * (deja ese arquetipo como estaba) y lo cuenta en el aviso.
+ */
+export async function saveArchetypeParents(fd: FormData) {
+  await requireManager();
+  const filas = await db.select({ id: archetypes.id, parentId: archetypes.parentId }).from(archetypes);
+  const ids = new Set(filas.map((f) => f.id));
+  const parentOf = new Map<string, string | null>(filas.map((f) => [f.id, f.parentId]));
+
+  let cambios = 0, rechazados = 0;
+  for (const [k, v] of fd.entries()) {
+    if (typeof k !== "string" || !k.startsWith("parent:")) continue;
+    const id = k.slice("parent:".length);
+    if (!ids.has(id)) continue;
+    const padre = typeof v === "string" && v && ids.has(v) ? v : null;
+    if (padre === (parentOf.get(id) ?? null)) continue;
+    if (padre && creaCiclo(id, padre, parentOf)) { rechazados++; continue; }
+    parentOf.set(id, padre);
+    await db.update(archetypes).set({ parentId: padre }).where(eq(archetypes.id, id));
+    cambios++;
+  }
+  refresh();
+  redirect(withFlash("/ajustes", rechazados ? "error" : "ok",
+    `${cambios} arquetipo(s) actualizado(s)${rechazados ? `; ${rechazados} sin cambiar porque harían un círculo` : ""}.`));
 }

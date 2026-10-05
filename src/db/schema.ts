@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 /* -------------------------------------------------------------------------
@@ -155,6 +156,11 @@ export const archetypes = pgTable("archetypes", {
   /** Tipo de energía, solo para colorear: grass, fire, water… */
   type: text("type").notNull().default("colorless"),
   limitlessId: text("limitless_id"),
+  /**
+   * v0.21 — Arquetipo principal del que este es una variante («Slowking /
+   * Drapion» → «Slowking»). Nulo = es principal. Ver `lib/arquetipos.ts`.
+   */
+  parentId: text("parent_id").references((): AnyPgColumn => archetypes.id, { onDelete: "set null" }),
 });
 
 /**

@@ -38,6 +38,8 @@ type Props = {
   deckOptions: DeckOption[];
   /** Arquetipos, para cuando no hay un mazo registrado que elegir. */
   archetypeOptions: DeckOption[];
+  /** v0.21: lo abre un organizador para otra persona → «Corregir el arquetipo». */
+  organizador?: boolean;
   /** Récord contado de las rondas ya apuntadas, si las hay. */
   roundRecord?: { wins: number; losses: number; ties: number; label: string } | null;
   /** De quién es este resultado. Solo se pasa cuando un organizador edita el de otro. */
@@ -45,7 +47,7 @@ type Props = {
 };
 
 export function TournamentResultForm({
-  season, tournament, result, deckOptions, archetypeOptions, roundRecord, playerId,
+  season, tournament, result, deckOptions, archetypeOptions, roundRecord, playerId, organizador = false,
 }: Props) {
   const hasRounds = Boolean(roundRecord && roundRecord.wins + roundRecord.losses + roundRecord.ties > 0);
 
@@ -142,9 +144,15 @@ export function TournamentResultForm({
         </p>
       </div>
 
-      <details className="rounded-lg border border-line-soft">
+      {/* v0.21 — para un organizador que corrige el resultado de otro, esto es
+          «Corregir arquetipo» y sale abierto: el arquetipo elegido aquí manda
+          sobre el del mazo en las estadísticas (p. ej. «Grookey / Applin» →
+          «Festival Lead»). */}
+      <details className="rounded-lg border border-line-soft" open={organizador || undefined}>
         <summary className="tap cursor-pointer justify-start px-3 text-sm font-semibold text-muted">
-          ¿No tienes el mazo registrado? Elige solo el arquetipo
+          {organizador
+            ? "Corregir el arquetipo (manda sobre el del mazo)"
+            : "¿No tienes el mazo registrado? Elige solo el arquetipo"}
         </summary>
         <div className="border-t border-line-soft p-3">
           <DeckPicker

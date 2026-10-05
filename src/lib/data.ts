@@ -166,7 +166,9 @@ export const loadSnapshot = cache(async () => {
     else favoritePlayers.set(f.playerId, new Set([f.favoriteId]));
   }
 
-  const elo = eloTable(matchesFull, playerRows, config);
+  // v0.21: el tipo de cada torneo da el peso de sus rondas en el Elo.
+  const elo = eloTable(matchesFull, playerRows, config,
+    new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }])));
 
   return {
     config,

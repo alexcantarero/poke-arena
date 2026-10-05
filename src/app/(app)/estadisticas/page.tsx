@@ -22,6 +22,7 @@ import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { ConversionChartLazy } from "@/components/statistics/lazy";
+import { agruparFilas, raizDe } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 
@@ -127,7 +128,18 @@ export default async function StatsPage({
   const all = snap.matches.filter(isPlayed);
   const rows = applyMatchFilter(all, filter, index);
 
-  const archs = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
+  /* v0.21 — «Vista agrupada»: las variantes cuentan bajo su arquetipo
+     principal (`archetypes.parent_id`). Usos, %V y conversión se recalculan
+     con los totales de la familia, no se promedian. */
+  const agruparRaw = Array.isArray(q.agrupar) ? q.agrupar[0] : q.agrupar;
+  const agrupar = agruparRaw === "1";
+  const parentOf = new Map(snap.archetypes.map((a) => [a.id, a.parentId ?? null]));
+  const hayFamilias = snap.archetypes.some((a) => a.parentId);
+  const raiz = (id: string) => (agrupar ? raizDe(id, parentOf) : id);
+  const archsDetalle = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
+  const archs = agrupar
+    ? agruparFilas(archsDetalle, raiz, (id) => snap.archById.get(id))
+    : archsDetalle;
   const ft = firstTurnStats(rows);
   // A nivel de serie. Es la única lectura posible de las rondas de torneo
   // apuntadas en modo rápido, que tienen turno y resultado pero no desglose.
@@ -184,8 +196,8 @@ export default async function StatsPage({
     .filter((t) => !filter.to || t.date <= filter.to)
     .flatMap((t) => t.results.map((r) => ({
       playerId: r.playerId,
-      archetypeId: r.archetypeId
-        ?? (r.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null),
+      archetypeId: ((id: string | null) => (id ? raiz(id) : null))(r.archetypeId
+        ?? (r.deckId ? snap.decksById.get(r.deckId)?.archetypeId ?? null : null)),
       placement: r.placement ?? null,
       date: t.date,
       kind: t.kind,
@@ -236,6 +248,7 @@ export default async function StatsPage({
 
   const vistaHref = (v: "mazos" | "jugadores") => {
     const p = new URLSearchParams(query);
+    if (agrupar) p.set("agrupar", "1");
     if (fuente !== "local") p.set("fuente", fuente);
     if (orden === "asc") p.set("orden", "asc");
     if (v !== "mazos") p.set("vista", v);
@@ -245,6 +258,17 @@ export default async function StatsPage({
   };
 
   const evolucion = overTime(placements);
+
+  /** v0.21: la URL de ahora con la vista agrupada encendida o apagada. */
+  const agruparHref = (on: boolean) => {
+    const p = new URLSearchParams(query);
+    if (fuente !== "local") p.set("fuente", fuente);
+    if (orden === "asc") p.set("orden", "asc");
+    if (vista !== "mazos") p.set("vista", vista);
+    if (on) p.set("agrupar", "1");
+    const qs = p.toString();
+    return qs ? `/estadisticas?${qs}` : "/estadisticas";
+  };
 
   /* El informe del último torneo grande. Solo se pide cuando toca: son dos
      llamadas encadenadas a Limitless y no hay por qué pagarlas en las otras
@@ -261,6 +285,7 @@ export default async function StatsPage({
   /** La URL de ahora con otro orden. */
   const ordenHref = (d: SortDir) => {
     const p = new URLSearchParams(query);
+    if (agrupar) p.set("agrupar", "1");
     if (fuente !== "local") p.set("fuente", fuente);
     if (vista !== "mazos") p.set("vista", vista);
     if (d === "asc") p.set("orden", "asc");
@@ -302,6 +327,7 @@ export default async function StatsPage({
           ...(fuente === "local" ? {} : { fuente }),
           ...(vista === "mazos" ? {} : { vista }),
           ...(orden === "asc" ? { orden: "asc" } : {}),
+          ...(agrupar ? { agrupar: "1" } : {}),
         }}
         tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
         competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
@@ -361,6 +387,19 @@ export default async function StatsPage({
         <Kpi label="Formato" icon="results" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
           note={`Bo1 ${bo[1] ?? 0} · Bo3 ${bo[3] ?? 0} · Bo5 ${bo[5] ?? 0}`} />
       </div>
+
+      {hayFamilias && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="label">Arquetipos</span>
+          <div className="seg text-xs">
+            <Link href={agruparHref(false)} data-on={!agrupar}>Vista detallada</Link>
+            <Link href={agruparHref(true)} data-on={agrupar}>Vista agrupada</Link>
+          </div>
+          <span className="text-[11px] text-muted">
+            {agrupar ? "Variantes sumadas bajo su arquetipo principal." : "Cada variante por separado."}
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
