@@ -278,7 +278,7 @@ export function MatchForm({
   defaultValue={games[i][campo]}
   onChange={(val) => setGame(i, { [campo]: val })}
   locked={over}
-  emptyLabel="— selecciona mazo —"
+  emptyLabel="ï¿½ selecciona mazo ï¿½"
 />
                       </label>
                     );
