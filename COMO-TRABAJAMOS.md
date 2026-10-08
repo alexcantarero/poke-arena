@@ -17,7 +17,7 @@ sirven, para no perder tiempo con ellas:
   `D:\Web App`. Este es el portátil de trabajo; Arena vive en otra máquina.
 - **Conectar la carpeta no me lo permite el sistema.** Lo intenté y lo rechaza.
 
-Así que: **adjunta un zip en el chat**. Con esto me sobra:
+Así que: **adjunta un zip en el chat**. Con esto me sobraa:
 
 ```
 src/  drizzle/  package.json  next.config.ts  tsconfig.json
