@@ -25,7 +25,7 @@ const COOKIE = "arena_session";
 const MAX_AGE = 60 * 60 * 24 * 180; // 180 días
 const KEYLEN = 64;
 
-export type Session = { playerId: string; issuedAt: number };
+export type Session = { playerId: string; issuedAt: number; version?: number };
 
 function secret() {
   const s = process.env.SESSION_SECRET;
@@ -125,9 +125,9 @@ export async function readSession(): Promise<Session | null> {
   return session;
 }
 
-export async function writeSession(playerId: string) {
+export async function writeSession(playerId: string, version: number = 1) {
   const jar = await cookies();
-  jar.set(COOKIE, serialize({ playerId, issuedAt: Date.now() }), {
+  jar.set(COOKIE, serialize({ playerId, issuedAt: Date.now(), version }), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -175,3 +175,4 @@ export type Role = "owner" | "admin" | "player";
 
 export const canManageLeague = (role: string) => role === "owner" || role === "admin";
 export const isOwner = (role: string) => role === "owner";
+
