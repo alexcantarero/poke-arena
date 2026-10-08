@@ -12,7 +12,7 @@ import type { Game, MatchFull } from "../src/lib/types.ts";
    juegos apuntados son idénticos en los dos casos. */
 
 const g = (number: number, winner: string, first = ""): Game =>
-  ({ id: number, matchId: "m", number, winner, first, prizesLeft: null, turns: null, note: "" });
+  ({ id: number, matchId: "m", number, winner, first, prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null });
 
 const m = (over: Partial<MatchFull> = {}): MatchFull => ({
   id: "m1", competitionId: null, tournamentId: "t1", round: 1, date: "2026-09-01",
