@@ -41,11 +41,12 @@ type Props = {
   lockedReason?: string;
   /** A partir de cuántas opciones aparece el buscador. */
   searchFrom?: number;
+  onChange?: (value: string) => void;
 };
 
 export function DeckPicker({
   name, options, defaultValue, emptyLabel = "— sin anotar —",
-  placeholder = "Elegir mazo", id, locked = false, lockedReason, searchFrom = 8,
+  placeholder = "Elegir mazo", id, locked = false, lockedReason, searchFrom = 8, onChange,
 }: Props) {
   const [value, setValue] = useState(defaultValue ?? "");
   const [open, setOpen] = useState(false);
@@ -78,6 +79,7 @@ export function DeckPicker({
 
   const choose = (next: string) => {
     setValue(next);
+    onChange?.(next);
     setOpen(false);
     setQ("");
   };
@@ -208,3 +210,5 @@ function DeckSprite({ option }: { option?: DeckOption }) {
     </span>
   );
 }
+
+

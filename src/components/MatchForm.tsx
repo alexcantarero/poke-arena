@@ -6,6 +6,8 @@ import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament 
 import { bloqueados } from "@/lib/juegosMazos";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
+import { DeckPicker } from "./DeckPicker";
+import type { DeckOption } from "@/lib/types";
 
 type Props = {
   match?: MatchFull;
@@ -47,7 +49,7 @@ export function MatchForm({
     });
     return base;
   });
-  const archOrden = useMemo(() => [...archetypes].sort((x, y) => x.name.localeCompare(y.name, "es")), [archetypes]);
+  const archOpts: DeckOption[] = useMemo(() => [...archetypes].map((a) => ({ id: a.id, name: a.name, archetypeId: a.id, archetypeName: a.name, main: a.main, secondary: a.secondary, type: a.type, group: 'shared' as const, hasList: false })).sort((x, y) => x.name.localeCompare(y.name, 'es')), [archetypes]);
   const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
@@ -120,13 +122,7 @@ export function MatchForm({
             </>)}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="deckAId">Su mazo</label>
-            <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
-              <option value="">— sin asignar —</option>
-              <DeckOptions decks={decks} playerId={aId} archetypes={archetypes} />
-            </select>
-          </div>
+          
 
           <hr className="border-line-soft" />
 
@@ -143,16 +139,7 @@ export function MatchForm({
                   y para la matriz de emparejamientos.
                 </p>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
-                <select
-                  className="input" id="opponentArchetypeId" name="opponentArchetypeId"
-                  value={oppArch} onChange={(e) => setOppArch(e.target.value)}
-                >
-                  <option value="">— no lo sé —</option>
-                  {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
+              
             </>
           ) : (
             <>
@@ -163,13 +150,7 @@ export function MatchForm({
                     .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="deckBId">Su mazo</label>
-                <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
-                  <option value="">— sin asignar —</option>
-                  <DeckOptions decks={decks} playerId={bId} archetypes={archetypes} />
-                </select>
-              </div>
+              
             </>
           )}
 
@@ -291,13 +272,14 @@ export function MatchForm({
                           Mazo de {lado === "a" ? (A?.name ?? "A") : bLabel}
                           {fuera.size > 0 && <span className="text-loss"> · {fuera.size} bloqueado{fuera.size > 1 ? "s" : ""}</span>}
                         </span>
-                        <select className="input text-sm" name={`g${i}_arch${lado.toUpperCase()}`} disabled={over}
-                          value={games[i][campo]} onChange={(e) => setGame(i, { [campo]: e.target.value })}>
-                          <option value="">— el de la serie —</option>
-                          {archOrden.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id).map((x) => (
-                            <option key={x.id} value={x.id}>{x.name}</option>
-                          ))}
-                        </select>
+                        <DeckPicker
+  name={`g${i}_arch${lado.toUpperCase()}`}
+  options={archOpts.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id)}
+  defaultValue={games[i][campo]}
+  onChange={(val) => setGame(i, { [campo]: val })}
+  locked={over}
+  emptyLabel="� selecciona mazo �"
+/>
                       </label>
                     );
                   })}
@@ -397,3 +379,9 @@ function DeckOptions({ decks, playerId, archetypes = [] }: { decks: Deck[]; play
     </>
   );
 }
+
+
+
+
+
+
