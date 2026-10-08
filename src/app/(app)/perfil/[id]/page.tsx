@@ -22,8 +22,7 @@ import { Icon } from "@/components/icons";
 import { LadderClear, LadderEditor, RankBadge, RankProgress } from "@/components/Ladder";
 import { canManageLeague } from "@/lib/auth";
 import { setZoneRanks } from "@/actions";
-import { eloChartData } from "@/lib/data";
-import { LadderChartLazy } from "@/components/statistics/lazy";
+import { posicionesDe } from "@/lib/data";
 import { FavStar } from "@/components/FavStar";
 import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
@@ -61,7 +60,7 @@ export default async function ProfilePage({
 }) {
   const [{ id }, q] = await Promise.all([params, searchParams]);
   const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
-  const eloGrafica = eloChartData(snap);
+  const posiciones = posicionesDe(snap, id);
   const player = snap.playersById.get(id);
   if (!player) notFound();
 
@@ -179,13 +178,22 @@ export default async function ProfilePage({
       />
 
       <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        <Kpi label="Partidas" value={rec.played} note={`juegos ${rec.gameWins}–${rec.gameLosses}`} />
+        {/* v0.25: sus partidas sobre el total de la liga. */}
+        <Kpi label="Partidas"
+          value={<>{rec.played}<span className="text-base font-semibold text-muted"> / {posiciones.partidasTotales}</span></>}
+          note={`juegos ${rec.gameWins}–${rec.gameLosses}`} />
         <Kpi label="Victorias" value={rec.wins} />
         <Kpi label="Derrotas" value={rec.losses} />
         <Kpi label="Empates" value={rec.ties} />
+        {/* v0.25: la tarjeta dorada es el puesto en la liga, con el de Elo a la derecha. */}
         <Kpi
-          label="% victorias" value={pct(rec.winRate, 0)} note="el empate cuenta media"
-          highlight={(rec.winRate ?? 0) >= 0.5}
+          highlight
+          label={posiciones.comp?.name ? posiciones.comp.name.slice(0, 18) : tr(lang, "home.league")}
+          value={posiciones.liga
+            ? <>{posiciones.liga.pos}.º{posiciones.elo && (
+                <span className="ml-2 text-base font-semibold text-ink-2">· Elo {posiciones.elo.pos}.º</span>)}</>
+            : "—"}
+          note={`${pct(rec.winRate, 0)} ${tr(lang, "home.wins")}`}
         />
       </div>
 
@@ -257,21 +265,7 @@ export default async function ProfilePage({
           perfil abra con lo más visual. */}
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
-        {/* v0.22 — evolución del Elo en el TIEMPO y de todos en la misma
-            gráfica (como la del ladder), con este jugador marcado de inicio. */}
-        <section className="card lg:col-span-2">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Evolución del Elo</h2>
-            {history.length > 1 && (
-              <span className="text-xs text-muted">
-                mín {Math.round(Math.min(...history))} · máx {Math.round(Math.max(...history))} · mejor racha {longestWinStreak(all, id)}
-              </span>
-            )}
-          </div>
-          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} fechas={eloGrafica.fechas} destacados={[id]} inicial={4}
-            pie="Un punto por cada partida que mueve el Elo." etiquetaReset="Corte del Elo" />
-        </section>
-
+        {/* v0.25: sin gráfica de Elo en el perfil (queda en el Ranking). */}
         <section className="card">
           <div className="card-head">
             <h2 className="text-lg font-bold">Sus mazos</h2>

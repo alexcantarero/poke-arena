@@ -527,6 +527,22 @@ export function matchupMatrix(
   };
   for (const match of matches.filter(isPlayed)) {
     const { a: A, b: B } = archetypesOfMatch(match, index, archById);
+    /* v0.25 — si los juegos llevan su propio mazo, la matriz cuenta JUEGO a
+       juego (cada juego, con los arquetipos que se usaron en él; si a un lado
+       le falta, el de la serie). Es lo fiel cuando en una serie se cambia de
+       mazo. Sin mazos por juego, se cuenta la serie como siempre. */
+    const g = (match.games ?? []) as Array<{ winner: string; archetypeAId?: string | null; archetypeBId?: string | null }>;
+    if (g.some((x) => x.archetypeAId || x.archetypeBId)) {
+      for (const juego of g) {
+        const ja = (juego.archetypeAId && archById?.get(juego.archetypeAId)) || A;
+        const jb = (juego.archetypeBId && archById?.get(juego.archetypeBId)) || B;
+        if (!ja || !jb) continue;
+        if (juego.winner === "tie") { add(ja.id, jb.id, "d"); add(jb.id, ja.id, "d"); }
+        else if (juego.winner === "a") { add(ja.id, jb.id, "w"); add(jb.id, ja.id, "l"); }
+        else if (juego.winner === "b") { add(ja.id, jb.id, "l"); add(jb.id, ja.id, "w"); }
+      }
+      continue;
+    }
     if (!A || !B) continue;
     const o = outcome(match);
     if (o.winner === "tie") { add(A.id, B.id, "d"); add(B.id, A.id, "d"); }

@@ -13,7 +13,7 @@ import type {
   DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
   TournamentResult,
 } from "./types";
-import { deckArchetypeIndex, eloTable } from "./stats";
+import { deckArchetypeIndex, eloTable, isPlayed, standings } from "./stats";
 import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
 
@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS: Settings = {
   eloScope: "competitive",
   eloSince: null,
   ladderSince: null,
+  featuredRegionalId: null,
   ratingZone: "europe",
   registrationOpen: true,
   updatedAt: new Date(),
@@ -466,4 +467,34 @@ export async function teamsOf(competitionId: string) {
   return db.select().from(competitionTeams)
     .where(eq(competitionTeams.competitionId, competitionId))
     .orderBy(asc(competitionTeams.name));
+}
+
+/* ================================================================ v0.25 -- */
+
+/** La liga «principal»: la de liga en curso, si no cualquiera en curso, si no la primera. */
+export function mainCompetition(snap: Snapshot) {
+  return snap.competitions.find((c) => c.status === "live" && c.kind === "league")
+    ?? snap.competitions.find((c) => c.status === "live")
+    ?? snap.competitions[0];
+}
+
+/**
+ * v0.25 — Dónde está alguien: puesto en la clasificación de la liga principal
+ * y puesto en el ranking global de Elo (entre los jugadores activos). `null`
+ * si no aparece (no juega esa liga, o no está activo).
+ */
+export function posicionesDe(snap: Snapshot, playerId: string) {
+  const comp = mainCompetition(snap);
+  const played = snap.matches.filter(isPlayed);
+  const scoped = comp ? played.filter((m) => m.competitionId === comp.id) : played;
+  const tabla = standings(scoped, comp ? compPlayers(snap, comp.id) : snap.activePlayerIds, snap.elo.rating, snap.config);
+  const iLiga = tabla.findIndex((r) => r.playerId === playerId);
+  const porElo = [...snap.activePlayerIds].sort((a, b) => (snap.elo.rating[b] ?? 0) - (snap.elo.rating[a] ?? 0));
+  const iElo = porElo.indexOf(playerId);
+  return {
+    comp,
+    liga: iLiga >= 0 ? { pos: iLiga + 1, total: tabla.length } : null,
+    elo: iElo >= 0 ? { pos: iElo + 1, total: porElo.length } : null,
+    partidasTotales: played.length,
+  };
 }

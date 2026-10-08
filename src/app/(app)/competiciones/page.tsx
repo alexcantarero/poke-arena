@@ -7,8 +7,6 @@ import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
 import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { LigaStats } from "@/components/LigaStats";
-import { LadderChartLazy } from "@/components/statistics/lazy";
-import { eloChartData } from "@/lib/data";
 
 export const metadata = { title: "Liga" };
 
@@ -17,7 +15,6 @@ export default async function CompetitionsPage() {
   const played = snap.matches.filter(isPlayed);
   const manager = me ? canManageLeague(me.role) : false;
 
-  const eloGrafica = eloChartData(snap);
   return (
     <>
       <PageHead
@@ -32,17 +29,7 @@ export default async function CompetitionsPage() {
         archIndex={snap.archIndex} archById={snap.archById}
       />
 
-      {/* v0.24 — la evolución del Elo también aquí, en el panel de la liga. */}
-      {eloGrafica.series.length > 0 && (
-        <section className="card mb-5">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Evolución del Elo</h2>
-            <span className="text-xs text-muted">una línea por jugador</span>
-          </div>
-          <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} fechas={eloGrafica.fechas}
-            inicial={6} pie="Un punto por cada partida que mueve el Elo." />
-        </section>
-      )}
+      {/* v0.25: sin gráfica de Elo en la Liga (queda en el Ranking). */}
 
       {snap.competitions.length ? (
         <div className="mb-6 flex flex-col gap-4">

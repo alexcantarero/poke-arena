@@ -1,3 +1,6 @@
+import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
+import { posicionesDe } from "@/lib/data";
 import Link from "next/link";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
@@ -70,6 +73,12 @@ export default async function HomePage({
   );
   const leader = table.find((r) => r.played > 0);
   const mine = session ? table.find((r) => r.playerId === session.playerId) : undefined;
+  // v0.25: puestos (liga y Elo) y tus partidas, para las tarjetas de arriba.
+  const posiciones = session ? posicionesDe(snap, session.playerId) : null;
+  const misPartidas = session
+    ? played.filter((m) => m.playerAId === session.playerId || m.playerBId === session.playerId).length
+    : 0;
+  const lang = await getLang();
   const myCp = session ? playerCp(snap, session.playerId) : null;
   const archs = archetypeStats(played, snap.archIndex, undefined, snap.archById);
   const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 3);
@@ -152,7 +161,10 @@ export default async function HomePage({
   const hrefs = { global: "/#ultimo-regional", grupo: "/?vista=grupo#ultimo-regional" };
 
   if (vista === "global") {
-    const ev = irl.events.find((e) => KINDS_REGIONAL.has(e.kind)) ?? irl.events[0];
+    // v0.25: si un organizador eligió el «Último Regional» en Ajustes, manda ese.
+    const elegido = snap.config.featuredRegionalId
+      ? irl.events.find((e) => e.id === snap.config.featuredRegionalId) : undefined;
+    const ev = elegido ?? irl.events.find((e) => KINDS_REGIONAL.has(e.kind)) ?? irl.events[0];
     const entries = ev ? irl.entries.filter((e) => e.eventId === ev.id) : [];
     const p = panelDeEvento(entries, ev?.topCut, online);
     const deTemporada = irl.events.filter((e) => KINDS_REGIONAL.has(e.kind) && (e.season ?? seasonOfDate(e.date)) === temporada);
@@ -188,7 +200,12 @@ export default async function HomePage({
       ),
     };
   } else {
-    const t = jugados.find((x) => KINDS_REGIONAL.has(x.kind));
+    // v0.25: con un Regional elegido, el torneo del grupo de esa misma fecha.
+    const fechaElegida = snap.config.featuredRegionalId
+      ? irl.events.find((e) => e.id === snap.config.featuredRegionalId)?.date : undefined;
+    const t = (fechaElegida && jugados.find((x) => KINDS_REGIONAL.has(x.kind)
+        && x.date <= fechaElegida && (x.endDate ?? x.date) >= fechaElegida))
+      || jugados.find((x) => KINDS_REGIONAL.has(x.kind));
     const res = t ? resultadosDe(t) : [];
     const r = resumenGrupo(res);
     const temporadaT = jugados.filter((x) => (x.season ?? seasonOfDate(x.date)) === temporada);
@@ -248,22 +265,43 @@ export default async function HomePage({
         gradient
         title={snap.config.name}
         sub={`${snap.config.season} · ${snap.activePlayerIds.length} jugadores · ${played.length} partidas`}
-        actions={
-          <Link className="btn btn-brand hidden md:inline-flex" href="/partidas/nueva">
-            <Icon name="plus" className="size-4" /> Registrar partida
-          </Link>
-        }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-        <Kpi icon="results" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
-        <Kpi
-          highlight
-          icon="trophy"
-          label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
-          value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
-          note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)}` : "sin datos"}
-        />
+        {/* v0.25 — tus partidas sobre el total de la liga, y en la tarjeta dorada
+            tu puesto en la liga con tu puesto de Elo a la derecha. Sin sesión
+            (o si no juegas la liga), se queda como antes: total y líder. */}
+        {posiciones ? (
+          <Kpi icon="results" label={tr(lang, "home.yourMatches")}
+            value={<>{misPartidas}<span className="text-base font-semibold text-muted"> / {played.length}</span></>}
+            note={tr(lang, "home.ofLeague")} />
+        ) : (
+          <Kpi icon="results" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
+        )}
+        {posiciones?.liga ? (
+          <Kpi
+            highlight
+            icon="trophy"
+            label={mainComp ? shortName(mainComp.name, 16) : tr(lang, "home.league")}
+            value={<>
+              {posiciones.liga.pos}.º
+              {posiciones.elo && (
+                <span className="ml-2 text-base font-semibold text-ink-2" title={tr(lang, "home.eloRank")}>
+                  · Elo {posiciones.elo.pos}.º
+                </span>
+              )}
+            </>}
+            note={`${tr(lang, "home.of")} ${posiciones.liga.total} · ${tr(lang, "home.eloRankShort")} ${posiciones.elo ? `${posiciones.elo.pos}/${posiciones.elo.total}` : "—"}`}
+          />
+        ) : (
+          <Kpi
+            highlight
+            icon="trophy"
+            label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
+            value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
+            note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)}` : "sin datos"}
+          />
+        )}
         {mine
           ? <Kpi
               icon="user"

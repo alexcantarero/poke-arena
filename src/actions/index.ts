@@ -13,6 +13,7 @@ import {
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
 import { creaCiclo } from "@/lib/arquetipos";
+import { validarMazosPorJuego } from "@/lib/juegosMazos";
 import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
 import {
   canManageLeague, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES,
@@ -709,7 +710,10 @@ export async function saveMatch(fd: FormData) {
   // pasarse de la mayoría. Un "3-0 en un Bo3" no debe poder guardarse, y un
   // ganador escrito a mano tipo "x" contaba como empate sin avisar.
   const need = Math.ceil(bestOf / 2);
-  const rows: Array<{ number: number; winner: string; first: string; prizesLeft: number | null }> = [];
+  const rows: Array<{
+    number: number; winner: string; first: string; prizesLeft: number | null;
+    archetypeAId: string | null; archetypeBId: string | null;
+  }> = [];
   let wonA = 0, wonB = 0;
   for (let i = 0; i < bestOf; i++) {
     const winner = str(fd, `g${i}_winner`);
@@ -722,9 +726,31 @@ export async function saveMatch(fd: FormData) {
       winner,
       first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, ""),
       prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
+      // v0.25: mazo (arquetipo) de cada lado en este juego, opcional.
+      archetypeAId: str(fd, `g${i}_archA`) || null,
+      archetypeBId: str(fd, `g${i}_archB`) || null,
     });
   }
   if (!rows.length) return;
+
+  // v0.25 — regla de liga: no se repite un arquetipo con el que ya ganaste un
+  // juego de esta serie. Los ids tienen que existir (no se fía del formulario).
+  const archsUsados = [...new Set(rows.flatMap((r) => [r.archetypeAId, r.archetypeBId]).filter((x): x is string => Boolean(x)))];
+  if (archsUsados.length) {
+    const existen = new Set((await db.select({ id: archetypes.id }).from(archetypes)
+      .where(inArray(archetypes.id, archsUsados))).map((r) => r.id));
+    for (const r of rows) {
+      if (r.archetypeAId && !existen.has(r.archetypeAId)) r.archetypeAId = null;
+      if (r.archetypeBId && !existen.has(r.archetypeBId)) r.archetypeBId = null;
+    }
+  }
+  if (values.competitionId) {
+    const fallo = validarMazosPorJuego(rows.map((r) => ({ winner: r.winner, archA: r.archetypeAId, archB: r.archetypeBId })));
+    if (fallo) {
+      redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error",
+        `Juego ${fallo.juego}: no se puede repetir un mazo con el que ya se ganó un juego de esta serie.`));
+    }
+  }
 
   const id = editing || newId("m");
   if (editing) {
@@ -2828,4 +2854,26 @@ export async function deleteTeam(fd: FormData) {
     .where(and(eq(competitionTeams.id, teamId), eq(competitionTeams.competitionId, competitionId)));
   refresh();
   redirect(withFlash(`/competiciones/${competitionId}`, "ok", "Equipo borrado."));
+}
+
+/* ================================================================ v0.25 -- */
+
+/**
+ * Elegir a mano el «Último Regional» de Inicio (un evento de `meta_events`).
+ * Vacío = automático (el más reciente). Solo organizadores.
+ */
+export async function setFeaturedRegional(fd: FormData) {
+  await requireManager();
+  const id = str(fd, "eventId");
+  let valor: string | null = null;
+  if (id) {
+    const ev = (await db.select({ id: metaEvents.id }).from(metaEvents).where(eq(metaEvents.id, id)))[0];
+    if (!ev) redirect(withFlash("/ajustes", "error", "Ese evento no existe."));
+    valor = id;
+  }
+  const existing = await db.select({ id: settings.id }).from(settings).where(eq(settings.id, "default"));
+  if (existing[0]) await db.update(settings).set({ featuredRegionalId: valor, updatedAt: new Date() }).where(eq(settings.id, "default"));
+  else await db.insert(settings).values({ id: "default", featuredRegionalId: valor });
+  refresh();
+  redirect(withFlash("/ajustes", "ok", valor ? "Último Regional fijado." : "Último Regional en automático."));
 }

@@ -61,6 +61,11 @@ export const settings = pgTable("settings", {
    */
   eloSince: date("elo_since"),
   /**
+   * v0.25 — «El último Regional» de Inicio, elegido a mano por un organizador
+   * (id de `meta_events`). Nulo = el más reciente, como antes.
+   */
+  featuredRegionalId: text("featured_regional_id"),
+  /**
    * v0.18 — Inicio de la temporada del ladder: el último «reset global».
    * El historial anterior no se borra; la gráfica del líder empieza aquí.
    */
@@ -391,6 +396,9 @@ export const games = pgTable("games", {
   prizesLeft: integer("prizes_left"),
   turns: integer("turns"),
   note: text("note").notNull().default(""),
+  /** v0.25 — arquetipo de cada lado EN ESTE JUEGO (nulo = el de la serie). */
+  archetypeAId: text("archetype_a_id").references(() => archetypes.id, { onDelete: "set null" }),
+  archetypeBId: text("archetype_b_id").references(() => archetypes.id, { onDelete: "set null" }),
 }, (t) => [index("games_match_idx").on(t.matchId)]);
 
 /* ------------------------------------------------- torneos de fuera --- */

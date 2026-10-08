@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
 import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
+import { bloqueados } from "@/lib/juegosMazos";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
 
@@ -38,11 +39,16 @@ export function MatchForm({
     match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId ? `arch:${match.opponentArchetypeId}` : ""));
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
   const [bestOf, setBestOf] = useState(match?.bestOf ?? 3);
-  const [games, setGames] = useState<Array<{ winner: string; first: string }>>(() => {
-    const base = Array.from({ length: 5 }, () => ({ winner: "", first: "" }));
-    match?.games.forEach((g, i) => { if (i < 5) base[i] = { winner: g.winner, first: g.first }; });
+  // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
+  const [games, setGames] = useState<Array<{ winner: string; first: string; archA: string; archB: string }>>(() => {
+    const base = Array.from({ length: 5 }, () => ({ winner: "", first: "", archA: "", archB: "" }));
+    match?.games.forEach((g, i) => {
+      if (i < 5) base[i] = { winner: g.winner, first: g.first, archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "" };
+    });
     return base;
   });
+  const archOrden = useMemo(() => [...archetypes].sort((x, y) => x.name.localeCompare(y.name, "es")), [archetypes]);
+  const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
   const A = players.find((p) => p.id === aId);
@@ -64,7 +70,7 @@ export function MatchForm({
   const sameTwice = !external && aId === bId;
   const canSave = !sameTwice && aId && decided;
 
-  const setGame = (i: number, patch: Partial<{ winner: string; first: string }>) =>
+  const setGame = (i: number, patch: Partial<{ winner: string; first: string; archA: string; archB: string }>) =>
     setGames((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   /** Un juego se apaga cuando la serie ya estaba decidida antes de llegar a él. */
@@ -245,6 +251,31 @@ export function MatchForm({
                   </div>
                 </div>
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
+
+                {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
+                    en un juego anterior de la serie no se ofrece (regla de liga;
+                    el servidor también lo comprueba). */}
+                <div className="mt-2 grid grid-cols-1 gap-2 xs:grid-cols-2">
+                  {(["a", "b"] as const).map((lado) => {
+                    const fuera = bloqueados(juegosMazos, i, lado);
+                    const campo = lado === "a" ? "archA" : "archB";
+                    return (
+                      <label key={lado} className="flex min-w-0 flex-col gap-1">
+                        <span className="text-[11px] text-muted">
+                          Mazo de {lado === "a" ? (A?.name ?? "A") : bLabel}
+                          {fuera.size > 0 && <span className="text-loss"> · {fuera.size} bloqueado{fuera.size > 1 ? "s" : ""}</span>}
+                        </span>
+                        <select className="input text-sm" name={`g${i}_arch${lado.toUpperCase()}`} disabled={over}
+                          value={games[i][campo]} onChange={(e) => setGame(i, { [campo]: e.target.value })}>
+                          <option value="">— el de la serie —</option>
+                          {archOrden.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id).map((x) => (
+                            <option key={x.id} value={x.id}>{x.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

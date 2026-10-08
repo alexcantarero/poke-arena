@@ -14,6 +14,7 @@ import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
+import { setFeaturedRegional } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -334,6 +335,20 @@ export default async function SettingsPage() {
           </Grupo>
           <Grupo titulo="Metagame presencial" aside="pegando la clasificación">
           <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
+
+          {/* v0.25 — elegir a mano el «Último Regional» de Inicio. */}
+          <form action={setFeaturedRegional} className="card mb-4 flex flex-col gap-2 p-4 sm:flex-row sm:items-end">
+            <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="label">«Último Regional» de Inicio</span>
+              <select className="input" name="eventId" defaultValue={snap.config.featuredRegionalId ?? ""}>
+                <option value="">Automático (el más reciente)</option>
+                {metaEventos
+                  .filter((e) => ["regional", "special", "international", "worlds"].includes(e.kind))
+                  .map((e) => <option key={e.id} value={e.id}>{e.date} · {e.name}</option>)}
+              </select>
+            </label>
+            <button className="btn btn-brand" type="submit">Guardar</button>
+          </form>
 
           {/* Saber en qué estado están las fuentes de fuera evita la pregunta
               de «¿por qué no me sale el metagame online?» a la tercera vez.

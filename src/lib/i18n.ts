@@ -98,6 +98,15 @@ const ES = {
   "tour.addPlayerNone": "Todo el grupo activo tiene ya un bloque en este torneo.",
   "tour.addPlayerPending": "Todavía no está guardado: aparecerá en el torneo en cuanto le apuntes una ronda o un resultado.",
   "tour.viewProfile": "Ver perfil",
+
+  // v0.25 — tarjetas de Inicio y Perfil
+  "home.yourMatches": "Tus partidas",
+  "home.ofLeague": "de todas las de la liga",
+  "home.league": "Liga",
+  "home.of": "de",
+  "home.eloRank": "Puesto en el ranking global de Elo",
+  "home.eloRankShort": "Elo",
+  "home.wins": "de victorias",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -171,6 +180,14 @@ const EN: Record<I18nKey, string> = {
   "tour.addPlayerNone": "Everyone active in the group already has a block in this tournament.",
   "tour.addPlayerPending": "Not saved yet: they will appear in the tournament as soon as you log a round or a result for them.",
   "tour.viewProfile": "View profile",
+
+  "home.yourMatches": "Your matches",
+  "home.ofLeague": "of all league matches",
+  "home.league": "League",
+  "home.of": "of",
+  "home.eloRank": "Position in the global Elo ranking",
+  "home.eloRankShort": "Elo",
+  "home.wins": "win rate",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };
