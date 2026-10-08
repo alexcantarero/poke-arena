@@ -17,7 +17,6 @@ import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { logout } from "@/actions";
-import pkg from "../../../package.json";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
-      {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
+      {/* v0.22: partÃ­culas de temporada al fondo (detrÃ¡s de todo). */}
       <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
@@ -40,10 +39,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
-          {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
+          {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
-          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} · ${estacion.evento}` : estacion.nombre}>
-            <span aria-hidden="true">{estacion.emblema}</span> <b>estación</b>{estacion.nombre.toLowerCase()}
+          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} Â· ${estacion.evento}` : estacion.nombre}>
+            <span aria-hidden="true">{estacion.emblema}</span> <b>estaciÃ³n</b>{estacion.nombre.toLowerCase()}
           </p>
         </div>
 
@@ -64,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             </div>
             <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
-              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{pkg.version}</span>
+              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.25.0"}</span>
               <LangToggle lang={lang} />
               <ThemeToggle />
               <form action={logout}>
@@ -77,12 +76,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* --------------------------------- móvil -------------------------------- */}
+      {/* --------------------------------- mÃ³vil -------------------------------- */}
       <div className="min-w-0">
-        {/* `viewportFit: "cover"` en el layout raíz hace que la web pinte por
-            debajo de la muesca; sin `safe-top`, en un iPhone el título queda
-            medio tapado. `--safe-extra` es el padding que tendría de todas
-            formas, porque en un móvil sin muesca `env()` vale 0. */}
+        {/* `viewportFit: "cover"` en el layout raÃ­z hace que la web pinte por
+            debajo de la muesca; sin `safe-top`, en un iPhone el tÃ­tulo queda
+            medio tapado. `--safe-extra` es el padding que tendrÃ­a de todas
+            formas, porque en un mÃ³vil sin muesca `env()` vale 0. */}
         <header
           className="shell-dark safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line px-4 pb-2 md:hidden"
           style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
@@ -101,7 +100,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
-            móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
+            mÃ³vil de 360px son 8px mÃ¡s de tarjeta para tablas y grÃ¡ficas. */}
         <main className="mx-auto w-full max-w-5xl px-3 pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
@@ -109,19 +108,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <BottomNav meId={me.id} lang={lang} />
 
-      {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
-          Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una
-          Server Action en la URL justo antes de redirigir, así que tiene que
-          haber alguien escuchando en CUALQUIER página a la que se redirija.
+      {/* El aviso de Â«guardado correctamenteÂ» / Â«no se ha podido guardarÂ».
+          Va aquÃ­, en el layout, y no en cada pantalla: el mensaje lo deja una
+          Server Action en la URL justo antes de redirigir, asÃ­ que tiene que
+          haber alguien escuchando en CUALQUIER pÃ¡gina a la que se redirija.
 
-          Existía desde la v0.5.0 pero no estaba montado en ningún sitio, que
-          es exactamente por qué no aparecía nunca.
+          ExistÃ­a desde la v0.5.0 pero no estaba montado en ningÃºn sitio, que
+          es exactamente por quÃ© no aparecÃ­a nunca.
 
-          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin él
+          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin Ã©l
           `next build` falla al prerenderizar. */}
       <Suspense fallback={null}>
         <Snackbar />
-        {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
+        {/* v0.21: recuerda los filtros de Ranking, EstadÃ­sticas y Resultados. */}
         <FilterMemory />
       </Suspense>
     </div>
