@@ -17,6 +17,7 @@ import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { logout } from "@/actions";
+import pkg from "../../../package.json";
 
 export const dynamic = "force-dynamic";
 
@@ -52,21 +53,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link className="btn btn-brand w-full" href="/partidas/nueva">
             <Icon name="plus" className="size-4" /> {tr(lang, "shell.newMatch")}
           </Link>
-          <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 p-2">
-            <Avatar player={me} size="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
-              <span className="block text-[11px] text-muted">
-                {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
+                    <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-2">
+            <div className="flex items-center gap-2">
+              <Avatar player={me} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
+                <span className="block truncate text-[11px] text-muted">
+                  {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
+                </span>
               </span>
-            </span>
-            <LangToggle lang={lang} />
-            <ThemeToggle />
-            <form action={logout}>
-              <button className="btn btn-ghost btn-sm px-2" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
-                <Icon name="logout" className="size-4" />
-              </button>
-            </form>
+            </div>
+            <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
+              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{pkg.version}</span>
+              <LangToggle lang={lang} />
+              <ThemeToggle />
+              <form action={logout}>
+                <button className="btn btn-ghost btn-sm px-2 text-muted hover:text-loss" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
+                  <Icon name="logout" className="size-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>
@@ -121,3 +127,4 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
