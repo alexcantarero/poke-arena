@@ -252,6 +252,32 @@ export function MatchForm({
                 </div>
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-muted w-14">Mulligans</span>
+                  <div className="flex flex-1 items-center gap-2">
+                    <div className="flex flex-1 items-center gap-1.5">
+                      <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
+                      <span className="truncate text-xs text-muted max-w-[60px]" title={A?.name ?? "A"}>{A?.name ?? "A"}</span>
+                      <input 
+                        type="number" id={`g${i}_mulligans_a`} name={`g${i}_mulligans_a`} 
+                        className="input input-sm w-12 text-center p-1" 
+                        min={0} max={99} disabled={over} 
+                        defaultValue={match?.games[i]?.mulligansA ?? 0}
+                      />
+                    </div>
+                    <div className="flex flex-1 items-center gap-1.5">
+                      <label htmlFor={`g${i}_mulligans_b`} className="sr-only">Mulligans {bLabel}</label>
+                      <span className="truncate text-xs text-muted max-w-[60px]" title={bLabel}>{bLabel}</span>
+                      <input 
+                        type="number" id={`g${i}_mulligans_b`} name={`g${i}_mulligans_b`} 
+                        className="input input-sm w-12 text-center p-1" 
+                        min={0} max={99} disabled={over} 
+                        defaultValue={match?.games[i]?.mulligansB ?? 0}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
                     en un juego anterior de la serie no se ofrece (regla de liga;
                     el servidor también lo comprueba). */}

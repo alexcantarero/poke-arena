@@ -392,6 +392,8 @@ export const games = pgTable("games", {
   winner: text("winner").notNull(),
   /** "a" · "b" · "" — quién empezó. Alimenta la ventaja del primer turno. */
   first: text("first").notNull().default(""),
+  mulligansA: integer("mulligans_a").notNull().default(0),
+  mulligansB: integer("mulligans_b").notNull().default(0),
   /** Premios que le quedaban al perdedor (0-6). */
   prizesLeft: integer("prizes_left"),
   turns: integer("turns"),

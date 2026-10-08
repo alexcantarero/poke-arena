@@ -713,6 +713,7 @@ export async function saveMatch(fd: FormData) {
   const rows: Array<{
     number: number; winner: string; first: string; prizesLeft: number | null;
     archetypeAId: string | null; archetypeBId: string | null;
+    mulligansA: number; mulligansB: number;
   }> = [];
   let wonA = 0, wonB = 0;
   for (let i = 0; i < bestOf; i++) {
@@ -725,6 +726,8 @@ export async function saveMatch(fd: FormData) {
       number: i + 1,
       winner,
       first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, ""),
+      mulligansA: maybeInt(fd, `g${i}_mulligans_a`, 0, 99) ?? 0,
+      mulligansB: maybeInt(fd, `g${i}_mulligans_b`, 0, 99) ?? 0,
       prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
       // v0.25: mazo (arquetipo) de cada lado en este juego, opcional.
       archetypeAId: str(fd, `g${i}_archA`) || null,
@@ -1693,7 +1696,10 @@ export async function saveTournamentRound(fd: FormData) {
   // pasarse de la mayoría —un 3-0 en un Bo3 no debe poder guardarse—. Es la
   // misma comprobación que en `saveMatch`, y por el mismo motivo.
   const need = Math.ceil(bestOf / 2);
-  const rows: Array<{ number: number; winner: string; first: string; prizesLeft: number | null }> = [];
+  const rows: Array<{ 
+    number: number; winner: string; first: string; prizesLeft: number | null; 
+    mulligansA: number; mulligansB: number;
+  }> = [];
   if (mode === "games") {
     let wonA = 0, wonB = 0;
     for (let i = 0; i < bestOf; i++) {
@@ -1708,6 +1714,8 @@ export async function saveTournamentRound(fd: FormData) {
         // Cada juego lleva el suyo. Era lo que pedía la lista: «marcar si salí
         // 1.º o 2.º por cada juego de la ronda», no solo en el primero.
         first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, i === 0 ? first : ""),
+        mulligansA: maybeInt(fd, `g${i}_mulligans_a`, 0, 99) ?? 0,
+        mulligansB: maybeInt(fd, `g${i}_mulligans_b`, 0, 99) ?? 0,
         prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
       });
       /* Un juego empatado corta la ronda ahí mismo: en la mesa un empate sale
