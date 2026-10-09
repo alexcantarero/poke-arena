@@ -10,6 +10,7 @@ import {
   Avatar, Empty, Kpi, PageHead, PlayerTag,
   Record, Sprites, StreakChip,
 } from "@/components/ui";
+import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
 import { HomeCharts } from "@/components/HomeCharts";
 import { UltimoRegional, type Vista } from "@/components/UltimoRegional";
@@ -160,10 +161,9 @@ export default async function HomePage({
   let panel: Parameters<typeof UltimoRegional>[0];
   const hrefs = { global: "/#ultimo-regional", grupo: "/?vista=grupo#ultimo-regional" };
 
+    const personalId = (await cookies()).get("personalRegional")?.value;
   if (vista === "global") {
-    // v0.25: si un organizador eligió el «Último Regional» en Ajustes, manda ese.
-    const elegido = snap.config.featuredRegionalId
-      ? irl.events.find((e) => e.id === snap.config.featuredRegionalId) : undefined;
+      const elegido = personalId ? irl.events.find((e) => e.id === personalId) : undefined;
     const ev = elegido ?? irl.events.find((e) => KINDS_REGIONAL.has(e.kind)) ?? irl.events[0];
     const entries = ev ? irl.entries.filter((e) => e.eventId === ev.id) : [];
     const p = panelDeEvento(entries, ev?.topCut, online);
@@ -200,9 +200,7 @@ export default async function HomePage({
       ),
     };
   } else {
-    // v0.25: con un Regional elegido, el torneo del grupo de esa misma fecha.
-    const fechaElegida = snap.config.featuredRegionalId
-      ? irl.events.find((e) => e.id === snap.config.featuredRegionalId)?.date : undefined;
+      const fechaElegida = personalId ? irl.events.find((e) => e.id === personalId)?.date : undefined;
     const t = (fechaElegida && jugados.find((x) => KINDS_REGIONAL.has(x.kind)
         && x.date <= fechaElegida && (x.endDate ?? x.date) >= fechaElegida))
       || jugados.find((x) => KINDS_REGIONAL.has(x.kind));

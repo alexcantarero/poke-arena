@@ -5,6 +5,7 @@ import {
   arquetiposEnCorte, insigniasDe, type CampoMeta, type FilaMeta, type Insignia,
 } from "@/lib/metaBadges";
 import { OtherMark } from "./ui";
+import { setPersonalRegional } from "@/actions";
 
 /* =========================================================================
    «El último Regional» en el inicio — el panel a lo Ciphermaniac.
@@ -36,6 +37,7 @@ import { OtherMark } from "./ui";
 export type Vista = "global" | "grupo";
 
 export type CabeceraEvento = {
+  id?: string;
   name: string;
   date: string;
   location?: string | null;
@@ -70,8 +72,9 @@ type Props = {
   evento: CabeceraEvento | null;
   filas: FilaMeta[];
   campo: CampoMeta | null;
-  /** Cómo se llama la conversión en esta vista: cambia el denominador. */
+  /** C.mo se llama la conversi.n en esta vista: cambia el denominador. */
   etiquetaConversion: string;
+  regionales?: Array<{ id: string; name: string; date: string }>;
   corte: PuestoCorte[];
   /** «Top cut» en global; «Vuestros resultados» en el grupo. */
   corteTitulo: string;
@@ -89,7 +92,7 @@ export function UltimoRegional(p: Props) {
   return (
     <section id="ultimo-regional" className="mb-4 scroll-mt-20">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-        <h2 className="font-display text-xl font-extrabold">El último Regional</h2>
+<h2 className="font-display text-xl font-extrabold">El último Regional</h2>
         <nav className="seg seg-brand" aria-label="Qué datos enseñar">
           <Link href={p.hrefs.global} scroll={false} data-on={p.vista === "global"}
             aria-current={p.vista === "global" ? "page" : undefined}>Global</Link>
@@ -106,9 +109,22 @@ export function UltimoRegional(p: Props) {
           <>
             <div className="border-b border-line-soft p-4 sm:p-5">
               <h3 className="font-display text-2xl font-extrabold leading-tight">
-                {p.evento.href
-                  ? <Link href={p.evento.href} className="hover:text-info">{p.evento.name}</Link>
-                  : p.evento.name}
+                {p.vista === "global" && p.regionales ? (
+                  <form action={setPersonalRegional} className="inline-block relative">
+                    <select name="regionalId" className="appearance-none bg-transparent hover:bg-surface-2 cursor-pointer outline-none rounded pr-6 truncate max-w-full" defaultValue={p.evento?.id ?? ""} onChange={(e) => e.target.form?.requestSubmit()}>
+                      {p.regionales.map(r => (
+                        <option key={r.id} value={r.id} className="text-base font-sans">{r.name}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center px-1">
+                      <svg className="size-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </form>
+                ) : p.evento.href ? (
+                  <Link href={p.evento.href} className="hover:text-info">{p.evento.name}</Link>
+                ) : (
+                  p.evento.name
+                )}
               </h3>
               <p className="mt-1 text-sm text-muted tabular">
                 {[

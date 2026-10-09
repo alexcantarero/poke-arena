@@ -2894,22 +2894,13 @@ export async function deleteTeam(fd: FormData) {
 
 /* ================================================================ v0.25 -- */
 
-/**
- * Elegir a mano el Ã‚Â«ÃƒÅ¡ltimo RegionalÃ‚Â» de Inicio (un evento de `meta_events`).
- * VacÃƒÂ­o = automÃƒÂ¡tico (el mÃƒÂ¡s reciente). Solo organizadores.
- */
-export async function setFeaturedRegional(fd: FormData) {
-  await requireManager();
-  const id = str(fd, "eventId");
-  let valor: string | null = null;
+export async function setPersonalRegional(fd: FormData) {
+  const id = str(fd, "regionalId");
+  const c = await cookies();
   if (id) {
-    const ev = (await db.select({ id: metaEvents.id }).from(metaEvents).where(eq(metaEvents.id, id)))[0];
-    if (!ev) redirect(withFlash("/ajustes", "error", "Ese evento no existe."));
-    valor = id;
+    c.set("personalRegional", id, { maxAge: 31536000 });
+  } else {
+    c.delete("personalRegional");
   }
-  const existing = await db.select({ id: settings.id }).from(settings).where(eq(settings.id, "default"));
-  if (existing[0]) await db.update(settings).set({ featuredRegionalId: valor, updatedAt: new Date() }).where(eq(settings.id, "default"));
-  else await db.insert(settings).values({ id: "default", featuredRegionalId: valor });
-  refresh();
-  redirect(withFlash("/ajustes", "ok", valor ? "ÃƒÅ¡ltimo Regional fijado." : "ÃƒÅ¡ltimo Regional en automÃƒÂ¡tico."));
+  redirect("/#ultimo-regional");
 }

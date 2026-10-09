@@ -129,7 +129,6 @@ export function LadderChart({
                                 {" "}{p.payload.delta > 0 ? `+${p.payload.delta}` : p.payload.delta}
                               </span>
                             )}
-                            {p.payload.matchId && <div className="mt-0.5 opacity-60 font-mono text-[9px]">ID: {p.payload.matchId}</div>}
                           </div>
                         ))}
                       </div>
