@@ -303,13 +303,13 @@ export function standings(
   cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = { ...DEFAULT_SETTINGS },
 ): StandingRow[] {
   const played = matches.filter(isPlayed).filter(isInternal).sort(byDate);
-  const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[] }>();
+  const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[]; archs: Set<string> }>();
   for (const id of playerIds) {
     table.set(id, {
       playerId: id, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0,
       points: 0, winRate: null, gameWinRate: null, diff: 0, resistance: null,
       streak: { kind: "-", n: 0 }, elo: elo[id] ?? cfg.eloStart,
-      opponents: [], seq: [],
+      opponents: [], seq: [], archs: new Set<string>(),
     });
   }
 

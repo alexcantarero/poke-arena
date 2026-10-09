@@ -138,6 +138,7 @@ export type StandingRow = {
   points: number;
   winRate: number | null;
   gameWinRate: number | null;
+  archetypesCount?: number;
   diff: number;
   resistance: number | null;
   streak: { kind: "w" | "l" | "d" | "-"; n: number };

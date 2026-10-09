@@ -8,7 +8,9 @@ import { outcome } from "@/lib/stats";
 import { DeckPicker } from "@/components/DeckPicker";
 import { submitLeagueDeck, unlockLeagueDeck } from "@/actions";
 import { fmtDate } from "@/lib/format";
+import { applyMatchFilter, parseMatchFilter, type FilterIndex } from "@/lib/filters";
 import {
+  archetypesOfMatch,
   isPlayed,
   pairRound,
   standings,
@@ -27,6 +29,7 @@ import {
   SectionTitle,
 } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
+import { FilterPanel } from "@/components/FilterPanel";
 import { createPairings } from "@/actions";
 import { Icon } from "@/components/icons";
 import { LigaStats } from "@/components/LigaStats";
@@ -34,10 +37,13 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 
 export default async function CompetitionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const comp = snap.compsById.get(id);
   if (!comp) notFound();
@@ -47,7 +53,21 @@ export default async function CompetitionPage({
 
   const ids = compPlayers(snap, id);
   const inComp = snap.matches.filter((m) => m.competitionId === id);
-  const played = inComp.filter(isPlayed);
+  const playedAll = inComp.filter(isPlayed);
+  
+  const index: FilterIndex = {
+    tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
+    tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
+    tournamentScope: new Map(snap.tournaments.map((t) => [t.id, t.scope])),
+    competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
+    archetypesOf: (m) => {
+      const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      return [a?.id, b?.id];
+    },
+  };
+  const filter = parseMatchFilter(query);
+  const played = applyMatchFilter(playedAll, filter, index);
+
   const pending = inComp.filter((m) => m.status === "scheduled");
   const table = standings(played, ids, snap.elo.rating, snap.config);
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
@@ -87,6 +107,14 @@ export default async function CompetitionPage({
             <Icon name="back" className="size-4" /> Todas
           </Link>
         }
+      />
+
+            <FilterPanel
+        action={`/competiciones/${id}`}
+        filter={filter}
+        show={["date", "player", "archetype", "round"]}
+        archetypes={snap.archetypes.map((a) => ({ value: a.id, label: a.name }))}
+        players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
       />
 
       <section className="card mb-4">
@@ -359,27 +387,27 @@ export default async function CompetitionPage({
           <div className="card mb-6">
             <MatchList>
               {played
-                .slice()
-                .reverse()
-                .map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    match={m}
-                    playerA={snap.playersById.get(m.playerAId)}
-                    playerB={
-                      m.playerBId
-                        ? snap.playersById.get(m.playerBId)
-                        : undefined
-                    }
-                    archA={
-                      m.deckAId ? snap.archIndex.get(m.deckAId) : undefined
-                    }
-                    archB={
-                      m.deckBId ? snap.archIndex.get(m.deckBId) : undefined
-                    }
-                    context={m.round ? `Jornada ${m.round}` : undefined}
-                  />
-                ))}
+                
+                  .slice()
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((m) => {
+                    const archs = archetypesOfMatch(m, snap.archIndex, snap.archById);
+                    return (
+                    <MatchCard
+                      key={m.id}
+                      match={m}
+                      playerA={snap.playersById.get(m.playerAId)}
+                      playerB={
+                        m.playerBId
+                          ? snap.playersById.get(m.playerBId)
+                          : undefined
+                      }
+                      archA={archs.a}
+                      archB={archs.b}
+                      context={m.round ? `Jornada ${m.round}` : undefined}
+                    />
+                  )})
+}
             </MatchList>
           </div>
         </>

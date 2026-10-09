@@ -71,12 +71,13 @@ export type MatchFilter = {
   /** Una persona concreta. "" = toda la liga. */
   playerId: string;
   format: string;
+  round: number | null;
 };
 
 export const EMPTY_FILTER: MatchFilter = {
   scope: "all", preset: "all", from: "", to: "",
   tournamentKind: "", competitionKind: "", tournamentId: "", competitionId: "",
-  archetypeId: "", playerId: "", format: "",
+  archetypeId: "", playerId: "", format: "", round: null,
 };
 
 const isISO = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -139,6 +140,7 @@ export function parseMatchFilter(
     archetypeId: one("arquetipo").slice(0, 60),
     playerId: one("jugador").slice(0, 60),
     format: one("formato").slice(0, 40),
+    round: one("jornada") ? parseInt(one("jornada"), 10) : null,
   };
 }
 
@@ -159,6 +161,7 @@ export function filterToQuery(f: MatchFilter): URLSearchParams {
   if (f.archetypeId) p.set("arquetipo", f.archetypeId);
   if (f.playerId) p.set("jugador", f.playerId);
   if (f.format) p.set("formato", f.format);
+  if (f.round != null && !isNaN(f.round)) p.set("jornada", f.round.toString());
   return p;
 }
 
@@ -225,6 +228,7 @@ export function applyMatchFilter(
     /* de qué torneo o competición */
     if (f.tournamentId && m.tournamentId !== f.tournamentId) return false;
     if (f.competitionId && m.competitionId !== f.competitionId) return false;
+    if (f.round && m.round !== f.round) return false;
 
     /* tipo de torneo / de competición */
     if (f.tournamentKind) {

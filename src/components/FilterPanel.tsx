@@ -32,7 +32,7 @@ type Props = {
   /** Qué campos enseñar. No todas las pantallas quieren todos. */
   show?: Array<
     "scope" | "date" | "tournament" | "competition" | "tournamentKind"
-    | "competitionKind" | "archetype" | "player" | "format"
+    | "competitionKind" | "archetype" | "player" | "format" | "round"
   >;
   tournaments?: Option[];
   competitions?: Option[];
