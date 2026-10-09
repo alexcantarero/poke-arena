@@ -47,6 +47,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const deckB = deckBExact ?? deckBGuess;
   const nameB = B?.name ?? match.opponentName ?? "el rival";
 
+  const eloHistoryA = snap.elo.history[match.playerAId]?.find((h) => h.matchId === match.id);
+  const deltaA = eloHistoryA?.delta ? Math.round(eloHistoryA.delta) : null;
+  const eloHistoryB = match.playerBId ? snap.elo.history[match.playerBId]?.find((h) => h.matchId === match.id) : null;
+  const deltaB = eloHistoryB?.delta ? Math.round(eloHistoryB.delta) : null;
+
   /* Los dos lados del enfrentamiento, con su lista y —esto es lo que faltaba—
      con el motivo cuando no la hay. Un desplegable que se abre vacío parece
      una pantalla rota; uno que dice «es de fuera de la liga, de esas partidas
@@ -88,7 +93,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     <>
       <PageHead
         title={pending ? "Anotar resultado" : "Partida"}
-        sub={`${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
+        sub={`ID: ${match.id} � ${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
         actions={match.tournamentId
           // v0.16 — si la partida es de un torneo, se vuelve al torneo.
           ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> Volver al torneo</Link>
@@ -101,8 +106,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <section className="card mb-6 p-4">
           <div className="flex items-start justify-between gap-3">
             {[
-              { p: A, arch: archA, name: A?.name, win: o.winner === "a" },
-              { p: B, arch: archB, name: B?.name ?? match.opponentName, win: o.winner === "b" },
+              { p: A, arch: archA, name: A?.name, win: o.winner === "a", delta: deltaA },
+              { p: B, arch: archB, name: B?.name ?? match.opponentName, win: o.winner === "b", delta: deltaB },
             ].map((s, i) => (
               /* `min-w-0` en la columna: sin él, el nombre del mazo con
                  `truncate` no se recortaba y empujaba el lado derecho fuera
@@ -268,3 +273,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     </>
   );
 }
+
+
+
+
+

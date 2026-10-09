@@ -176,7 +176,7 @@ export function EloChart({ series, start = 1000 }: { series: EloSeries[]; start?
                       <b>{s.label}</b> · {p.value}
                       {p.delta != null && <span className={p.delta > 0 ? "text-win" : p.delta < 0 ? "text-loss" : "text-muted"}> {p.delta > 0 ? `+${p.delta}` : p.delta}</span>}
                       {p.date ? <span className="opacity-70"> · {p.date}</span> : null}
-                      {p.matchId && <div className="mt-0.5 opacity-60 font-mono text-[9px]">{p.matchId.split('-')[0]}</div>}
+                      {p.matchId && <div className="mt-0.5 opacity-60 font-mono text-[9px]">ID: {p.matchId}</div>}
                     </>
                   ),
                 })}
@@ -426,3 +426,5 @@ export function CpChart({ bars, season }: { bars: CpBar[]; season: number }) {
     </div>
   );
 }
+
+
