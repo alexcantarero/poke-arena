@@ -19,6 +19,10 @@ type Props = {
   meId?: string;
   /** Los organizadores pueden registrar partidas de otros; los demás, no. */
   canPickPlayer?: boolean;
+  initialP1?: string;
+  initialP2?: string;
+  initialBestOf?: number;
+  initialGames?: Array<{ winner: string; first: string; archA: string; archB: string }>;
 };
 
 /**
@@ -30,23 +34,30 @@ type Props = {
  */
 export function MatchForm({
   match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
+  initialP1, initialP2, initialBestOf, initialGames
 }: Props) {
   const active = players.filter((p) => p.active || match);
-  const [aId, setAId] = useState(match?.playerAId ?? meId ?? active[0]?.id ?? "");
+  const [aId, setAId] = useState(match?.playerAId ?? initialP1 ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
-  const [bId, setBId] = useState(match?.playerBId ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
+  const [bId, setBId] = useState(match?.playerBId ?? initialP2 ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
   const [aDeckId, setADeckId] = useState(
     match?.deckAId ?? (match?.archetypeAId ? `arch:${match.archetypeAId}` : ""));
   const [bDeckId, setBDeckId] = useState(
     match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId ? `arch:${match.opponentArchetypeId}` : ""));
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
-  const [bestOf, setBestOf] = useState(match?.bestOf ?? 3);
+  const [bestOf, setBestOf] = useState(match?.bestOf ?? initialBestOf ?? 3);
   // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
   const [games, setGames] = useState<Array<{ winner: string; first: string; archA: string; archB: string }>>(() => {
     const base = Array.from({ length: 5 }, () => ({ winner: "", first: "", archA: "", archB: "" }));
-    match?.games.forEach((g, i) => {
-      if (i < 5) base[i] = { winner: g.winner, first: g.first, archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "" };
-    });
+    if (match) {
+      match.games.forEach((g, i) => {
+        if (i < 5) base[i] = { winner: g.winner, first: g.first, archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "" };
+      });
+    } else if (initialGames) {
+      initialGames.forEach((g, i) => {
+        if (i < 5) base[i] = g;
+      });
+    }
     return base;
   });
   const archOpts: DeckOption[] = useMemo(() => [...archetypes].map((a) => ({ id: a.id, name: a.name, archetypeId: a.id, archetypeName: a.name, main: a.main, secondary: a.secondary, type: a.type, group: 'shared' as const, hasList: false })).sort((x, y) => x.name.localeCompare(y.name, 'es')), [archetypes]);
