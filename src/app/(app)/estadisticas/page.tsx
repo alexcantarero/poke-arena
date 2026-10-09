@@ -163,6 +163,7 @@ export default async function StatsPage({
         ties: 0,
         gameWins: 0,
         gameLosses: 0,
+        firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0,
         winRate: st.played > 0 ? st.wins / st.played : 0,
       })).sort((a, b) => b.played - a.played);
   }

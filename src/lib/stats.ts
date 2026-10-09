@@ -385,8 +385,6 @@ export function longestWinStreak(matches: MatchFull[], playerId: string) {
 export type PlayerRecord = {
   played: number; wins: number; ties: number; losses: number;
   gameWins: number; gameLosses: number;
-    firstPlayed: number; firstWins: number;
-    secondPlayed: number; secondWins: number;
   winRate: number | null;
 };
 
