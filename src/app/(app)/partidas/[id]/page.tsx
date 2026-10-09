@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
-import { outcome, toRoundView } from "@/lib/stats";
+import { archetypesOfMatch, outcome, toRoundView } from "@/lib/stats";
 import { archetypeValue } from "@/lib/types";
 import { maxRondasDe } from "@/lib/estructura";
 import { RoundForm } from "@/components/TournamentRounds";
