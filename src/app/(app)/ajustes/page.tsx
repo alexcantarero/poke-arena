@@ -8,7 +8,7 @@ import { PageHead, Sprites } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
 import { MetaImport } from "@/components/MetaImport";
 import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
-import { hasPokemonTcgKey } from "@/lib/sources/pokemontcg";
+import { hasPokemonTcgKey } from "@/lib/sources/tcgdex";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";

@@ -93,7 +93,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     <>
       <PageHead
         title={pending ? "Anotar resultado" : "Partida"}
-        sub={`ID: ${match.id} � ${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
+        sub={`ID: ${match.id} · ${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
         actions={match.tournamentId
           // v0.16 — si la partida es de un torneo, se vuelve al torneo.
           ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> Volver al torneo</Link>
@@ -129,6 +129,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <span className="flex max-w-full min-w-0 items-center justify-center gap-1 text-xs text-muted">
                     <Sprites archetype={s.arch} size="sm" />
                     <span className="min-w-0 truncate">{s.arch.name}</span>
+                  </span>
+                )}
+                {s.delta != null && (
+                  <span className={`mt-0.5 text-xs font-bold ${s.delta > 0 ? "text-win" : s.delta < 0 ? "text-loss" : "text-muted"}`}>
+                    {s.delta > 0 ? "+" : ""}{s.delta} Elo
                   </span>
                 )}
               </div>
@@ -273,8 +278,3 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     </>
   );
 }
-
-
-
-
-

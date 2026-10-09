@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentPlayer } from "@/lib/data";
-import { hasPokemonTcgKey, searchCards } from "@/lib/sources/pokemontcg";
+import { hasPokemonTcgKey, searchCards } from "@/lib/sources/tcgdex";
 
 /* =========================================================================
    GET /api/cards?q=dragapult — buscar una carta por nombre.
@@ -15,7 +15,7 @@ import { hasPokemonTcgKey, searchCards } from "@/lib/sources/pokemontcg";
 
    · **Va detrás de la sesión.** No porque los nombres de carta sean secretos
      —no lo son—, sino porque sin sesión cualquiera podría usar el despliegue
-     de la liga como proxy gratis contra pokemontcg.io y gastar la cuota
+     de la liga como proxy gratis contra tcgdex.io y gastar la cuota
      diaria en una tarde.
    · **Nunca devuelve un error 5xx.** Si la API de terceros no contesta,
      devuelve la lista vacía y `available: false`. Es un adorno del editor de
@@ -24,9 +24,9 @@ import { hasPokemonTcgKey, searchCards } from "@/lib/sources/pokemontcg";
      y una búsqueda por cada tecla se lo come en cinco segundos. El
      componente además espera a que dejes de escribir.
 
-   Ojo con la fecha de caducidad: pokemontcg.io está deprecada y sus claves
+   Ojo con la fecha de caducidad: tcgdex.io está deprecada y sus claves
    mueren el 1 de marzo de 2027. Todo lo que hay debajo está escrito para que
-   cambiarla por TCGdex sea reescribir `lib/sources/pokemontcg.ts` y nada más.
+   cambiarla por TCGdex sea reescribir `lib/sources/tcgdex.ts` y nada más.
    ========================================================================= */
 
 export async function GET(request: NextRequest) {

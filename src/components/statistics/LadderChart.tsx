@@ -117,7 +117,7 @@ export function LadderChart({
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     const t = Number(label);
-                    const title = porOrden ? `Partida ${Math.round(t)} · ${etiquetaX(t)}` : fecha(t);
+                    const title = etiquetaX(t);
                     return (
                       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: 10, fontSize: 12 }}>
                         <p style={{ margin: 0, fontWeight: "bold", marginBottom: 4 }}>{title}</p>
@@ -158,7 +158,4 @@ export function LadderChart({
     </div>
   );
 }
-
-
-
 

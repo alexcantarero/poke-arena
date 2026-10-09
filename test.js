@@ -1,0 +1,1 @@
+fetch('https://api.tcgdex.net/v2/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: '{ __type(name: "Set") { fields { name } } }' }) }).then(r => r.json()).then(j => console.log(JSON.stringify(j, null, 2)));

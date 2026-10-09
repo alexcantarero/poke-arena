@@ -419,8 +419,13 @@ export default async function StatsPage({
               <h2 className="truncate text-xl font-bold">{focus.name}</h2>
               <p className="text-sm text-muted">
                 {focusRow.played} usos · {focusRow.wins}V {focusRow.losses}D · juegos {focusRow.gameWins}–{focusRow.gameLosses}
-              </p>
-            </div>
+                </p>
+                {focusRow.firstPlayed > 0 && (
+                  <p className="mt-1 text-xs text-muted">
+                    Empezando: {focusRow.firstWins}V {focusRow.firstPlayed - focusRow.firstWins}D ({pct(focusRow.firstWins / focusRow.firstPlayed, 0)}) · Segundo: {focusRow.secondWins}V {focusRow.secondPlayed - focusRow.secondWins}D ({pct(focusRow.secondWins / focusRow.secondPlayed, 0)})
+                  </p>
+                )}
+              </div>
             <span className="font-display text-3xl font-extrabold tabular" style={{ color: wrColor(focusRow.winRate) }}>
               {pct(focusRow.winRate, 0)}
             </span>

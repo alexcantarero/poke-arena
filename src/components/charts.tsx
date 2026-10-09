@@ -426,5 +426,3 @@ export function CpChart({ bars, season }: { bars: CpBar[]; season: number }) {
     </div>
   );
 }
-
-
