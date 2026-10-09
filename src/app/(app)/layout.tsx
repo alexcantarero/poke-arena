@@ -42,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
           <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} Â· ${estacion.evento}` : estacion.nombre}>
-            <span aria-hidden="true">{estacion.emblema}</span> <b>estaciÃ³n</b>{estacion.nombre.toLowerCase()}
+            <span aria-hidden="true">{estacion.emblema}</span> <b>ESTACI&Oacute;N</b> {estacion.nombre.toLowerCase()}
           </p>
         </div>
 
