@@ -129,6 +129,21 @@ export function DeckForm({
       </section>
 
       <section className="card p-4">
+        <h2 className="mb-1 text-lg font-bold">PTCG Live</h2>
+        <p className="mb-4 text-sm text-muted">Apunta manualmente cuántas partidas has ganado y perdido con este mazo en el juego online para que salgan en Estadísticas.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="liveWins">Victorias</label>
+            <input className="input" id="liveWins" name="liveWins" type="number" min="0" defaultValue={deck?.liveWins ?? 0} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="liveLosses">Derrotas</label>
+            <input className="input" id="liveLosses" name="liveLosses" type="number" min="0" defaultValue={deck?.liveLosses ?? 0} />
+          </div>
+        </div>
+      </section>
+
+      <section className="card p-4">
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor="list">Lista completa</label>
           <p className="text-sm text-muted">

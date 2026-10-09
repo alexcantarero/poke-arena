@@ -231,7 +231,7 @@ export function eloTable(
   torneos: Map<string, { kind: string; scope?: string | null }> = new Map(),
 ) {
   const rating: Record<string, number> = {};
-  const history: Record<string, { date: string; value: number; i?: number }[]> = {};
+  const history: Record<string, { date: string; value: number; i?: number; matchId?: string; delta?: number }[]> = {};
   const touch = (id: string) => {
     if (rating[id] == null) {
       rating[id] = cfg.eloStart;
@@ -271,15 +271,16 @@ export function eloTable(
       const delta = k * (scoreA - expectedA);
       rating[m.playerAId] += delta;
       rating[m.playerBId] -= delta;
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
-      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden });
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
+      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden, matchId: m.id, delta: -delta });
     } else {
       // Ronda de torneo: solo se mueve quien la apuntó.
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
         ? rating[m.opponentPlayerId] : cfg.eloStart;
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
-      rating[m.playerAId] += k * (scoreA - expectedA);
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
+      const delta = k * (scoreA - expectedA);
+      rating[m.playerAId] += delta;
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
     }
   }
   const rounded: Record<string, number> = {};

@@ -579,6 +579,8 @@ export async function saveDeck(fd: FormData) {
     listJson: parsed,
     format: str(fd, "format") || "standard",
     retired: bool(fd, "retired"),
+    liveWins: int(fd, "liveWins", 0, 0, 99999),
+    liveLosses: int(fd, "liveLosses", 0, 0, 99999),
     created: isoDate(fd, "created") ?? todayISO(),
   };
 

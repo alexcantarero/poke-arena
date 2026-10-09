@@ -45,6 +45,12 @@ const OPCIONES = [
     on: "border-source-diff bg-source-diff-soft text-source-diff",
   },
   {
+    value: "live" as const,
+    label: "PTCG Live",
+    Icon: Database,
+    on: "border-brand-line bg-brand-soft text-brand",
+  },
+  {
     value: "evento" as const,
     label: "Último torneo online",
     Icon: Trophy,
@@ -52,7 +58,7 @@ const OPCIONES = [
   },
 ];
 
-export type Fuente = "local" | "regionales" | "city" | "global" | "both" | "evento";
+export type Fuente = "local" | "regionales" | "city" | "global" | "both" | "evento" | "live";
 
 export function SourceTabs({
   current, query,

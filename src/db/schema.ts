@@ -196,6 +196,8 @@ export const decks = pgTable("decks", {
   listJson: jsonb("list_json"),
   format: text("format").notNull().default("standard"),
   retired: boolean("retired").notNull().default(false),
+  liveWins: integer("live_wins").notNull().default(0),
+  liveLosses: integer("live_losses").notNull().default(0),
   created: date("created").notNull(),
   /** QuiÃ©n lo metiÃ³. En un mazo compartido es lo Ãºnico que dice de dÃ³nde saliÃ³. */
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),

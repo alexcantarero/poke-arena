@@ -1,12 +1,4 @@
-# -*- coding: utf-8 -*-
-import re
-
-with open('src/app/(app)/mazos/page.tsx', 'r', encoding='utf-8') as f:
-    text = f.read()
-
-text = re.sub(r'const clearHref = .*?;', 'const clearHref = view === "all" ? "/mazos" : /mazos?ver=;', text)
-text = re.sub(r'ǟ.*?squeda', 'búsqueda', text)
-text = re.sub(r'ǟ.*?mon', 'Pokémon', text)
-
-with open('src/app/(app)/mazos/page.tsx', 'w', encoding='utf-8') as f:
-    f.write(text)
+﻿# -*- coding: utf-8 -*-
+content = open('src/components/statistics/LadderChart.tsx', encoding='utf-8').read()
+content = content.replace('<Tooltip\n                labelFormatter={(t) => porOrden ? \Partida  · \ : fecha(Number(t))}\n                formatter={(v, name) => [v as number, name as string]}\n                contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, fontSize: 12 }}\n              />', '<Tooltip\n                content={({ active, payload, label }) => {\n                  if (active && payload && payload.length) {\n                    const t = Number(label);\n                    const title = porOrden ? \Partida  · \ : fecha(t);\n                    return (\n                      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: 10, fontSize: 12 }}>\n                        <p style={{ margin: 0, fontWeight: "bold", marginBottom: 4 }}>{title}</p>\n                        {payload.map((p: any, i: number) => (\n                          <div key={i} style={{ color: p.color }}>\n                            {p.name}: {p.value}\n                            {p.payload.delta != null && (\n                              <span className={p.payload.delta > 0 ? "text-win" : p.payload.delta < 0 ? "text-loss" : "text-muted"}>\n                                {" "}{p.payload.delta > 0 ? \+\ : p.payload.delta}\n                              </span>\n                            )}\n                            {p.payload.matchId && <div className="mt-0.5 opacity-60 font-mono text-[9px]">{p.payload.matchId.split('-')[0]}</div>}\n                          </div>\n                        ))}\n                      </div>\n                    );\n                  }\n                  return null;\n                }}\n              />')
+open('src/components/statistics/LadderChart.tsx', 'w', encoding='utf-8', newline='').write(content)

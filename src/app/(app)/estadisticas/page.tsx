@@ -54,7 +54,7 @@ export default async function StatsPage({
   const fuenteRaw = Array.isArray(q.fuente) ? q.fuente[0] : q.fuente;
   const fuente: Fuente =
     fuenteRaw === "global" || fuenteRaw === "both" || fuenteRaw === "evento"
-    || fuenteRaw === "regionales" || fuenteRaw === "city"
+    || fuenteRaw === "regionales" || fuenteRaw === "city" || fuenteRaw === "live"
       ? fuenteRaw : "local";
 
   /* v0.14 — Regionales y City Leagues: el metagame presencial (lo traído de
@@ -108,7 +108,7 @@ export default async function StatsPage({
      emparejamientos ni la actividad por mes: esas salen de vuestras partidas
      y no existen fuera. En vez de dejarlas ahí diciendo lo de siempre —que
      era lo confuso—, se ocultan y se dice por qué. */
-  const conLocal = fuente === "local" || fuente === "both";
+  const conLocal = fuente === "local" || fuente === "both" || fuente === "live";
 
   /* Orden de los gráficos y de las listas de arquetipos. Descendente por
      defecto: lo primero que se busca es lo que más pesa. */
@@ -139,7 +139,34 @@ export default async function StatsPage({
   const agr = crearAgrupador(snap.archetypes);
   const hayFamilias = true;
   const raiz = (id: string) => (agrupar ? agr.raiz(id) : id);
-  const archsDetalle = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
+
+  let archsDetalle = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
+  if (fuente === "live") {
+    const liveStats = new Map<string, { played: number; wins: number; losses: number }>();
+    for (const d of snap.decks) {
+      // TODO: se podría filtrar por d.playerId si hay filtro de jugador, pero de momento global.
+      if (d.liveWins > 0 || d.liveLosses > 0) {
+        const id = d.archetypeId;
+        const cur = liveStats.get(id) ?? { played: 0, wins: 0, losses: 0 };
+        cur.played += d.liveWins + d.liveLosses;
+        cur.wins += d.liveWins;
+        cur.losses += d.liveLosses;
+        liveStats.set(id, cur);
+      }
+    }
+      archsDetalle = Array.from(liveStats.entries()).map(([id, st]) => ({
+        archetypeId: id,
+        archetype: snap.archById.get(id),
+        played: st.played,
+        wins: st.wins,
+        losses: st.losses,
+        ties: 0,
+        gameWins: 0,
+        gameLosses: 0,
+        winRate: st.played > 0 ? st.wins / st.played : 0,
+      })).sort((a, b) => b.played - a.played);
+  }
+
   const archs = agrupar
     ? agruparFilas(archsDetalle, raiz, agr.arquetipo)
     : archsDetalle;
@@ -366,7 +393,7 @@ export default async function StatsPage({
         formats={Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => ({ value: v, label: l }))}
       />
 
-      {fuente !== "local" && (
+      {fuente !== "local" && fuente !== "live" && (
         <GlobalMeta
           mode={fuente === "both" ? "both" : "global"}
           local={localRows}
@@ -406,13 +433,15 @@ export default async function StatsPage({
           puesto era lo que hacía pensar que el filtro no funcionaba. */}
       {conLocal && (
       <>
-      <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Kpi tone="local" icon="database" label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
-        <Kpi tone="local" icon="deck" label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
-        <Kpi label="Gana quien empieza" icon="star" value={pct(ft.winRate, 1)} note={`${ft.n} juegos anotados`} highlight={(ft.winRate ?? 0) > 0.55} />
-        <Kpi label="Formato" icon="results" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
-          note={`Bo1 ${bo[1] ?? 0} · Bo3 ${bo[3] ?? 0} · Bo5 ${bo[5] ?? 0}`} />
-      </div>
+      {fuente !== "live" && (
+        <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <Kpi tone="local" icon="database" label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
+          <Kpi tone="local" icon="deck" label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
+          <Kpi label="Gana quien empieza" icon="star" value={pct(ft.winRate, 1)} note={`${ft.n} juegos anotados`} highlight={(ft.winRate ?? 0) > 0.55} />
+          <Kpi label="Formato" icon="results" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
+            note={`Bo1 ${bo[1] ?? 0} · Bo3 ${bo[3] ?? 0} · Bo5 ${bo[5] ?? 0}`} />
+        </div>
+      )}
 
       {hayFamilias && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -470,7 +499,7 @@ export default async function StatsPage({
           %V, mismo mínimo de 2 usos) y obligaba a cargar Recharts entero. */}
 
       {/* -------------------- rendimiento en torneos ------------------- */}
-      {placements.length > 0 && (
+      {fuente !== "live" && placements.length > 0 && (
         <>
           <section className="card mt-4">
             <div className="card-head">
@@ -529,34 +558,36 @@ export default async function StatsPage({
         </>
       )}
 
-      <section className="card mt-4">
-        <div className="card-head">
-          <h2 className="text-lg font-bold">Matriz de emparejamientos</h2>
-          <span className="text-xs text-muted">fila contra columna</span>
-        </div>
-        <div className="p-4">
-          <Matrix data={matrix} byId={snap.archById} />
-          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />favorable (≥55%)</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />desfavorable (≤45%)</span>
-            <span>La intensidad crece con el número de partidas.</span>
+      {fuente !== "live" && (
+        <section className="card mt-4">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">Matriz de emparejamientos</h2>
+            <span className="text-xs text-muted">fila contra columna</span>
           </div>
-        </div>
-      </section>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <section className="card">
-          <div className="card-head"><h2 className="text-lg font-bold">Cómo acaban las series</h2></div>
           <div className="p-4">
-            {shapes.length
-              ? <Bars rows={shapes.map((s) => ({ label: <span className="font-mono text-[13px]">{s.key}</span>, value: s.n, right: String(s.n) }))} />
-              : <p className="text-sm text-muted">Aún no hay series a más de un juego.</p>}
+            <Matrix data={matrix} byId={snap.archById} />
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />favorable (≥55%)</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />desfavorable (≤45%)</span>
+              <span>La intensidad crece con el número de partidas.</span>
+            </div>
           </div>
         </section>
+      )}
 
-        <section className="card">
-          <div className="card-head"><h2 className="text-lg font-bold">Primer turno</h2></div>
+      {fuente !== "live" && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <section className="card">
+            <div className="card-head"><h2 className="text-lg font-bold">Cómo acaban las series</h2></div>
+            <div className="p-4">
+              {shapes.length
+                ? <Bars rows={shapes.map((s) => ({ label: <span className="font-mono text-[13px]">{s.key}</span>, value: s.n, right: String(s.n) }))} />
+                : <p className="text-sm text-muted">Aún no hay series a más de un juego.</p>}
+            </div>
+          </section>
+
+        <section className="card">`n          <div className="card-head"><h2 className="text-lg font-bold">Primer turno</h2></div>
           <div className="p-4">
             {ft.n && ft.winRate != null ? (
               <>
@@ -596,8 +627,8 @@ export default async function StatsPage({
                 })} />
               : <p className="text-sm text-muted">Sin partidas.</p>}
           </div>
-        </section>
-      </div>
+        </section>`n
+      </div>)}
       </>
       )}
       </>
@@ -605,3 +636,7 @@ export default async function StatsPage({
     </>
   );
 }
+
+
+
+

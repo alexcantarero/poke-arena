@@ -100,7 +100,7 @@ export default async function HomePage({
       // El color del perfil manda; si es el dorado de marca se deja que la
       // paleta de series decida, porque la marca no es un dato.
       color: p.color && p.color.toLowerCase() !== "#f0b429" ? p.color : null,
-      points: (snap.elo.history[p.id] ?? []).map((h) => ({ date: h.date, value: Math.round(h.value) })),
+      points: (snap.elo.history[p.id] ?? []).map((h) => ({ date: h.date, value: Math.round(h.value), matchId: h.matchId, delta: h.delta ? Math.round(h.delta) : undefined })),
     }));
 
   const metaRows = archs.slice(0, 8).map((a) => ({
