@@ -28,6 +28,15 @@ export function DeckForm({
     deck ? (deck.playerId ? "mine" : "shared") : "mine",
   );
 
+  const allPokemon = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of archetypes) {
+      if (a.main) set.add(a.main);
+      if (a.secondary) set.add(a.secondary);
+    }
+    return Array.from(set).sort();
+  }, [archetypes]);
+
   const parsed = useMemo(() => (list.trim() ? parseDeckList(list) : null), [list]);
   const suggestion = useMemo(() => (parsed ? suggestArchetype(parsed) : null), [parsed]);
   const problems = useMemo(() => (parsed ? validateDeck(parsed) : []), [parsed]);
@@ -86,14 +95,20 @@ export function DeckForm({
               <label className="label" htmlFor="main">Pokémon principal</label>
               <input className="input" id="main" name="main" value={main}
                 onChange={(e) => { setMain(e.target.value); setReuse(""); }}
+                list="pkmn-list"
                 placeholder="dragapult" autoCapitalize="none" spellCheck={false} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="secondary">Secundario</label>
               <input className="input" id="secondary" name="secondary" value={secondary}
                 onChange={(e) => { setSecondary(e.target.value); setReuse(""); }}
+                list="pkmn-list"
                 placeholder="opcional" autoCapitalize="none" spellCheck={false} />
             </div>
+
+            <datalist id="pkmn-list">
+              {allPokemon.map(p => <option key={p} value={p}>{prettyPokemon(p)}</option>)}
+            </datalist>
           </div>
 
           <div className="flex items-center gap-3 rounded-lg bg-ground p-3">
