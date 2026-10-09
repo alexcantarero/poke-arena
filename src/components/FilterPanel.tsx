@@ -152,6 +152,20 @@ export function FilterPanel({
             </Campo>
           )}
 
+          {ver("round") && (
+            <Campo label="Jornada" id="f-jornada">
+              <input
+                id="f-jornada"
+                name="jornada"
+                type="number"
+                min="1"
+                className="input"
+                defaultValue={filter.round ?? ""}
+                placeholder="Todas"
+              />
+            </Campo>
+          )}
+
           {ver("format") && formats.length > 0 && (
             <Campo label="Formato" id="f-formato">
               <Select id="f-formato" name="formato" value={filter.format} options={formats} />

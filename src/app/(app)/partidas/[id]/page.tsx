@@ -27,10 +27,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   /** Es una ronda de torneo (rival de fuera o enlazado), no una partida interna. */
   const esRonda = Boolean(match.tournamentId && !match.playerBId);
   const tour = match.tournamentId ? snap.toursById.get(match.tournamentId) : undefined;
-  const archA = match.deckAId ? snap.archIndex.get(match.deckAId) : undefined;
-  const archB = match.deckBId
-    ? snap.archIndex.get(match.deckBId)
-    : match.opponentArchetypeId ? snap.archById.get(match.opponentArchetypeId) : undefined;
+  const { a: archA, b: archB } = archetypesOfMatch(match, snap.archIndex, snap.archById);
   const deckA = match.deckAId ? snap.decksById.get(match.deckAId) : undefined;
 
   /* La lista del rival.
@@ -159,20 +156,23 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           )}
 
           <ul className="mt-5 divide-y divide-line-soft border-t border-line-soft">
-            {match.games.map((g) => (
-              <li key={g.id} className="flex items-center gap-3 py-2.5 text-sm">
-                <span className="w-16 flex-none font-display font-bold text-muted">Juego {g.number}</span>
-                <span className={`chip flex-none ${g.winner === "tie" ? "chip-tie" : "chip-win"}`}>
-                  {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : "Empate"}
-                </span>
-                <span className="flex-1" />
-                {g.first && (
-                  <span className="text-xs text-muted">
-                    empezó {g.first === "a" ? A?.name : (B?.name ?? match.opponentName)}
+            {match.games.map((g) => {
+                const winnerArch = g.winner === "a" ? archA : g.winner === "b" ? archB : undefined;
+                return (
+                <li key={g.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="w-16 flex-none font-display font-bold text-muted">Juego {g.number}</span>
+                  <span className={`chip flex-none items-center gap-1.5 ${g.winner === "tie" ? "chip-tie" : "chip-win"}`}>
+                    {winnerArch && <Sprites archetype={winnerArch} size="sm" />}
+                    {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : "Empate"}
                   </span>
-                )}
-              </li>
-            ))}
+                  <span className="flex-1" />
+                  {g.first && (
+                    <span className="text-xs text-muted">
+                      empezó {g.first === "a" ? A?.name : (B?.name ?? match.opponentName)}
+                    </span>
+                  )}
+                </li>
+              )})}
           </ul>
 
           {match.note && (
