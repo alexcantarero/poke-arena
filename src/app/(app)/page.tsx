@@ -8,8 +8,9 @@ import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
 import { byAgenda, pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
+import { toneOf } from "@/lib/calendar";
 import {
-  Empty, Kpi, PageHead, PlayerTag,
+  Empty, Kpi, PageHead, PlayerTag, TournamentEmblem,
   Record, Sprites, StreakChip,
 } from "@/components/ui";
 import { cookies } from "next/headers";
@@ -48,6 +49,7 @@ async function cuotaOnline(): Promise<Array<{ name: string; share: number }>> {
 const fechaCorta = (iso: string) =>
   new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" })
     .format(new Date(`${iso}T00:00:00Z`));
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
 export default async function HomePage({
   searchParams,
@@ -87,16 +89,28 @@ export default async function HomePage({
   const upcoming = [
     ...snap.events
       .filter((e) => e.date >= today && !(e.tournamentId && snap.toursById.has(e.tournamentId)))
-      .map((e) => ({
-        id: `event-${e.id}`, date: e.date, title: e.title, sub: e.note,
-        type: "event" as const,
-      })),
+      .map((e) => {
+        const tone = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
+        return {
+          id: `event-${e.id}`, date: e.date, endDate: e.endDate, title: e.title,
+          sub: [e.location, e.note].filter(Boolean).join(" · "),
+          type: "event" as const, kind: e.tournamentKind, scope: null,
+          kindLabel: tone.label, color: tone.color,
+          href: undefined as string | undefined, url: e.url || undefined,
+        };
+      }),
     ...snap.tournaments
       .filter((t) => t.date >= today)
-      .map((t) => ({
-        id: `tournament-${t.id}`, date: t.date, title: t.name, sub: t.city,
-        type: "tournament" as const, href: `/torneos/${t.id}`,
-      })),
+      .map((t) => {
+        const tone = toneOf(t.kind, "event");
+        return {
+          id: `tournament-${t.id}`, date: t.date, endDate: t.endDate,
+          title: t.name, sub: [t.city, t.venue].filter(Boolean).join(" · "),
+          type: "tournament" as const, kind: t.kind, scope: t.scope,
+          kindLabel: tone.label, color: tone.color,
+          href: `/torneos/${t.id}`, url: undefined as string | undefined,
+        };
+      }),
   ].sort(byAgenda(today)).slice(0, 6);
 
   /* ---------------------------------------------------------------
@@ -411,27 +425,52 @@ export default async function HomePage({
           </div>
           {upcoming.length ? (
             <ul className="divide-y divide-line-soft">
-              {upcoming.map((item) => (
-                <li key={item.id}>
-                  {item.type === "tournament" ? (
-                    <Link href={item.href} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
-                      <Icon name="trophy" className="size-5 flex-none text-brand" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{item.title}</span>
-                        <span className="block text-xs text-muted">{relDays(item.date)}{item.sub ? ` · ${item.sub}` : ""}</span>
+              {upcoming.map((item) => {
+                const varios = item.endDate && item.endDate !== item.date;
+                const contenido = (
+                  <>
+                    <span
+                      className="flex w-12 flex-none flex-col items-center rounded-lg border py-1 text-center"
+                      style={{ borderColor: `color-mix(in oklab, ${item.color} 45%, transparent)`, background: `color-mix(in oklab, ${item.color} 10%, transparent)` }}
+                    >
+                      <span className="font-display text-2xl font-extrabold leading-none tabular">
+                        {Number(item.date.slice(8, 10))}
+                        {varios ? <span className="text-sm">–{Number(item.endDate!.slice(8, 10))}</span> : null}
                       </span>
-                    </Link>
-                  ) : (
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <Icon name="calendar" className="size-5 flex-none text-muted" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{item.title}</span>
-                        <span className="block text-xs text-muted">{relDays(item.date)}{item.sub ? ` · ${item.sub}` : ""}</span>
+                      <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-2">
+                        {DIAS[new Date(`${item.date}T12:00:00Z`).getUTCDay()].slice(0, 3)}
                       </span>
-                    </div>
-                  )}
-                </li>
-              ))}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <TournamentEmblem kind={item.kind} scope={item.scope} size="xs" />
+                        <span className="block truncate text-sm font-semibold">{item.title}</span>
+                      </span>
+                      <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted">
+                        <span
+                          className="rounded-full px-1.5 py-px text-[10px] font-semibold"
+                          style={{ background: `color-mix(in oklab, ${item.color} 16%, transparent)`, color: item.color }}
+                        >
+                          {item.kindLabel}
+                        </span>
+                        <span>{relDays(item.date)}</span>
+                        {item.sub && <span className="truncate">· {item.sub}</span>}
+                      </span>
+                    </span>
+                    {(item.href || item.url) && <Icon name="back" className="size-4 flex-none rotate-180 text-muted" />}
+                  </>
+                );
+                const clase = "flex items-center gap-2.5 px-3 py-2 hover:bg-surface-2";
+                return (
+                  <li key={item.id}>
+                    {item.href
+                      ? <Link href={item.href} className={clase}>{contenido}</Link>
+                      : item.url
+                        ? <a href={item.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
+                        : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <Empty title="Nada en la agenda">
