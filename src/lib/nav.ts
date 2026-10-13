@@ -35,7 +35,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/torneos", label: "Torneos", icon: "trophy" },
       { href: "/competiciones", label: "Liga", icon: "league" },
       { href: "/resultados", label: "Resultados", icon: "results" },
-      { href: "/mesa", label: "Mi Mesa", icon: "plus" },
+      // Beta: se conserva la herramienta, pero se oculta de la navegación.
+      // { href: "/mesa", label: "Mi Mesa", icon: "plus" },
     ],
   },
   {

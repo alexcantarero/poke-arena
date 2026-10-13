@@ -33,7 +33,6 @@ export type RankRow = {
 type Key = "played" | "winRate" | "points" | "elo" | "resistance" | "diff" | "cp";
 
 const COLS: Array<{ key: Key; label: string; short: string }> = [
-  { key: "points", label: "Puntos", short: "Pts" },
   { key: "winRate", label: "% victorias", short: "%V" },
   { key: "elo", label: "Elo", short: "Elo" },
   { key: "cp", label: "Championship Points", short: "CP" },
@@ -121,20 +120,22 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                     />
                   </span>
                 </span>
-                <span className="flex-none text-right">
-                  <span
-                    className="block font-display text-xl font-black tabular leading-none text-ink"
-                    style={{ color: sort.key === "winRate" ? wrColor(r.winRate) : undefined }}
-                  >
-                    {sort.key === "winRate" ? pct(r.winRate, 0)
-                      : sort.key === "resistance" ? pct(r.resistance, 0)
-                      : sort.key === "diff" ? (r.diff > 0 ? `+${r.diff}` : r.diff)
-                      : r[sort.key]}
+                {sort.key !== "points" && (
+                  <span className="flex-none text-right">
+                    <span
+                      className="block font-display text-xl font-black tabular leading-none text-ink"
+                      style={{ color: sort.key === "winRate" ? wrColor(r.winRate) : undefined }}
+                    >
+                      {sort.key === "winRate" ? pct(r.winRate, 0)
+                        : sort.key === "resistance" ? pct(r.resistance, 0)
+                        : sort.key === "diff" ? (r.diff > 0 ? `+${r.diff}` : r.diff)
+                        : r[sort.key]}
+                    </span>
+                    <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
+                      {COLS.find((c) => c.key === sort.key)?.short}
+                    </span>
                   </span>
-                  <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
-                    {COLS.find((c) => c.key === sort.key)?.short}
-                  </span>
-                </span>
+                )}
               </Link>
             </li>
           );
@@ -202,7 +203,6 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                     {/* V–D–E, como se dice: un «3–1» son tres victorias y una derrota. */}
                     <b className="font-bold text-win">{r.wins}</b>–<span className="font-semibold text-loss">{r.losses}</span>{r.ties ? <>–<span className="font-semibold text-tie">{r.ties}</span></> : null}
                   </td>
-                  <td className="text-right font-display text-base font-black tabular text-ink">{r.points}</td>
                   <td className="text-right">
                     <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
                     <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">

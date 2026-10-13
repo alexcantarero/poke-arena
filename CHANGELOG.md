@@ -2,6 +2,88 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.33.0] — 2026-10-14
+
+Simplifica los rankings de liga quitando la cifra de puntos de las vistas.
+Sin migración de base de datos, dependencias ni variables de entorno nuevas.
+
+### Cambiado
+
+- Se ocultan los puntos en los rankings, la portada y las listas y detalles de competiciones;
+  siguen determinando la ordenación y los desempates.
+- Se retira de la tabla de liga la fila móvil que repetía métricas ya incluidas en columnas.
+- El encabezado de clasificación de la competición pasa a «Ranking Liga».
+- Los Championship Points y los umbrales de puntos de torneos no cambian.
+
+### Verificado
+
+- `npm test`: **393 de 393**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build`: correcto.
+- No requiere migración ni cambios de variables de entorno.
+
+## [0.32.0] — 2026-10-14
+
+Medallas con objetivos combinados y emblemas geométricos originales.
+Sin migración de base de datos, dependencias ni variables de entorno nuevas.
+
+### Cambiado
+
+- La vitrina pasa de nueve a ocho medallas: se elimina «Archivo», que premiaba guardar listas de mazos.
+- Los niveles de cada medalla combinan dos objetivos y muestran el progreso de ambos hacia el siguiente.
+- Los iconos lineales se sustituyen por emblemas geométricos originales, sin reproducir insignias oficiales.
+- Los retos consideran actividad total, porcentaje de victorias, variedad de mazos, puestos, cortes,
+  Championship Points y rondas anotadas.
+
+### Verificado
+
+- `npm test`: **393 de 393**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build`: correcto.
+- No requiere migración ni cambios de variables de entorno.
+
+## [0.31.2] — 2026-10-13
+
+Nuevas fechas especiales del easter egg: San Valentín y Día de Pokémon.
+Sin migración de base de datos, dependencias ni variables de entorno nuevas.
+
+### Añadido
+
+- El calendario estacional reconoce el 14 de febrero como San Valentín y el 27 de febrero
+  como Día de Pokémon, cada uno con su emblema, partículas y lista de sprites.
+- Las listas temáticas están centralizadas en `src/lib/pokemonEstacion.ts`: Halloween incluye
+  Pumpkaboo, Dusknoir y Dhelmise; Navidad tiene una selección de Pokémon de invierno y regalos.
+- La lista de San Valentín incluye Pokémon de aspecto romántico; la del Día de Pokémon amplía
+  Pikachu y su línea evolutiva con Pokémon iniciales de Kanto.
+
+### Mantenido
+
+- Se conservan las ventanas estacionales existentes para Halloween, Navidad y Mundial.
+- Las demás fechas continúan usando la selección de su estación.
+
+### Verificado
+
+- `npm test`: **392 de 392**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build`: correcto.
+
+## [0.31.1] — 2026-10-13
+
+Un solo Pokémon aleatorio en cada clic del easter egg estacional.
+Sin migración de base de datos, dependencias ni variables de entorno nuevas.
+
+### Cambiado
+
+- Cada clic muestra un único sprite, elegido al azar de la lista de la estación/ocasión activa.
+  Puede repetirse entre clics.
+- La selección sigue siendo editable en `src/lib/pokemonEstacion.ts`.
+
+### Verificado
+
+- `npm test`: **389 de 389**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build`: correcto.
+
 ## [0.31.0] — 2026-10-13
 
 Easter egg estacional con Pokémon al pulsar el emblema de estación.

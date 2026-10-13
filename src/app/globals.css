@@ -758,6 +758,8 @@ html[data-season="primavera"] { --season-a: #f472b6; --season-b: #4ade80; }
 html[data-season="verano"]    { --season-a: #fbbf24; --season-b: #fb923c; }
 html[data-evento="halloween"] { --season-a: #f97316; --season-b: #a855f7; }
 html[data-evento="navidad"]   { --season-a: #ef4444; --season-b: #22c55e; }
+html[data-evento="diaPokemon"] { --season-a: #eab308; --season-b: #2563eb; }
+html[data-evento="sanValentin"] { --season-a: #f43f5e; --season-b: #c026d3; }
 
 .season-strip {
   height: 3px;

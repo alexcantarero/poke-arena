@@ -42,7 +42,6 @@ export type TodoRow = {
 type Key = "points" | "winRate" | "played" | "elo" | "cp" | "torneos" | "cutRate" | "avgPlacement";
 
 const COLS: Array<{ key: Key; short: string; label: string }> = [
-  { key: "points", short: "Pts", label: "Puntos sobre todas las partidas" },
   { key: "winRate", short: "%V", label: "% de victorias (empate = media)" },
   { key: "played", short: "PJ", label: "Partidas jugadas" },
   { key: "elo", short: "Elo", label: "Elo (solo partidas entre gente del grupo)" },
@@ -135,10 +134,12 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                     />
                   </span>
                 </span>
-                <span className="flex-none text-right">
-                  <span className="block font-display text-xl font-extrabold tabular leading-none">{d.v}</span>
-                  <span className="block text-[10px] uppercase tracking-wide text-muted">{d.l}</span>
-                </span>
+                {sort.key !== "points" && (
+                  <span className="flex-none text-right">
+                    <span className="block font-display text-xl font-extrabold tabular leading-none">{d.v}</span>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted">{d.l}</span>
+                  </span>
+                )}
               </Link>
             </li>
           );
@@ -179,7 +180,6 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                 <td className="font-mono text-[13px]">
                   <b className="text-win">{r.wins}</b>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
                 </td>
-                <td className="text-right font-semibold tabular">{r.points}</td>
                 <td className="text-right">
                   <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
                   <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">

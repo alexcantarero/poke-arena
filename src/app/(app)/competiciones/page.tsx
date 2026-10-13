@@ -63,7 +63,6 @@ export default async function CompetitionsPage() {
                         <span className="w-11 text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>
                           {pct(r.winRate, 0)}
                         </span>
-                        <span className="w-8 text-right font-mono text-sm font-bold tabular">{r.points}</span>
                       </li>
                     ))}
                   </ol>

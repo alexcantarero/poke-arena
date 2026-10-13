@@ -27,6 +27,25 @@ export type TorneoLista = {
   status: string;
 };
 
+export type PuestoDeTorneo = {
+  tournamentId: string;
+  playerId: string;
+  date: string;
+  placement: number | null;
+};
+
+export function mejoresPuestosDeTorneos<T extends PuestoDeTorneo>(results: T[], today: string) {
+  return results
+    .filter((r): r is T & { placement: number } =>
+      r.date <= today && r.placement != null && r.placement > 0)
+    .sort((a, b) =>
+      a.placement - b.placement
+      || b.date.localeCompare(a.date)
+      || a.tournamentId.localeCompare(b.tournamentId)
+      || a.playerId.localeCompare(b.playerId))
+    .slice(0, 5);
+}
+
 export type FiltroTorneos = {
   /** Ids de torneo en los que está esa persona; null = sin filtro. */
   dePersona?: Set<string> | null;

@@ -129,12 +129,11 @@ export default async function ProfilePage({
     wins: total.wins,
     bestStreak: longestWinStreak(all, id),
     archetypes: archs.length,
-    decksWithList: decks.filter((d) => d.list.trim().length > 0).length,
     tournaments: conv.entries,
     cuts: conv.cut,
-    tournamentWins: conv.wins,
     bestPlacement: mejores[0]?.placement ?? null,
     cp: cp.total,
+    winRate: (total.winRate ?? 0) * 100,
     // `firstTurn` es texto y vacío cuando no se apuntó, no null.
     roundsWithTurn: snap.matches.filter(
       (m) => m.tournamentId && m.playerAId === id && Boolean(m.firstTurn),

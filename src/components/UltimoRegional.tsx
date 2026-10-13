@@ -241,7 +241,7 @@ export function UltimoRegional(p: Props) {
       {/* ------------------------------------------- 3. torneos recientes -- */}
       <div className="card">
         <div className="card-head">
-          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Torneos recientes</h3>
+          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Torneos pasados</h3>
         </div>
         {p.recientes.length ? (
           <ul className="divide-y divide-line-soft">

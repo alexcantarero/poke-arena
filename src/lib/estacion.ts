@@ -7,7 +7,7 @@
    ========================================================================= */
 
 export type EstacionId = "primavera" | "verano" | "otono" | "invierno";
-export type EventoId = "halloween" | "navidad" | "mundial" | null;
+export type EventoId = "diaPokemon" | "sanValentin" | "halloween" | "navidad" | "mundial" | null;
 
 export type Estacion = {
   id: EstacionId;
@@ -41,13 +41,17 @@ export function estacionDe(iso: string): Estacion {
     : "invierno";
 
   const evento: EventoId =
-    md >= 1024 && md <= 1101 ? "halloween"
+    md === 214 ? "sanValentin"
+    : md === 227 ? "diaPokemon"
+    : md >= 1024 && md <= 1101 ? "halloween"
     : md >= 1215 || md <= 106 ? "navidad"
     // El Mundial de Pokémon se juega a mediados de agosto.
     : md >= 810 && md <= 820 ? "mundial"
     : null;
 
   const base = BASE[id];
+  if (evento === "diaPokemon") return { ...base, evento, particulas: ["⚡", "✨", "🔴"], emblema: "⚡" };
+  if (evento === "sanValentin") return { ...base, evento, particulas: ["💖", "💕", "✨"], emblema: "💝" };
   if (evento === "halloween") return { ...base, evento, particulas: ["🎃", "🦇", "🍂"], emblema: "🎃" };
   if (evento === "navidad") return { ...base, evento, particulas: ["❄", "✨", "❅"], emblema: "🎄" };
   if (evento === "mundial") return { ...base, evento, particulas: ["🏆", "✦", "✧"], emblema: "🏆" };

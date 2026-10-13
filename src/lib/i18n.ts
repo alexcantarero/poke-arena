@@ -108,6 +108,10 @@ const ES = {
   "home.eloRank": "Puesto en el ranking global de Elo",
   "home.eloRankShort": "Elo",
   "home.wins": "de victorias",
+  "home.bestTournamentResults": "Mejores resultados de torneos",
+  "home.viewTournaments": "Ver torneos",
+  "home.noFinalPlacements": "Todavía no hay puestos finales",
+  "home.noFinalPlacementsHint": "Cuando apuntéis resultados finales de vuestros torneos, aquí aparecerán los cinco mejores puestos.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -190,6 +194,10 @@ const EN: Record<I18nKey, string> = {
   "home.eloRank": "Position in the global Elo ranking",
   "home.eloRankShort": "Elo",
   "home.wins": "win rate",
+  "home.bestTournamentResults": "Best tournament results",
+  "home.viewTournaments": "View tournaments",
+  "home.noFinalPlacements": "No final placements yet",
+  "home.noFinalPlacementsHint": "Once you record final tournament results, the five best placements will appear here.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

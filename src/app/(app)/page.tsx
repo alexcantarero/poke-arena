@@ -11,11 +11,10 @@ import { byAgenda, pct, relDays, shortName, todayISO, wrColor } from "@/lib/form
 import { toneOf } from "@/lib/calendar";
 import {
   Empty, Kpi, PageHead, PlayerTag, TournamentEmblem,
-  Record, Sprites, StreakChip,
+  Record, StreakChip,
 } from "@/components/ui";
 import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
-import { HomeCharts } from "@/components/HomeCharts";
 import { UltimoRegional, type Vista } from "@/components/UltimoRegional";
 import { cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { estructuraDe, umbralesDe } from "@/lib/estructura";
@@ -24,6 +23,7 @@ import { irlMeta, panelDeEvento } from "@/lib/metaIrl";
 import { ordenaPorCuota } from "@/lib/metaBadges";
 import { fetchMetaSnapshot } from "@/lib/sources/limitless";
 import type { Archetype } from "@/lib/types";
+import { mejoresPuestosDeTorneos } from "@/lib/torneosLista";
 
 /** Los tipos que tienen Día 2 y cuentan como «Regional» en el inicio. */
 const KINDS_REGIONAL = new Set(["regional", "special", "international"]);
@@ -46,8 +46,8 @@ async function cuotaOnline(): Promise<Array<{ name: string; share: number }>> {
 }
 
 /** «18 sept.» — la fecha corta de las listas. */
-const fechaCorta = (iso: string) =>
-  new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" })
+const fechaCorta = (iso: string, locale = "es-ES") =>
+  new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" })
     .format(new Date(`${iso}T00:00:00Z`));
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
@@ -113,60 +113,30 @@ export default async function HomePage({
       }),
   ].sort(byAgenda(today)).slice(0, 6);
 
-  /* ---------------------------------------------------------------
-     Datos de los gráficos. Se preparan aquí, en el servidor, para que el
-     componente cliente solo dibuje: así el motor de estadísticas sigue siendo
-     puro y no hay que llevárselo al navegador.
-     --------------------------------------------------------------- */
-
-  // Solo quien ha jugado algo: una línea plana en 1000 no dice nada y encima
-  // gasta un color de la paleta.
-  const eloSeries = snap.players
-    .filter((p) => p.active && (snap.elo.history[p.id]?.length ?? 0) > 1)
-    .map((p) => ({
-      id: p.id,
-      label: p.name,
-      // El color del perfil manda; si es el dorado de marca se deja que la
-      // paleta de series decida, porque la marca no es un dato.
-      color: p.color && p.color.toLowerCase() !== "#f0b429" ? p.color : null,
-      points: (snap.elo.history[p.id] ?? []).map((h) => ({ date: h.date, value: Math.round(h.value), matchId: h.matchId, delta: h.delta ? Math.round(h.delta) : undefined })),
-    }));
-
-  const metaRows = archs.slice(0, 8).map((a) => ({
-    id: a.archetypeId,
-    label: a.archetype?.name ?? a.archetypeId,
-    played: a.played,
-    wins: a.wins,
-    ties: a.ties,
-    losses: a.losses,
-  }));
-  // Los sprites se pintan en el servidor y viajan como nodos ya listos: el
-  // componente cliente no necesita conocer los arquetipos.
-  const metaSprites = Object.fromEntries(
-    archs.slice(0, 8).map((a) => [a.archetypeId, <Sprites key={a.archetypeId} archetype={a.archetype} size="sm" />]),
-  );
-
-  const cpBars = (myCp?.buckets ?? []).map((b) => {
-    const rows = myCp!.rows.filter((r) => r.bucket === b.bucket);
-    return {
-      bucket: b.bucket,
-      label: b.label,
-      total: b.total,
-      dropped: rows.filter((r) => r.excluded).reduce((a, r) => a + r.value, 0),
-      bfl: b.bfl,
-      counting: b.counting,
-      entries: rows.length,
-    };
-  });
-
-
-
   /* -------------------------------------------- el último Regional --- */
   const hoy = todayISO();
   const temporada = seasonOfDate(hoy) ?? snap.config.cpSeason;
   const etiquetaTipo = (kind: string) => getSeason(temporada).events[kind]?.label ?? kind;
   const archDe = (r: { deckId: string | null; archetypeId: string | null }): Archetype | undefined =>
     r.deckId ? snap.archIndex.get(r.deckId) : r.archetypeId ? snap.archById.get(r.archetypeId) : undefined;
+
+  const mejoresResultados = mejoresPuestosDeTorneos(
+    snap.tournaments
+      .filter((t) => t.status === "closed")
+      .flatMap((t) => t.results.map((r) => ({
+        tournamentId: t.id,
+        playerId: r.playerId,
+        date: t.date,
+        placement: r.placement,
+      }))),
+    today,
+  ).flatMap((r) => {
+    const tournament = snap.toursById.get(r.tournamentId);
+    const player = snap.playersById.get(r.playerId);
+    return tournament && player
+      ? [{ ...r, tournamentName: tournament.name }]
+      : [];
+  });
 
   // Vuestros resultados en forma de metagame, torneo a torneo.
   const resultadosDe = (t: (typeof snap.tournaments)[number]): ResultadoGrupo[] => {
@@ -329,7 +299,7 @@ export default async function HomePage({
             icon="trophy"
             label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
             value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
-            note={leader ? `${leader.points} pts · ${pct(leader.winRate, 0)}` : "sin datos"}
+            note={leader ? pct(leader.winRate, 0) : "sin datos"}
           />
         )}
         {mine
@@ -356,7 +326,7 @@ export default async function HomePage({
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
           <div className="card-head">
-            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Clasificación</h2>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Ranking Liga</h2>
             <Link className="btn btn-ghost btn-sm" href="/ranking">Ver toda</Link>
           </div>
           {table.some((r) => r.played) ? (
@@ -396,9 +366,6 @@ export default async function HomePage({
                       </span>
                     )}
                     <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
-                    <span className="font-mono text-xs font-bold tabular text-ink-2 bg-surface-2/80 px-1.5 py-0.5 rounded">
-                      {r.points} <span className="text-[10px] text-muted font-normal">pts</span>
-                    </span>
                     {/* El récord se esconde en pantallas estrechas: con el
                         nombre, el %V y la racha no cabe, y es lo que menos se
                         mira de los cuatro. Está entero en Ranking. */}
@@ -420,7 +387,7 @@ export default async function HomePage({
 
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Próximo</h2>
+            <h2 className="text-lg font-bold">Próximos Torneos</h2>
             <Link className="btn btn-ghost btn-sm" href="/calendario">Calendario</Link>
           </div>
           {upcoming.length ? (
@@ -480,16 +447,38 @@ export default async function HomePage({
         </section>
       </div>
 
-      {(eloSeries.length > 0 || metaRows.length > 0 || cpBars.length > 0) && (
-        <HomeCharts
-          elo={eloSeries}
-          eloStart={snap.config.eloStart}
-          meta={metaRows}
-          cp={cpBars}
-          season={myCp?.season ?? snap.config.cpSeason}
-          sprites={metaSprites}
-        />
-      )}
+      <section className="card mt-4 overflow-hidden">
+        <div className="card-head flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{tr(lang, "home.bestTournamentResults")}</h2>
+          <Link className="btn btn-ghost btn-sm" href="/torneos">{tr(lang, "home.viewTournaments")}</Link>
+        </div>
+        {mejoresResultados.length ? (
+          <ol className="divide-y divide-line-soft">
+            {mejoresResultados.map((r) => (
+              <li key={`${r.tournamentId}-${r.playerId}`} className="flex items-center gap-3 px-3.5 py-3">
+                <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-brand-soft font-display text-sm font-extrabold tabular text-brand">
+                  #{r.placement}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <PlayerTag player={snap.playersById.get(r.playerId)} size="xs" className="text-sm" />
+                    <span className="flex-none text-xs text-muted">{fechaCorta(r.date, lang === "en" ? "en-GB" : "es-ES")}</span>
+                  </span>
+                  <Link href={`/torneos/${r.tournamentId}`} className="mt-1 block truncate text-sm text-muted hover:text-info">
+                    {r.tournamentName}
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="p-4">
+            <Empty title={tr(lang, "home.noFinalPlacements")}>
+              {tr(lang, "home.noFinalPlacementsHint")}
+            </Empty>
+          </div>
+        )}
+      </section>
     </>
   );
 }

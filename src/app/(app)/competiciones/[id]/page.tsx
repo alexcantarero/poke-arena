@@ -134,8 +134,8 @@ export default async function CompetitionPage({
       <section className="card mb-4 overflow-hidden">
         <div className="card-head items-center">
           <div>
-            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Clasificación</h2>
-            <p className="mt-0.5 text-xs text-muted">Puntos, resultados, juegos y rendimiento en la competición.</p>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Ranking Liga</h2>
+            <p className="mt-0.5 text-xs text-muted">Resultados, juegos y rendimiento en la competición.</p>
           </div>
           <span className="flex-none rounded-full bg-surface-2 px-2.5 py-1 font-mono text-[11px] font-semibold tabular text-ink-2">
             {ids.length} jugadores · {played.length} partidas
@@ -143,8 +143,8 @@ export default async function CompetitionPage({
         </div>
         {table.some((r) => r.played) ? (
           <>
-          <div aria-hidden="true" className="hidden grid-cols-[2.5rem_minmax(10rem,1fr)_3.5rem_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] items-center gap-2 border-y border-line-soft bg-surface-2/70 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-muted lg:grid">
-            <span className="text-center">#</span><span>Jugador</span><span className="text-right">Pts</span>
+          <div aria-hidden="true" className="hidden grid-cols-[2.5rem_minmax(10rem,1fr)_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] items-center gap-2 border-y border-line-soft bg-surface-2/70 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-muted lg:grid">
+            <span className="text-center">#</span><span>Jugador</span>
             <span className="text-right">{isLeague ? "V–D" : "V–D–E"}</span><span className="text-right">PJ</span><span className="text-right">%V</span>
             <span className="text-right">Res.</span><span className="text-right">Juegos</span><span className="text-right">%J</span>
             <span className="text-right" title="Arquetipos distintos jugados">Arq.</span>
@@ -169,7 +169,7 @@ export default async function CompetitionPage({
               return (
                 <li
                   key={r.playerId}
-                  className={`grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 transition-[background-color,box-shadow] duration-200 hover:shadow-sm sm:px-4 lg:grid-cols-[2.5rem_minmax(10rem,1fr)_3.5rem_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] lg:gap-2 ${rowBg}`}
+                  className={`grid grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 transition-[background-color,box-shadow] duration-200 hover:shadow-sm sm:px-4 lg:grid-cols-[2.5rem_minmax(10rem,1fr)_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] lg:gap-2 ${rowBg}`}
                 >
                   {isTop1 ? (
                     <span className="flex size-6 items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs md:mx-auto">
@@ -193,9 +193,6 @@ export default async function CompetitionPage({
                     size="sm"
                     className="min-w-0 flex-1 font-semibold text-ink"
                   />
-                  <span className="rounded-full bg-surface-2/90 px-2 py-1 text-right font-mono text-xs font-bold tabular text-ink-2 md:rounded-md">
-                    {r.points} <span className="text-[10px] text-muted font-normal">pts</span>
-                  </span>
                   <span className="hidden text-right font-mono text-xs font-semibold tabular lg:block">
                     <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>
                     {!isLeague && r.ties > 0 && <>–<span className="text-tie">{r.ties}</span></>}
@@ -224,17 +221,7 @@ export default async function CompetitionPage({
                   <span className="hidden text-right font-mono text-xs tabular text-ink-2 lg:block" title={`${archetypeCount} arquetipos distintos`}>
                     {archetypeCount}
                   </span>
-                  <span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[10px] tabular text-muted lg:hidden">
-                    <span>
-                      <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>
-                      {!isLeague && r.ties > 0 && <span className="text-tie">–{r.ties}</span>} {isLeague ? "V–D" : "V–D–E"}
-                    </span>
-                    <span>{r.played} PJ</span>
-                    <span style={{ color: wrColor(playerWinRate) }}>{pct(playerWinRate, 0)} %V</span>
-                    <span><span className="text-win">{r.gameWins}</span>–<span className="text-loss">{r.gameLosses}</span> juegos</span>
-                    <span style={{ color: wrColor(r.gameWinRate) }}>{pct(r.gameWinRate, 0)} %J</span>
-                  </span>
-                  <span className="hidden text-right font-mono text-xs tabular text-muted md:block" title={`${archetypeCount} arquetipos distintos`}>{archetypeCount}</span>
+                  <span className="hidden text-right font-mono text-xs tabular text-muted md:block lg:hidden" title={`${archetypeCount} arquetipos distintos`}>{archetypeCount}</span>
                 </li>
               );
             })}
@@ -298,7 +285,6 @@ export default async function CompetitionPage({
                       </span>
                     </span>
                     <span className="flex flex-none items-center gap-4 pl-9 text-sm sm:pl-0">
-                      <span className="text-center"><b className="block font-display text-lg tabular">{f.puntos}</b><span className="text-[10px] text-muted">pts</span></span>
                       <span className="text-center font-mono text-xs tabular">
                         <span className="text-win">{f.ganados}</span>–<span className="text-loss">{f.perdidos}</span>–<span className="text-tie">{f.empatados}</span>
                         <span className="block text-[10px] text-muted">duelos</span>
