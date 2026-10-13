@@ -7,7 +7,7 @@ import { readSession } from "@/lib/auth";
 import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
-import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
+import { byAgenda, pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
   Empty, Kpi, PageHead, PlayerTag,
   Record, Sprites, StreakChip,
@@ -83,8 +83,21 @@ export default async function HomePage({
   const lang = await getLang();
   const myCp = session ? playerCp(snap, session.playerId) : null;
   const archs = archetypeStats(played, snap.archIndex, undefined, snap.archById);
-  const upcoming = snap.events.filter((e) => e.date >= todayISO()).slice(0, 3);
-  const nextTournaments = snap.tournaments.filter((t) => t.date >= todayISO()).slice(-3).reverse();
+  const today = todayISO();
+  const upcoming = [
+    ...snap.events
+      .filter((e) => e.date >= today && !(e.tournamentId && snap.toursById.has(e.tournamentId)))
+      .map((e) => ({
+        id: `event-${e.id}`, date: e.date, title: e.title, sub: e.note,
+        type: "event" as const,
+      })),
+    ...snap.tournaments
+      .filter((t) => t.date >= today)
+      .map((t) => ({
+        id: `tournament-${t.id}`, date: t.date, title: t.name, sub: t.city,
+        type: "tournament" as const, href: `/torneos/${t.id}`,
+      })),
+  ].sort(byAgenda(today)).slice(0, 6);
 
   /* ---------------------------------------------------------------
      Datos de los gráficos. Se preparan aquí, en el servidor, para que el
@@ -396,26 +409,27 @@ export default async function HomePage({
             <h2 className="text-lg font-bold">Próximo</h2>
             <Link className="btn btn-ghost btn-sm" href="/calendario">Calendario</Link>
           </div>
-          {upcoming.length || nextTournaments.length ? (
+          {upcoming.length ? (
             <ul className="divide-y divide-line-soft">
-              {upcoming.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 px-4 py-3">
-                  <Icon name="calendar" className="size-5 flex-none text-muted" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{e.title}</span>
-                    <span className="block text-xs text-muted">{relDays(e.date)}{e.note ? ` · ${e.note}` : ""}</span>
-                  </span>
-                </li>
-              ))}
-              {nextTournaments.map((t) => (
-                <li key={t.id}>
-                  <Link href={`/torneos/${t.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
-                    <Icon name="trophy" className="size-5 flex-none text-brand" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{t.name}</span>
-                      <span className="block text-xs text-muted">{relDays(t.date)}{t.city ? ` · ${t.city}` : ""}</span>
-                    </span>
-                  </Link>
+              {upcoming.map((item) => (
+                <li key={item.id}>
+                  {item.type === "tournament" ? (
+                    <Link href={item.href} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                      <Icon name="trophy" className="size-5 flex-none text-brand" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{item.title}</span>
+                        <span className="block text-xs text-muted">{relDays(item.date)}{item.sub ? ` · ${item.sub}` : ""}</span>
+                      </span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <Icon name="calendar" className="size-5 flex-none text-muted" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{item.title}</span>
+                        <span className="block text-xs text-muted">{relDays(item.date)}{item.sub ? ` · ${item.sub}` : ""}</span>
+                      </span>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
