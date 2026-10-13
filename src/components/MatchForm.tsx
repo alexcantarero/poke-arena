@@ -6,6 +6,16 @@ import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament 
 import { bloqueados } from "@/lib/juegosMazos";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
+import { PrizePicker } from "@/components/PrizePicker";
+import { DeckPicker } from "./DeckPicker";
+import type { DeckOption } from "@/lib/types";
+
+/** Un juego mientras se edita en el formulario. */
+type JuegoEnEdicion = {
+  winner: string; first: string; archA: string; archB: string;
+  premiosA: number | null; premiosB: number | null;
+  penalizadoA: boolean; penalizadoB: boolean;
+};
 
 type Props = {
   match?: MatchFull;
@@ -17,6 +27,14 @@ type Props = {
   meId?: string;
   /** Los organizadores pueden registrar partidas de otros; los demás, no. */
   canPickPlayer?: boolean;
+  initialP1?: string;
+  initialP2?: string;
+  initialBestOf?: number;
+  initialGames?: Array<{
+    winner: string; first: string; archA: string; archB: string;
+    premiosA?: number | null; premiosB?: number | null;
+    penalizadoA?: boolean; penalizadoB?: boolean;
+  }>;
 };
 
 /**
@@ -28,26 +46,44 @@ type Props = {
  */
 export function MatchForm({
   match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
+  initialP1, initialP2, initialBestOf, initialGames
 }: Props) {
   const active = players.filter((p) => p.active || match);
-  const [aId, setAId] = useState(match?.playerAId ?? meId ?? active[0]?.id ?? "");
+  const [aId, setAId] = useState(match?.playerAId ?? initialP1 ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
-  const [bId, setBId] = useState(match?.playerBId ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
+  const [bId, setBId] = useState(match?.playerBId ?? initialP2 ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
   const [aDeckId, setADeckId] = useState(
     match?.deckAId ?? (match?.archetypeAId ? `arch:${match.archetypeAId}` : ""));
   const [bDeckId, setBDeckId] = useState(
     match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId ? `arch:${match.opponentArchetypeId}` : ""));
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
-  const [bestOf, setBestOf] = useState(match?.bestOf ?? 3);
+  const [bestOf, setBestOf] = useState(match?.bestOf ?? initialBestOf ?? 3);
   // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
-  const [games, setGames] = useState<Array<{ winner: string; first: string; archA: string; archB: string }>>(() => {
-    const base = Array.from({ length: 5 }, () => ({ winner: "", first: "", archA: "", archB: "" }));
-    match?.games.forEach((g, i) => {
-      if (i < 5) base[i] = { winner: g.winner, first: g.first, archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "" };
-    });
+  const [games, setGames] = useState<JuegoEnEdicion[]>(() => {
+    /* Anotado a mano, y no inferido del literal: un objeto con `premiosA:
+       null` infiere el tipo `null` a secas y después no deja asignarle un
+       número. Es el fallo que se coló en la v0.9.0. */
+    const base: JuegoEnEdicion[] = Array.from({ length: 5 }, () => ({
+      winner: "", first: "", archA: "", archB: "",
+      premiosA: null, premiosB: null, penalizadoA: false, penalizadoB: false,
+    }));
+    if (match) {
+      match.games.forEach((g, i) => {
+        if (i < 5) base[i] = {
+          winner: g.winner, first: g.first,
+          archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "",
+          premiosA: g.prizesA, premiosB: g.prizesB,
+          penalizadoA: g.penaltyA, penalizadoB: g.penaltyB,
+        };
+      });
+    } else if (initialGames) {
+      initialGames.forEach((g, i) => {
+        if (i < 5) base[i] = { ...base[i], ...g };
+      });
+    }
     return base;
   });
-  const archOrden = useMemo(() => [...archetypes].sort((x, y) => x.name.localeCompare(y.name, "es")), [archetypes]);
+  const archOpts: DeckOption[] = useMemo(() => [...archetypes].map((a) => ({ id: a.id, name: a.name, archetypeId: a.id, archetypeName: a.name, main: a.main, secondary: a.secondary, type: a.type, group: 'shared' as const, hasList: false })).sort((x, y) => x.name.localeCompare(y.name, 'es')), [archetypes]);
   const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
@@ -70,7 +106,7 @@ export function MatchForm({
   const sameTwice = !external && aId === bId;
   const canSave = !sameTwice && aId && decided;
 
-  const setGame = (i: number, patch: Partial<{ winner: string; first: string; archA: string; archB: string }>) =>
+  const setGame = (i: number, patch: Partial<JuegoEnEdicion>) =>
     setGames((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   /** Un juego se apaga cuando la serie ya estaba decidida antes de llegar a él. */
@@ -120,13 +156,7 @@ export function MatchForm({
             </>)}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="deckAId">Su mazo</label>
-            <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
-              <option value="">— sin asignar —</option>
-              <DeckOptions decks={decks} playerId={aId} archetypes={archetypes} />
-            </select>
-          </div>
+          
 
           <hr className="border-line-soft" />
 
@@ -143,16 +173,7 @@ export function MatchForm({
                   y para la matriz de emparejamientos.
                 </p>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
-                <select
-                  className="input" id="opponentArchetypeId" name="opponentArchetypeId"
-                  value={oppArch} onChange={(e) => setOppArch(e.target.value)}
-                >
-                  <option value="">— no lo sé —</option>
-                  {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
+              
             </>
           ) : (
             <>
@@ -163,13 +184,7 @@ export function MatchForm({
                     .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="deckBId">Su mazo</label>
-                <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
-                  <option value="">— sin asignar —</option>
-                  <DeckOptions decks={decks} playerId={bId} archetypes={archetypes} />
-                </select>
-              </div>
+              
             </>
           )}
 
@@ -252,6 +267,46 @@ export function MatchForm({
                 </div>
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-muted w-14">Mulligans</span>
+                  <div className="flex flex-1 items-center gap-2">
+                    <div className="flex flex-1 items-center gap-1.5">
+                      <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
+                      <span className="truncate text-xs text-muted max-w-[60px]" title={A?.name ?? "A"}>{A?.name ?? "A"}</span>
+                      <input 
+                        type="number" id={`g${i}_mulligans_a`} name={`g${i}_mulligans_a`} 
+                        className="input input-sm w-12 text-center p-1" 
+                        min={0} max={99} disabled={over} 
+                        defaultValue={match?.games[i]?.mulligansA ?? 0}
+                      />
+                    </div>
+                    <div className="flex flex-1 items-center gap-1.5">
+                      <label htmlFor={`g${i}_mulligans_b`} className="sr-only">Mulligans {bLabel}</label>
+                      <span className="truncate text-xs text-muted max-w-[60px]" title={bLabel}>{bLabel}</span>
+                      <input 
+                        type="number" id={`g${i}_mulligans_b`} name={`g${i}_mulligans_b`} 
+                        className="input input-sm w-12 text-center p-1" 
+                        min={0} max={99} disabled={over} 
+                        defaultValue={match?.games[i]?.mulligansB ?? 0}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* v0.30 — premios cogidos por cada uno y penalización. */}
+                <PrizePicker
+                  campo={`g${i}`}
+                  nombreA={A?.name ?? "A"}
+                  nombreB={bLabel}
+                  winner={games[i].winner}
+                  disabled={over}
+                  valor={{
+                    premiosA: games[i].premiosA, premiosB: games[i].premiosB,
+                    penalizadoA: games[i].penalizadoA, penalizadoB: games[i].penalizadoB,
+                  }}
+                  onChange={(parcial) => setGame(i, parcial)}
+                />
+
                 {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
                     en un juego anterior de la serie no se ofrece (regla de liga;
                     el servidor también lo comprueba). */}
@@ -265,13 +320,14 @@ export function MatchForm({
                           Mazo de {lado === "a" ? (A?.name ?? "A") : bLabel}
                           {fuera.size > 0 && <span className="text-loss"> · {fuera.size} bloqueado{fuera.size > 1 ? "s" : ""}</span>}
                         </span>
-                        <select className="input text-sm" name={`g${i}_arch${lado.toUpperCase()}`} disabled={over}
-                          value={games[i][campo]} onChange={(e) => setGame(i, { [campo]: e.target.value })}>
-                          <option value="">— el de la serie —</option>
-                          {archOrden.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id).map((x) => (
-                            <option key={x.id} value={x.id}>{x.name}</option>
-                          ))}
-                        </select>
+                        <DeckPicker
+  name={`g${i}_arch${lado.toUpperCase()}`}
+  options={archOpts.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id)}
+  defaultValue={games[i][campo]}
+  onChange={(val) => setGame(i, { [campo]: val })}
+  locked={over}
+  emptyLabel="� selecciona mazo �"
+/>
                       </label>
                     );
                   })}
@@ -371,3 +427,9 @@ function DeckOptions({ decks, playerId, archetypes = [] }: { decks: Deck[]; play
     </>
   );
 }
+
+
+
+
+
+

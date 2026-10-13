@@ -36,6 +36,7 @@ type FilaArch<A> = {
   archetypeId: string; archetype: A | undefined;
   played: number; wins: number; ties: number; losses: number;
   gameWins: number; gameLosses: number; winRate: number | null;
+  firstPlayed: number; firstWins: number; secondPlayed: number; secondWins: number;
 };
 
 /**
@@ -55,9 +56,12 @@ export function agruparFilas<A>(
     const acc = out.get(r) ?? {
       archetypeId: r, archetype: arquetipo(r),
       played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null,
+        firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0,
     };
     acc.played += f.played; acc.wins += f.wins; acc.ties += f.ties; acc.losses += f.losses;
     acc.gameWins += f.gameWins; acc.gameLosses += f.gameLosses;
+      acc.firstPlayed += (f.firstPlayed || 0); acc.firstWins += (f.firstWins || 0);
+      acc.secondPlayed += (f.secondPlayed || 0); acc.secondWins += (f.secondWins || 0);
     out.set(r, acc);
   }
   const lista = [...out.values()];

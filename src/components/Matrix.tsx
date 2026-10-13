@@ -3,6 +3,7 @@ import type { Matrix as MatrixData } from "@/lib/stats";
 import { Sprites } from "./ui";
 import { spriteUrl } from "@/lib/pokemon";
 import { clamp } from "@/lib/format";
+import { wilsonScore } from "@/lib/stats";
 
 /**
  * Matriz de emparejamientos: % de victorias de la fila contra la columna.
@@ -86,18 +87,24 @@ export function Matrix({
                     return <td key={colId} className="border border-line-soft text-center text-muted opacity-40">–</td>;
                   }
                   const alpha = clamp(0.16 + v.n * 0.1, 0.16, 0.85);
-                  const base = v.winRate >= 0.55 ? "var(--win)" : v.winRate <= 0.45 ? "var(--loss)" : "var(--series-1)";
+                  const [wCenter] = wilsonScore(v.wins, v.n);
+                  const displayRate = v.n >= 10 ? v.winRate : wCenter;
+                  const base = displayRate >= 0.55 ? "var(--win)" : displayRate <= 0.45 ? "var(--loss)" : "var(--series-1)";
                   return (
                     <td
                       key={colId}
                       className="border border-line-soft p-0"
-                      title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(v.winRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
+                      title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
                     >
                       <div
-                        className="grid h-8 place-items-center font-mono text-[11px] tabular"
+                        tabIndex={0}
+                        role="img"
+                        aria-label={`${rowArch?.name ?? rowId} contra ${byId.get(colId)?.name ?? colId}: ${Math.round(displayRate * 100)}% de victorias en ${v.n} partidas`}
+                        title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
+                        className="relative grid h-8 place-items-center font-mono text-[11px] tabular transition-transform duration-150 hover:z-10 hover:scale-105 hover:shadow-md focus-visible:z-10 focus-visible:scale-105 focus-visible:outline-2 focus-visible:outline-info motion-reduce:transition-none"
                         style={{ background: `color-mix(in srgb, ${base} ${(alpha * 100).toFixed(0)}%, transparent)` }}
                       >
-                        {Math.round(v.winRate * 100)}
+                        {Math.round(displayRate * 100)}
                       </div>
                     </td>
                   );

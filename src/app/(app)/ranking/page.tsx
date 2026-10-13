@@ -163,6 +163,7 @@ export default async function RankingPage({
   const porTorneo = new Map(rankingTorneos(entradas, cpDe).map((f) => [f.playerId, f]));
 
   /* --- las tres tablas posibles; solo se pinta una --- */
+  let nJugadoresRanking = 0;
   const avatarDe = (pid: string) => {
     const p = snap.playersById.get(pid);
     return { avatar: <Avatar player={p} size="md" />, avatarSm: <Avatar player={p} size="sm" />, name: p?.name ?? "—" };
@@ -187,11 +188,13 @@ export default async function RankingPage({
         cutRate: tt?.cutRate ?? null, avgPlacement: tt?.avgPlacement ?? null, drops: tt?.drops ?? 0,
       };
     });
+    nJugadoresRanking = filas.length;
     tabla = <RankingTodoTable rows={filas} />;
   } else if (vista === "tournament") {
     const filas: TourRankRow[] = [...porTorneo.values()]
       .filter((f) => visible(f.playerId))
       .map((f) => ({ ...f, ...avatarDe(f.playerId) }));
+    nJugadoresRanking = filas.length;
     tabla = (
       <>
         <TournamentRankingTable rows={filas} cpLabel={`CP ${cpSeason}`} />
@@ -218,6 +221,7 @@ export default async function RankingPage({
         topArchId: own[0]?.archetype?.id ?? null, topArchName: own[0]?.archetype?.name ?? null,
       };
     });
+    nJugadoresRanking = rows.length;
     tabla = <RankingTable rows={rows} />;
   }
 
@@ -279,6 +283,7 @@ export default async function RankingPage({
   };
   const vistaInfo = VISTAS.find((x) => x.v === vista)!;
   const nTorneos = new Set(entradas.map((e) => e.tournamentId)).size;
+  const filtrosActivos = filtroAQuery(filtro).size;
 
   /* v0.19 — tipos de torneo que de verdad hay, para el desplegable. */
   const tiposPresentes = [...new Set(snap.tournaments.map((t) => t.kind))]
@@ -298,10 +303,36 @@ export default async function RankingPage({
         }
       />
 
+      <section className="mb-4 overflow-hidden rounded-2xl border border-brand/25 bg-[linear-gradient(120deg,color-mix(in_oklab,var(--brand-soft)_70%,var(--surface)),var(--surface)_65%)] shadow-sm">
+        <div className="grid grid-cols-3 divide-x divide-brand/15">
+          {[
+            { label: "Partidas", value: scoped.length, accent: "text-info", bar: "bg-info" },
+            { label: "Jugadores", value: nJugadoresRanking, accent: "text-brand", bar: "bg-brand" },
+            { label: "Torneos", value: nTorneos, accent: "text-win", bar: "bg-win" },
+          ].map((item) => (
+            <div key={item.label} className="relative min-w-0 px-4 py-3.5 sm:px-5">
+              <span className={`block font-display text-2xl font-black leading-none tabular ${item.accent}`}>{item.value}</span>
+              <span className="mt-1 block text-[11px] font-bold uppercase tracking-wider text-muted">{item.label}</span>
+              <span className={`absolute inset-x-0 bottom-0 h-0.5 ${item.bar}`} />
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ------------------------------ filtros ------------------------------ */}
-      {/* v0.19 — desplegables en vez de botones segmentados: caben en una fila
-          en escritorio y en dos en el móvil, y se envían solos al cambiar. */}
-      <AutoSubmitForm action="/ranking" className="card mb-4 flex flex-col gap-3 p-4">
+      <details className="card group mb-4">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-3.5 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-info [&::-webkit-details-marker]:hidden">
+          <span className="grid size-9 flex-none place-items-center rounded-xl bg-brand-soft font-display text-lg font-black text-brand" aria-hidden="true">≡</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display font-bold text-ink">Filtros</span>
+            <span className="block text-xs text-muted">
+              {filtrosActivos ? `${filtrosActivos} ${filtrosActivos === 1 ? "filtro activo" : "filtros activos"}` : "Sin filtros adicionales"}
+            </span>
+          </span>
+          <span className="chip flex-none">{filtrosActivos ? filtrosActivos : "Abrir"}</span>
+          <span className="flex-none text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true">⌄</span>
+        </summary>
+      <AutoSubmitForm action="/ranking" className="flex flex-col gap-3 border-t border-line-soft p-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <label className="flex min-w-0 flex-col gap-1.5">
             <span className="label">Partidas</span>
@@ -394,6 +425,7 @@ export default async function RankingPage({
           )}
         </div>
       </AutoSubmitForm>
+      </details>
 
       {tabla}
 

@@ -17,7 +17,7 @@ export type {
  * en el HTML el hash y el correo de los demás. El tipo existe para que el
  * compilador no deje que eso vuelva a colarse.
  */
-export type PublicPlayer = Omit<Player, "email" | "passwordHash">;
+export type PublicPlayer = Omit<Player, "email" | "passwordHash" | "loginAttempts" | "lockedUntil" | "sessionVersion">;
 
 /** Una partida con sus juegos ya cargados: lo que consume el motor de estadísticas. */
 export type MatchFull = Match & { games: Game[] };
@@ -138,6 +138,7 @@ export type StandingRow = {
   points: number;
   winRate: number | null;
   gameWinRate: number | null;
+  archetypesCount?: number;
   diff: number;
   resistance: number | null;
   streak: { kind: "w" | "l" | "d" | "-"; n: number };
@@ -273,3 +274,4 @@ export type StatsPayload = {
   };
   error?: string;
 };
+

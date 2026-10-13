@@ -1,21 +1,20 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { fmtDate } from "@/lib/format";
 import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, Sprites } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
-import { MetaImport } from "@/components/MetaImport";
 import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
-import { hasPokemonTcgKey } from "@/lib/sources/pokemontcg";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
-import { setFeaturedRegional } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
+import { deleteMetaEvent } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { MotionToggle } from "@/components/MotionToggle";
@@ -35,8 +34,6 @@ export default async function SettingsPage() {
   const manager = canManageLeague(me.role);
   const owner = isOwner(me.role);
   const invites = manager ? await loadInvites() : [];
-  // Solo el booleano. La clave en sí no sale nunca de la variable de entorno.
-  const tcgKey = hasPokemonTcgKey();
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
   // Lo importado de los Regionales va aparte del snapshot: crece más deprisa
@@ -333,50 +330,36 @@ export default async function SettingsPage() {
           </div>
 
           </Grupo>
-          <Grupo titulo="Metagame presencial" aside="pegando la clasificación">
-          <MetaImport eventos={EVENTOS_EUROPA_2027} importados={metaEventos} />
-
-          {/* v0.25 — elegir a mano el «Último Regional» de Inicio. */}
-          <form action={setFeaturedRegional} className="card mb-4 flex flex-col gap-2 p-4 sm:flex-row sm:items-end">
-            <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <span className="label">«Último Regional» de Inicio</span>
-              <select className="input" name="eventId" defaultValue={snap.config.featuredRegionalId ?? ""}>
-                <option value="">Automático (el más reciente)</option>
-                {metaEventos
-                  .filter((e) => ["regional", "special", "international", "worlds"].includes(e.kind))
-                  .map((e) => <option key={e.id} value={e.id}>{e.date} · {e.name}</option>)}
-              </select>
-            </label>
-            <button className="btn btn-brand" type="submit">Guardar</button>
-          </form>
-
-          {/* Saber en qué estado están las fuentes de fuera evita la pregunta
-              de «¿por qué no me sale el metagame online?» a la tercera vez.
-              No se enseña ninguna clave, solo si la hay. */}
-          <div className="card mt-3 p-4 text-sm">
-            <p className="label mb-2">Fuentes externas</p>
-            <ul className="flex flex-col gap-2">
-              <li className="flex items-start gap-2">
-                <span className="chip chip-global mt-0.5 flex-none">Limitless</span>
-                <span className="min-w-0 text-ink-2">
-                  Torneos y clasificaciones. Funciona <b>sin clave</b>: de ahí salen el catálogo
-                  de arquetipos y el metagame online de Estadísticas.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className={`chip mt-0.5 flex-none ${tcgKey ? "chip-win" : ""}`}>pokemontcg.io</span>
-                <span className="min-w-0 text-ink-2">
-                  Datos de carta para el buscador del editor de mazos.{" "}
-                  {tcgKey
-                    ? "Hay clave configurada, así que el límite de peticiones es alto."
-                    : "Sin clave: 1.000 peticiones al día y 30 por minuto, de sobra para la liga."}{" "}
-                  <b>Esta API está deprecada</b> y deja de funcionar el 1 de marzo de 2027; ese
-                  día se cambia por TCGdex y no se nota en ninguna pantalla.
-                </span>
-              </li>
-            </ul>
-          </div>
-
+          <Grupo titulo="Eventos importados del metagame" aside={`${metaEventos.length} eventos`}>
+            {metaEventos.length === 0 ? (
+              <p className="card p-4 text-sm text-muted">Aún no se ha importado ningún evento.</p>
+            ) : (
+              <div className="card mb-6">
+                <ul className="divide-y divide-line-soft">
+                  {metaEventos.map((e) => (
+                    <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{e.name}</span>
+                        <span className="block text-[11px] text-muted tabular">
+                          {fmtDate(e.date)}
+                          {e.location && ` · ${e.location}`}
+                          {e.entries && ` · ${e.entries} lista(s)`}
+                          {e.coverage != null && ` · top ${e.coverage}`}
+                          {e.sourceName && ` · ${e.sourceName}`}
+                        </span>
+                      </span>
+                      <form action={deleteMetaEvent}>
+                        <input type="hidden" name="id" value={e.id} />
+                        <button className="btn btn-ghost btn-sm text-loss" type="submit"
+                          aria-label={`Quitar ${e.name}`}>
+                          <Icon name="trash" className="size-4" />
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Grupo>
           <Grupo titulo="Jugadores" aside={`${snap.players.length} en total`}>
           <PlayerAdmin

@@ -105,6 +105,11 @@ export default async function DecksPage({
 
   const clearHref = view === "all" ? "/mazos" : `/mazos?ver=${view}`;
 
+  const filteredArchetypes = snap.archetypes.filter((a) => {
+    if (!needle) return true;
+    return a.name.toLowerCase().includes(needle) || (a.main ?? "").includes(needle) || (a.secondary ?? "").includes(needle);
+  });
+
   return (
     <>
       <PageHead
@@ -237,7 +242,7 @@ export default async function DecksPage({
 
       <SectionTitle aside={`${snap.archetypes.length}`}>Arquetipos del grupo</SectionTitle>
       <div className="card divide-y divide-line-soft">
-        {snap.archetypes
+        {filteredArchetypes
           .slice()
           .sort((a, b) => (archUse.get(b.id)?.played ?? 0) - (archUse.get(a.id)?.played ?? 0) || a.name.localeCompare(b.name))
           .map((a) => {

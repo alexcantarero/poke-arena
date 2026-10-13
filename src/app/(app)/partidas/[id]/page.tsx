@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
-import { outcome, toRoundView } from "@/lib/stats";
+import { archetypesOfMatch, outcome, toRoundView } from "@/lib/stats";
 import { archetypeValue } from "@/lib/types";
 import { maxRondasDe } from "@/lib/estructura";
+import { margenDe } from "@/lib/premios";
 import { RoundForm } from "@/components/TournamentRounds";
 import { fmtDateLong } from "@/lib/format";
 import { Avatar, PageHead, Sprites } from "@/components/ui";
@@ -27,10 +28,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   /** Es una ronda de torneo (rival de fuera o enlazado), no una partida interna. */
   const esRonda = Boolean(match.tournamentId && !match.playerBId);
   const tour = match.tournamentId ? snap.toursById.get(match.tournamentId) : undefined;
-  const archA = match.deckAId ? snap.archIndex.get(match.deckAId) : undefined;
-  const archB = match.deckBId
-    ? snap.archIndex.get(match.deckBId)
-    : match.opponentArchetypeId ? snap.archById.get(match.opponentArchetypeId) : undefined;
+  const { a: archA, b: archB } = archetypesOfMatch(match, snap.archIndex, snap.archById);
   const deckA = match.deckAId ? snap.decksById.get(match.deckAId) : undefined;
 
   /* La lista del rival.
@@ -46,6 +44,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     : undefined;
   const deckB = deckBExact ?? deckBGuess;
   const nameB = B?.name ?? match.opponentName ?? "el rival";
+
+  const eloHistoryA = snap.elo.history[match.playerAId]?.find((h) => h.matchId === match.id);
+  const deltaA = eloHistoryA?.delta ? Math.round(eloHistoryA.delta) : null;
+  const eloHistoryB = match.playerBId ? snap.elo.history[match.playerBId]?.find((h) => h.matchId === match.id) : null;
+  const deltaB = eloHistoryB?.delta ? Math.round(eloHistoryB.delta) : null;
 
   /* Los dos lados del enfrentamiento, con su lista y —esto es lo que faltaba—
      con el motivo cuando no la hay. Un desplegable que se abre vacío parece
@@ -88,7 +91,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     <>
       <PageHead
         title={pending ? "Anotar resultado" : "Partida"}
-        sub={`${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
+        sub={`ID: ${match.id} · ${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
         actions={match.tournamentId
           // v0.16 — si la partida es de un torneo, se vuelve al torneo.
           ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> Volver al torneo</Link>
@@ -101,8 +104,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <section className="card mb-6 p-4">
           <div className="flex items-start justify-between gap-3">
             {[
-              { p: A, arch: archA, name: A?.name, win: o.winner === "a" },
-              { p: B, arch: archB, name: B?.name ?? match.opponentName, win: o.winner === "b" },
+              { p: A, arch: archA, name: A?.name, win: o.winner === "a", delta: deltaA },
+              { p: B, arch: archB, name: B?.name ?? match.opponentName, win: o.winner === "b", delta: deltaB },
             ].map((s, i) => (
               /* `min-w-0` en la columna: sin él, el nombre del mazo con
                  `truncate` no se recortaba y empujaba el lado derecho fuera
@@ -124,6 +127,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <span className="flex max-w-full min-w-0 items-center justify-center gap-1 text-xs text-muted">
                     <Sprites archetype={s.arch} size="sm" />
                     <span className="min-w-0 truncate">{s.arch.name}</span>
+                  </span>
+                )}
+                {s.delta != null && (
+                  <span className={`mt-0.5 text-xs font-bold ${s.delta > 0 ? "text-win" : s.delta < 0 ? "text-loss" : "text-muted"}`}>
+                    {s.delta > 0 ? "+" : ""}{s.delta} Elo
                   </span>
                 )}
               </div>
@@ -149,20 +157,41 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           )}
 
           <ul className="mt-5 divide-y divide-line-soft border-t border-line-soft">
-            {match.games.map((g) => (
-              <li key={g.id} className="flex items-center gap-3 py-2.5 text-sm">
-                <span className="w-16 flex-none font-display font-bold text-muted">Juego {g.number}</span>
-                <span className={`chip flex-none ${g.winner === "tie" ? "chip-tie" : "chip-win"}`}>
-                  {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : "Empate"}
-                </span>
-                <span className="flex-1" />
-                {g.first && (
-                  <span className="text-xs text-muted">
-                    empezó {g.first === "a" ? A?.name : (B?.name ?? match.opponentName)}
+            {match.games.map((g) => {
+                const winnerArch = g.winner === "a" ? archA : g.winner === "b" ? archB : undefined;
+                /* v0.30 — el marcador de premios, si se apuntó. Nulo no es
+                   cero: cuando no hay dato, no se pinta nada. */
+                const margen = margenDe({
+                  premiosA: g.prizesA, premiosB: g.prizesB,
+                  penalizadoA: g.penaltyA, penalizadoB: g.penaltyB,
+                  winner: g.winner,
+                });
+                return (
+                <li key={g.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="w-16 flex-none font-display font-bold text-muted">Juego {g.number}</span>
+                  <span className={`chip flex-none items-center gap-1.5 ${g.winner === "tie" ? "chip-tie" : "chip-win"}`}>
+                    {winnerArch && <Sprites archetype={winnerArch} size="sm" />}
+                    {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : "Empate"}
                   </span>
-                )}
-              </li>
-            ))}
+                  {margen && (
+                    <span
+                      className="chip flex-none tabular"
+                      title={margen.conPenalizacion
+                        ? "Hubo penalización de premios: el objetivo del rival bajó a 4"
+                        : `Al perdedor le faltaban ${margen.faltaban} premios`}
+                    >
+                      {margen.marcador}
+                      {margen.conPenalizacion && <span className="text-loss"> ·P</span>}
+                    </span>
+                  )}
+                  <span className="flex-1" />
+                  {g.first && (
+                    <span className="text-xs text-muted">
+                      empezó {g.first === "a" ? A?.name : (B?.name ?? match.opponentName)}
+                    </span>
+                  )}
+                </li>
+              )})}
           </ul>
 
           {match.note && (

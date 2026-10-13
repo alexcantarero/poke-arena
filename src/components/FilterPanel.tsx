@@ -32,7 +32,7 @@ type Props = {
   /** Qué campos enseñar. No todas las pantallas quieren todos. */
   show?: Array<
     "scope" | "date" | "tournament" | "competition" | "tournamentKind"
-    | "competitionKind" | "archetype" | "player" | "format"
+    | "competitionKind" | "archetype" | "player" | "format" | "round"
   >;
   tournaments?: Option[];
   competitions?: Option[];
@@ -149,6 +149,20 @@ export function FilterPanel({
           {ver("player") && players.length > 0 && (
             <Campo label="Jugador" id="f-jugador">
               <Select id="f-jugador" name="jugador" value={filter.playerId} options={players} />
+            </Campo>
+          )}
+
+          {ver("round") && (
+            <Campo label="Jornada" id="f-jornada">
+              <input
+                id="f-jornada"
+                name="jornada"
+                type="number"
+                min="1"
+                className="input"
+                defaultValue={filter.round ?? ""}
+                placeholder="Todas"
+              />
             </Campo>
           )}
 

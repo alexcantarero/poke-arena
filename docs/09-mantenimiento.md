@@ -230,7 +230,9 @@ Los jugadores, mazos, arquetipos y competiciones se mantienen.
 
 ## Migraciones del esquema
 
-`npm run db:push` compara `src/db/schema.ts` con la base de datos y aplica las diferencias.
+`npm run db:push` compara `src/db/schema.ts` con la base indicada por `.env.local` (Neon `dev`)
+y aplica las diferencias. No lo uses contra producción: revisa el SQL de migración por separado
+y deja que una persona responsable lo aplique tras verificar el destino.
 Enseña el SQL y pide confirmación.
 
 **Es seguro para:** añadir tablas, añadir columnas nullable o con valor por defecto, añadir

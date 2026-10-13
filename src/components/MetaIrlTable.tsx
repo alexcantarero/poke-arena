@@ -24,9 +24,13 @@ import { CALENDAR_KINDS } from "@/lib/calendar";
    sin su contexto se cita luego sin él.
    ========================================================================= */
 
-export function MetaIrlTable({ meta, nuestros }: { meta: IrlSummary; nuestros: Set<string> }) {
+export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary; nuestros: Set<string>; query?: string }) {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const filas = meta.rows.slice(0, 24);
+  const needle = query.toLowerCase();
+  const filas = meta.rows.filter((r) => {
+    if (!needle) return true;
+    return r.name.toLowerCase().includes(needle) || (r.main ?? "").includes(needle) || (r.secondary ?? "").includes(needle);
+  }).slice(0, 100);
   const campeon = mejorConversion(meta.rows);
   const cobertura = meta.coverage;
 

@@ -21,7 +21,7 @@ export type SerieLadder = {
   color: string;
   /** Rango actual (null si no tiene: p. ej. tras un reset). */
   actual: number | null;
-  puntos: Array<{ t: number; elo: number | null }>;
+  puntos: Array<{ t: number; elo: number | null; matchId?: string | null; delta?: number | null }>;
 };
 
 const EJE = { fontSize: 11, fill: "var(--muted)" } as const;
@@ -114,9 +114,28 @@ export function LadderChart({
               />
               <YAxis dataKey="elo" domain={[yMin, yMax]} tick={EJE} width={48} allowDecimals={false} />
               <Tooltip
-                labelFormatter={(t) => porOrden ? `Partida ${Math.round(Number(t))} · ${etiquetaX(Number(t))}` : fecha(Number(t))}
-                formatter={(v, name) => [v as number, name as string]}
-                contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, fontSize: 12 }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const t = Number(label);
+                    const title = etiquetaX(t);
+                    return (
+                      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: 10, fontSize: 12 }}>
+                        <p style={{ margin: 0, fontWeight: "bold", marginBottom: 4 }}>{title}</p>
+                        {payload.map((p: any, i: number) => (
+                          <div key={i} style={{ color: p.color }}>
+                            {p.name}: {p.value}
+                            {p.payload.delta != null && (
+                              <span className={p.payload.delta > 0 ? "text-win" : p.payload.delta < 0 ? "text-loss" : "text-muted"}>
+                                {" "}{p.payload.delta > 0 ? `+${p.payload.delta}` : p.payload.delta}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               {resets.filter((r) => r >= tMin && r <= tMax).map((r) => (
                 <ReferenceLine key={r} x={r} stroke="var(--loss)" strokeWidth={2}
@@ -138,3 +157,4 @@ export function LadderChart({
     </div>
   );
 }
+

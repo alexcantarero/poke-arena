@@ -5,10 +5,10 @@ import type { MatrizH2H } from "@/lib/h2h";
 /* =========================================================================
    v0.15 — Mapa de calor de enfrentamientos directos.
 
-   Fila = quien mira; columna = contra quién. Cada celda dice cuántas veces os
-   habéis cruzado y el récord de la FILA contra la COLUMNA («2–1»). El color
-   es la cantidad de cruces, no quién gana: el mapa contesta «con quién me he
-   enfrentado más», y el récord va escrito dentro para quien quiera más.
+   Fila = quien mira; columna = contra quién. En el modo predeterminado cada
+   celda muestra cuántas veces os habéis cruzado y el récord V–D. El modo de
+   porcentaje colorea según el rendimiento de la fila y conserva la intensidad
+   por cantidad de cruces.
 
    Cuenta las partidas de liga y amistosos entre dos del grupo, y las rondas
    de torneo en las que el rival se eligió del grupo (v0.15). Una ronda que
@@ -22,10 +22,11 @@ import type { MatrizH2H } from "@/lib/h2h";
 export type JugadorH2H = { id: string; name: string; avatar: ReactNode };
 
 export function H2HHeatmap({
-  matriz, jugadores,
+  matriz, jugadores, colorMode = "volume",
 }: {
   matriz: MatrizH2H;
   jugadores: JugadorH2H[];
+  colorMode?: "volume" | "winRate";
 }) {
   const byId = new Map(jugadores.map((j) => [j.id, j]));
   const ids = matriz.ids.filter((id) => byId.has(id));
@@ -82,22 +83,27 @@ export function H2HHeatmap({
                     );
                   }
                   const c = matriz.celda(fila, col);
-                  const pct = intensidad(c.partidas);
-                  const titulo = `${byId.get(fila)!.name} contra ${byId.get(col)!.name}: ${c.partidas} ${c.partidas === 1 ? "vez" : "veces"} · ${c.gana}–${c.pierde}${c.empata ? `–${c.empata}` : ""}`;
+                  const intensidadCelda = intensidad(c.partidas);
+                  const decididas = c.gana + c.pierde;
+                  const winRate = decididas ? c.gana / decididas : null;
+                  const tono = winRate == null ? "var(--series-1)" : winRate >= 0.55 ? "var(--win)" : winRate <= 0.45 ? "var(--loss)" : "var(--series-1)";
+                  const titulo = `${byId.get(fila)!.name} contra ${byId.get(col)!.name}: ${c.gana} victorias, ${c.pierde} derrotas${c.empata ? ` y ${c.empata} empates` : ""} en ${c.partidas} ${c.partidas === 1 ? "partida" : "partidas"}${colorMode === "winRate" && winRate != null ? ` · ${Math.round(winRate * 100)}% de victorias` : ""}`;
                   return (
                     <td
                       key={col}
                       title={titulo}
                       className="size-13 rounded-lg border border-line-soft align-middle"
-                      style={pct ? { background: `color-mix(in oklab, var(--series-1) ${pct}%, transparent)` } : undefined}
+                      style={intensidadCelda ? {
+                        background: `color-mix(in oklab, ${colorMode === "winRate" ? tono : "var(--series-1)"} ${intensidadCelda}%, transparent)`,
+                      } : undefined}
                     >
                       {c.partidas ? (
                         <>
-                          <span className={`block font-display text-lg font-extrabold tabular leading-none ${pct > 55 ? "text-white" : ""}`}>
-                            {c.partidas}
+                          <span className={`block font-display text-lg font-extrabold tabular leading-none ${colorMode === "volume" && intensidadCelda > 55 ? "text-white" : ""}`}>
+                            {colorMode === "winRate" ? (winRate == null ? "—" : `${Math.round(winRate * 100)}%`) : c.partidas}
                           </span>
-                          <span className={`block text-[10px] font-semibold tabular ${pct > 55 ? "text-white/90" : "text-muted"}`}>
-                            {c.gana}–{c.pierde}{c.empata ? `–${c.empata}` : ""}
+                          <span className={`block text-[10px] font-semibold tabular ${colorMode === "volume" && intensidadCelda > 55 ? "text-white/90" : "text-muted"}`}>
+                            {colorMode === "winRate" ? `${c.gana}–${c.pierde} · ${c.partidas}` : `${c.gana}–${c.pierde}${c.empata ? `–${c.empata}` : ""}`}
                           </span>
                         </>
                       ) : (
@@ -113,8 +119,9 @@ export function H2HHeatmap({
         </table>
       </div>
       <p className="border-t border-line-soft px-4 py-2.5 text-[11px] text-muted">
-        {matriz.total} enfrentamiento{matriz.total === 1 ? "" : "s"}. Cada celda: veces que os
-        habéis cruzado y el récord V–D de la fila contra la columna. Más oscuro, más cruces.
+        {colorMode === "winRate"
+          ? <>Cada celda: % de victorias y récord V–D · partidas disputadas. El color indica el rendimiento; más oscuro, más cruces.</>
+          : <>{matriz.total} enfrentamiento{matriz.total === 1 ? "" : "s"}. Cada celda: veces que os habéis cruzado y el récord V–D de la fila contra la columna. Más oscuro, más cruces.</>}
       </p>
     </>
   );

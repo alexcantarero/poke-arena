@@ -10,10 +10,11 @@ import {
 import { ARCHETYPE_PREFIX } from "./types";
 import { seriesElo } from "./ladderSeries";
 import type {
-  DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
+  Archetype, DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
   TournamentResult,
 } from "./types";
 import { deckArchetypeIndex, eloTable, isPlayed, standings } from "./stats";
+import { filasAPedir, planDeConsulta, TOPE_SIN_PAGINAR, type FiltroConsultable, type PlanDeConsulta } from "./matchQuery";
 import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
 
@@ -71,6 +72,30 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
+ * La fila de ajustes, sola.
+ *
+ * v0.28. Existe para que el layout de `(app)` —que solo necesita el nombre de
+ * la liga y la temporada— no tenga que cargar el snapshot entero. Va envuelta
+ * en `cache()`, así que una pantalla que además pida el snapshot no hace dos
+ * veces esta consulta: `loadSnapshot()` la reutiliza.
+ */
+export const loadConfig = cache(async (): Promise<Settings> => {
+  const rows = await db.select().from(settings).where(eq(settings.id, "default"));
+  return rows[0] ?? DEFAULT_SETTINGS;
+});
+
+/**
+ * Solo los jugadores, por nombre. Misma proyección pública que el snapshot:
+ * ni `email` ni `passwordHash` salen de aquí.
+ */
+export const loadPlayers = cache(async (): Promise<PublicPlayer[]> =>
+  db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)));
+
+/** Solo los arquetipos, por nombre. */
+export const loadArchetypes = cache(async () =>
+  db.select().from(archetypes).orderBy(asc(archetypes.name)));
+
+/**
  * Carga toda la liga de una vez.
  *
  * Con un grupo privado son decenas de jugadores y, como mucho, unos miles de
@@ -92,12 +117,14 @@ const DEFAULT_SETTINGS: Settings = {
  */
 export const loadSnapshot = cache(async () => {
   const [
-    cfgRows, playerRows, archRows, deckRows, compRows, compPlayerRows,
+    config, playerRows, archRows, deckRows, compRows, compPlayerRows,
     matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows,
   ] = await Promise.all([
-    db.select().from(settings).where(eq(settings.id, "default")),
-    db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)),
-    db.select().from(archetypes).orderBy(asc(archetypes.name)),
+    // v0.28: la misma función que usa el layout. `cache()` la deduplica, así
+    // que pedir las dos cosas en una pantalla sigue siendo una sola consulta.
+    loadConfig(),
+    loadPlayers(),
+    loadArchetypes(),
     db.select().from(decks).orderBy(asc(decks.created)),
     db.select().from(competitions).orderBy(asc(competitions.start)),
     db.select().from(competitionPlayers),
@@ -128,8 +155,6 @@ export const loadSnapshot = cache(async () => {
 
   const matchesFull: MatchFull[] = matchRows.map((m) => ({ ...m, games: gamesByMatch.get(m.id) ?? [] }));
   const toursFull: TournamentFull[] = tourRows.map((t) => ({ ...t, results: resultsByTour.get(t.id) ?? [] }));
-
-  const config = cfgRows[0] ?? DEFAULT_SETTINGS;
 
   const playersById = new Map(playerRows.map((p) => [p.id, p]));
   const archById = new Map(archRows.map((a) => [a.id, a]));
@@ -169,8 +194,19 @@ export const loadSnapshot = cache(async () => {
   }
 
   // v0.21: el tipo de cada torneo da el peso de sus rondas en el Elo.
-  const elo = eloTable(matchesFull, playerRows, config,
-    new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }])));
+  //
+  // v0.28: PEREZOSO. `eloTable()` recorre TODAS las partidas en orden
+  // cronológico, y era con diferencia el trabajo de CPU más caro del snapshot.
+  // Solo 6 de las 23 pantallas que llaman a `loadSnapshot()` leen `.elo`
+  // (inicio, ranking, perfil, liga, ficha de liga y ficha de partida); las
+  // otras 17 lo pagaban sin usarlo. El getter lo calcula la primera vez que
+  // alguien lo pide y lo memoriza para el resto de la petición, así que desde
+  // fuera `snap.elo` se sigue leyendo igual y ninguna pantalla cambia.
+  //
+  // Cuidado: no hagas `{ ...snap }` ni serialices el snapshot entero, porque
+  // eso dispara el getter y pierdes el ahorro.
+  const tourWeights = new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }]));
+  let eloCache: ReturnType<typeof eloTable> | null = null;
 
   return {
     config,
@@ -191,7 +227,10 @@ export const loadSnapshot = cache(async () => {
     resultsByPlayer,
     favoriteDecks,
     favoritePlayers,
-    elo,
+    get elo() {
+      eloCache ??= eloTable(matchesFull, playerRows, config, tourWeights);
+      return eloCache;
+    },
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };
 });
@@ -498,3 +537,181 @@ export function posicionesDe(snap: Snapshot, playerId: string) {
     partidasTotales: played.length,
   };
 }
+
+/* =========================================================================
+   v0.29 · Fase A del plan de rendimiento: Resultados paginado en la base.
+
+   Antes, abrir Resultados cargaba el snapshot entero —todas las partidas y
+   todos los juegos— para enseñar cuarenta tarjetas. El coste de la pantalla
+   crecía con el historial, que es justo lo que hay que romper (ver
+   `docs/13-plan-rendimiento.md`).
+
+   Qué baja a SQL y qué no lo decide `src/lib/matchQuery.ts`, que es puro y
+   tiene sus pruebas. Aquí solo se traduce ese plan a Drizzle.
+
+   La regla que no hay que romper: el filtro de arquetipo se sigue aplicando
+   con `applyMatchFilter`, el mismo que usa Estadísticas. Dos definiciones de
+   «con qué se jugó» es exactamente el problema que `filters.ts` vino a
+   resolver.
+   ========================================================================= */
+
+/** Una partida con sus juegos, tal y como la espera la pantalla. */
+export type PaginaDePartidas = {
+  filas: MatchFull[];
+  /** Total que cumple el filtro. */
+  total: number;
+  /** `true` si `total` está recortado por el tope de seguridad. */
+  totalRecortado: boolean;
+  hayMas: boolean;
+};
+
+function condicionesDe(plan: PlanDeConsulta) {
+  const s = plan.sql;
+  const w = [];
+
+  /* «Jugada» es la misma definición que `isPlayed`: resultado declarado o
+     al menos un juego apuntado. El EXISTS no trae los juegos, solo mira. */
+  w.push(sql`(${matches.status} = 'done' AND (${matches.seriesResult} IS NOT NULL
+    OR EXISTS (SELECT 1 FROM ${games} g WHERE g.match_id = ${matches.id})))`);
+
+  if (s.ambito === "league") w.push(sql`${matches.competitionId} IS NOT NULL`);
+  if (s.ambito === "tournament") w.push(sql`${matches.tournamentId} IS NOT NULL`);
+  if (s.ambito === "casual") {
+    w.push(sql`${matches.competitionId} IS NULL AND ${matches.tournamentId} IS NULL`);
+  }
+  if (s.ambito === "onsite" || s.ambito === "online") {
+    // Un torneo sin `scope` guardado es presencial: mismo criterio que
+    // `applyMatchFilter`, donde el valor por defecto es `onsite`.
+    w.push(sql`${matches.tournamentId} IS NOT NULL`);
+    w.push(s.ambito === "onsite"
+      ? sql`COALESCE(${tournaments.scope}, 'onsite') = 'onsite'`
+      : sql`COALESCE(${tournaments.scope}, 'onsite') = 'online'`);
+  }
+
+  if (s.desde) w.push(gte(matches.date, s.desde));
+  if (s.hasta) w.push(sql`${matches.date} <= ${s.hasta}`);
+  if (s.torneoId) w.push(eq(matches.tournamentId, s.torneoId));
+  if (s.competicionId) w.push(eq(matches.competitionId, s.competicionId));
+  if (s.ronda) w.push(eq(matches.round, s.ronda));
+
+  // v0.15.1: también cuenta haber sido el rival de una ronda de torneo.
+  if (s.jugadorId) {
+    w.push(sql`(${matches.playerAId} = ${s.jugadorId}
+      OR ${matches.playerBId} = ${s.jugadorId}
+      OR ${matches.opponentPlayerId} = ${s.jugadorId})`);
+  }
+
+  if (s.tipoTorneo) {
+    w.push(sql`${matches.tournamentId} IS NOT NULL`);
+    w.push(eq(tournaments.kind, s.tipoTorneo));
+  }
+  if (s.formato) {
+    w.push(sql`${matches.tournamentId} IS NOT NULL`);
+    w.push(eq(tournaments.format, s.formato));
+  }
+  if (s.tipoCompeticion) {
+    w.push(sql`${matches.competitionId} IS NOT NULL`);
+    w.push(eq(competitions.kind, s.tipoCompeticion));
+  }
+
+  return and(...w);
+}
+
+/**
+ * Las partidas de una página de Resultados.
+ *
+ * El orden es el mismo que `porRecientes`: fecha, ronda, alta, id, todo
+ * descendente. Tiene que coincidir, porque si la base ordenara distinto que
+ * la memoria, pasar de página se saltaría filas o repetiría otras.
+ */
+export const loadMatchesPage = cache(async (
+  filtro: FiltroConsultable,
+  porPagina: number,
+  pagina: number,
+): Promise<PaginaDePartidas> => {
+  const plan = planDeConsulta(filtro);
+  const { limit, offset, recortaDespues } = filasAPedir(plan, porPagina, pagina);
+  const where = condicionesDe(plan);
+
+  const base = db.select({ m: matches }).from(matches);
+  const conJoins = plan.sql.uneTorneos
+    ? (plan.sql.uneCompeticiones
+      ? base.leftJoin(tournaments, eq(matches.tournamentId, tournaments.id))
+        .leftJoin(competitions, eq(matches.competitionId, competitions.id))
+      : base.leftJoin(tournaments, eq(matches.tournamentId, tournaments.id)))
+    : (plan.sql.uneCompeticiones
+      ? base.leftJoin(competitions, eq(matches.competitionId, competitions.id))
+      : base);
+
+  const filas = await conJoins
+    .where(where)
+    .orderBy(desc(matches.date), desc(matches.round), desc(matches.createdAt), desc(matches.id))
+    .limit(limit)
+    .offset(offset);
+
+  const ids = filas.map((r) => r.m.id);
+  const juegos = ids.length
+    ? await db.select().from(games).where(inArray(games.matchId, ids)).orderBy(asc(games.number))
+    : [];
+
+  const porPartida = new Map<string, Game[]>();
+  for (const g of juegos as Game[]) {
+    const lista = porPartida.get(g.matchId);
+    if (lista) lista.push(g);
+    else porPartida.set(g.matchId, [g]);
+  }
+
+  const completas: MatchFull[] = filas.map((r) => ({ ...r.m, games: porPartida.get(r.m.id) ?? [] }));
+
+  if (plan.paginable) {
+    // Se pidió una fila de más justo para esto, sin un COUNT aparte.
+    const hayMas = completas.length > porPagina;
+    return {
+      filas: hayMas ? completas.slice(0, porPagina) : completas,
+      total: offset + Math.min(completas.length, porPagina) + (hayMas ? 1 : 0),
+      totalRecortado: hayMas,
+      hayMas,
+    };
+  }
+
+  // Sin paginar en la base: quien llama termina de filtrar y de cortar.
+  return {
+    filas: completas,
+    total: completas.length,
+    totalRecortado: recortaDespues && completas.length >= TOPE_SIN_PAGINAR,
+    hayMas: false,
+  };
+});
+
+/** Cuántas partidas jugadas hay en total, sin traerlas. Para la cabecera. */
+export const contarPartidasJugadas = cache(async (): Promise<number> => {
+  const filas = await db.select({ n: sql<number>`count(*)::int` }).from(matches)
+    .where(sql`(${matches.status} = 'done' AND (${matches.seriesResult} IS NOT NULL
+      OR EXISTS (SELECT 1 FROM ${games} g WHERE g.match_id = ${matches.id})))`);
+  return filas[0]?.n ?? 0;
+});
+
+/**
+ * El índice mazo → arquetipo, sin traerse las listas de 60 cartas.
+ *
+ * `deckArchetypeIndex()` solo mira `id` y `archetypeId`, pero la tabla
+ * `decks` lleva además `list` y `list_json` con la lista entera. Pedir dos
+ * columnas en vez de la fila completa es la diferencia entre unos kilobytes
+ * y unos cuantos megas en cuanto haya mazos de verdad.
+ */
+export const loadDeckArchetypeIndex = cache(async (): Promise<Map<string, Archetype | undefined>> => {
+  const [filas, archs] = await Promise.all([
+    db.select({ id: decks.id, archetypeId: decks.archetypeId }).from(decks),
+    loadArchetypes(),
+  ]);
+  const porId = new Map(archs.map((a) => [a.id, a]));
+  return new Map(filas.map((d) => [d.id, porId.get(d.archetypeId)]));
+});
+
+/** Los torneos, sin sus resultados. Para selectores y para poner el nombre. */
+export const loadTournamentHeads = cache(async () =>
+  db.select().from(tournaments).orderBy(desc(tournaments.date)));
+
+/** Las competiciones. Para selectores y para poner el nombre. */
+export const loadCompetitionHeads = cache(async () =>
+  db.select().from(competitions).orderBy(asc(competitions.start)));

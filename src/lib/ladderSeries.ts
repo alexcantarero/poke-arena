@@ -9,7 +9,7 @@
    Sin imports: lo cargan los tests.
    ========================================================================= */
 
-export type PuntoSerie = { t: number; elo: number | null };
+export type PuntoSerie = { t: number; elo: number | null; matchId?: string; delta?: number };
 
 export function seriesLadder(
   entries: Array<{ playerId: string; elo: number; at: Date | string }>,
@@ -51,7 +51,7 @@ export function seriesLadder(
  * las fechas van en las etiquetas del eje (`fechas`). El valor inicial (sin
  * fecha) entra como punto 0 para que cada línea arranque en el Elo inicial.
  */
-export function seriesElo(history: Record<string, Array<{ date: string; value: number; i?: number }>>): {
+export function seriesElo(history: Record<string, Array<{ date: string; value: number; i?: number; matchId?: string; delta?: number }>>): {
   series: Map<string, PuntoSerie[]>; fechas: Array<[number, string]>;
 } {
   const series = new Map<string, PuntoSerie[]>();
@@ -62,7 +62,7 @@ export function seriesElo(history: Record<string, Array<{ date: string; value: n
       if (!p.date) continue;
       const x = p.i ?? 0;
       if (!puntos.length) puntos.push({ t: Math.max(0, x - 1), elo: Math.round(h[0]?.date ? p.value : h[0]!.value) });
-      puntos.push({ t: x, elo: Math.round(p.value) });
+      puntos.push({ t: x, elo: Math.round(p.value), matchId: p.matchId, delta: p.delta ? Math.round(p.delta) : undefined });
       if (!fechas.has(x)) fechas.set(x, p.date);
     }
     if (puntos.length) series.set(id, puntos);

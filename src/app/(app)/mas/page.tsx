@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { readSession } from "@/lib/auth";
-import { loadSnapshot } from "@/lib/data";
+import { currentPlayer } from "@/lib/data";
 import { moreGroups } from "@/lib/nav";
 import { Icon } from "@/components/icons";
 import { Avatar, PageHead } from "@/components/ui";
@@ -12,8 +11,9 @@ export const metadata = { title: "Más" };
 
 /** Las secciones que no caben en la barra inferior del móvil. */
 export default async function MorePage() {
-  const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
-  const me = session ? snap.playersById.get(session.playerId) : undefined;
+  // v0.28: de aquí solo salía el jugador de la sesión.
+  const [player, lang] = await Promise.all([currentPlayer(), getLang()]);
+  const me = player ?? undefined;
 
   return (
     <>

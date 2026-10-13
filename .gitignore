@@ -9,3 +9,14 @@ build
 next-env.d.ts
 drizzle/meta
 .DS_Store
+
+# Scripts de un solo uso de sesiones de agente. Nunca se commitean:
+# si necesitas uno, déjalo en /tmp o bórralo al terminar.
+fix*.py
+fix*.js
+fix*.ts
+home_fix*.py
+ur_fix*.py
+rm_id.py
+check.py
+ajustes.py

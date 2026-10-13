@@ -231,7 +231,7 @@ export function eloTable(
   torneos: Map<string, { kind: string; scope?: string | null }> = new Map(),
 ) {
   const rating: Record<string, number> = {};
-  const history: Record<string, { date: string; value: number; i?: number }[]> = {};
+  const history: Record<string, { date: string; value: number; i?: number; matchId?: string; delta?: number }[]> = {};
   const touch = (id: string) => {
     if (rating[id] == null) {
       rating[id] = cfg.eloStart;
@@ -271,15 +271,16 @@ export function eloTable(
       const delta = k * (scoreA - expectedA);
       rating[m.playerAId] += delta;
       rating[m.playerBId] -= delta;
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
-      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden });
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
+      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden, matchId: m.id, delta: -delta });
     } else {
       // Ronda de torneo: solo se mueve quien la apuntó.
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
         ? rating[m.opponentPlayerId] : cfg.eloStart;
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
-      rating[m.playerAId] += k * (scoreA - expectedA);
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden });
+      const delta = k * (scoreA - expectedA);
+      rating[m.playerAId] += delta;
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
     }
   }
   const rounded: Record<string, number> = {};
@@ -302,13 +303,13 @@ export function standings(
   cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = { ...DEFAULT_SETTINGS },
 ): StandingRow[] {
   const played = matches.filter(isPlayed).filter(isInternal).sort(byDate);
-  const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[] }>();
+  const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[]; archs: Set<string> }>();
   for (const id of playerIds) {
     table.set(id, {
       playerId: id, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0,
       points: 0, winRate: null, gameWinRate: null, diff: 0, resistance: null,
       streak: { kind: "-", n: 0 }, elo: elo[id] ?? cfg.eloStart,
-      opponents: [], seq: [],
+      opponents: [], seq: [], archs: new Set<string>(),
     });
   }
 
@@ -451,6 +452,8 @@ export type ArchRow = {
   archetype: Archetype | undefined;
   played: number; wins: number; ties: number; losses: number;
   gameWins: number; gameLosses: number;
+    firstPlayed: number; firstWins: number;
+    secondPlayed: number; secondWins: number;
   winRate: number | null;
 };
 
@@ -472,7 +475,7 @@ export function archetypeStats(
   const touch = (a: Archetype) => {
     let r = table.get(a.id);
     if (!r) {
-      r = { archetypeId: a.id, archetype: a, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null };
+      r = { archetypeId: a.id, archetype: a, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null, firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0 };
       table.set(a.id, r);
     }
     return r;
@@ -506,7 +509,7 @@ export function archetypeStats(
 
 export type Matrix = {
   ids: string[];
-  cell: (rowId: string, colId: string) => { n: number; winRate: number } | null;
+  cell: (rowId: string, colId: string) => { n: number; winRate: number; wins: number } | null;
 };
 
 export function matchupMatrix(
@@ -514,9 +517,12 @@ export function matchupMatrix(
   index: Map<string, Archetype | undefined>,
   minGames = 1,
   archById?: Map<string, Archetype>,
+  archetypeIdOf: (id: string) => string = (id) => id,
 ): Matrix {
   const m = new Map<string, Map<string, { n: number; w: number; d: number }>>();
   const add = (x: string, y: string, r: "w" | "l" | "d") => {
+    x = archetypeIdOf(x);
+    y = archetypeIdOf(y);
     if (!m.has(x)) m.set(x, new Map());
     const row = m.get(x)!;
     const c = row.get(y) ?? { n: 0, w: 0, d: 0 };
@@ -560,7 +566,7 @@ export function matchupMatrix(
     ids,
     cell: (x, y) => {
       const c = m.get(x)?.get(y);
-      return c && c.n ? { n: c.n, winRate: (c.w + c.d * 0.5) / c.n } : null;
+      return c && c.n ? { n: c.n, wins: c.w, winRate: (c.w + c.d * 0.5) / c.n } : null;
     },
   };
 }
@@ -628,7 +634,9 @@ export function activityByMonth(matches: MatchFull[]) {
 
 export type H2HRow = {
   opponentId: string; played: number; wins: number; ties: number; losses: number;
-  gameWins: number; gameLosses: number; winRate: number | null;
+  gameWins: number; gameLosses: number;
+    firstPlayed: number; firstWins: number;
+    secondPlayed: number; secondWins: number; winRate: number | null;
 };
 
 export function headToHead(matches: MatchFull[], playerId: string): H2HRow[] {
@@ -640,7 +648,7 @@ export function headToHead(matches: MatchFull[], playerId: string): H2HRow[] {
     if (!opp) continue; // rival de fuera de la liga: no hay enfrentamiento directo que llevar
     const o = outcome(m);
     const r = t.get(opp) ?? {
-      opponentId: opp, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null,
+      opponentId: opp, played: 0, wins: 0, ties: 0, losses: 0, gameWins: 0, gameLosses: 0, winRate: null, firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0,
     };
     r.played++;
     r.gameWins += side === "a" ? o.ga : o.gb;
@@ -1131,4 +1139,20 @@ export function performanceByRoundNumber(matches: MatchFull[], playerId: string)
       return { round, played, ...r, winRate: played ? (r.wins + r.ties * 0.5) / played : null };
     })
     .sort((a, b) => a.round - b.round);
+}
+
+
+/**
+ * Intervalo de Wilson para un % de victorias (95% de confianza).
+ * Devuelve [centro, lower_bound, upper_bound].
+ */
+export function wilsonScore(wins: number, played: number): [number, number, number] {
+  if (played === 0) return [0, 0, 0];
+  const p = wins / played;
+  const z = 1.96;
+  const z2 = z * z;
+  const den = 1 + z2 / played;
+  const center = (p + z2 / (2 * played)) / den;
+  const half = (z * Math.sqrt((p * (1 - p) + z2 / (4 * played)) / played)) / den;
+  return [center, Math.max(0, center - half), Math.min(1, center + half)];
 }

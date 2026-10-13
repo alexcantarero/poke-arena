@@ -15,7 +15,7 @@ import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
-import { loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadConfig } from "@/lib/data";
 import { logout } from "@/actions";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +24,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await readSession();
   if (!session) redirect("/entrar");
 
-  const [snap, lang] = await Promise.all([loadSnapshot(), getLang()]);
+  // v0.28: el layout envuelve TODAS las pantallas, así que lo que pida aquí lo
+  // paga cada visita a cualquier página. Antes pedía `loadSnapshot()` —las 13
+  // tablas, con todas las partidas y todos los juegos— para sacar dos cosas: el
+  // jugador de la sesión y el nombre de la liga. Ahora son dos consultas
+  // pequeñas. Una pantalla que de verdad necesite el snapshot lo sigue pidiendo
+  // por su cuenta, y `cache()` evita repetir la fila de ajustes.
+  const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
-  const me = snap.playersById.get(session.playerId);
-  if (!me || !me.active) redirect("/entrar");
+  if (!me) redirect("/entrar");
 
   return (
     <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
-      {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
+      {/* v0.22: partÃ­culas de temporada al fondo (detrÃ¡s de todo). */}
       <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
@@ -39,10 +44,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
-          {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
-          <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
-          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} · ${estacion.evento}` : estacion.nombre}>
-            <span aria-hidden="true">{estacion.emblema}</span> <b>estación</b>{estacion.nombre.toLowerCase()}
+          {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
+          <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
+          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} Â· ${estacion.evento}` : estacion.nombre}>
+            <span aria-hidden="true">{estacion.emblema}</span> <b>ESTACI&Oacute;N</b> {estacion.nombre.toLowerCase()}
           </p>
         </div>
 
@@ -52,31 +57,36 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link className="btn btn-brand w-full" href="/partidas/nueva">
             <Icon name="plus" className="size-4" /> {tr(lang, "shell.newMatch")}
           </Link>
-          <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 p-2">
-            <Avatar player={me} size="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
-              <span className="block text-[11px] text-muted">
-                {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
+                    <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-2">
+            <div className="flex items-center gap-2">
+              <Avatar player={me} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
+                <span className="block truncate text-[11px] text-muted">
+                  {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
+                </span>
               </span>
-            </span>
-            <LangToggle lang={lang} />
-            <ThemeToggle />
-            <form action={logout}>
-              <button className="btn btn-ghost btn-sm px-2" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
-                <Icon name="logout" className="size-4" />
-              </button>
-            </form>
+            </div>
+            <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
+              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.27.0"}</span>
+              <LangToggle lang={lang} />
+              <ThemeToggle />
+              <form action={logout}>
+                <button className="btn btn-ghost btn-sm px-2 text-muted hover:text-loss" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
+                  <Icon name="logout" className="size-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* --------------------------------- móvil -------------------------------- */}
+      {/* --------------------------------- mÃ³vil -------------------------------- */}
       <div className="min-w-0">
-        {/* `viewportFit: "cover"` en el layout raíz hace que la web pinte por
-            debajo de la muesca; sin `safe-top`, en un iPhone el título queda
-            medio tapado. `--safe-extra` es el padding que tendría de todas
-            formas, porque en un móvil sin muesca `env()` vale 0. */}
+        {/* `viewportFit: "cover"` en el layout raÃ­z hace que la web pinte por
+            debajo de la muesca; sin `safe-top`, en un iPhone el tÃ­tulo queda
+            medio tapado. `--safe-extra` es el padding que tendrÃ­a de todas
+            formas, porque en un mÃ³vil sin muesca `env()` vale 0. */}
         <header
           className="shell-dark safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line px-4 pb-2 md:hidden"
           style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
@@ -84,7 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* `min-w-0 flex-1` y no un hueco aparte: con un nombre de liga largo
               lo que se recorta es el texto, no los botones de la derecha. */}
           <div className="min-w-0 flex-1">
-            <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
+            <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
           </div>
           <span className="flex-none text-lg" aria-label={estacion.nombre} title={estacion.nombre}>{estacion.emblema}</span>
           <LangToggle lang={lang} />
@@ -95,7 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
-            móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
+            mÃ³vil de 360px son 8px mÃ¡s de tarjeta para tablas y grÃ¡ficas. */}
         <main className="mx-auto w-full max-w-5xl px-3 pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
@@ -103,19 +113,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <BottomNav meId={me.id} lang={lang} />
 
-      {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
-          Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una
-          Server Action en la URL justo antes de redirigir, así que tiene que
-          haber alguien escuchando en CUALQUIER página a la que se redirija.
+      {/* El aviso de Â«guardado correctamenteÂ» / Â«no se ha podido guardarÂ».
+          Va aquÃ­, en el layout, y no en cada pantalla: el mensaje lo deja una
+          Server Action en la URL justo antes de redirigir, asÃ­ que tiene que
+          haber alguien escuchando en CUALQUIER pÃ¡gina a la que se redirija.
 
-          Existía desde la v0.5.0 pero no estaba montado en ningún sitio, que
-          es exactamente por qué no aparecía nunca.
+          ExistÃ­a desde la v0.5.0 pero no estaba montado en ningÃºn sitio, que
+          es exactamente por quÃ© no aparecÃ­a nunca.
 
-          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin él
+          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin Ã©l
           `next build` falla al prerenderizar. */}
       <Suspense fallback={null}>
         <Snackbar />
-        {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
+        {/* v0.21: recuerda los filtros de Ranking, EstadÃ­sticas y Resultados. */}
         <FilterMemory />
       </Suspense>
     </div>

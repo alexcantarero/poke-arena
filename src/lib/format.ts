@@ -70,7 +70,9 @@ export function shortName(s: string, n = 22) {
 export function wrColor(wp: number | null | undefined) {
   if (wp == null) return "var(--muted)";
   if (wp >= 0.6) return "var(--win)";
+  if (wp >= 0.53) return "var(--series-3)";
   if (wp <= 0.4) return "var(--loss)";
+  if (wp <= 0.47) return "var(--series-2)";
   // El mismo azul que la matriz de emparejamientos usa para "equilibrado".
   return "var(--series-1)";
 }

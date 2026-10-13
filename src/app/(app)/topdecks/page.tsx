@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitless";
-import { loadMetaIrl, loadSnapshot } from "@/lib/data";
+import { loadMetaIrl, loadArchetypes } from "@/lib/data";
 import { irlMeta } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import { spriteUrl } from "@/lib/pokemon";
@@ -61,30 +61,33 @@ const VENTANAS = [
 
 export default async function TopDecksPage({
   searchParams,
-}: { searchParams: Promise<{ formato?: string; dias?: string; fuente?: string }> }) {
+}: { searchParams: Promise<{ formato?: string; dias?: string; fuente?: string; q?: string }> }) {
   const q = await searchParams;
   const formato = FORMATOS.some((f) => f.value === q.formato) ? q.formato! : "STANDARD";
   const dias = VENTANAS.some((v) => v.value === q.dias) ? Number(q.dias) : 30;
   const presencial = q.fuente === "presencial";
+  const query = (q.q ?? "").trim();
+  const needle = query.toLowerCase();
 
-  const snap = await loadSnapshot();
+  // v0.28: de todo el snapshot aquí solo se usaban los arquetipos.
+  const archetypes = await loadArchetypes();
 
   /* Cuáles de estos mazos jugáis vosotros. Se cruza por nombre normalizado
      porque los arquetipos importados de Limitless traen su id, pero los
      apuntados a mano no. Hace falta en las dos pestañas. */
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const nuestros = new Set(snap.archetypes.map((a) => norm(a.name)));
+  const nuestros = new Set(archetypes.map((a) => norm(a.name)));
 
   const pestanas = (
     <div className="scroll-x mb-4 flex gap-2" role="tablist" aria-label="Metagame">
-      <Link href="/topdecks" role="tab" aria-selected={!presencial}
+      <Link href={`/topdecks${query ? "?q=" + query : ""}`} role="tab" aria-selected={!presencial}
         className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
           ${!presencial ? "border-source-global bg-source-global-soft text-source-global"
                         : "border-line bg-surface text-muted hover:text-ink"}`}>
         <Icon name="globe" className="size-4" />
         Online
       </Link>
-      <Link href="/topdecks?fuente=presencial" role="tab" aria-selected={presencial}
+      <Link href={`/topdecks?fuente=presencial${query ? "&q=" + query : ""}`} role="tab" aria-selected={presencial}
         className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
           ${presencial ? "border-brand-line bg-brand-soft text-brand"
                        : "border-line bg-surface text-muted hover:text-ink"}`}>
@@ -125,7 +128,20 @@ export default async function TopDecksPage({
           back={{ href: "/mas", label: "Más" }}
         />
         {pestanas}
-        <MetaIrlTable meta={metaIrl} nuestros={nuestros} />
+        <form action="/topdecks" method="get" className="mb-4 flex gap-2">
+          {presencial && <input type="hidden" name="fuente" value="presencial" />}
+          {formato !== "STANDARD" && <input type="hidden" name="formato" value={formato} />}
+          {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
+          <input
+            className="input min-w-0 flex-1" type="search" name="q" defaultValue={query}
+            placeholder="Buscar arquetipo o Pokémon..." aria-label="Buscar arquetipo"
+            autoComplete="off" autoCapitalize="none" spellCheck={false}
+          />
+          <button className="btn shrink-0" type="submit" aria-label="Buscar">
+            <Icon name="search" className="size-4" />
+          </button>
+        </form>
+        <MetaIrlTable meta={metaIrl} nuestros={nuestros} query={query} />
         <MetaIrlEvents eventos={events.map((e) => ({
           id: e.id, name: e.name, date: e.date, kind: e.kind, location: e.location,
           coverage: e.coverage, playerCount: e.playerCount,
@@ -142,7 +158,7 @@ export default async function TopDecksPage({
   try {
     meta = await fetchMetaSnapshot({
       days: dias,
-      limit: dias > 30 ? 40 : 25,
+      limit: 100,
       minPlayers: 16,
       format: formato,
       apiKey: process.env.LIMITLESS_API_KEY,
@@ -152,11 +168,14 @@ export default async function TopDecksPage({
   }
 
   const href = (cambios: Record<string, string>) => {
-    const sp = new URLSearchParams({ formato, dias: String(dias), ...cambios });
+    const sp = new URLSearchParams({ formato, dias: String(dias), ...(query ? { q: query } : {}), ...cambios });
     return `/topdecks?${sp.toString()}`;
   };
 
-  const filas = (meta?.rows ?? []).slice(0, 24);
+  const filas = (meta?.rows ?? []).filter((r) => {
+    if (!needle) return true;
+    return r.name.toLowerCase().includes(needle) || (r.main ?? "").includes(needle) || (r.secondary ?? "").includes(needle);
+  }).slice(0, 100);
   const campeon = mejorTop4(filas);
 
   return (
@@ -168,6 +187,19 @@ export default async function TopDecksPage({
       />
 
       {pestanas}
+        <form action="/topdecks" method="get" className="mb-4 flex gap-2">
+          {presencial && <input type="hidden" name="fuente" value="presencial" />}
+          {formato !== "STANDARD" && <input type="hidden" name="formato" value={formato} />}
+          {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
+          <input
+            className="input min-w-0 flex-1" type="search" name="q" defaultValue={query}
+            placeholder="Buscar arquetipo o Pokémon..." aria-label="Buscar arquetipo"
+            autoComplete="off" autoCapitalize="none" spellCheck={false}
+          />
+          <button className="btn shrink-0" type="submit" aria-label="Buscar">
+            <Icon name="search" className="size-4" />
+          </button>
+        </form>
 
       {/* Precisión que hay que dar, porque cambia cómo se lee todo lo de
           abajo: la API de Limitless sirve **su plataforma de torneos
@@ -178,7 +210,7 @@ export default async function TopDecksPage({
         <b>Son torneos online.</b> La API de Limitless cubre su plataforma de torneos por
         internet, no los Regionales presenciales. Como metagame sirve —son miles de listas a la
         semana y se mueve antes que el presencial—, pero no es lo mismo.{" "}
-        <Link className="underline" href="/topdecks?fuente=presencial">El metagame presencial</Link>{" "}
+        <Link className="underline" href={`/topdecks?fuente=presencial${query ? "&q=" + query : ""}`}>El metagame presencial</Link>{" "}
         está en la otra pestaña, y entra pegando la clasificación a mano: no hay forma legítima
         de traerlo solo.
       </p>

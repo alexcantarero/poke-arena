@@ -26,7 +26,11 @@ test("creaCiclo detecta padre = hijo y cadenas que vuelven", () => {
 
 test("agrupar suma usos y recalcula el %V con los totales", () => {
   const f = (id: string, played: number, wins: number) =>
-    ({ archetypeId: id, archetype: undefined, played, wins, ties: 0, losses: played - wins, gameWins: 0, gameLosses: 0, winRate: null });
+    ({
+      archetypeId: id, archetype: undefined, played, wins, ties: 0, losses: played - wins,
+      gameWins: 0, gameLosses: 0, winRate: null,
+      firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0,
+    });
   const g = agruparFilas([f("slowking-drapion", 1, 1), f("slowking-kyurem", 3, 0)], (id) => raizDe(id, padres), () => undefined);
   assert.equal(g.length, 1);
   assert.equal(g[0].archetypeId, "slowking");

@@ -1,6 +1,6 @@
 {
   "name": "poke-arena",
-  "version": "0.25.0",
+  "version": "0.30.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "archetypes:sync": "tsx scripts/sync-archetypes.ts",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "invite": "tsx scripts/create-invite.ts",
+    "verificar:fase-a": "node --conditions=react-server --import=tsx scripts/verificar-fase-a.ts",
     "ui:add": "shadcn add"
   },
   "dependencies": {
@@ -25,7 +26,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.10.1",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",

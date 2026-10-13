@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   DESEMPATES, TOP_CUT_MAXIMO_TCG, estructuraDe, familiaDe, puntosDe, techoDe, umbralesDe,
-  veredictoDe, victoriasNecesarias, type Umbral, type Veredicto,
+  veredictoDe, victoriasNecesarias, recordLimpio, type Umbral, type Veredicto,
 } from "@/lib/estructura";
 import { Icon } from "./icons";
 
@@ -114,7 +114,7 @@ export function CaminoAlCorte({
      rondas el mínimo para pelearlo (X-2) sale igual. */
   const corteUmbral: Umbral | null = u?.corte
     ?? (corteReal > 0 && total > 2
-      ? { puntos: (total - 2) * 3, record: `${total - 2}-2` }
+      ? { puntos: (total - 2) * 3, record: recordLimpio((total - 2) * 3, total) }
       : null);
 
   if (!total) {

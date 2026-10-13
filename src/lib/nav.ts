@@ -35,6 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/torneos", label: "Torneos", icon: "trophy" },
       { href: "/competiciones", label: "Liga", icon: "league" },
       { href: "/resultados", label: "Resultados", icon: "results" },
+      { href: "/mesa", label: "Mi Mesa", icon: "plus" },
     ],
   },
   {

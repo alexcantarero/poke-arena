@@ -3,6 +3,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { clamp, pct } from "@/lib/format";
 
+export { KpiCard, type KpiColor } from "./charts/KpiCard";
+export { TrendLineChart, type TrendPoint } from "./charts/TrendLineChart";
+export { HourlyChart, type HourlyPoint } from "./charts/HourlyChart";
+export { RankingBars, type RankingItem } from "./charts/RankingBars";
+export { SegmentedFilter, type FilterScope } from "./charts/SegmentedFilter";
+
 /* =========================================================================
    Gráficos interactivos.
 
@@ -72,7 +78,7 @@ export type EloSeries = {
   id: string;
   label: string;
   color?: string | null;
-  points: Array<{ date: string; value: number }>;
+  points: Array<{ date: string; value: number; matchId?: string | null; delta?: number | null }>;
 };
 
 /**
@@ -171,11 +177,23 @@ export function EloChart({ series, start = 1000 }: { series: EloSeries[]; start?
                 }}
                 onMouseEnter={() => setTip({
                   x: clamp(geom.x(i), 6, 94), y: geom.y(p.value),
-                  body: <><b>{s.label}</b> · {p.value}{p.date ? <span className="opacity-70"> · {p.date}</span> : null}</>,
+                  body: (
+                    <>
+                      <b>{s.label}</b> · {p.value}
+                      {p.delta != null && <span className={p.delta > 0 ? "text-win" : p.delta < 0 ? "text-loss" : "text-muted"}> {p.delta > 0 ? `+${p.delta}` : p.delta}</span>}
+                      {p.date ? <span className="opacity-70"> · {p.date}</span> : null}
+                      {p.matchId && <div className="mt-0.5 opacity-60 font-mono text-[9px]">ID: {p.matchId}</div>}
+                    </>
+                  ),
                 })}
                 onFocus={() => setTip({
                   x: clamp(geom.x(i), 6, 94), y: geom.y(p.value),
-                  body: <><b>{s.label}</b> · {p.value}</>,
+                  body: (
+                    <>
+                      <b>{s.label}</b> · {p.value}
+                      {p.delta != null && <span className={p.delta > 0 ? "text-win" : p.delta < 0 ? "text-loss" : "text-muted"}> {p.delta > 0 ? `+${p.delta}` : p.delta}</span>}
+                    </>
+                  ),
                 })}
                 onMouseLeave={() => setTip(null)}
                 onBlur={() => setTip(null)}
