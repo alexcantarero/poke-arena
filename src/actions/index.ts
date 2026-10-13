@@ -2483,7 +2483,10 @@ export async function syncLimitlessIrl(fd: FormData) {
   ) => {
     // Si alguien ya lo pegÃƒÂ³ a mano con el mismo nombre y fecha, manda lo suyo.
     if (identidades.has(`${ev.name}|${ev.date}|${ev.division}`)) return false;
-    await db.insert(metaEvents).values(ev).onConflictDoNothing();
+    const insertado = await db.insert(metaEvents).values(ev)
+      .onConflictDoNothing()
+      .returning({ id: metaEvents.id });
+    if (!insertado.length) return false;
     await db.delete(metaEntries).where(eq(metaEntries.eventId, ev.id));
     const rows = filas.map((f) => {
       const a = casar(f.name, f.main, f.secondary);
