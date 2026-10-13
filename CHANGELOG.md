@@ -2,6 +2,391 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.28.0] — 2026-10-13
+
+Rendimiento del arranque de cada pantalla y limpieza del repositorio.
+**Sin migración y sin dependencias nuevas.**
+
+### Cambiado
+
+- **El layout de `(app)` ya no carga el snapshot entero.** Envuelve todas las pantallas, así que
+  sus consultas las pagaba cada visita a cualquier página; de las 13 tablas solo usaba el jugador
+  de la sesión y el nombre de la liga. Ahora pide `currentPlayer()` y `loadConfig()`.
+- **El Elo se calcula solo si alguien lo pide.** `eloTable()` recorre todo el historial de
+  partidas en orden cronológico y era el trabajo de CPU más caro del snapshot, pero solo 6 de las
+  23 pantallas leen `.elo`. Pasa a ser un getter memoizado por petición: desde fuera `snap.elo` se
+  lee exactamente igual y ninguna pantalla cambia.
+- **Cinco pantallas con consultas propias** en lugar del snapshot: Mi Mesa y Editar perfil
+  (jugadores y arquetipos), Top Decks (arquetipos), Más (jugador de la sesión) y Nuevo torneo
+  (ajustes).
+
+### Añadido
+
+- `loadConfig()`, `loadPlayers()` y `loadArchetypes()` en `src/lib/data.ts`: consultas estrechas,
+  cacheadas por petición y **reutilizadas por `loadSnapshot()`**, así que una pantalla que pida
+  las dos cosas no consulta dos veces.
+- `CLAUDE.md` en la raíz, alineado con `AGENTS.md`, para que Claude Code y Antigravity obedezcan
+  las mismas reglas.
+- `docs/13-plan-rendimiento.md`: el plan por fases para quitar `loadSnapshot()` de las pantallas
+  pesadas, con las tareas redactadas para pegárselas a un agente.
+
+### Corregido
+
+- Cuatro errores de tipos en `tests/arquetipos.test.ts`, `tests/rounds.test.ts` y
+  `tests/v0_5_0.test.ts`: fixtures a los que les faltaban `firstPlayed` / `firstWins` /
+  `secondPlayed` / `secondWins` y `opponentPlayerId`. `npx tsc --noEmit` queda limpio.
+- 21 scripts temporales (`fix_*.py`, `home_fix*.py`, `ur_fix*.py`, `ajustes.py`, `check.py`,
+  `rm_id.py`, `fix-db2.ts`) borrados de la raíz del repositorio.
+
+### Verificado
+
+- `npm test`: **353 de 353**.
+- `npx tsc --noEmit`: **sin errores**.
+- `npm run build`: pendiente, lo lanza Ibai antes del push.
+
+## [0.27.0] — 2026-10-12
+
+### Añadido
+
+- **Resumen de la liga en Inicio**: partidos jugados, arquetipos distintos, récord de series,
+  juegos ganados/perdidos y porcentaje de victoria en juegos para cada jugador.
+- **Mapa de enfrentamientos entre arquetipos** en Inicio.
+- **Arquetipos más usados** en Estadísticas con total de usos y porcentaje de series ganadas.
+  La vista agrupada también consolida las variantes en la matriz de emparejamientos.
+
+### Cambiado
+
+- La matriz de Estadísticas agrega variantes bajo sus familias cuando está activada la vista
+  agrupada; el porcentaje se calcula con los resultados sumados, no promediando porcentajes.
+
+## [0.26.0] — 2026-10-09
+
+Recuperada del historial de Git. Este trabajo se subió en commits sueltos entre la v0.25.0 y
+la v0.27.0 y nunca tuvo su propia entrada: `package.json` se quedó en 0.25.0 hasta la 0.27.0.
+
+### Añadido
+
+- **Mi Mesa** (`/mesa`): seguimiento de la partida en curso desde el móvil.
+- **Selector personal del Regional destacado**, en lugar del `featured_regional_id` global de
+  Ajustes: cada uno elige cuál quiere ver en Inicio.
+- **% de victoria según quién empieza** en las estadísticas por arquetipo.
+- **Filtros de partidas y recuento de arquetipos** en la clasificación de cada competición.
+- **Autocompletado de nombres de Pokémon** (`datalist`) en el formulario de mazo.
+
+### Seguridad
+
+- **Límite de intentos de acceso**: columnas `login_attempts` y `locked_until` en `players`;
+  la cuenta se bloquea temporalmente tras varios fallos seguidos.
+- **`session_version`** en `players`, para poder invalidar sesiones del lado del servidor.
+- **Validación con Zod** en las Server Actions, en lugar de leer el `FormData` a mano.
+- `email`, `password_hash`, `login_attempts`, `locked_until` y `session_version` quedan fuera
+  de `PublicPlayer`: no salen al navegador.
+
+### Corregido
+
+- Mojibake UTF-8 del texto de la temporada en la cabecera.
+- `AutoSubmitForm` deshabilitaba los campos al enviar y se perdían valores.
+- Faltaba importar `archetypesOfMatch` en la ficha de partida.
+- Arreglos de la gráfica del ladder, del filtro de mazos y de la alineación del filtro de jornada.
+
+## [0.25.0] — 2026-10-08
+
+**Migración:** `drizzle/0015_v0_25_0.sql`.
+
+### Añadido
+
+- **Mazo por juego** en las partidas de liga (`src/lib/juegosMazos.ts`): en cada juego se puede
+  elegir el arquetipo de cada lado. Un arquetipo con el que alguien ya ganó un juego de la serie
+  no se le vuelve a ofrecer, y el servidor lo rechaza. Perder o empatar no bloquea. La matriz de
+  emparejamientos cuenta juego a juego cuando hay mazos por juego.
+- **«Último Regional» elegible** desde Ajustes → Metagame presencial. Vacío = automático.
+
+### Cambiado
+
+- Inicio y Perfil: fuera «Registrar partida» de arriba; tarjeta de partidas propias sobre el
+  total y tarjeta dorada con el puesto en la liga y el de Elo al lado.
+- Fuera la gráfica de Elo de Liga y Perfil; se queda solo en Ranking.
+- Vuelve el logotipo anterior (se retiran `components/LogoMark.tsx` y `app/icon.svg`).
+
+### Corregido
+
+- **«Vista agrupada» no dejaba volver a «Detallada»** y «Regionales → Jugadores de la app» no
+  respondía. La memoria de filtros de la v0.21 restauraba lo guardado al llegar a una URL sin
+  parámetros; ahora solo restaura al entrar desde otra pantalla (`src/lib/filtroMemoria.ts`).
+
+### Conocido
+
+- Las demás estadísticas de arquetipo (uso, %V, conversión) siguen contando la serie con su mazo
+  principal; solo la matriz va juego a juego.
+- El mazo por juego no está en el formulario de rondas de torneo, solo en el de partidas.
+
+## [0.24.0] — 2026-10-05
+
+**Sin migración y sin dependencias nuevas.**
+
+### Cambiado
+
+- **Evolución del Elo arreglada**: el eje X pasa de fecha a número de partida. Con fechas, un
+  torneo de 8 rondas en una tarde se apilaba en una sola columna.
+- Fuera la cuadrícula de mini-gráficas de Elo por jugador en el Ranking: queda una sola gráfica
+  con todos, en Ranking, Perfil y Liga.
+- **Ajustes en acordeón**: cada grupo plegado por defecto.
+- **Mazos de liga sin bloqueo**: fuera «Entregar y bloquear» y la comprobación al registrar. En
+  la partida se elige cualquier mazo o solo el arquetipo. `league_decks` queda sin uso, sin
+  borrar datos.
+- **Conversión mes a mes** rehecha: vistas Grupo / Jugadores / Mazos, métrica Top cut / Top 8 /
+  1.º puesto, chips para quitar líneas y meses sin torneos como hueco.
+
+### Añadido
+
+- Logotipo nuevo (insignia hexagonal) en cabecera, barra lateral y pestaña del navegador.
+- Panel de la Liga ampliado: gráfica de Elo, arquetipos de la liga (cuota y %V) y rachas.
+
+## [0.23.0] — 2026-10-05
+
+**Migración:** `drizzle/0014_v0_23_0.sql`. Cambia el índice único de los mazos de liga; hay que
+lanzar el SQL aunque se use `db:push`.
+
+### Añadido
+
+- **Tres modalidades de liga** (`src/lib/modalidades.ts`), elegibles al crear o editar:
+  - **Mazo fijo**: un mazo por persona, clasificación individual.
+  - **Bo3 · hasta 3 mazos**: hasta tres mazos por persona, siempre Bo3.
+  - **Duelo por equipos**: equipos de tres, clasificación por equipos e individual.
+- **Equipos**: se forman en la ficha de la liga; nadie puede estar en dos equipos de la misma liga.
+- **Jornadas por equipos**: cruce de todos contra todos por el método del círculo, tres partidas
+  por cruce, puesto contra puesto. Duelo ganado 3, empatado 1, perdido 0; desempate por partidas
+  ganadas.
+- Al registrar una partida de liga, si la persona entregó mazos, se juega con uno de ellos. Un
+  mazo que no vale avisa en tu lado y se corrige en silencio en el del rival, para no revelar
+  sus mazos.
+
+## [0.22.0] — 2026-10-05
+
+**Sin migración y sin dependencias nuevas.**
+
+### Añadido
+
+- **Ajuste propio de animaciones** (Ajustes → Apariencia): Automático / Sí / No. La v0.21
+  respetaba «reducir movimiento» del sistema y las apagaba todas; muchos Android lo activan con
+  el ahorro de batería, así que no se veía ninguna.
+- **Temporadas del año**: franja de color animada, emblema de la estación junto a la marca y
+  partículas de fondo (hojas, nieve, pétalos, destellos). Fechas señaladas: Halloween, Navidad y
+  la semana del Mundial. Los colores de datos no cambian con la estación. `src/lib/estacion.ts`.
+- **Agrupación automática de arquetipos** por el primer Pokémon. Lo puesto a mano en Ajustes
+  sigue mandando.
+- **Evolución del Elo** como gráfica lineal con todos los jugadores y selector, en Ranking y en
+  cada perfil. La fecha de corte sale como línea roja.
+
+### Cambiado
+
+- Línea visual a lo Argo CD: barra lateral y cabecera móvil oscuras en los dos temas, «tiles»
+  con franja de estado en torneos y partidas, metadatos en pares CLAVE-valor en monoespaciada.
+
+## [0.21.0] — 2026-10-05
+
+**Migración:** `drizzle/0013_v0_21_0.sql`. **El Elo de todos cambia al desplegar**, es lo esperado.
+
+### Cambiado
+
+- **Elo multievento.** Antes solo movían el Elo las partidas entre dos del grupo, así que las
+  rondas de torneo no contaban y casi todos seguían en 1000. Ahora cuentan liga, amistosos
+  (según el ajuste) y rondas de torneo, con **peso por evento** sobre la K: Liga 1 · Challenge 1 ·
+  Cup 1,25 · Regional y Special 1,5 · Internacional 1,75 · Mundial 2 · Online y tienda 0,75 ·
+  Amistoso 0,5 (`ELO_PESOS` en `src/lib/stats.ts`). Rival de fuera = Elo inicial de referencia.
+  En las rondas solo se mueve quien la apuntó. Byes y rondas sin resultado no cuentan.
+- Estilo de tarjetas, tablas y etiquetas de estado; transiciones cortas al cambiar de pantalla,
+  todas apagables con «reducir movimiento».
+
+### Añadido
+
+- **Familias de arquetipos**: `archetypes.parent_id` con protección contra ciclos, editor en
+  Ajustes y **vista detallada / agrupada** en Estadísticas, que suma usos y entradas de la
+  familia y recalcula %V, %Cut, %T8 y %T4 con los totales (no promedia porcentajes).
+- **Interruptor «Top cut»** al crear o editar un torneo: apagado, la ficha deja de ofrecer
+  rondas de eliminatoria al acabar el suizo.
+- El organizador puede **corregir el arquetipo** de cualquiera desde «Gestionar a X».
+- **Filtros persistentes** en Ranking, Estadísticas y Resultados. La URL sigue mandando.
+
+## [0.20.0] — 2026-10-05
+
+**Sin migración y sin dependencias nuevas.** Primera ronda de rendimiento.
+
+### Cambiado
+
+- **La base se cargaba dos veces por pantalla**: el layout y la página llamaban cada uno a
+  `loadSnapshot()` y a `currentPlayer()`. Ahora van envueltas en `cache()` de React.
+- **Un viaje a la base en vez de tres en cadena** dentro de `loadSnapshot`: favoritos, juegos y
+  resultados se piden a la vez, sin el `IN (…)` con todos los ids.
+- **Tipografías con `next/font`**: antes una hoja de Google Fonts bloqueaba el primer pintado.
+- **Recharts bajo demanda**, con hueco de su tamaño mientras carga.
+- **Resultados de 40 en 40** con «Ver más»: con 180 partidas eran más de 700 sprites de golpe.
+- Fuera «Victorias por arquetipo» de Estadísticas: repetía «Rendimiento» y obligaba a cargar
+  Recharts entero en esa página.
+- Móvil: margen lateral de 12 px por debajo de 400 px, cabeceras de tarjeta que bajan los
+  controles de línea, sin recuadro gris al tocar ni retardo de doble toque.
+
+## [0.19.0] — 2026-10-05
+
+**Migración:** `drizzle/0012_v0_19_0.sql`. **Variable de entorno nueva:** `CRON_SECRET` en Vercel.
+**Cron nuevo** en `vercel.json`.
+
+### Añadido
+
+- **Limpieza automática**: cron diario a las 4:00 UTC (`/api/cron/limpieza`) que borra torneos
+  creados hace más de 3 días sin ninguna participación. Un torneo con fecha futura no se borra
+  hasta 3 días después de esa fecha. Botón «Limpiar ahora» en Ajustes.
+- **Estadísticas de liga** (`LigaStats`) en la lista y en la ficha de cada competición.
+- **Gráfica del ladder** con un punto por inserción, filtro por jugador y **resets en rojo**
+  (tabla `season_resets`).
+- **Filtros del Ranking en desplegables** que se aplican al cambiar. Las URLs antiguas siguen
+  funcionando.
+
+### Cambiado
+
+- **Amistosos unificados**: «Amistoso» = partida sin competición. La migración pasa las partidas
+  de las competiciones de ese tipo a amistoso y borra esas competiciones. *Aviso: con el Elo en
+  «liga y torneos», esas partidas contaban por estar en una competición; el Elo puede moverse.*
+- La cabecera enseña solo la temporada debajo de la marca (`src/lib/marca.ts`).
+
+## [0.18.0] — 2026-10-05
+
+**Migración:** `drizzle/0011_v0_18_0.sql`. Obligatoria aunque se use `db:push`: cambia los CHECK
+del ladder.
+
+### Añadido
+
+- **Mazo de liga**: cada participante elige su mazo y queda bloqueado; solo un organizador lo
+  desbloquea. Tabla aparte (`league_decks`) **fuera del snapshot**: el organizador los ve todos,
+  cada jugador solo el suyo, el resto solo «X de N lo han entregado».
+- **Escala nueva del ladder** (`src/lib/rank.ts`): 1–550 Novato, salto a 1500 (Liga Arceus),
+  1350–1449 Hierro, y de ahí a Challenger en 2100. Editor con campo numérico y atajos por tier,
+  sin deslizador (con el hueco del salto mentía).
+- **Reset global de temporada** en Ajustes, escribiendo «nueva temporada». Opcional: reiniciar
+  también el Elo y borrar los puestos de España/Europa. El historial no se borra.
+- **Emblemas de Challenge, Cup y Online** propios, a juego con el logo del Regional.
+
+### Corregido
+
+- Desbordamiento de las tarjetas de Liga en móvil (faltaban `grid-cols-1` y `min-w-0`).
+- Sprites rotos en «Dónde os separáis del mundo»: pedía el sprite con el nombre del arquetipo.
+- Traducción automática del navegador bloqueada (`translate="no"`): el único cambio de idioma
+  es el botón ES/EN.
+
+## [0.17.0] — 2026-10-02
+
+**Migración:** `drizzle/0010_v0_17_0.sql`. **Paso manual:** editar `public/manifest.webmanifest`
+con `"name": "PokeArena TCG"` y `"short_name": "PokeArena"`.
+
+### Añadido
+
+- **Idioma ES / EN**: botón en la cabecera, cookie `arena-lang`, traducido desde el servidor.
+  Cubre menú, cabecera, «Más» y lo nuevo de esta versión; el resto, por fases (`src/lib/i18n.ts`).
+- **Favoritos**: estrella en cada perfil y filtro «Todos / ★ Favoritos» en el Ranking. Nadie ve
+  a quién sigue nadie.
+- **Camino al Mundial** (Ranking) y **Top España / Europa** (perfil), con el puesto del
+  leaderboard oficial apuntado a mano: no hay API y pokemon.com prohíbe extraerlo.
+- **Plazas del Mundial 2027** en `cp.ts`: Masters 140 Europa · 140 EE. UU./Canadá · 125
+  Latinoamérica · 20 Oceanía · 10 Oriente Medio y Sudáfrica. Fuente:
+  championships.pokemon.com/en-us/about/2027-season-changes, consultada el 02/10/2026.
+- **Añadir participante** a un torneo (organizadores), también con el torneo cerrado.
+- Logotipo oficial de Regional Championships en la lista y en la ficha.
+
+### Cambiado
+
+- La marca pasa a ser **«PokeArena TCG»**; el nombre de la liga va debajo, pequeño.
+- Perfiles clicables en toda la app.
+- Calendario: con «Calendario» solo la rejilla, con «Agenda» solo la agenda.
+- Puestos centrados en «Resultados del grupo», en columna de ancho fijo.
+
+### Conocido
+
+- Un test que diera por nulas las plazas de 2027 falla a propósito: ahora tienen cifras reales.
+
+## [0.16.0] — 2026-10-02
+
+**Sin migración y sin dependencias nuevas.**
+
+### Añadido
+
+- **Panel «Gestionar a X»** para organizadores en cada bloque de jugador: apuntar su siguiente
+  ronda, editar su resultado y editar o eliminar sus rondas, también con el torneo cerrado.
+- **Medallas por puesto**: podio de oro, plata, bronce y acero en Challenge y Cup; escala de diez
+  rangos (Challenger, GrandMaster, Master, Diamante, Esmeralda, Platino, Oro, Plata, Bronce,
+  Hierro) en Regional, Special, Internacional y Mundial. Son degradados CSS, no emblemas
+  copiados.
+- Filtros de persona, tipo, estado y fechas en la lista de Torneos, por URL.
+- Botón «Eliminar» en cada ronda, con confirmación.
+
+### Cambiado
+
+- **«Competiciones» pasa a llamarse «Liga»**; la URL sigue siendo `/competiciones`.
+- Menú en cuatro grupos: Principal · Competir · Análisis · Cuenta.
+- La lista de torneos va en Hoy / Próximos / Pasados, según la fecha y no el estado.
+
+### Corregido
+
+- **«Borrar este resultado» estaba roto**: solo borraba la fila del resultado y dejaba las rondas
+  y el mazo colgando. Ahora es «Borrar mi/su participación (resultado y rondas)», con confirmación.
+
+## [0.15.1] — 2026-09-30
+
+**Migración opcional:** `drizzle/0009_v0_15_1_reparar_rondas.sql`, que devuelve al torneo las
+rondas que se convirtieron en partida interna al editarlas.
+
+### Corregido
+
+- **Al editar, una ronda de torneo salía como amistoso suelto**: «Editar» abría el formulario de
+  partida genérica y la ronda pasaba a ser partida interna. Ahora se edita con el formulario de
+  ronda y sigue en el torneo.
+- **«Te falta 1 ronda» y «tienes las 4» a la vez**: la siguiente ronda era «la última + 1». Ahora
+  es el primer hueco.
+- Historial del perfil ordenado por fecha y ronda descendentes.
+- El mazo del jugador 2 se salía de la pantalla (faltaba `min-w-0`).
+- Un rival del grupo enlazado (`opponentPlayerId`) salía como desconocido en Resultados, Perfil
+  y ficha de partida.
+
+### Cambiado
+
+- **Filtros del Ranking**: una sola pregunta, «¿Qué partidas cuentan?», con Todo / Liga /
+  Torneos / Sueltos, y una frase debajo que dice qué entra. Vista «Todo» en una sola tabla.
+- **Drop desde la ronda**, con confirmación y «Deshacer».
+- Medallas de CP: oro, plata, bronce y escala de grises por tramo.
+
+## [0.15.0] — 2026-09-29
+
+**Migración:** `drizzle/0008_v0_15_0.sql`. Añade `matches.opponent_player_id` y rellena las
+rondas antiguas cuyo rival se escribió con el nombre exacto de alguien del grupo (`db:push` crea
+la columna pero **no** hace ese relleno).
+
+### Añadido
+
+- **Ranking de torneos** con ámbito nuevo «Torneos»: torneos jugados, V–D–E y %V de las rondas,
+  conversión al corte (solo sobre torneos con corte), puesto medio, mejor puesto y CP de la
+  temporada con su Best Finish Limit. Ordenable.
+- **Mapa de calor de enfrentamientos** al final del Ranking. Si los dos apuntáis la misma ronda,
+  cuenta una vez.
+- **Elegir rival del grupo** con chips en el formulario de ronda: la ronda queda enlazada a su
+  perfil sin convertirse en partida interna (no mueve Elo).
+- **21 torneos de la zona** (octubre y noviembre) importables como borrador, sin duplicar.
+- Etiqueta **DROP** en la cabecera del bloque, y el servidor rechaza rondas nuevas tras el drop.
+
+### Corregido
+
+- **El mensaje del primer turno medía «gana quien empieza», no «ganas tú cuando empiezas»**
+  (`src/lib/primerTurno.ts`).
+- **Un resultado de 0 CP ocupaba un hueco del Best Finish Limit.** Ahora no lo ocupa, y el texto
+  explica el tramo.
+- **El ranking daba 0 con «Presenciales» u «Online»**: `standings()` solo cuenta partidas entre
+  dos del grupo.
+- Borde cortado en móvil en el desglose de CP (columna implícita `auto` con `truncate`).
+
+### Conocido
+
+- Dos cambios de comportamiento de `cp.ts` pueden romper tests antiguos, y en los dos el
+  comportamiento nuevo es el correcto: un cero ya no cuenta en `counting`, y `explainCp` /
+  `effectiveCp` devuelven `no-cp` para un tipo sin tabla aunque `cpManual` sea true.
+
 ## [0.14.0] — 2026-09-28
 
 Regionales y City Leagues sin pegar nada, Estadísticas por fuente y la ficha del torneo por

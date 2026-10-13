@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  archetypesOfMatch, metaShare, outcome, performanceByRoundNumber, roundResult, roundStage,
+  archetypesOfMatch, matchupMatrix, metaShare, outcome, performanceByRoundNumber, roundResult, roundStage,
   suggestedRounds, suggestedTopCut,
 } from "../src/lib/stats.ts";
 import type { Archetype, MatchFull } from "../src/lib/types.ts";
@@ -24,6 +24,7 @@ const match = (over: Partial<MatchFull> = {}): MatchFull => ({
   date: "2026-09-01",
   playerAId: "p1",
   playerBId: null,
+  opponentPlayerId: null,
   opponentName: "Rival",
   deckAId: null,
   archetypeAId: A.id,
@@ -58,6 +59,35 @@ test("roundStage: top 32 tiene cinco rondas de cuadro", () => {
   assert.deepEqual(roundStage(6, 5, 32), { kind: "cut", label: "Dieciseisavos" });
   assert.deepEqual(roundStage(7, 5, 32), { kind: "cut", label: "Octavos" });
   assert.deepEqual(roundStage(10, 5, 32), { kind: "cut", label: "Final" });
+});
+
+test("matchupMatrix: agrupar combina variantes y recalcula el porcentaje de victorias", () => {
+  const varianteA = arch("dragapult-dudunsparce");
+  const varianteB = arch("dragapult-blaziken");
+  const index = new Map<string, Archetype | undefined>();
+  const byId = new Map([
+    [varianteA.id, varianteA],
+    [varianteB.id, varianteB],
+    [B.id, B],
+  ]);
+  const parent = new Map([
+    [varianteA.id, "dragapult"],
+    [varianteB.id, "dragapult"],
+    [B.id, B.id],
+  ]);
+  const matrix = matchupMatrix(
+    [
+      match({ archetypeAId: varianteA.id, opponentArchetypeId: B.id, seriesResult: "a" }),
+      match({ archetypeAId: varianteB.id, opponentArchetypeId: B.id, seriesResult: "b" }),
+    ],
+    index,
+    1,
+    byId,
+    (id) => parent.get(id) ?? id,
+  );
+
+  assert.deepEqual(matrix.cell("dragapult", B.id), { n: 2, wins: 1, winRate: 0.5 });
+  assert.ok(matrix.ids.includes("dragapult"));
 });
 
 test("roundStage: sin rondas de suizo declaradas, todo es suizo", () => {

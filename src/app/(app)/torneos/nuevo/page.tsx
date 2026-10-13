@@ -1,4 +1,4 @@
-import { loadSnapshot } from "@/lib/data";
+import { loadConfig } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { TournamentForm } from "@/components/TournamentForm";
 
@@ -13,7 +13,8 @@ export const metadata = { title: "Nuevo torneo" };
  * está partido donde de verdad está partido en la realidad.
  */
 export default async function NewTournamentPage() {
-  const snap = await loadSnapshot();
+  // v0.28: solo hace falta la temporada de CP de los ajustes.
+  const cfg = await loadConfig();
 
   return (
     <>
@@ -22,7 +23,7 @@ export default async function NewTournamentPage() {
         sub="Primero la cabecera: qué evento es, cuándo y de qué tamaño. Las rondas y el puesto se rellenan después, desde la ficha."
         back={{ href: "/torneos", label: "Torneos" }}
       />
-      <TournamentForm season={snap.config.cpSeason} back="/torneos" />
+      <TournamentForm season={cfg.cpSeason} back="/torneos" />
     </>
   );
 }

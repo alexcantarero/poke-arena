@@ -25,7 +25,6 @@ import {
   MatchList,
   PageHead,
   PlayerTag,
-  Record,
   SectionTitle,
 } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
@@ -70,6 +69,21 @@ export default async function CompetitionPage({
 
   const pending = inComp.filter((m) => m.status === "scheduled");
   const table = standings(played, ids, snap.elo.rating, snap.config);
+  const isLeague = comp.kind === "league";
+  const archetypesByPlayer = new Map<string, Set<string>>();
+  for (const match of played) {
+    const { a, b } = archetypesOfMatch(match, snap.archIndex, snap.archById);
+    if (a) {
+      const used = archetypesByPlayer.get(match.playerAId) ?? new Set<string>();
+      used.add(a.id);
+      archetypesByPlayer.set(match.playerAId, used);
+    }
+    if (b && match.playerBId) {
+      const used = archetypesByPlayer.get(match.playerBId) ?? new Set<string>();
+      used.add(b.id);
+      archetypesByPlayer.set(match.playerBId, used);
+    }
+  }
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
   const previewLiga = pairRound(comp.kind, ids, played, snap.elo.rating, snap.config);
   const kind =
@@ -117,44 +131,115 @@ export default async function CompetitionPage({
         players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
       />
 
-      <section className="card mb-4">
-        <div className="card-head">
-          <h2 className="text-lg font-bold">Clasificación</h2>
-          <span className="text-xs text-muted">{played.length} partidas</span>
+      <section className="card mb-4 overflow-hidden">
+        <div className="card-head items-center">
+          <div>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Clasificación</h2>
+            <p className="mt-0.5 text-xs text-muted">Puntos, resultados, juegos y rendimiento en la competición.</p>
+          </div>
+          <span className="flex-none rounded-full bg-surface-2 px-2.5 py-1 font-mono text-[11px] font-semibold tabular text-ink-2">
+            {ids.length} jugadores · {played.length} partidas
+          </span>
         </div>
         {table.some((r) => r.played) ? (
+          <>
+          <div aria-hidden="true" className="hidden grid-cols-[2.5rem_minmax(10rem,1fr)_3.5rem_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] items-center gap-2 border-y border-line-soft bg-surface-2/70 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-muted lg:grid">
+            <span className="text-center">#</span><span>Jugador</span><span className="text-right">Pts</span>
+            <span className="text-right">{isLeague ? "V–D" : "V–D–E"}</span><span className="text-right">PJ</span><span className="text-right">%V</span>
+            <span className="text-right">Res.</span><span className="text-right">Juegos</span><span className="text-right">%J</span>
+            <span className="text-right" title="Arquetipos distintos jugados">Arq.</span>
+          </div>
           <ol className="divide-y divide-line-soft">
-            {table.map((r, i) => (
-              <li
-                key={r.playerId}
-                className="flex items-center gap-3 px-4 py-2.5"
-              >
-                <span
-                  className={`w-6 flex-none text-center font-display text-lg font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}
+            {table.map((r, i) => {
+              const isTop1 = i === 0;
+              const isTop2 = i === 1;
+              const isTop3 = i === 2;
+              const playerWinRate = isLeague
+                ? (r.wins + r.losses ? r.wins / (r.wins + r.losses) : null)
+                : r.winRate;
+              const archetypeCount = archetypesByPlayer.get(r.playerId)?.size ?? 0;
+              const rowBg = isTop1
+                ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_60%,transparent),transparent_85%)] border-l-[3px] border-l-brand"
+                : isTop2
+                ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--surface-3)_70%,transparent),transparent_85%)] border-l-[3px] border-l-line"
+                : isTop3
+                ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--tier-bronce)_25%,transparent),transparent_85%)] border-l-[3px] border-l-tier-bronce"
+                : "border-l-[3px] border-l-transparent hover:bg-surface-2/60";
+
+              return (
+                <li
+                  key={r.playerId}
+                  className={`grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 transition-[background-color,box-shadow] duration-200 hover:shadow-sm sm:px-4 lg:grid-cols-[2.5rem_minmax(10rem,1fr)_3.5rem_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] lg:gap-2 ${rowBg}`}
                 >
-                  {i + 1}
-                </span>
-                <PlayerTag
-                  player={snap.playersById.get(r.playerId)}
-                  size="sm"
-                  className="min-w-0 flex-1"
-                />
-                <Record w={r.wins} d={r.ties} l={r.losses} />
-                <span className="hidden w-14 text-right font-mono text-xs tabular text-muted sm:block">
-                  {pct(r.resistance, 0)}
-                </span>
-                <span
-                  className="w-11 text-right font-mono text-sm font-semibold tabular"
-                  style={{ color: wrColor(r.winRate) }}
-                >
-                  {pct(r.winRate, 0)}
-                </span>
-                <span className="w-8 text-right font-mono text-sm font-bold tabular">
-                  {r.points}
-                </span>
-              </li>
-            ))}
+                  {isTop1 ? (
+                    <span className="flex size-6 items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs md:mx-auto">
+                      1
+                    </span>
+                  ) : isTop2 ? (
+                    <span className="flex size-6 items-center justify-center rounded-full bg-surface-3 font-display text-xs font-black text-ink-2 ring-1 ring-line shadow-xs md:mx-auto">
+                      2
+                    </span>
+                  ) : isTop3 ? (
+                    <span className="flex size-6 items-center justify-center rounded-full bg-tier-bronce/20 font-display text-xs font-black text-tier-bronce ring-1 ring-tier-bronce/40 shadow-xs md:mx-auto">
+                      3
+                    </span>
+                  ) : (
+                    <span className="flex size-6 items-center justify-center font-display text-xs font-bold tabular text-muted md:mx-auto">
+                      {i + 1}
+                    </span>
+                  )}
+                  <PlayerTag
+                    player={snap.playersById.get(r.playerId)}
+                    size="sm"
+                    className="min-w-0 flex-1 font-semibold text-ink"
+                  />
+                  <span className="rounded-full bg-surface-2/90 px-2 py-1 text-right font-mono text-xs font-bold tabular text-ink-2 md:rounded-md">
+                    {r.points} <span className="text-[10px] text-muted font-normal">pts</span>
+                  </span>
+                  <span className="hidden text-right font-mono text-xs font-semibold tabular lg:block">
+                    <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>
+                    {!isLeague && r.ties > 0 && <>–<span className="text-tie">{r.ties}</span></>}
+                  </span>
+                  <span
+                    className="hidden text-right font-mono text-xs tabular text-ink-2 lg:block"
+                    title={`${r.played} partidas jugadas`}
+                  >
+                    {r.played}
+                  </span>
+                  <span
+                    className="hidden text-right font-mono text-xs font-bold tabular lg:block"
+                    style={{ color: wrColor(playerWinRate) }}
+                  >
+                    {pct(playerWinRate, 0)}
+                  </span>
+                  <span className="hidden text-right font-mono text-xs tabular text-muted lg:block" title="Porcentaje de victorias de sus rivales">
+                    {pct(r.resistance, 0)}
+                  </span>
+                  <span className="hidden text-right font-mono text-xs tabular lg:block" title="Juegos ganados–perdidos">
+                    <span className="text-win">{r.gameWins}</span>–<span className="text-loss">{r.gameLosses}</span>
+                  </span>
+                  <span className="hidden text-right font-mono text-xs font-semibold tabular lg:block" style={{ color: wrColor(r.gameWinRate) }}>
+                    {pct(r.gameWinRate, 0)}
+                  </span>
+                  <span className="hidden text-right font-mono text-xs tabular text-ink-2 lg:block" title={`${archetypeCount} arquetipos distintos`}>
+                    {archetypeCount}
+                  </span>
+                  <span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[10px] tabular text-muted lg:hidden">
+                    <span>
+                      <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>
+                      {!isLeague && r.ties > 0 && <span className="text-tie">–{r.ties}</span>} {isLeague ? "V–D" : "V–D–E"}
+                    </span>
+                    <span>{r.played} PJ</span>
+                    <span style={{ color: wrColor(playerWinRate) }}>{pct(playerWinRate, 0)} %V</span>
+                    <span><span className="text-win">{r.gameWins}</span>–<span className="text-loss">{r.gameLosses}</span> juegos</span>
+                    <span style={{ color: wrColor(r.gameWinRate) }}>{pct(r.gameWinRate, 0)} %J</span>
+                  </span>
+                  <span className="hidden text-right font-mono text-xs tabular text-muted md:block" title={`${archetypeCount} arquetipos distintos`}>{archetypeCount}</span>
+                </li>
+              );
+            })}
           </ol>
+          </>
         ) : (
           <Empty title="Sin partidas todavía" />
         )}
@@ -169,8 +254,13 @@ export default async function CompetitionPage({
       </div>
 
       {/* v0.19 — gráficos y cifras de esta competición. */}
-      <LigaStats matches={inComp} playersById={snap.playersById} titulo="Estadísticas de esta liga"
-        archIndex={snap.archIndex} archById={snap.archById} />
+      <LigaStats
+        matches={played}
+        playersById={snap.playersById}
+        titulo="Estadísticas de esta liga"
+        archIndex={snap.archIndex}
+        archById={snap.archById}
+      />
 
       {/* v0.24: fuera la entrega y el bloqueo de mazos de liga. Los mazos se
           apuntan en cada partida, y vale cualquier mazo o arquetipo. */}

@@ -150,7 +150,7 @@ export function CompetitionForm({
           {competition ? "Guardar cambios" : "Crear competición"}
         </button>
         {competition && canDelete && (
-          <button className="btn btn-danger" type="submit" formAction={deleteCompetition} name="id" value={competition.id}>
+          <button className="btn btn-danger" type="submit" formAction={deleteCompetition}>
             Borrar
           </button>
         )}

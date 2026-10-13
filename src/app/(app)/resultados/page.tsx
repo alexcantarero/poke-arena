@@ -57,13 +57,6 @@ export default async function ResultsPage({
     return `/resultados?${sp.toString()}`;
   })();
 
-  // Las pendientes respetan el filtro de competición y de torneo, que es lo
-  // único que tiene sentido en algo que aún no se ha jugado.
-  const pending = snap.matches.filter((m) =>
-    m.status === "scheduled"
-    && (!filter.competitionId || m.competitionId === filter.competitionId)
-    && (!filter.tournamentId || m.tournamentId === filter.tournamentId));
-
   const season = snap.config.cpSeason;
   const table = getSeason(season);
   const kindLabel = (k: string) => table.events[k]?.label ?? k;
@@ -100,7 +93,7 @@ export default async function ResultsPage({
       <FilterPanel
         action="/resultados"
         filter={filter}
-        show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format"]}
+        show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format", "round"]}
         tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
         competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
         tournamentKinds={[...new Set(snap.tournaments.map((t) => t.kind))]
@@ -111,28 +104,6 @@ export default async function ResultsPage({
         players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
         formats={Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => ({ value: v, label: l }))}
       />
-
-      {pending.length > 0 && (
-        <section className="card mb-4">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Pendientes</h2>
-            <span className="text-xs text-muted">{pending.length}</span>
-          </div>
-          <ul className="divide-y divide-line-soft">
-            {pending.map((m) => (
-              <li key={m.id}>
-                <Link href={`/partidas/${m.id}`} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">
-                    {snap.playersById.get(m.playerAId)?.name} <span className="text-muted">vs</span>{" "}
-                    {m.playerBId ? snap.playersById.get(m.playerBId)?.name : m.opponentName}
-                  </span>
-                  <span className="btn btn-brand btn-sm flex-none">Anotar</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <div className="card">
         {rows.length ? (

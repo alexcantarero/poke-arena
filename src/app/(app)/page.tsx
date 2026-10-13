@@ -4,10 +4,12 @@ import { posicionesDe } from "@/lib/data";
 import Link from "next/link";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
-import { archetypeStats, isInternal, isPlayed, standings } from "@/lib/stats";
+import {
+  archetypeStats, isInternal, isPlayed, standings,
+} from "@/lib/stats";
 import { pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
 import {
-  Avatar, Empty, Kpi, PageHead, PlayerTag,
+  Empty, Kpi, PageHead, PlayerTag,
   Record, Sprites, StreakChip,
 } from "@/components/ui";
 import { cookies } from "next/headers";
@@ -58,7 +60,6 @@ export default async function HomePage({
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
   const played = snap.matches.filter(isPlayed);
-  const pending = snap.matches.filter((m) => m.status === "scheduled");
 
   const mainComp =
     snap.competitions.find((c) => c.status === "live" && c.kind === "league") ??
@@ -172,6 +173,7 @@ export default async function HomePage({
     panel = {
       vista, hrefs,
       evento: ev ? {
+        id: ev.id,
         name: ev.name, date: fechaCorta(ev.date), location: ev.location || null,
         playerCount: ev.playerCount,
         muestra: ev.coverage ? `top ${ev.coverage} importado (${p.campo.decks} listas)` : `${p.campo.decks} listas importadas`,
@@ -191,6 +193,9 @@ export default async function HomePage({
         aside: e.playerCount ? `${e.playerCount.toLocaleString("es")} jugadores` : undefined,
         href: "/topdecks?fuente=presencial",
       })),
+      regionales: irl.events
+        .filter((e) => KINDS_REGIONAL.has(e.kind))
+        .map((e) => ({ id: e.id, name: e.name, date: e.date })),
       vacio: (
         <>
           Todavía no hay ningún Regional importado. Se importa en{" "}
@@ -270,15 +275,15 @@ export default async function HomePage({
             tu puesto en la liga con tu puesto de Elo a la derecha. Sin sesión
             (o si no juegas la liga), se queda como antes: total y líder. */}
         {posiciones ? (
-          <Kpi icon="results" label={tr(lang, "home.yourMatches")}
+          <Kpi icon="results" tone="local" label={tr(lang, "home.yourMatches")}
             value={<>{misPartidas}<span className="text-base font-semibold text-muted"> / {played.length}</span></>}
             note={tr(lang, "home.ofLeague")} />
         ) : (
-          <Kpi icon="results" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
+          <Kpi icon="results" tone="local" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
         )}
         {posiciones?.liga ? (
           <Kpi
-            highlight
+            tone="brand"
             icon="trophy"
             label={mainComp ? shortName(mainComp.name, 16) : tr(lang, "home.league")}
             value={<>
@@ -293,7 +298,7 @@ export default async function HomePage({
           />
         ) : (
           <Kpi
-            highlight
+            tone="brand"
             icon="trophy"
             label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
             value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
@@ -306,9 +311,10 @@ export default async function HomePage({
               tone={mine.winRate != null && mine.winRate >= 0.5 ? "win" : "neutral"}
               label="Tú" value={pct(mine.winRate, 0)} note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`}
             />
-          : <Kpi icon="deck" label="Arquetipos" value={archs.length} note="vistos en la liga" />}
+          : <Kpi icon="deck" tone="global" label="Arquetipos" value={archs.length} note="vistos en la liga" />}
         <Kpi
           icon="star"
+          tone="diff"
           label="Tus CP"
           value={myCp ? myCp.total : "—"}
           note={myCp ? `temporada ${myCp.season}${myCp.confirmed ? "" : " · provisional"}` : "sin torneos"}
@@ -320,68 +326,67 @@ export default async function HomePage({
       {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
       <UltimoRegional {...panel} />
 
-      {pending.length > 0 && (
-        <section className="card mb-4">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Partidas pendientes</h2>
-            <span className="text-xs text-muted">{pending.length}</span>
-          </div>
-          <ul className="divide-y divide-line-soft">
-            {pending.slice(0, 5).map((m) => {
-              const A = snap.playersById.get(m.playerAId);
-              const B = m.playerBId ? snap.playersById.get(m.playerBId) : undefined;
-              return (
-                <li key={m.id}>
-                  {/* v0.17: los dos lados llevan a su perfil; «Anotar», a la partida. */}
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <Link href={A ? `/perfil/${A.id}` : `/partidas/${m.id}`} className="flex min-w-0 flex-1 items-center gap-2 hover:text-info">
-                      <Avatar player={A} size="sm" />
-                      <span className="truncate text-sm font-medium">{A?.name}</span>
-                    </Link>
-                    <span className="flex-none font-display text-xs font-bold text-muted">VS</span>
-                    {B ? (
-                      <Link href={`/perfil/${B.id}`} className="flex min-w-0 flex-1 items-center justify-end gap-2 hover:text-info">
-                        <span className="truncate text-right text-sm font-medium">{B.name}</span>
-                        <Avatar player={B} size="sm" />
-                      </Link>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                        <span className="truncate text-right text-sm font-medium">{m.opponentName}</span>
-                        <Avatar player={B} size="sm" />
-                      </div>
-                    )}
-                    <Link href={`/partidas/${m.id}`} className="btn btn-brand btn-sm flex-none">Anotar</Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Clasificación</h2>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Clasificación</h2>
             <Link className="btn btn-ghost btn-sm" href="/ranking">Ver toda</Link>
           </div>
           {table.some((r) => r.played) ? (
             <ol className="divide-y divide-line-soft">
-              {table.slice(0, 6).map((r, i) => (
-                <li key={r.playerId} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className={`w-5 flex-none text-center font-display text-lg font-extrabold tabular
-                    ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</span>
-                  <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1" />
-                  {/* El récord se esconde en pantallas estrechas: con el
-                      nombre, el %V y la racha no cabe, y es lo que menos se
-                      mira de los cuatro. Está entero en Ranking. */}
-                  <span className="hidden xs:inline"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
-                  <span className="w-11 flex-none text-right font-mono text-sm font-semibold tabular" style={{ color: wrColor(r.winRate) }}>
-                    {pct(r.winRate, 0)}
-                  </span>
-                  <StreakChip kind={r.streak.kind} n={r.streak.n} />
-                </li>
-              ))}
+              {table.slice(0, 6).map((r, i) => {
+                const isTop1 = i === 0;
+                const isTop2 = i === 1;
+                const isTop3 = i === 2;
+                const winRate = mainComp?.kind === "league"
+                  ? (r.wins + r.losses ? r.wins / (r.wins + r.losses) : null)
+                  : r.winRate;
+                const rowBg = isTop1
+                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_60%,transparent),transparent_85%)] border-l-[3px] border-l-brand"
+                  : isTop2
+                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--surface-3)_70%,transparent),transparent_85%)] border-l-[3px] border-l-line"
+                  : isTop3
+                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--tier-bronce)_25%,transparent),transparent_85%)] border-l-[3px] border-l-tier-bronce"
+                  : "border-l-[3px] border-l-transparent hover:bg-surface-2/60";
+
+                return (
+                  <li key={r.playerId} className={`flex items-center gap-3 px-3.5 py-2.5 transition-colors ${rowBg}`}>
+                    {isTop1 ? (
+                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs">
+                        1
+                      </span>
+                    ) : isTop2 ? (
+                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-surface-3 font-display text-xs font-black text-ink-2 ring-1 ring-line shadow-xs">
+                        2
+                      </span>
+                    ) : isTop3 ? (
+                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-tier-bronce/20 font-display text-xs font-black text-tier-bronce ring-1 ring-tier-bronce/40 shadow-xs">
+                        3
+                      </span>
+                    ) : (
+                      <span className="flex size-6 flex-none items-center justify-center font-display text-xs font-bold tabular text-muted">
+                        {i + 1}
+                      </span>
+                    )}
+                    <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
+                    <span className="font-mono text-xs font-bold tabular text-ink-2 bg-surface-2/80 px-1.5 py-0.5 rounded">
+                      {r.points} <span className="text-[10px] text-muted font-normal">pts</span>
+                    </span>
+                    {/* El récord se esconde en pantallas estrechas: con el
+                        nombre, el %V y la racha no cabe, y es lo que menos se
+                        mira de los cuatro. Está entero en Ranking. */}
+                    <span className="hidden xs:inline">
+                      {mainComp?.kind === "league"
+                        ? <span className="font-mono text-xs font-bold tabular"><span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span></span>
+                        : <Record w={r.wins} d={r.ties} l={r.losses} />}
+                    </span>
+                    <span className="w-11 flex-none text-right font-mono text-xs font-bold tabular" style={{ color: wrColor(winRate) }}>
+                      {pct(winRate, 0)}
+                    </span>
+                    <StreakChip kind={r.streak.kind} n={r.streak.n} />
+                  </li>
+                );
+              })}
             </ol>
           ) : <Empty title="Sin partidas todavía">Registra la primera y esto se llena solo.</Empty>}
         </section>
@@ -421,7 +426,6 @@ export default async function HomePage({
           )}
         </section>
       </div>
-
 
       {(eloSeries.length > 0 || metaRows.length > 0 || cpBars.length > 0) && (
         <HomeCharts

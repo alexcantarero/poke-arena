@@ -3,6 +3,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { clamp, pct } from "@/lib/format";
 
+export { KpiCard, type KpiColor } from "./charts/KpiCard";
+export { TrendLineChart, type TrendPoint } from "./charts/TrendLineChart";
+export { HourlyChart, type HourlyPoint } from "./charts/HourlyChart";
+export { RankingBars, type RankingItem } from "./charts/RankingBars";
+export { SegmentedFilter, type FilterScope } from "./charts/SegmentedFilter";
+
 /* =========================================================================
    Gráficos interactivos.
 

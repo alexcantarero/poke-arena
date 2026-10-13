@@ -97,7 +97,11 @@ export function Matrix({
                       title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
                     >
                       <div
-                        className="grid h-8 place-items-center font-mono text-[11px] tabular"
+                        tabIndex={0}
+                        role="img"
+                        aria-label={`${rowArch?.name ?? rowId} contra ${byId.get(colId)?.name ?? colId}: ${Math.round(displayRate * 100)}% de victorias en ${v.n} partidas`}
+                        title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
+                        className="relative grid h-8 place-items-center font-mono text-[11px] tabular transition-transform duration-150 hover:z-10 hover:scale-105 hover:shadow-md focus-visible:z-10 focus-visible:scale-105 focus-visible:outline-2 focus-visible:outline-info motion-reduce:transition-none"
                         style={{ background: `color-mix(in srgb, ${base} ${(alpha * 100).toFixed(0)}%, transparent)` }}
                       >
                         {Math.round(displayRate * 100)}

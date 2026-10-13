@@ -71,6 +71,30 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
+ * La fila de ajustes, sola.
+ *
+ * v0.28. Existe para que el layout de `(app)` —que solo necesita el nombre de
+ * la liga y la temporada— no tenga que cargar el snapshot entero. Va envuelta
+ * en `cache()`, así que una pantalla que además pida el snapshot no hace dos
+ * veces esta consulta: `loadSnapshot()` la reutiliza.
+ */
+export const loadConfig = cache(async (): Promise<Settings> => {
+  const rows = await db.select().from(settings).where(eq(settings.id, "default"));
+  return rows[0] ?? DEFAULT_SETTINGS;
+});
+
+/**
+ * Solo los jugadores, por nombre. Misma proyección pública que el snapshot:
+ * ni `email` ni `passwordHash` salen de aquí.
+ */
+export const loadPlayers = cache(async (): Promise<PublicPlayer[]> =>
+  db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)));
+
+/** Solo los arquetipos, por nombre. */
+export const loadArchetypes = cache(async () =>
+  db.select().from(archetypes).orderBy(asc(archetypes.name)));
+
+/**
  * Carga toda la liga de una vez.
  *
  * Con un grupo privado son decenas de jugadores y, como mucho, unos miles de
@@ -92,12 +116,14 @@ const DEFAULT_SETTINGS: Settings = {
  */
 export const loadSnapshot = cache(async () => {
   const [
-    cfgRows, playerRows, archRows, deckRows, compRows, compPlayerRows,
+    config, playerRows, archRows, deckRows, compRows, compPlayerRows,
     matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows,
   ] = await Promise.all([
-    db.select().from(settings).where(eq(settings.id, "default")),
-    db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)),
-    db.select().from(archetypes).orderBy(asc(archetypes.name)),
+    // v0.28: la misma función que usa el layout. `cache()` la deduplica, así
+    // que pedir las dos cosas en una pantalla sigue siendo una sola consulta.
+    loadConfig(),
+    loadPlayers(),
+    loadArchetypes(),
     db.select().from(decks).orderBy(asc(decks.created)),
     db.select().from(competitions).orderBy(asc(competitions.start)),
     db.select().from(competitionPlayers),
@@ -128,8 +154,6 @@ export const loadSnapshot = cache(async () => {
 
   const matchesFull: MatchFull[] = matchRows.map((m) => ({ ...m, games: gamesByMatch.get(m.id) ?? [] }));
   const toursFull: TournamentFull[] = tourRows.map((t) => ({ ...t, results: resultsByTour.get(t.id) ?? [] }));
-
-  const config = cfgRows[0] ?? DEFAULT_SETTINGS;
 
   const playersById = new Map(playerRows.map((p) => [p.id, p]));
   const archById = new Map(archRows.map((a) => [a.id, a]));
@@ -169,8 +193,19 @@ export const loadSnapshot = cache(async () => {
   }
 
   // v0.21: el tipo de cada torneo da el peso de sus rondas en el Elo.
-  const elo = eloTable(matchesFull, playerRows, config,
-    new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }])));
+  //
+  // v0.28: PEREZOSO. `eloTable()` recorre TODAS las partidas en orden
+  // cronológico, y era con diferencia el trabajo de CPU más caro del snapshot.
+  // Solo 6 de las 23 pantallas que llaman a `loadSnapshot()` leen `.elo`
+  // (inicio, ranking, perfil, liga, ficha de liga y ficha de partida); las
+  // otras 17 lo pagaban sin usarlo. El getter lo calcula la primera vez que
+  // alguien lo pide y lo memoriza para el resto de la petición, así que desde
+  // fuera `snap.elo` se sigue leyendo igual y ninguna pantalla cambia.
+  //
+  // Cuidado: no hagas `{ ...snap }` ni serialices el snapshot entero, porque
+  // eso dispara el getter y pierdes el ahorro.
+  const tourWeights = new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }]));
+  let eloCache: ReturnType<typeof eloTable> | null = null;
 
   return {
     config,
@@ -191,7 +226,10 @@ export const loadSnapshot = cache(async () => {
     resultsByPlayer,
     favoriteDecks,
     favoritePlayers,
-    elo,
+    get elo() {
+      eloCache ??= eloTable(matchesFull, playerRows, config, tourWeights);
+      return eloCache;
+    },
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };
 });

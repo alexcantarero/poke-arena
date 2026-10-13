@@ -35,9 +35,9 @@ Cuatro cosas, ninguna de pago:
 | **El proyecto** | La carpeta `poke-arena` con todo el código. | Tu ordenador |
 | **Neon** | La base de datos donde viven jugadores, mazos y partidas. | En la nube, gratis |
 
-La base de datos **no se instala**: es un servicio en la nube. Eso significa que si instalas
-Arena en dos ordenadores y los apuntas a la misma base de datos, los dos ven exactamente los
-mismos datos. Es justo lo que quieres si lo lleváis dos personas.
+La base de datos **no se instala**: es un servicio en la nube. Si dos ordenadores apuntan a la
+misma rama `dev`, comparten esos datos de desarrollo. La aplicación publicada usa la rama
+`production`, que debe mantenerse separada.
 
 ---
 
@@ -177,18 +177,26 @@ Debe listar `next@15.x.x`.
 
 ---
 
-## 6. Crear la base de datos en Neon
+## 6. Crear las ramas de desarrollo y producción en Neon
 
 Solo hace falta **la primera vez**. Si estás instalando en un segundo ordenador, salta al
-paso 7 y reutiliza la misma cadena de conexión.
+paso 7 y usa la cadena de conexión de la rama `dev`.
 
 1. Entra en <https://neon.com> y crea una cuenta gratuita (con GitHub es más rápido).
 2. **Create project**:
    - Nombre: `arena`
    - Postgres version: la que venga por defecto
    - Región: **Europe (Frankfurt)** o la que te pille más cerca
-3. Al terminar te enseña la **connection string**. Elige la variante **Pooled connection**:
-   es la que lleva `-pooler` en el nombre del host y termina en `?sslmode=require`.
+3. Conserva la rama que utilizará la aplicación publicada como producción. Si ya existe una
+   base de producción, no la reemplaces ni la uses para desarrollo.
+4. Crea una rama Neon llamada `dev` para el trabajo local y las previews. En adelante, copia
+   para tu ordenador solo la URL de esta rama.
+5. En **Connection Details**, elige la **Pooled connection** de la rama `dev`: lleva `-pooler`
+   en el host y termina en `?sslmode=require`.
+
+> Una rama Neon nueva hereda una instantánea de su rama padre. Si `dev` se crea desde
+> producción, puede contener datos reales: límpialos o anonimízalos antes de compartir esa rama
+> o habilitar previews.
 
 Tiene esta pinta:
 
@@ -209,7 +217,8 @@ Cópiala entera. Si la pierdes: panel de Neon → tu proyecto → **Connection D
 ## 7. Configurar las variables de entorno
 
 Las claves que necesita la aplicación van en un fichero llamado `.env.local`, que **no se
-sube a Git** por seguridad.
+sube a Git** por seguridad. En este ordenador, `DATABASE_URL` debe apuntar exclusivamente a
+Neon `dev`; la URL de producción se configura solo en el entorno Production de Vercel.
 
 ```bash
 cp .env.example .env.local
@@ -224,12 +233,13 @@ Copy-Item .env.example .env.local
 Ábrelo con cualquier editor de texto y rellena:
 
 ```bash
-DATABASE_URL="postgresql://…lo que copiaste de Neon…"
+DATABASE_URL="postgresql://…URL pooled de la rama dev…"
 SESSION_SECRET="una cadena larga y aleatoria"
 APP_URL="http://localhost:3000"
 ```
 
-- **`DATABASE_URL`** — la cadena de conexión del paso anterior, entre comillas.
+- **`DATABASE_URL`** — la cadena pooled de Neon `dev`, entre comillas. No pongas aquí la URL
+  de producción.
 - **`SESSION_SECRET`** — el secreto con el que se firman las cookies de sesión. Genera uno:
 
   ```bash
@@ -267,8 +277,9 @@ dir .env.local         # Windows
 npm run db:push
 ```
 
-Esto lee `src/db/schema.ts` y crea en Neon las doce tablas que necesita la aplicación. Te
-mostrará las sentencias SQL y pedirá confirmación.
+Esto lee `src/db/schema.ts` y crea en Neon `dev` las tablas que necesita la aplicación. Te
+mostrará las sentencias SQL y pedirá confirmación. Comprueba el destino antes de aceptar; nunca
+ejecutes este comando contra producción.
 
 ### Comprobación
 
@@ -424,17 +435,16 @@ Es más corto, porque la base de datos ya existe:
 1. Instala **Node.js** y **Git** (pasos 2 y 3).
 2. `git clone` del repositorio (paso 4).
 3. `npm install` (paso 5).
-4. `cp .env.example .env.local` y pega **las mismas variables** que en el primer ordenador. La
-   `DATABASE_URL` tiene que ser idéntica: es lo que hace que los dos veáis los mismos datos.
-   `SESSION_SECRET` también, si queréis que una sesión valga en los dos.
+4. `cp .env.example .env.local` y configura la URL de la rama Neon `dev`, no la de producción.
+   Podéis compartir la URL `dev` por un canal privado si queréis trabajar con los mismos datos
+   de desarrollo. Usad un `SESSION_SECRET` local.
 5. **No ejecutes `db:push` ni `db:seed`**: las tablas ya están creadas y los datos ya existen.
    `db:seed` **borra todo** antes de sembrar.
 6. `npm run dev`, y entra con tu correo y tu contraseña de siempre. No hace falta invitación
    nueva: la cuenta está en la base de datos, no en el ordenador.
 
-Para pasarle las variables a la otra persona, mándaselas por un canal privado (no por el
-repositorio, no por un grupo de WhatsApp compartido con más gente). La `DATABASE_URL` da acceso
-completo a la base de datos.
+No compartas secretos de producción. La `DATABASE_URL` da acceso a la base de datos; comparte
+la URL `dev` solo por un canal privado y únicamente con quienes necesiten ese acceso.
 
 ---
 

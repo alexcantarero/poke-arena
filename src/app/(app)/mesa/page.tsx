@@ -1,9 +1,10 @@
 import { TableTracker } from "./TableTracker";
-import { loadSnapshot, currentPlayer } from "@/lib/data";
+import { loadPlayers, currentPlayer } from "@/lib/data";
 
 export const metadata = { title: "Mi Mesa" };
 
 export default async function MesaPage() {
-  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
-  return <TableTracker players={snap.players} meId={me?.id} />;
+  // v0.28: esta pantalla solo necesita la lista de jugadores.
+  const [players, me] = await Promise.all([loadPlayers(), currentPlayer()]);
+  return <TableTracker players={players} meId={me?.id} />;
 }

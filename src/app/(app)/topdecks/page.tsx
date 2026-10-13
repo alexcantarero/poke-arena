@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitless";
-import { loadMetaIrl, loadSnapshot } from "@/lib/data";
+import { loadMetaIrl, loadArchetypes } from "@/lib/data";
 import { irlMeta } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import { spriteUrl } from "@/lib/pokemon";
@@ -69,13 +69,14 @@ export default async function TopDecksPage({
   const query = (q.q ?? "").trim();
   const needle = query.toLowerCase();
 
-  const snap = await loadSnapshot();
+  // v0.28: de todo el snapshot aquí solo se usaban los arquetipos.
+  const archetypes = await loadArchetypes();
 
   /* Cuáles de estos mazos jugáis vosotros. Se cruza por nombre normalizado
      porque los arquetipos importados de Limitless traen su id, pero los
      apuntados a mano no. Hace falta en las dos pestañas. */
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const nuestros = new Set(snap.archetypes.map((a) => norm(a.name)));
+  const nuestros = new Set(archetypes.map((a) => norm(a.name)));
 
   const pestanas = (
     <div className="scroll-x mb-4 flex gap-2" role="tablist" aria-label="Metagame">

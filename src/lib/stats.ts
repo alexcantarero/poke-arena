@@ -517,9 +517,12 @@ export function matchupMatrix(
   index: Map<string, Archetype | undefined>,
   minGames = 1,
   archById?: Map<string, Archetype>,
+  archetypeIdOf: (id: string) => string = (id) => id,
 ): Matrix {
   const m = new Map<string, Map<string, { n: number; w: number; d: number }>>();
   const add = (x: string, y: string, r: "w" | "l" | "d") => {
+    x = archetypeIdOf(x);
+    y = archetypeIdOf(y);
     if (!m.has(x)) m.set(x, new Map());
     const row = m.get(x)!;
     const c = row.get(y) ?? { n: 0, w: 0, d: 0 };

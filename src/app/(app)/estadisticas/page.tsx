@@ -17,6 +17,8 @@ import { Avatar, Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { FilterPanel } from "@/components/FilterPanel";
 import { SourceTabs, type Fuente } from "@/components/statistics/SourceTabs";
+import { KpiCard, TrendLineChart, HourlyChart } from "@/components/charts";
+import { prepareDailyTrend, prepareHourlyDistribution } from "@/lib/chartData";
 import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
@@ -177,7 +179,14 @@ export default async function StatsPage({
   const fts = firstTurnSeriesStats(rows);
   const shapes = seriesShapes(rows);
   const months = activityByMonth(rows);
-  const matrix = matchupMatrix(rows, snap.archIndex, 1, snap.archById);
+  const matrix = matchupMatrix(rows, snap.archIndex, 1, snap.archById, agrupar ? agr.raiz : undefined);
+  const matrixArchById = new Map(snap.archById);
+  if (agrupar) {
+    for (const id of matrix.ids) {
+      const archetype = agr.arquetipo(id);
+      if (archetype) matrixArchById.set(id, archetype);
+    }
+  }
   const totalGames = rows.reduce((a, m) => a + m.games.length, 0);
   const external = rows.filter((m) => !isInternal(m)).length;
   const bo: Record<number, number> = { 1: 0, 3: 0, 5: 0 };
@@ -440,13 +449,42 @@ export default async function StatsPage({
       {conLocal && (
       <>
       {fuente !== "live" && (
-        <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Kpi tone="local" icon="database" label="Partidas" value={rows.length} note={`${totalGames} juegos`} />
-          <Kpi tone="local" icon="deck" label="Arquetipos" value={archs.length} note={`${external} contra gente de fuera`} />
-          <Kpi label="Gana quien empieza" icon="star" value={pct(ft.winRate, 1)} note={`${ft.n} juegos anotados`} highlight={(ft.winRate ?? 0) > 0.55} />
-          <Kpi label="Formato" icon="results" value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
-            note={`Bo1 ${bo[1] ?? 0} · Bo3 ${bo[3] ?? 0} · Bo5 ${bo[5] ?? 0}`} />
-        </div>
+        <>
+          <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            <KpiCard label="Partidas" value={rows.length} sub={`${totalGames} juegos disputados`} color="blue" />
+            <KpiCard label="Arquetipos" value={archs.length} sub={`${external} contra rivales externos`} color="purple" />
+            <KpiCard
+              label="Primer turno"
+              value={pct(ft.winRate, 1)}
+              sub={`${ft.n} juegos (gana quien empieza)`}
+              color={(ft.winRate ?? 0) > 0.55 ? "green" : "blue"}
+            />
+            <KpiCard
+              label="Formato rey"
+              value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
+              sub={`Bo1: ${bo[1] ?? 0} · Bo3: ${bo[3] ?? 0} · Bo5: ${bo[5] ?? 0}`}
+              color="yellow"
+            />
+          </div>
+
+          {rows.length > 0 && (
+            <div className="my-4 grid gap-4 lg:grid-cols-2">
+              <TrendLineChart
+                data={prepareDailyTrend(rows, 30)}
+                title="Actividad diaria (30 días)"
+                subtitle="Partidas por día y media móvil de 7 días"
+                valueLabel="Partidas"
+              />
+              <HourlyChart
+                data={prepareHourlyDistribution(rows)}
+                title="Distribución horaria"
+                subtitle="Partidas por hora (Europe/Madrid) según registro"
+                seriesALabel="Liga"
+                seriesBLabel="Torneos"
+              />
+            </div>
+          )}
+        </>
       )}
 
       {hayFamilias && (
@@ -465,7 +503,10 @@ export default async function StatsPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Uso del metagame</h2>
+            <div>
+              <h2 className="text-lg font-bold">Arquetipos más usados</h2>
+              <p className="text-xs text-muted">Usos · % de victorias registradas</p>
+            </div>
             <SortToggle dir={orden} href={ordenHref} />
           </div>
           <div className="p-4">
@@ -473,7 +514,7 @@ export default async function StatsPage({
               <Bars rows={sortRows(archs, (a) => a.played, orden).slice(0, 10).map((a) => ({
                 label: <span className="inline-flex min-w-0 items-center gap-1.5"><Sprites archetype={a.archetype} size="sm" /><span className="truncate text-[13px]">{a.archetype?.name}</span></span>,
                 value: a.played,
-                right: `${a.played}`,
+                right: `${a.played} · ${pct(a.winRate, 0)}`,
               }))} />
             ) : <p className="text-sm text-muted">Sin mazos asignados todavía.</p>}
           </div>
@@ -571,7 +612,7 @@ export default async function StatsPage({
             <span className="text-xs text-muted">fila contra columna</span>
           </div>
           <div className="p-4">
-            <Matrix data={matrix} byId={snap.archById} />
+            <Matrix data={matrix} byId={matrixArchById} />
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />favorable (≥55%)</span>
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
@@ -642,7 +683,5 @@ export default async function StatsPage({
     </>
   );
 }
-
-
 
 

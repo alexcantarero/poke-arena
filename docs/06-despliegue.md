@@ -101,12 +101,14 @@ Los repositorios privados de GitHub admiten colaboradores ilimitados gratis.
 
    | Nombre | Valor |
    |---|---|
-   | `DATABASE_URL` | La cadena de Neon (la **pooled**, la que lleva `-pooler` en el host) |
-   | `SESSION_SECRET` | El mismo secreto que en local, o uno nuevo |
+   | `DATABASE_URL` | La cadena pooled de Neon `production` (alcance **Production** únicamente) |
+   | `SESSION_SECRET` | Un secreto propio de producción, distinto al de desarrollo |
    | `APP_URL` | La URL pública, sin barra final: `https://arena-xxxx.vercel.app` |
    | `LIMITLESS_API_KEY` | Opcional. Solo si el endpoint de arquetipos llegara a pedir clave |
 
-   Márcalas para los tres entornos: *Production*, *Preview* y *Development*.
+   Configura `DATABASE_URL` por separado: URL de la rama `production` para **Production** y URL
+   de la rama `dev` para **Preview** y, si se usa, **Development**. No asignes la URL de producción
+   a Preview/Development. Mantén también separados los secretos de cada entorno.
 5. **Deploy**. En dos o tres minutos tienes `https://arena-xxxx.vercel.app`.
 
 > `APP_URL` es un poco huevo y gallina: no conoces la URL hasta que despliegas. Despliega sin
@@ -121,16 +123,13 @@ Los repositorios privados de GitHub admiten colaboradores ilimitados gratis.
 ### La primera cuenta en producción
 
 Si has desplegado sobre una base de datos vacía, la pantalla de acceso lo dice: *"Aún no hay
-nadie"*. Necesitas una invitación, y la primera se crea desde tu ordenador, apuntando a la misma
-base de datos:
-
-```bash
-npm run invite
-```
-
-Con `APP_URL` puesta a la URL de Vercel en tu `.env.local`, el enlace que imprime ya sirve tal
-cual. Ábrelo, date de alta y te quedas como organizador. A partir de ahí las invitaciones se
-crean desde *Ajustes*, sin terminal.
+nadie"*. Necesitas una invitación. La creación de la primera cuenta es una operación administrativa
+de producción: hazla personalmente con un procedimiento aprobado y acceso temporal y controlado.
+No cambies el `.env.local` de desarrollo para que apunte a producción ni entregues esa URL a un agente.
+`npm run invite` usa la `DATABASE_URL` local y, por tanto, crea una invitación en `dev`, no en
+`production`. No lo uses para aprovisionar la primera cuenta de producción; este repositorio aún
+no ofrece un flujo local separado y protegido para esa operación. Resuelve el aprovisionamiento
+con un procedimiento administrativo aprobado antes de desplegar una base vacía.
 
 ### A partir de aquí
 
@@ -145,7 +144,7 @@ temporal con esos cambios, útil para enseñarse algo antes de darlo por bueno.
 | Pieza | Cómo se comparte |
 |---|---|
 | **Código** | Los dos sois colaboradores del repositorio. Los dos hacéis push, los dos disparan despliegue. |
-| **Base de datos** | Una sola, en Neon, compartida. Neon permite invitar miembros a la organización, pero para el día a día basta con que los dos tengáis la `DATABASE_URL`. |
+| **Base de datos** | Neon `dev` se usa en local y previews; Neon `production` solo en Vercel Production. Comparte la URL `dev` por un canal privado solo con quienes la necesiten. |
 | **Panel de Vercel** | El plan Hobby es de una persona: no admite miembros de equipo. La cuenta la abre uno. |
 
 **Esto último no os limita en la práctica.** Todo lo que se hace a diario —cambiar código,
@@ -164,6 +163,8 @@ Para cambios pequeños, directo a `main`:
 git pull
 # … cambios …
 npm run dev          # comprueba que funciona
+npm test
+npm run build
 git add .
 git commit -m "Añade el campo de premios restantes"
 git push
@@ -178,6 +179,10 @@ git push -u origin top-cut
 ```
 
 Vercel te da una URL de preview. Cuando esté bien, pull request y merge a `main`.
+
+Las previews deben usar la rama Neon `dev`; el despliegue de Production debe usar `production`.
+No automatices `db:push`, `db:seed` ni migraciones contra producción. Para cambios de esquema,
+revisa el SQL y deja que una persona responsable apruebe y ejecute el procedimiento de producción.
 
 **Regla de oro entre dos personas:** `git pull` **antes** de empezar a tocar nada. La mayoría de
 conflictos vienen de empezar sobre una versión vieja.

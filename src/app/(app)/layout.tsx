@@ -15,7 +15,7 @@ import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
-import { loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadConfig } from "@/lib/data";
 import { logout } from "@/actions";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await readSession();
   if (!session) redirect("/entrar");
 
-  const [snap, lang] = await Promise.all([loadSnapshot(), getLang()]);
+  // v0.28: el layout envuelve TODAS las pantallas, así que lo que pida aquí lo
+  // paga cada visita a cualquier página. Antes pedía `loadSnapshot()` —las 13
+  // tablas, con todas las partidas y todos los juegos— para sacar dos cosas: el
+  // jugador de la sesión y el nombre de la liga. Ahora son dos consultas
+  // pequeñas. Una pantalla que de verdad necesite el snapshot lo sigue pidiendo
+  // por su cuenta, y `cache()` evita repetir la fila de ajustes.
+  const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
-  const me = snap.playersById.get(session.playerId);
-  if (!me || !me.active) redirect("/entrar");
+  if (!me) redirect("/entrar");
 
   return (
     <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -40,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
           {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
-          <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
+          <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
           <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} Â· ${estacion.evento}` : estacion.nombre}>
             <span aria-hidden="true">{estacion.emblema}</span> <b>ESTACI&Oacute;N</b> {estacion.nombre.toLowerCase()}
           </p>
@@ -63,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             </div>
             <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
-              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.25.0"}</span>
+              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.27.0"}</span>
               <LangToggle lang={lang} />
               <ThemeToggle />
               <form action={logout}>
@@ -89,7 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* `min-w-0 flex-1` y no un hueco aparte: con un nombre de liga largo
               lo que se recorta es el texto, no los botones de la derecha. */}
           <div className="min-w-0 flex-1">
-            <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(snap.config.name, snap.config.season)} compact />
+            <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
           </div>
           <span className="flex-none text-lg" aria-label={estacion.nombre} title={estacion.nombre}>{estacion.emblema}</span>
           <LangToggle lang={lang} />
@@ -126,4 +131,3 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-

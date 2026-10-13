@@ -5,7 +5,7 @@ import {
   arquetiposEnCorte, insigniasDe, type CampoMeta, type FilaMeta, type Insignia,
 } from "@/lib/metaBadges";
 import { OtherMark } from "./ui";
-import { setPersonalRegional } from "@/actions";
+import { RegionalPicker } from "./RegionalPicker";
 
 /* =========================================================================
    «El último Regional» en el inicio — el panel a lo Ciphermaniac.
@@ -110,16 +110,7 @@ export function UltimoRegional(p: Props) {
             <div className="border-b border-line-soft p-4 sm:p-5">
               <h3 className="font-display text-2xl font-extrabold leading-tight">
                 {p.vista === "global" && p.regionales ? (
-                  <form action={setPersonalRegional} className="inline-block relative">
-                    <select name="regionalId" className="appearance-none bg-transparent hover:bg-surface-2 cursor-pointer outline-none rounded pr-6 truncate max-w-full" defaultValue={p.evento?.id ?? ""} onChange={(e) => e.target.form?.requestSubmit()}>
-                      {p.regionales.map(r => (
-                        <option key={r.id} value={r.id} className="text-base font-sans">{r.name}</option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center px-1">
-                      <svg className="size-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </form>
+                  <RegionalPicker regionales={p.regionales} currentId={p.evento?.id} />
                 ) : p.evento.href ? (
                   <Link href={p.evento.href} className="hover:text-info">{p.evento.name}</Link>
                 ) : (
@@ -173,18 +164,47 @@ export function UltimoRegional(p: Props) {
             {p.corte.length > 0 && (
               <div className="border-t border-line-soft p-4 sm:p-5">
                 <p className="label mb-2">{p.corteTitulo} · {p.corte.length}</p>
-                <ol className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {p.corte.map((c) => (
-                    <li key={`${c.placement}-${c.titulo}`} className="flex min-w-0 items-center gap-2.5 py-1">
-                      <span className="w-8 flex-none font-display font-extrabold tabular text-muted">#{c.placement}</span>
-                      <Duo main={c.main} secondary={c.secondary} size="sm" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{c.titulo}</span>
-                        {c.sub && <span className="block truncate text-[11px] text-brand">{c.sub}</span>}
-                      </span>
-                      {c.extra}
-                    </li>
-                  ))}
+                <ol className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {p.corte.map((c) => {
+                    const is1st = c.placement === 1;
+                    const is2nd = c.placement === 2;
+                    const isTop4 = c.placement === 3 || c.placement === 4;
+                    const itemBg = is1st
+                      ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_60%,transparent),transparent_85%)] ring-1 ring-brand/35 border-l-[3px] border-l-brand"
+                      : is2nd
+                      ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--surface-3)_70%,transparent),transparent_85%)] ring-1 ring-line border-l-[3px] border-l-line"
+                      : isTop4
+                      ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--tier-bronce)_25%,transparent),transparent_85%)] ring-1 ring-tier-bronce/30 border-l-[3px] border-l-tier-bronce"
+                      : "border-l-[3px] border-l-transparent hover:bg-surface-2/60";
+
+                    return (
+                      <li key={`${c.placement}-${c.titulo}`} className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${itemBg}`}>
+                        {is1st ? (
+                          <span className="flex size-6 flex-none items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs">
+                            #1
+                          </span>
+                        ) : is2nd ? (
+                          <span className="flex size-6 flex-none items-center justify-center rounded-full bg-surface-3 font-display text-xs font-black text-ink-2 ring-1 ring-line shadow-xs">
+                            #2
+                          </span>
+                        ) : isTop4 ? (
+                          <span className="flex size-6 flex-none items-center justify-center rounded-full bg-tier-bronce/20 font-display text-xs font-black text-tier-bronce ring-1 ring-tier-bronce/40 shadow-xs">
+                            #{c.placement}
+                          </span>
+                        ) : (
+                          <span className="w-6 flex-none text-center font-display text-xs font-bold tabular text-muted">
+                            #{c.placement}
+                          </span>
+                        )}
+                        <Duo main={c.main} secondary={c.secondary} size="sm" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-display text-sm font-bold tracking-tight text-ink">{c.titulo}</span>
+                          {c.sub && <span className="block truncate font-mono text-[11px] font-semibold text-brand">{c.sub}</span>}
+                        </span>
+                        {c.extra}
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
             )}
@@ -195,20 +215,20 @@ export function UltimoRegional(p: Props) {
       {/* ------------------------------------------------ 2. top arquetipos -- */}
       <div className="card mb-4">
         <div className="card-head">
-          <h3 className="text-lg font-bold">Top arquetipos</h3>
-          <span className="text-xs text-muted">{p.topNota}</span>
+          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Top arquetipos</h3>
+          <span className="text-xs text-muted font-mono">{p.topNota}</span>
         </div>
         {p.top.length ? (
           <ul className="grid grid-cols-2 gap-2.5 p-4 sm:grid-cols-3 lg:grid-cols-5">
             {p.top.map((a) => (
-              <li key={a.key} className="rounded-xl border border-line bg-ground p-3">
+              <li key={a.key} className="rounded-xl border border-line bg-surface p-3 transition-colors hover:border-brand/40">
                 <div className="mb-2 grid h-16 place-items-center rounded-lg bg-surface-2">
                   <Duo main={a.main} secondary={a.secondary} size="lg" />
                 </div>
-                <p className="truncate text-sm font-bold" title={a.name}>{a.name}</p>
+                <p className="truncate font-display text-sm font-bold tracking-tight text-ink" title={a.name}>{a.name}</p>
                 <p className="mt-1 flex items-baseline justify-between gap-2">
-                  <span className="font-display text-xl font-extrabold tabular">{pctTxt(a.share, 1)}</span>
-                  <span className="text-[11px] text-muted tabular">{a.decks} {a.decks === 1 ? "lista" : "listas"}</span>
+                  <span className="font-display text-xl font-black tabular text-ink">{pctTxt(a.share, 1)}</span>
+                  <span className="font-mono text-[11px] text-muted tabular">{a.decks} {a.decks === 1 ? "lista" : "listas"}</span>
                 </p>
               </li>
             ))}
@@ -221,23 +241,23 @@ export function UltimoRegional(p: Props) {
       {/* ------------------------------------------- 3. torneos recientes -- */}
       <div className="card">
         <div className="card-head">
-          <h3 className="text-lg font-bold">Torneos recientes</h3>
+          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Torneos recientes</h3>
         </div>
         {p.recientes.length ? (
           <ul className="divide-y divide-line-soft">
             {p.recientes.map((t) => {
               const cuerpo = (
                 <>
-                  <span className="w-16 flex-none text-xs font-semibold uppercase text-muted tabular">{t.date}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{t.name}</span>
-                  {t.aside && <span className="hidden flex-none text-xs text-muted sm:inline">{t.aside}</span>}
-                  <span className="flex-none text-xs text-muted">{t.tipo}</span>
+                  <span className="w-16 flex-none font-mono text-xs font-semibold uppercase text-muted tabular">{t.date}</span>
+                  <span className="min-w-0 flex-1 truncate font-display text-sm font-bold tracking-tight text-ink">{t.name}</span>
+                  {t.aside && <span className="hidden flex-none font-mono text-xs text-muted sm:inline">{t.aside}</span>}
+                  <span className="flex-none text-xs text-muted font-semibold">{t.tipo}</span>
                 </>
               );
               return (
                 <li key={t.key}>
                   {t.href
-                    ? <Link href={t.href} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">{cuerpo}</Link>
+                    ? <Link href={t.href} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors">{cuerpo}</Link>
                     : <div className="flex items-center gap-3 px-4 py-3">{cuerpo}</div>}
                 </li>
               );
@@ -257,6 +277,25 @@ const TONOS = {
   brand: "chip-brand", win: "chip-win", loss: "chip-loss", info: "chip-info",
 } as const;
 
+const TONE_STYLES = {
+  brand: {
+    border: "color-mix(in oklab, var(--brand-line) 45%, transparent)",
+    bg: "linear-gradient(140deg, color-mix(in oklab, var(--brand-soft) 70%, var(--surface)), var(--surface) 70%)",
+  },
+  win: {
+    border: "color-mix(in oklab, var(--win) 45%, transparent)",
+    bg: "linear-gradient(140deg, color-mix(in oklab, var(--win-soft) 70%, var(--surface)), var(--surface) 70%)",
+  },
+  loss: {
+    border: "color-mix(in oklab, var(--loss) 45%, transparent)",
+    bg: "linear-gradient(140deg, color-mix(in oklab, var(--loss-soft) 70%, var(--surface)), var(--surface) 70%)",
+  },
+  info: {
+    border: "color-mix(in oklab, var(--info) 45%, transparent)",
+    bg: "linear-gradient(140deg, color-mix(in oklab, var(--info-soft) 70%, var(--surface)), var(--surface) 70%)",
+  },
+} as const;
+
 function TarjetaInsignia({
   titulo, tono, ins, grande, pequeno, pie, vacia,
 }: {
@@ -264,22 +303,30 @@ function TarjetaInsignia({
   grande: (i: Insignia) => string; pequeno: string; pie: (i: Insignia) => string | null;
   vacia: string;
 }) {
+  const st = TONE_STYLES[tono];
   return (
-    <div className="flex flex-col rounded-xl border border-line bg-ground p-3">
-      <div className="mb-2 grid h-20 place-items-center rounded-lg bg-surface-2">
+    <div
+      className="flex flex-col rounded-xl border p-3.5"
+      style={{
+        borderColor: st.border,
+        background: st.bg,
+        boxShadow: "var(--shadow-1)",
+      }}
+    >
+      <div className="mb-2 grid h-20 place-items-center rounded-lg bg-surface-2/60">
         {ins ? <Duo main={ins.fila.main} secondary={ins.fila.secondary} size="lg" /> : <OtherMark size="lg" />}
       </div>
       <div className="flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate text-sm font-bold">{ins ? ins.fila.name : "—"}</span>
-        <span className={`chip ${TONOS[tono]} flex-none text-[10px]`}>{titulo}</span>
+        <span className="min-w-0 truncate font-display text-sm font-bold tracking-tight text-ink">{ins ? ins.fila.name : "—"}</span>
+        <span className={`chip ${TONOS[tono]} flex-none text-[10px] font-bold`}>{titulo}</span>
       </div>
       {ins ? (
         <>
           <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-display text-2xl font-extrabold tabular">{grande(ins)}</span>
-            <span className="text-xs text-muted">{pequeno}</span>
+            <span className="font-display text-2xl font-black tabular tracking-tight text-ink">{grande(ins)}</span>
+            <span className="text-xs font-medium text-muted">{pequeno}</span>
           </p>
-          {pie(ins) && <p className="mt-0.5 text-[11px] text-muted tabular">{pie(ins)}</p>}
+          {pie(ins) && <p className="mt-0.5 font-mono text-[11px] text-muted tabular">{pie(ins)}</p>}
         </>
       ) : (
         <p className="mt-1 text-[11px] text-muted">{vacia}</p>

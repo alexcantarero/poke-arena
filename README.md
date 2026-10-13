@@ -1,6 +1,6 @@
 # Arena — liga privada de Pokémon TCG
 
-**v0.11.0**
+**v0.27.0**
 
 Web para llevar vuestra liga entre amigos: ranking con Elo y resistencia, resultados juego a
 juego, calendario, estadísticas de metagame —las vuestras y las del mundo— con matriz de
@@ -64,12 +64,12 @@ Detalle completo en **[CHANGELOG.md](CHANGELOG.md)**.
 
 ## Arranque rápido
 
-Si ya tienes Node.js 20+ y una base de datos en Neon:
+Si ya tienes Node.js 20+ y una rama de desarrollo en Neon:
 
 ```bash
 npm install
 cp .env.example .env.local     # y rellena DATABASE_URL y SESSION_SECRET
-npm run db:push                # crea las tablas
+npm run db:push                # crea las tablas en la rama dev configurada localmente
 npm run db:seed                # datos de ejemplo (opcional)
 npm run invite                 # imprime el enlace para crear la primera cuenta
 npm run dev                    # http://localhost:3000
@@ -82,7 +82,7 @@ está escrito paso a paso, sin dar nada por sabido.
 
 | Variable | ¿Obligatoria? | Para qué |
 |---|---|---|
-| `DATABASE_URL` | **sí** | Cadena de conexión *pooled* de Neon. Lleva la contraseña dentro: no la pegues en ningún chat ni la subas al repo. |
+| `DATABASE_URL` | **sí** | Cadena de conexión *pooled* de la rama **dev** de Neon para el entorno local. No pegues credenciales en el chat ni las subas al repo. |
 | `SESSION_SECRET` | **sí** | Firma la cookie de sesión. Genérala con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
 | `LEAGUE_INVITE_CODE` | no | Código de alta. También se cambia desde Ajustes. |
 | `LIMITLESS_API_KEY` | no | Los endpoints que usa Arena responden sin clave. Con clave se usa además el catálogo oficial de arquetipos. |
@@ -102,6 +102,7 @@ metagame mundial y sin el buscador de cartas, y nada más. Se ve su estado en
 |---|---|
 | **[01 · Instalación en otro PC](docs/01-instalacion.md)** | Desde cero en Windows, macOS o Linux: Node, Git, Neon, variables de entorno y primer arranque, con una comprobación después de cada paso. |
 | **[06 · Despliegue](docs/06-despliegue.md)** | Subirlo a internet gratis con GitHub + Vercel + Neon, y cómo lo lleváis dos personas. |
+| **[12 · Antigravity y dev/prod](docs/12-antigravity.md)** | Abrir el proyecto en Antigravity, separar las ramas de Neon y trabajar con previews seguras. |
 
 ### Para usarlo
 
@@ -216,7 +217,7 @@ docs/                       esta documentación
 | Cambiar la pantalla de error | `src/app/(app)/error.tsx` |
 | Cambiar cómo se puntúa o desempata | `src/lib/stats.ts` |
 | Cambiar qué se puede filtrar | `src/lib/filters.ts` y `src/components/FilterPanel.tsx` |
-| Añadir un campo a una partida | `src/db/schema.ts` + `npm run db:push` |
+| Añadir un campo a una partida | `src/db/schema.ts` + `npm run db:push` (solo Neon `dev`) |
 | Añadir una pantalla | carpeta nueva en `src/app/(app)/` |
 | Cambiar el sistema de acceso | `src/lib/auth.ts` |
 | Actualizar las cifras de CP de una temporada | `src/lib/cp.ts` (sección de datos, al final) |
@@ -251,7 +252,7 @@ volver atrás funciona y la pantalla carga igual con el móvil en modo ahorro.
 npm run dev                  # desarrollo en http://localhost:3000
 npm run build                # compilación de producción (lo que hace Vercel)
 npm run start                # servir la compilación
-npm run db:push              # aplicar el esquema a la base de datos
+npm run db:push              # aplicar el esquema a Neon dev (.env.local); nunca a producción
 npm run db:studio            # explorador visual de la base de datos
 npm run db:seed              # datos de ejemplo
 npm run db:seed -- --empty   # solo configuración y arquetipos, sin partidas inventadas

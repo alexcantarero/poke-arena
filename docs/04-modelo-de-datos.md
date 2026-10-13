@@ -1,7 +1,8 @@
 # 04 · Modelo de datos
 
 Doce tablas en PostgreSQL. El esquema vive en **`src/db/schema.ts`** y es la única fuente de
-verdad: `npm run db:push` lo aplica a la base de datos.
+verdad: `npm run db:push` lo aplica a Neon `dev` configurada en `.env.local`; los cambios de
+producción requieren una migración revisada y aprobada por una persona.
 
 ---
 

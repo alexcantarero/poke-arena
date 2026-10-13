@@ -58,9 +58,9 @@ Están todos en `package.json`, y son estos:
 | `npm run dev` | Arranca en local con recarga en caliente, en <http://localhost:3000> |
 | `npm run build` | Compila para producción. Lo mismo que ejecuta Vercel |
 | `npm start` | Sirve lo compilado. Solo para probar el build en local |
-| `npm run db:push` | Aplica `src/db/schema.ts` a la base de datos |
+| `npm run db:push` | Aplica `src/db/schema.ts` a Neon `dev` configurada en `.env.local`; nunca lo uses para producción |
 | `npm run db:studio` | Explorador visual de la base de datos |
-| `npm run db:seed` | Rellena la liga con datos de ejemplo. **Borra lo que haya** (`-- --empty` para dejarla en limpio) |
+| `npm run db:seed` | Rellena Neon `dev` con datos de ejemplo. **Borra lo que haya** (`-- --empty` para dejarla en limpio); nunca lo ejecutes en producción |
 | `npm run archetypes:sync` | Trae los arquetipos nuevos de Limitless |
 | `npm test` | Las pruebas del motor de CP |
 | `npm run invite` | Crea un enlace de invitación desde la terminal |
@@ -354,6 +354,9 @@ export const games = pgTable("games", {
 ```bash
 npm run db:push
 ```
+
+Este comando debe apuntar únicamente a Neon `dev` mediante `.env.local`. No automatices la
+aplicación de cambios de esquema a producción.
 
 ### 3. El formulario — `src/components/MatchForm.tsx`
 
