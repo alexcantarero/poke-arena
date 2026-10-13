@@ -35,10 +35,16 @@ historial**. Esa es la propiedad que hay que romper.
 Las fases están ordenadas por relación entre lo que ahorran y lo que arriesgan. **Haz una,
 verifica con `npm run build` y despliega, antes de empezar la siguiente.**
 
-### Fase A — paginar las partidas en Resultados (riesgo bajo)
+### Fase A — paginar las partidas en Resultados — **HECHA en la v0.29.0**
 
-`/resultados` lee `snap.matches` entero y la pantalla ya pagina de 40 en 40 **en el cliente**.
-La consulta sigue trayéndolo todo.
+> Implementada: `src/lib/matchQuery.ts` decide qué baja a SQL, `loadMatchesPage()` en `data.ts`
+> hace la consulta, y `npm run verificar:fase-a` comprueba la paridad contra la base real.
+> Queda lanzar ese script contra `dev`. Lo que sigue es la descripción original del plan.
+
+#### Descripción original
+
+`/resultados` leía `snap.matches` entero y paginaba de 40 en 40 **después de cargarlo todo**
+(la paginación ya iba por URL, `?n=80`, pero acumulativa y sobre el conjunto completo).
 
 - Consulta nueva en `data.ts`: `loadMatchesPage({ limit, offset, filtros })`, con los filtros de
   `src/lib/filters.ts` traducidos a `WHERE` de Drizzle.

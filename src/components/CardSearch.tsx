@@ -12,9 +12,9 @@ import { Icon } from "./icons";
 
    Decisiones que no son obvias:
 
-   · **Espera 400 ms a que dejes de teclear.** Sin clave, pokemontcg.io deja
-     30 peticiones por minuto: una por tecla se las gasta escribiendo
-     "charizard".
+   · **Espera 400 ms a que dejes de teclear.** TCGdex no publica un límite
+     duro, pero pide moderación, y una petición por cada tecla no lo es:
+     escribir "charizard" serían nueve búsquedas para una sola intención.
    · **Cancela la petición anterior.** Si escribes rápido, la respuesta de
      "dra" puede llegar después de la de "dragapult" y pisarla. Con
      `AbortController` no hay carrera que perder.
@@ -171,9 +171,8 @@ export function CardSearch() {
       )}
 
       <p className="text-[11px] text-muted">
-        Los datos salen de pokemontcg.io. Es gratis y sin clave, con un límite de peticiones al
-        día, así que la búsqueda espera a que dejes de escribir. Copia la línea y pégala en la
-        lista de arriba.
+        Los datos salen de TCGdex, que es gratis, abierta y sin clave. Para no abusar de ella la
+        búsqueda espera a que dejes de escribir. Copia la línea y pégala en la lista de arriba.
       </p>
     </div>
   );

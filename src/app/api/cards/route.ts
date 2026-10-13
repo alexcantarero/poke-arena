@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentPlayer } from "@/lib/data";
-import { hasPokemonTcgKey, searchCards } from "@/lib/sources/tcgdex";
+import { searchCards } from "@/lib/sources/tcgdex";
 
 /* =========================================================================
    GET /api/cards?q=dragapult — buscar una carta por nombre.
@@ -15,18 +15,19 @@ import { hasPokemonTcgKey, searchCards } from "@/lib/sources/tcgdex";
 
    · **Va detrás de la sesión.** No porque los nombres de carta sean secretos
      —no lo son—, sino porque sin sesión cualquiera podría usar el despliegue
-     de la liga como proxy gratis contra tcgdex.io y gastar la cuota
-     diaria en una tarde.
+     de la liga como proxy gratis contra TCGdex. Sus normas piden usarla
+     con cabeza y eso incluye no prestarla.
    · **Nunca devuelve un error 5xx.** Si la API de terceros no contesta,
      devuelve la lista vacía y `available: false`. Es un adorno del editor de
      mazos: que se caiga no puede impedir guardar un mazo.
-   · **Exige tres letras.** Sin clave el límite son 30 peticiones por minuto,
-     y una búsqueda por cada tecla se lo come en cinco segundos. El
-     componente además espera a que dejes de escribir.
+   · **Exige tres letras.** TCGdex no publica un límite duro, pero pide
+     moderación: una búsqueda por cada tecla no lo es. El componente además
+     espera 400 ms a que dejes de escribir.
 
-   Ojo con la fecha de caducidad: tcgdex.io está deprecada y sus claves
-   mueren el 1 de marzo de 2027. Todo lo que hay debajo está escrito para que
-   cambiarla por TCGdex sea reescribir `lib/sources/tcgdex.ts` y nada más.
+   v0.29: la fuente era pokemontcg.io, que está deprecada y cuyas claves
+   mueren el 1 de marzo de 2027. Ahora es TCGdex, gratis y sin clave. El
+   contrato de este endpoint no cambió: cambiar de fuente otra vez sería
+   reescribir `lib/sources/tcgdex.ts` y nada más.
    ========================================================================= */
 
 export async function GET(request: NextRequest) {
@@ -39,11 +40,9 @@ export async function GET(request: NextRequest) {
   }
 
   const cards = await searchCards(q, 12);
-  return NextResponse.json({
-    cards,
-    // Si no hay resultados Y no hay clave, lo más probable no es que la carta
-    // no exista: es que se ha topado con el límite de peticiones. Merece la
-    // pena poder decirlo en la pantalla en vez de un "no hay nada" a secas.
-    available: cards.length > 0 || hasPokemonTcgKey(),
-  });
+  // `available` distingue «no hay esa carta» de «la fuente no contesta».
+  // searchCards() devuelve lista vacía en los dos casos, así que se
+  // comprueba aparte con una consulta que siempre tiene resultados.
+  const available = cards.length > 0 || (await searchCards("pikachu", 1)).length > 0;
+  return NextResponse.json({ cards, available });
 }

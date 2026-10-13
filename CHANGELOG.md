@@ -2,6 +2,75 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.29.0] — 2026-10-13
+
+Fase A del plan de rendimiento y migración del catálogo de cartas a TCGdex.
+**Sin migración de base de datos y sin dependencias nuevas.**
+
+### Rendimiento — Resultados paginado en la base
+
+- **`/resultados` ya no carga el snapshot.** Antes traía todas las partidas y todos los juegos
+  para enseñar cuarenta tarjetas; ahora la base devuelve solo la página pedida, con `LIMIT`,
+  `OFFSET` y el mismo orden que `porRecientes`.
+- **`src/lib/matchQuery.ts`** (nuevo, puro, sin imports) decide qué parte del filtro resuelve
+  SQL y qué parte queda en memoria. Baja todo menos el arquetipo: resolverlo exige el índice de
+  mazos y las familias (`parent_id`), y reproducir esa cadena en SQL sería tener **dos**
+  definiciones de «con qué se jugó» — justo el problema que `filters.ts` vino a resolver. Con
+  filtro de arquetipo se trae el conjunto ya recortado por lo demás y se termina con el mismo
+  `applyMatchFilter` que usa Estadísticas.
+- **`loadMatchesPage()`, `contarPartidasJugadas()`, `loadDeckArchetypeIndex()`,
+  `loadTournamentHeads()` y `loadCompetitionHeads()`** en `src/lib/data.ts`.
+  `loadDeckArchetypeIndex()` pide dos columnas de `decks` en vez de la fila entera: el índice
+  solo mira `id` y `archetype_id`, pero la tabla lleva además la lista de 60 cartas.
+- La paginación pasa de `?n=80` (acumulativa) a `?pagina=2`, con Anteriores/Siguientes. Sigue
+  yendo por URL: se comparte y funciona sin JavaScript.
+- **`npm run verificar:fase-a`** (nuevo): compara, contra la base real, las partidas que
+  devuelve el camino nuevo y el viejo para 17 combinaciones de filtros, incluido el orden.
+  Existe porque ni el compilador ni los tests pueden comprobar que un `WHERE` devuelve lo
+  mismo que un `.filter()`.
+
+### Cartas — migración a TCGdex terminada
+
+La migración estaba a medias desde una sesión anterior y con restos de un reemplazo ciego de
+texto. Lo que faltaba:
+
+- **El cliente construía la consulta GraphQL concatenando el texto tecleado** dentro del
+  documento de la consulta. Reescrito sobre la **API REST** documentada, con los parámetros en
+  el querystring, que `URLSearchParams` escapa solo. `?name=x` es un filtro de «contiene», que
+  es justo lo que quiere un buscador.
+- **`src/lib/sources/pokemontcg.ts` borrado**: ya no lo usaba nadie.
+- **`src/lib/cartas.ts`** (nuevo, puro) con lo que se puede comprobar sin red: deducir el id
+  del set a partir del id de la carta —que no se puede partir ni por el primer guion ni por el
+  último, porque hay sets con punto (`sv03.5`) y localId con letras (`XY99`, `SWSH284`)—, montar
+  la URL de imagen (TCGdex la sirve sin extensión) y la línea de decklist. 10 pruebas.
+- `hasPokemonTcgKey()` se calculaba en Ajustes y **no se usaba en ninguna parte del JSX**.
+  Eliminado. TCGdex no usa claves.
+- Corregidos los comentarios y el texto de pantalla que seguían citando pokemontcg.io, y los
+  que un reemplazo automático había dejado diciendo que «tcgdex.io está deprecada», que es
+  falso. `.env.example` ya no pide `POKEMONTCG_API_KEY`.
+- `available` en `/api/cards` distingue otra vez «no existe esa carta» de «la fuente no
+  contesta»; con el stub de la clave siempre a `false` había dejado de hacerlo.
+
+### Pérdida conocida
+
+La lista de resultados REST de TCGdex (`CardBrief`) no trae la rareza, así que sale `null` y la
+pantalla no la enseña. La línea de decklist no la necesita: basta nombre, set y número.
+
+### Documentación
+
+- **`docs/14-datos-y-visualizacion.md`**: qué se está dejando sin apuntar (`games.prizes_left`
+  lo acepta la acción pero no lo envía ningún formulario; `games.turns` no lo escribe nadie),
+  cómo recorrer los datos con filtro cruzado por URL, y por qué la recomendación es **quedarse
+  con Recharts** y no añadir una segunda librería de gráficas.
+
+### Verificado
+
+- `npm test`: **370 de 370** (353 + 10 de cartas + 8 de matchQuery, menos los que se renombran).
+- `npx tsc --noEmit`: **sin errores**.
+- `npm run build`: pendiente, lo lanza Ibai.
+- `npm run verificar:fase-a`: **pendiente, hay que lanzarlo contra `dev`.** Es la comprobación
+  que de verdad valida esta versión.
+
 ## [0.28.0] — 2026-10-13
 
 Rendimiento del arranque de cada pantalla y limpieza del repositorio.

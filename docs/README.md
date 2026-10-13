@@ -15,6 +15,7 @@
 | **11** | [Novedades de la v0.3.0](11-v0.3.0.md) | Quien venga de una versión anterior |
 | **12** | [Antigravity y entornos dev/prod](12-antigravity.md) | Quien desarrolle con un agente |
 | **13** | [Plan de rendimiento](13-plan-rendimiento.md) | **Obligatorio antes de tocar `data.ts`** |
+| **14** | [Datos y visualización](14-datos-y-visualizacion.md) | Qué capturar y con qué pintarlo |
 
 ---
 

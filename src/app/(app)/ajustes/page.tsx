@@ -8,7 +8,6 @@ import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, Sprites } from "@/components/ui";
 import { ArchetypeSync } from "@/components/ArchetypeSync";
 import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
-import { hasPokemonTcgKey } from "@/lib/sources/tcgdex";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
@@ -35,8 +34,6 @@ export default async function SettingsPage() {
   const manager = canManageLeague(me.role);
   const owner = isOwner(me.role);
   const invites = manager ? await loadInvites() : [];
-  // Solo el booleano. La clave en sí no sale nunca de la variable de entorno.
-  const tcgKey = hasPokemonTcgKey();
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
   // Lo importado de los Regionales va aparte del snapshot: crece más deprisa

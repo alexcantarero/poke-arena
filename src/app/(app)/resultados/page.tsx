@@ -1,9 +1,13 @@
 import Link from "next/link";
-import { loadSnapshot } from "@/lib/data";
-import { archetypesOfMatch, isPlayed, porRecientes } from "@/lib/stats";
+import {
+  contarPartidasJugadas, loadArchetypes, loadCompetitionHeads, loadConfig,
+  loadDeckArchetypeIndex, loadMatchesPage, loadPlayers, loadTournamentHeads,
+} from "@/lib/data";
+import { archetypesOfMatch, porRecientes } from "@/lib/stats";
 import {
   applyMatchFilter, describeFilter, filterToQuery, isFiltered, parseMatchFilter, type FilterIndex,
 } from "@/lib/filters";
+import { planDeConsulta } from "@/lib/matchQuery";
 import { COMPETITION_KINDS, TOURNAMENT_FORMATS } from "@/lib/types";
 import { getSeason } from "@/lib/cp";
 import { Empty, MatchCard, MatchList, PageHead } from "@/components/ui";
@@ -12,13 +16,22 @@ import { Icon } from "@/components/icons";
 
 export const metadata = { title: "Resultados" };
 
+const POR_PAGINA = 40;
+
 /**
  * Resultados, con filtros de verdad.
  *
- * Antes solo se podía filtrar por competición, y la petición era poder
- * filtrar también por torneo — que es donde se juega casi todo. Ahora las
- * reglas viven en `src/lib/filters.ts` y las comparte con Estadísticas, así
- * que arreglar un filtro lo arregla en los dos sitios.
+ * Las reglas de filtrado viven en `src/lib/filters.ts` y las comparte con
+ * Estadísticas, así que arreglar un filtro lo arregla en los dos sitios.
+ *
+ * v0.29 — Fase A del plan de rendimiento. Antes esta pantalla cargaba el
+ * snapshot entero (todas las partidas y todos los juegos) para enseñar
+ * cuarenta tarjetas. Ahora la base devuelve solo la página pedida.
+ *
+ * El filtro de arquetipo es la excepción, y a propósito: depende del índice
+ * de mazos y de las familias de arquetipos, y reproducir esa cadena en SQL
+ * sería tener dos definiciones de «con qué se jugó». Con ese filtro puesto
+ * se trae el conjunto ya recortado por lo demás y se termina en memoria.
  */
 export default async function ResultsPage({
   searchParams,
@@ -26,63 +39,88 @@ export default async function ResultsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = await searchParams;
-  const snap = await loadSnapshot();
   const filter = parseMatchFilter(q);
+  const plan = planDeConsulta(filter);
+
+  const paginaCruda = Number(Array.isArray(q.pagina) ? q.pagina[0] : q.pagina);
+  const pagina = Number.isFinite(paginaCruda) && paginaCruda > 1 ? Math.floor(paginaCruda) : 1;
+
+  const [pageData, players, archetypes, tours, comps, archIndex, totalJugadas, cfg] = await Promise.all([
+    loadMatchesPage(filter, POR_PAGINA, pagina),
+    loadPlayers(),
+    loadArchetypes(),
+    loadTournamentHeads(),
+    loadCompetitionHeads(),
+    loadDeckArchetypeIndex(),
+    contarPartidasJugadas(),
+    loadConfig(),
+  ]);
+
+  const playersById = new Map(players.map((p) => [p.id, p]));
+  const archById = new Map(archetypes.map((a) => [a.id, a]));
+  const toursById = new Map(tours.map((t) => [t.id, t]));
+  const compsById = new Map(comps.map((c) => [c.id, c]));
 
   const index: FilterIndex = {
-    tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
-    tournamentFormat: new Map(snap.tournaments.map((t) => [t.id, t.format])),
-    tournamentScope: new Map(snap.tournaments.map((t) => [t.id, t.scope])),
-    competitionKind: new Map(snap.competitions.map((c) => [c.id, c.kind])),
+    tournamentKind: new Map(tours.map((t) => [t.id, t.kind])),
+    tournamentFormat: new Map(tours.map((t) => [t.id, t.format])),
+    tournamentScope: new Map(tours.map((t) => [t.id, t.scope])),
+    competitionKind: new Map(comps.map((c) => [c.id, c.kind])),
     archetypesOf: (m) => {
-      const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      const { a, b } = archetypesOfMatch(m, archIndex, archById);
       return [a?.id, b?.id];
     },
   };
 
-  const played = snap.matches.filter(isPlayed);
-  const rows = applyMatchFilter(played, filter, index).slice().sort(porRecientes);
+  /* Con filtro de arquetipo la base no ha podido paginar: se termina aquí,
+     con el MISMO `applyMatchFilter` que usa Estadísticas. Sin él, lo que
+     llega ya es exactamente la página. */
+  let visibles = pageData.filas;
+  let total = pageData.total;
+  let hayMas = pageData.hayMas;
 
-  /* v0.20 — de 40 en 40. Con 180 partidas eran 180 tarjetas con 4 sprites
-     cada una (más de 700 imágenes) en una sola página del móvil. «Ver más»
-     es un enlace normal (`?n=80`): funciona sin JS y la vuelta atrás vuelve
-     al mismo punto. */
-  const POR_PAGINA = 40;
-  const nRaw = Number(Array.isArray(q.n) ? q.n[0] : q.n);
-  const limite = Number.isFinite(nRaw) && nRaw > POR_PAGINA ? Math.min(Math.floor(nRaw), 5000) : POR_PAGINA;
-  const visibles = rows.slice(0, limite);
-  const masHref = (() => {
+  if (!plan.paginable) {
+    const todas = applyMatchFilter(pageData.filas, filter, index).slice().sort(porRecientes);
+    total = todas.length;
+    const desde = (pagina - 1) * POR_PAGINA;
+    visibles = todas.slice(desde, desde + POR_PAGINA);
+    hayMas = todas.length > desde + POR_PAGINA;
+  }
+
+  const hrefPagina = (n: number) => {
     const sp = filterToQuery(filter);
-    sp.set("n", String(limite + POR_PAGINA));
-    return `/resultados?${sp.toString()}`;
-  })();
+    if (n > 1) sp.set("pagina", String(n));
+    const s = sp.toString();
+    return s ? `/resultados?${s}` : "/resultados";
+  };
 
-  const season = snap.config.cpSeason;
-  const table = getSeason(season);
+  const table = getSeason(cfg.cpSeason);
   const kindLabel = (k: string) => table.events[k]?.label ?? k;
 
-  const archOf = (m: (typeof played)[number], side: "a" | "b") => {
-    const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+  const archOf = (m: (typeof visibles)[number], side: "a" | "b") => {
+    const { a, b } = archetypesOfMatch(m, archIndex, archById);
     return side === "a" ? a : b;
   };
 
   const resumen = describeFilter(filter, {
-    tournament: (id) => snap.toursById.get(id)?.name,
-    competition: (id) => snap.compsById.get(id)?.name,
-    archetype: (id) => snap.archById.get(id)?.name,
-    player: (id) => snap.playersById.get(id)?.name,
+    tournament: (id) => toursById.get(id)?.name,
+    competition: (id) => compsById.get(id)?.name,
+    archetype: (id) => archById.get(id)?.name,
+    player: (id) => playersById.get(id)?.name,
     kind: kindLabel,
   });
+
+  /* Sin contar aparte, el total de una página paginada es «al menos esto».
+     Decirlo así es más honesto que inventar una cifra exacta. */
+  const subtitulo = isFiltered(filter)
+    ? `${pageData.totalRecortado && plan.paginable ? "más de " : ""}${total} de ${totalJugadas} partidas · ${resumen}`
+    : `${totalJugadas} partidas.`;
 
   return (
     <>
       <PageHead
         title="Resultados"
-        sub={
-          isFiltered(filter)
-            ? `${rows.length} de ${played.length} partidas · ${resumen}`
-            : `${played.length} partidas.`
-        }
+        sub={subtitulo}
         actions={
           <Link className="btn btn-brand hidden md:inline-flex" href="/partidas/nueva">
             <Icon name="plus" className="size-4" /> Registrar
@@ -94,32 +132,39 @@ export default async function ResultsPage({
         action="/resultados"
         filter={filter}
         show={["scope", "date", "tournament", "tournamentKind", "competition", "competitionKind", "archetype", "player", "format", "round"]}
-        tournaments={snap.tournaments.map((t) => ({ value: t.id, label: t.name }))}
-        competitions={snap.competitions.map((c) => ({ value: c.id, label: c.name }))}
-        tournamentKinds={[...new Set(snap.tournaments.map((t) => t.kind))]
+        tournaments={tours.map((t) => ({ value: t.id, label: t.name }))}
+        competitions={comps.map((c) => ({ value: c.id, label: c.name }))}
+        tournamentKinds={[...new Set(tours.map((t) => t.kind))]
           .map((k) => ({ value: k, label: kindLabel(k) }))}
         competitionKinds={Object.entries(COMPETITION_KINDS)
           .map(([v, d]) => ({ value: v, label: d.short }))}
-        archetypes={snap.archetypes.map((a) => ({ value: a.id, label: a.name }))}
-        players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
+        archetypes={archetypes.map((a) => ({ value: a.id, label: a.name }))}
+        players={players.map((p) => ({ value: p.id, label: p.name }))}
         formats={Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => ({ value: v, label: l }))}
       />
 
+      {!plan.paginable && pageData.totalRecortado && (
+        <p className="mb-3 text-xs text-muted">
+          Filtrando por arquetipo sobre un historial muy largo: la cuenta puede quedarse corta.
+          Acota también por fecha o por torneo para verlo completo.
+        </p>
+      )}
+
       <div className="card">
-        {rows.length ? (
+        {visibles.length ? (
           <MatchList>
             {visibles.map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}
-                playerA={snap.playersById.get(m.playerAId)}
-                playerB={m.playerBId ? snap.playersById.get(m.playerBId)
-                  : m.opponentPlayerId ? snap.playersById.get(m.opponentPlayerId) : undefined}
+                playerA={playersById.get(m.playerAId)}
+                playerB={m.playerBId ? playersById.get(m.playerBId)
+                  : m.opponentPlayerId ? playersById.get(m.opponentPlayerId) : undefined}
                 archA={archOf(m, "a")}
                 archB={archOf(m, "b")}
                 context={m.competitionId
-                  ? snap.compsById.get(m.competitionId)?.name
-                  : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
+                  ? compsById.get(m.competitionId)?.name
+                  : m.tournamentId ? toursById.get(m.tournamentId)?.name : undefined}
               />
             ))}
           </MatchList>
@@ -131,13 +176,21 @@ export default async function ResultsPage({
           </Empty>
         )}
       </div>
-      {rows.length > limite && (
-        <div className="mt-3 flex flex-col items-center gap-1">
-          <Link href={masHref} scroll={false} className="btn w-full sm:w-auto">
-            Ver {Math.min(POR_PAGINA, rows.length - limite)} más
-          </Link>
-          <span className="text-xs text-muted tabular">{limite} de {rows.length}</span>
-        </div>
+
+      {(hayMas || pagina > 1) && (
+        <nav className="mt-3 flex items-center justify-between gap-2" aria-label="Paginación">
+          {pagina > 1 ? (
+            <Link href={hrefPagina(pagina - 1)} scroll={false} className="btn">
+              <Icon name="back" className="size-4" /> Anteriores
+            </Link>
+          ) : <span />}
+          <span className="text-xs text-muted tabular">Página {pagina}</span>
+          {hayMas ? (
+            <Link href={hrefPagina(pagina + 1)} scroll={false} className="btn">
+              Siguientes
+            </Link>
+          ) : <span />}
+        </nav>
       )}
     </>
   );
