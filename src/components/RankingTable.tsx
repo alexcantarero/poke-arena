@@ -72,10 +72,9 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
       {/* -------- móvil: tarjetas -------- */}
       <ol className="card divide-y divide-line-soft md:hidden">
         {sorted.map((r, i) => {
-          const isPoints = sort.key === "points";
-          const isTop1 = isPoints && i === 0;
-          const isTop2 = isPoints && i === 1;
-          const isTop3 = isPoints && i === 2;
+          const isTop1 = i === 0;
+          const isTop2 = i === 1;
+          const isTop3 = i === 2;
           const rowBg = isTop1
             ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_60%,transparent),transparent_85%)] border-l-[3px] border-l-brand"
             : isTop2
@@ -163,10 +162,9 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
           </thead>
           <tbody>
             {sorted.map((r, i) => {
-              const isPoints = sort.key === "points";
-              const isTop1 = isPoints && i === 0;
-              const isTop2 = isPoints && i === 1;
-              const isTop3 = isPoints && i === 2;
+              const isTop1 = i === 0;
+              const isTop2 = i === 1;
+              const isTop3 = i === 2;
               const rowClass = isTop1
                 ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_50%,transparent),transparent_70%)] border-l-4 border-l-brand"
                 : isTop2
@@ -205,7 +203,18 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                     <b className="font-bold text-win">{r.wins}</b>–<span className="font-semibold text-loss">{r.losses}</span>{r.ties ? <>–<span className="font-semibold text-tie">{r.ties}</span></> : null}
                   </td>
                   <td className="text-right font-display text-base font-black tabular text-ink">{r.points}</td>
-                  <td className="text-right font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</td>
+                  <td className="text-right">
+                    <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
+                    <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
+                          background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                        }}
+                      />
+                    </span>
+                  </td>
                   <td className="text-right font-mono text-xs tabular text-ink-2">{r.elo}</td>
                   <td className="text-right font-mono text-xs tabular text-ink-2">{r.cp || "—"}</td>
                   <td className="text-right font-mono text-xs tabular text-muted">{r.played}</td>

@@ -106,10 +106,14 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
       <ol className="card divide-y divide-line-soft md:hidden">
         {sorted.map((r, i) => {
           const d = destacado(r);
+          const podio = i === 0 ? "bg-brand-soft/50 border-l-4 border-l-brand"
+            : i === 1 ? "bg-surface-2 border-l-4 border-l-line"
+            : i === 2 ? "bg-tier-bronce/10 border-l-4 border-l-tier-bronce"
+            : "border-l-4 border-l-transparent";
           return (
-            <li key={r.playerId}>
+            <li key={r.playerId} className={podio}>
               <Link href={`/perfil/${r.playerId}`} className="flex items-center gap-3 px-3 py-3 hover:bg-surface-2">
-                <span className={`w-6 flex-none text-center font-display text-xl font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>
+                <span className={`grid size-7 flex-none place-items-center rounded-full font-display text-xs font-black tabular ${i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>
                   {i + 1}
                 </span>
                 <span className="flex-none">{r.avatar}</span>
@@ -120,6 +124,15 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                     {` · ${r.played} partidas`}
                     {r.torneos ? ` · ${r.torneos} torneo${r.torneos === 1 ? "" : "s"}` : ""}
                     {r.cp ? ` · ${r.cp} CP` : ""}
+                  </span>
+                  <span className="mt-1 block h-1 max-w-32 overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
+                        background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                      }}
+                    />
                   </span>
                 </span>
                 <span className="flex-none text-right">
@@ -152,8 +165,10 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
           </thead>
           <tbody>
             {sorted.map((r, i) => (
-              <tr key={r.playerId} className="hover:bg-surface-2">
-                <td className={`text-center font-display text-lg font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</td>
+              <tr key={r.playerId} className={i === 0 ? "bg-brand-soft/40 border-l-4 border-l-brand" : i === 1 ? "bg-surface-2/70 border-l-4 border-l-line" : i === 2 ? "bg-tier-bronce/10 border-l-4 border-l-tier-bronce" : "border-l-4 border-l-transparent hover:bg-surface-2"}>
+                <td className="text-center">
+                  <span className={`inline-grid size-6 place-items-center rounded-full font-display text-xs font-black tabular ${i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>{i + 1}</span>
+                </td>
                 <td>
                   <Link href={`/perfil/${r.playerId}`} className="inline-flex items-center gap-2 hover:text-info">
                     <span className="flex-none">{r.avatarSm}</span>
@@ -165,7 +180,18 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                   <b className="text-win">{r.wins}</b>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
                 </td>
                 <td className="text-right font-semibold tabular">{r.points}</td>
-                <td className="text-right font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</td>
+                <td className="text-right">
+                  <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
+                  <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
+                        background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                      }}
+                    />
+                  </span>
+                </td>
                 <td className="text-right tabular">{r.played}</td>
                 <td className="text-right tabular">{r.elo}</td>
                 <td className="text-right tabular">{r.cp || "—"}</td>
