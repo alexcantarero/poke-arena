@@ -12,7 +12,7 @@
     "archetypes:sync": "tsx scripts/sync-archetypes.ts",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "invite": "tsx scripts/create-invite.ts",
-    "verificar:fase-a": "tsx scripts/verificar-fase-a.ts",
+    "verificar:fase-a": "node --conditions=react-server --import=tsx scripts/verificar-fase-a.ts",
     "ui:add": "shadcn add"
   },
   "dependencies": {
