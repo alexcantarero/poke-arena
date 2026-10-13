@@ -784,6 +784,28 @@ html[data-season="verano"] .season-p, html[data-season="invierno"] .season-p { c
   50%  { transform: translate3d(var(--drift), 55vh, 0) rotate(180deg); }
   100% { transform: translate3d(0, 110vh, 0) rotate(360deg); }
 }
+.season-pokemon-burst {
+  position: fixed; inset: 0; z-index: 60; overflow: hidden; pointer-events: none;
+}
+.season-pokemon-sprite {
+  position: absolute; width: clamp(3rem, 8vw, 5rem); height: auto;
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.28));
+  animation: season-pokemon-pop 1.9s cubic-bezier(0.18, 0.72, 0.32, 1) both;
+}
+@keyframes season-pokemon-pop {
+  0% { opacity: 0; transform: translateY(16px) scale(0.35) rotate(-12deg); }
+  18% { opacity: 1; }
+  65% { opacity: 1; transform: translateY(-18px) scale(1.08) rotate(7deg); }
+  100% { opacity: 0; transform: translateY(-38px) scale(0.86) rotate(-5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) .season-pokemon-sprite {
+    animation: none !important; opacity: 1;
+  }
+}
+html[data-motion="off"] .season-pokemon-sprite {
+  animation: none !important; opacity: 1;
+}
 /* El contenido por encima de la capa de partículas. */
 .app-shell { position: relative; z-index: 1; }
 

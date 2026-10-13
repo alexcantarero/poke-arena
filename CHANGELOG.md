@@ -2,6 +2,28 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.31.0] — 2026-10-13
+
+Easter egg estacional con Pokémon al pulsar el emblema de estación.
+Sin migración de base de datos, dependencias ni variables de entorno nuevas.
+
+### Añadido
+
+- El emblema de estación de la barra lateral y de la cabecera móvil ahora se puede pulsar.
+  Muestra durante un instante sprites elegidos para la estación actual.
+- En otoño aparecen exclusivamente Pokémon fantasma; Halloween tiene una selección ampliada,
+  también solo de tipo fantasma. Primavera, verano e invierno tienen sus propios temas.
+- El efecto es decorativo, accesible por teclado, temporal y respeta «reducir movimiento» y el
+  ajuste «Animaciones: no».
+- `src/lib/pokemonEstacion.ts` mantiene las selecciones como lógica pura y tiene pruebas.
+
+### Verificado
+
+- Sin cambios de base de datos ni dependencias.
+- `npm test`: **387 de 387**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build`: correcto.
+
 ## [0.30.0] — 2026-10-13
 
 Premios por juego y penalización de premios.

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { FilterMemory } from "@/components/FilterMemory";
 import { SeasonFx } from "@/components/SeasonFx";
+import { SeasonPokemonTrigger } from "@/components/SeasonPokemonTrigger";
 import { estacionDe } from "@/lib/estacion";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,9 +47,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
           {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
-          <p className="meta-kv mt-2" title={estacion.evento ? `${estacion.nombre} Â· ${estacion.evento}` : estacion.nombre}>
+          <SeasonPokemonTrigger
+            estacion={estacion}
+            className="meta-kv mt-2 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-info"
+          >
             <span aria-hidden="true">{estacion.emblema}</span> <b>ESTACI&Oacute;N</b> {estacion.nombre.toLowerCase()}
-          </p>
+          </SeasonPokemonTrigger>
         </div>
 
         <Sidebar meId={me.id} lang={lang} />
@@ -96,7 +100,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="min-w-0 flex-1">
             <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
           </div>
-          <span className="flex-none text-lg" aria-label={estacion.nombre} title={estacion.nombre}>{estacion.emblema}</span>
+          <SeasonPokemonTrigger
+            estacion={estacion}
+            className="flex-none rounded-md p-1 text-lg outline-none focus-visible:ring-2 focus-visible:ring-info"
+          >
+            <span aria-hidden="true">{estacion.emblema}</span>
+          </SeasonPokemonTrigger>
           <LangToggle lang={lang} />
           <ThemeToggle />
           <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label={tr(lang, "nav.moreSections")}>
