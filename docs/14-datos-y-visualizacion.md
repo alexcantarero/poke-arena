@@ -22,8 +22,15 @@ Medido sobre el esquema y los formularios de la v0.29.0.
 
 | Columna | Estado real |
 | --- | --- |
-| `games.prizes_left` | La Server Action **ya la acepta** (lee `g{i}_prizes`, valida 0–6), pero **ningún formulario envía ese campo**. Siempre llega nula. |
-| `games.turns` | No aparece en ningún formulario ni en ninguna acción. Columna muerta desde que se creó. |
+| ~~`games.prizes_left`~~ | **Resuelto en la v0.30.0.** Sustituida por `prizes_a` / `prizes_b` (una sola columna no distinguía lados) más `penalty_a` / `penalty_b`. La vieja se retira en la migración 0016 si está vacía, que es como debería estar. |
+| `games.turns` | Sigue sin aparecer en ningún formulario ni en ninguna acción. Columna muerta desde que se creó. |
+
+> **La penalización de premios no funciona como parece.** Las Penalty Guidelines de Play!
+> Pokémon dicen que, tras una Double Prize Card, al rival del infractor se le informa de que
+> para ganar esa partida debe tomar **dos premios menos de los que normalmente necesitaría**.
+> No se reparten premios: lo que baja es el objetivo, de 6 a 4. Guardar «+2 a los ya cogidos»
+> registraría un marcador que nunca estuvo en la mesa. Por eso la v0.30 guarda hechos en crudo
+> —premios cogidos y quién fue penalizado— y deriva el objetivo en `src/lib/premios.ts`.
 
 Son, con diferencia, los dos datos de más valor analítico que faltan, y los dos más baratos de
 conseguir: dos números por juego, en la pantalla donde ya estás apuntando el resultado.
@@ -149,7 +156,7 @@ No es el momento de ninguna de las dos.
 
 | | Qué | Por qué primero |
 | --- | --- | --- |
-| 1 | Campos de **premios restantes** y **turnos** en el formulario de juego | Son dos números; la columna ya existe y la acción de premios ya los acepta. Sin esto, lo demás pinta lo mismo de siempre. |
+| 1 | ~~Campos de **premios** en el formulario de juego~~ | **Hecho en la v0.30.0** (`PrizePicker`). Falta **turnos**, que sigue sin interfaz. |
 | 2 | **Filtro cruzado**: pinchar una barra navega al Resultados filtrado | Barato, ya está casi todo, y cambia por completo la sensación de la app. |
 | 3 | **Margen de victoria** en la matriz de emparejamientos y en la ficha de arquetipo | Primera cosa nueva que se puede contar con el dato del punto 1. |
 | 4 | **Ficha de arquetipo** como pantalla propia | Es donde cabe todo lo que no cabe en Estadísticas. |

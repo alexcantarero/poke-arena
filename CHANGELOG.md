@@ -2,6 +2,62 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.30.0] — 2026-10-13
+
+Premios por juego y penalización de premios.
+**Lleva migración:** `drizzle/0016_v0_30_0.sql`. Sin dependencias nuevas.
+
+### La regla, que no es la que parece
+
+Una penalización de premios **no le da premios a nadie**. Las Penalty Guidelines de Play!
+Pokémon dicen que, tras una Double Prize Card, al rival del infractor se le informa de que para
+ganar esa partida debe tomar **dos premios menos** de los que normalmente necesitaría; las Floor
+Rules recalcan que el número de premios restantes no baja, solo baja el número que hay que tomar
+para ganar. El penalizado no regala dos premios: su rival pasa de necesitar 6 a necesitar 4.
+
+El ganador sale el mismo, pero el **margen** no. Por eso se guardan hechos en crudo —cuántos
+premios cogió cada uno y quién fue penalizado— y el objetivo se deriva en `src/lib/premios.ts`.
+Si el reglamento vuelve a cambiar, se cambia `objetivoDe()` y lo ya guardado sigue siendo
+válido, porque no lleva la regla dentro.
+
+### Añadido
+
+- **`PrizePicker`**: dos filas de botones del 0 al 6 (uno por jugador) y una casilla de
+  penalización por lado, en el bloque de cada juego. Botones y no desplegable porque esto se
+  rellena de pie y con una mano; objetivos de 44 px; siete caben en un móvil de 360.
+  Montado en **el formulario de partida** y en **el de rondas de torneo**.
+- **`src/lib/premios.ts`** (nuevo, puro): `objetivoDe()`, `avisosDePremios()`, `margenDe()` y
+  `resumenDeMargen()`. 14 pruebas, incluida la del caso de la penalización.
+- **Columnas** `games.prizes_a`, `games.prizes_b`, `games.penalty_a`, `games.penalty_b`, con
+  CHECK de rango 0–6 en la base.
+- **El marcador se ve en la ficha de partida**, por juego: «6-3», con una marca si hubo
+  penalización.
+
+### Cambiado
+
+- `games.prizes_left` queda retirada. Era **una sola columna para los dos lados**, así que no
+  servía para esto, y nunca llegó a rellenarse: la acción la leía pero ningún formulario la
+  enviaba. La migración la borra **solo si está vacía**; si tuviera un valor, la conserva y lo
+  avisa por consola, porque «debería estar vacía» no es lo mismo que estarlo.
+- `src/db/seed.ts` genera marcadores plausibles: el ganador llega a 6.
+
+### Decisiones que conviene no deshacer
+
+- **Nulo no es cero.** No apuntar los premios y apuntar un 0 son cosas distintas, y la interfaz
+  las distingue: volver a pulsar el número elegido lo borra. Misma regla que `cutRate` desde la
+  v0.10.
+- **Los avisos no bloquean.** Si el marcador chirría, se dice y se deja guardar. En la mesa pasan
+  cosas raras de verdad —deck-out, concesión— y el formulario no está para discutirle a nadie lo
+  que vio. Lo único que se rechaza son los números fuera de 0–6.
+- **`resumenDeMargen()` descarta los juegos con penalización** y dice cuántos ha descartado. Un
+  6-0 que sale de una penalización no mide el emparejamiento, mide que alguien barajó mal.
+
+### Verificado
+
+- `npm test`: **384 de 384**.
+- `npx tsc --noEmit`: sin errores.
+- `npm run build` y la migración: pendientes, los lanza Ibai.
+
 ## [0.29.0] — 2026-10-13
 
 Fase A del plan de rendimiento y migración del catálogo de cartas a TCGdex.

@@ -175,7 +175,11 @@ async function main() {
       number++;
       gameRows.push({
         matchId: id, number, winner: aWins ? "a" : "b",
-        first: rnd() < 0.5 ? "a" : "b", prizesLeft: 1 + Math.floor(rnd() * 4), note: "",
+        first: rnd() < 0.5 ? "a" : "b", note: "",
+        // v0.30: el ganador llega a 6; el perdedor se queda entre 0 y 5.
+        prizesA: aWins ? 6 : Math.floor(rnd() * 6),
+        prizesB: aWins ? Math.floor(rnd() * 6) : 6,
+        penaltyA: false, penaltyB: false,
       });
       if (aWins) ga++; else gb++;
     }

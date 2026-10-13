@@ -226,8 +226,8 @@ test("un juego empatado decide la ronda por mayor√≠a de juegos ganados hasta ah√
     bestOf: 3,
     seriesResult: "a", // 1 juego ganado contra 0: gana la ronda
     games: [
-      { id: 1, matchId: "m", number: 1, winner: "a", first: "a", prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
-      { id: 2, matchId: "m", number: 2, winner: "tie", first: "b", prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
+      { id: 1, matchId: "m", number: 1, winner: "a", first: "a", prizesA: null, prizesB: null, penaltyA: false, penaltyB: false, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
+      { id: 2, matchId: "m", number: 2, winner: "tie", first: "b", prizesA: null, prizesB: null, penaltyA: false, penaltyB: false, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
     ],
   });
   assert.equal(roundResult(m), "w");
@@ -239,9 +239,9 @@ test("empate a juegos ganados con un empate de por medio: la ronda es empate", (
     bestOf: 3,
     seriesResult: "tie",
     games: [
-      { id: 1, matchId: "m", number: 1, winner: "a", first: "a", prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
-      { id: 2, matchId: "m", number: 2, winner: "b", first: "b", prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
-      { id: 3, matchId: "m", number: 3, winner: "tie", first: "a", prizesLeft: null, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
+      { id: 1, matchId: "m", number: 1, winner: "a", first: "a", prizesA: null, prizesB: null, penaltyA: false, penaltyB: false, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
+      { id: 2, matchId: "m", number: 2, winner: "b", first: "b", prizesA: null, prizesB: null, penaltyA: false, penaltyB: false, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
+      { id: 3, matchId: "m", number: 3, winner: "tie", first: "a", prizesA: null, prizesB: null, penaltyA: false, penaltyB: false, turns: null, note: "", mulligansA: 0, mulligansB: 0, archetypeAId: null, archetypeBId: null },
     ],
   });
   assert.equal(roundResult(m), "d");

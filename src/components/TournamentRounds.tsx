@@ -9,6 +9,13 @@ import { roundStage } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
 import { Sprites } from "./ui";
 import { Icon } from "./icons";
+import { PrizePicker } from "@/components/PrizePicker";
+
+/** Los premios de un juego mientras se edita. */
+type PremiosEnEdicion = {
+  premiosA: number | null; premiosB: number | null;
+  penalizadoA: boolean; penalizadoB: boolean;
+};
 
 /* =========================================================================
    Ir apuntando el torneo ronda a ronda.
@@ -398,6 +405,20 @@ export function RoundForm({
     });
   };
 
+  /* v0.30 — premios y penalización por juego, igual que en MatchForm.
+     Anotado a mano: un literal con `premiosA: null` infiere el tipo `null`
+     y después no deja asignarle un número (el fallo de la v0.9.0). */
+  const [premios, setPremios] = useState<PremiosEnEdicion[]>(() =>
+    Array.from({ length: 5 }, (_, i) => ({
+      premiosA: m?.games[i]?.prizesA ?? null,
+      premiosB: m?.games[i]?.prizesB ?? null,
+      penalizadoA: m?.games[i]?.penaltyA ?? false,
+      penalizadoB: m?.games[i]?.penaltyB ?? false,
+    })));
+
+  const setPremio = (i: number, patch: Partial<PremiosEnEdicion>) =>
+    setPremios((p) => p.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+
   const setFirst = (i: number, v: Side | "") =>
     setFirsts((prev) => prev.map((x, k) => (k === i ? (x === v ? "" : v) : x)));
 
@@ -578,6 +599,17 @@ export function RoundForm({
                     ))}
                   </div>
                 </div>
+
+                {/* v0.30 — premios cogidos y penalización. "a" eres tú:
+                    las rondas de torneo se apuntan siempre desde tu lado. */}
+                <PrizePicker
+                  campo={`g${i}`}
+                  nombreA="Tú"
+                  nombreB={rivalName || "Rival"}
+                  winner={gameWinners[i]}
+                  valor={premios[i]}
+                  onChange={(parcial) => setPremio(i, parcial)}
+                />
 
                 <input type="hidden" name={`g${i}_winner`} value={gameWinners[i]} />
                 <input type="hidden" name={`g${i}_first`} value={firsts[i] ?? ""} />

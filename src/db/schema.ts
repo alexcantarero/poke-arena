@@ -402,7 +402,26 @@ export const games = pgTable("games", {
   mulligansA: integer("mulligans_a").notNull().default(0),
   mulligansB: integer("mulligans_b").notNull().default(0),
   /** Premios que le quedaban al perdedor (0-6). */
-  prizesLeft: integer("prizes_left"),
+  /**
+   * v0.30 — premios que cogió cada uno en ESTE juego, 0–6. Nulo = no se
+   * apuntó, que no es lo mismo que cero.
+   *
+   * Sustituyen a `prizes_left`, que era una sola columna (no distinguía
+   * lados) y que nunca llegó a rellenarse: la acción la leía pero ningún
+   * formulario la enviaba. La migración 0016 la borra si está vacía.
+   */
+  prizesA: integer("prizes_a"),
+  prizesB: integer("prizes_b"),
+  /**
+   * v0.30 — ¿recibió este jugador una penalización de premios?
+   *
+   * Ojo al sentido: la penalización la SUFRE quien está marcado y BENEFICIA
+   * al otro, cuyo objetivo baja de 6 a 4. No le da premios a nadie. Se
+   * guarda el hecho en crudo y el objetivo se deriva en `lib/premios.ts`,
+   * para que un cambio de reglamento no invalide lo ya guardado.
+   */
+  penaltyA: boolean("penalty_a").notNull().default(false),
+  penaltyB: boolean("penalty_b").notNull().default(false),
   turns: integer("turns"),
   note: text("note").notNull().default(""),
   /** v0.25 â€” arquetipo de cada lado EN ESTE JUEGO (nulo = el de la serie). */

@@ -739,7 +739,9 @@ export async function saveMatch(fd: FormData) {
   // ganador escrito a mano tipo "x" contaba como empate sin avisar.
   const need = Math.ceil(bestOf / 2);
   const rows: Array<{
-    number: number; winner: string; first: string; prizesLeft: number | null;
+    number: number; winner: string; first: string;
+    prizesA: number | null; prizesB: number | null;
+    penaltyA: boolean; penaltyB: boolean;
     archetypeAId: string | null; archetypeBId: string | null;
     mulligansA: number; mulligansB: number;
   }> = [];
@@ -756,7 +758,15 @@ export async function saveMatch(fd: FormData) {
       first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, ""),
       mulligansA: maybeInt(fd, `g${i}_mulligans_a`, 0, 99) ?? 0,
       mulligansB: maybeInt(fd, `g${i}_mulligans_b`, 0, 99) ?? 0,
-      prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
+      /* v0.30 — premios de cada lado, 0–6, opcionales. `maybeInt` devuelve
+         null si el campo no viene o está fuera de rango, y null significa
+         «no se apuntó», que no es lo mismo que cero. */
+      prizesA: maybeInt(fd, `g${i}_prizes_a`, 0, 6),
+      prizesB: maybeInt(fd, `g${i}_prizes_b`, 0, 6),
+      /* La penalización la SUFRE quien está marcado: baja a 4 el objetivo
+         del OTRO. No reparte premios. Ver `src/lib/premios.ts`. */
+      penaltyA: bool(fd, `g${i}_penalty_a`),
+      penaltyB: bool(fd, `g${i}_penalty_b`),
       // v0.25: mazo (arquetipo) de cada lado en este juego, opcional.
       archetypeAId: str(fd, `g${i}_archA`) || null,
       archetypeBId: str(fd, `g${i}_archB`) || null,
@@ -1724,8 +1734,10 @@ export async function saveTournamentRound(fd: FormData) {
   // pasarse de la mayorÃƒÂ­a Ã¢â‚¬â€un 3-0 en un Bo3 no debe poder guardarseÃ¢â‚¬â€. Es la
   // misma comprobaciÃƒÂ³n que en `saveMatch`, y por el mismo motivo.
   const need = Math.ceil(bestOf / 2);
-  const rows: Array<{ 
-    number: number; winner: string; first: string; prizesLeft: number | null; 
+  const rows: Array<{
+    number: number; winner: string; first: string;
+    prizesA: number | null; prizesB: number | null;
+    penaltyA: boolean; penaltyB: boolean;
     mulligansA: number; mulligansB: number;
   }> = [];
   if (mode === "games") {
@@ -1744,7 +1756,11 @@ export async function saveTournamentRound(fd: FormData) {
         first: pick(fd, `g${i}_first`, ["", "a", "b"] as const, i === 0 ? first : ""),
         mulligansA: maybeInt(fd, `g${i}_mulligans_a`, 0, 99) ?? 0,
         mulligansB: maybeInt(fd, `g${i}_mulligans_b`, 0, 99) ?? 0,
-        prizesLeft: maybeInt(fd, `g${i}_prizes`, 0, 6),
+        // v0.30 — premios y penalización, igual que en `saveMatch`.
+        prizesA: maybeInt(fd, `g${i}_prizes_a`, 0, 6),
+        prizesB: maybeInt(fd, `g${i}_prizes_b`, 0, 6),
+        penaltyA: bool(fd, `g${i}_penalty_a`),
+        penaltyB: bool(fd, `g${i}_penalty_b`),
       });
       /* Un juego empatado corta la ronda ahÃƒÂ­ mismo: en la mesa un empate sale
          del reloj, y del reloj no se juega un juego mÃƒÂ¡s. El cliente ya deja
@@ -2483,10 +2499,7 @@ export async function syncLimitlessIrl(fd: FormData) {
   ) => {
     // Si alguien ya lo pegÃƒÂ³ a mano con el mismo nombre y fecha, manda lo suyo.
     if (identidades.has(`${ev.name}|${ev.date}|${ev.division}`)) return false;
-    const insertado = await db.insert(metaEvents).values(ev)
-      .onConflictDoNothing()
-      .returning({ id: metaEvents.id });
-    if (!insertado.length) return false;
+    await db.insert(metaEvents).values(ev).onConflictDoNothing();
     await db.delete(metaEntries).where(eq(metaEntries.eventId, ev.id));
     const rows = filas.map((f) => {
       const a = casar(f.name, f.main, f.secondary);

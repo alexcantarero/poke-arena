@@ -6,8 +6,16 @@ import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament 
 import { bloqueados } from "@/lib/juegosMazos";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
+import { PrizePicker } from "@/components/PrizePicker";
 import { DeckPicker } from "./DeckPicker";
 import type { DeckOption } from "@/lib/types";
+
+/** Un juego mientras se edita en el formulario. */
+type JuegoEnEdicion = {
+  winner: string; first: string; archA: string; archB: string;
+  premiosA: number | null; premiosB: number | null;
+  penalizadoA: boolean; penalizadoB: boolean;
+};
 
 type Props = {
   match?: MatchFull;
@@ -22,7 +30,11 @@ type Props = {
   initialP1?: string;
   initialP2?: string;
   initialBestOf?: number;
-  initialGames?: Array<{ winner: string; first: string; archA: string; archB: string }>;
+  initialGames?: Array<{
+    winner: string; first: string; archA: string; archB: string;
+    premiosA?: number | null; premiosB?: number | null;
+    penalizadoA?: boolean; penalizadoB?: boolean;
+  }>;
 };
 
 /**
@@ -47,15 +59,26 @@ export function MatchForm({
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
   const [bestOf, setBestOf] = useState(match?.bestOf ?? initialBestOf ?? 3);
   // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
-  const [games, setGames] = useState<Array<{ winner: string; first: string; archA: string; archB: string }>>(() => {
-    const base = Array.from({ length: 5 }, () => ({ winner: "", first: "", archA: "", archB: "" }));
+  const [games, setGames] = useState<JuegoEnEdicion[]>(() => {
+    /* Anotado a mano, y no inferido del literal: un objeto con `premiosA:
+       null` infiere el tipo `null` a secas y después no deja asignarle un
+       número. Es el fallo que se coló en la v0.9.0. */
+    const base: JuegoEnEdicion[] = Array.from({ length: 5 }, () => ({
+      winner: "", first: "", archA: "", archB: "",
+      premiosA: null, premiosB: null, penalizadoA: false, penalizadoB: false,
+    }));
     if (match) {
       match.games.forEach((g, i) => {
-        if (i < 5) base[i] = { winner: g.winner, first: g.first, archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "" };
+        if (i < 5) base[i] = {
+          winner: g.winner, first: g.first,
+          archA: g.archetypeAId ?? "", archB: g.archetypeBId ?? "",
+          premiosA: g.prizesA, premiosB: g.prizesB,
+          penalizadoA: g.penaltyA, penalizadoB: g.penaltyB,
+        };
       });
     } else if (initialGames) {
       initialGames.forEach((g, i) => {
-        if (i < 5) base[i] = g;
+        if (i < 5) base[i] = { ...base[i], ...g };
       });
     }
     return base;
@@ -83,7 +106,7 @@ export function MatchForm({
   const sameTwice = !external && aId === bId;
   const canSave = !sameTwice && aId && decided;
 
-  const setGame = (i: number, patch: Partial<{ winner: string; first: string; archA: string; archB: string }>) =>
+  const setGame = (i: number, patch: Partial<JuegoEnEdicion>) =>
     setGames((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   /** Un juego se apaga cuando la serie ya estaba decidida antes de llegar a él. */
@@ -269,6 +292,20 @@ export function MatchForm({
                     </div>
                   </div>
                 </div>
+
+                {/* v0.30 — premios cogidos por cada uno y penalización. */}
+                <PrizePicker
+                  campo={`g${i}`}
+                  nombreA={A?.name ?? "A"}
+                  nombreB={bLabel}
+                  winner={games[i].winner}
+                  disabled={over}
+                  valor={{
+                    premiosA: games[i].premiosA, premiosB: games[i].premiosB,
+                    penalizadoA: games[i].penalizadoA, penalizadoB: games[i].penalizadoB,
+                  }}
+                  onChange={(parcial) => setGame(i, parcial)}
+                />
 
                 {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
                     en un juego anterior de la serie no se ofrece (regla de liga;
