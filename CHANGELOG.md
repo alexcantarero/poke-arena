@@ -2,6 +2,73 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.44.0] — 2026-10-15
+
+Jornadas sin repetir, buscador de mazos con sprites, gráfica en su cuadro y torneos online
+previstos en el calendario. **Sin migración ni dependencias nuevas.**
+
+### Corregido — LAS JORNADAS REPETÍAN CRUCES
+
+- **La J3 proponía los mismos cruces que la J2.** `pairRound` solo evitaba repetir los cruces
+  JUGADOS (`filter(isPlayed)`); los de una jornada creada y sin jugar eran invisibles. Ahora
+  cuenta todos los que existen, jugados o pendientes.
+- **Y el emparejamiento repetía aunque no hiciera falta.** Era voraz: si se atascaba, caía en
+  `k = 0` y repetía a propósito. **Medido**: con 12 jugadores repetía desde la **jornada 4** y
+  acumulaba **16 cruces repetidos** en una liga completa, aunque existe una combinación sin
+  ninguno. Ahora busca con vuelta atrás (`emparejarSinRepetir`), respetando el orden de
+  preferencia; prueba incluida: 11 jornadas seguidas, 66 cruces, ninguno repetido.
+- **La vista previa y la acción recibían datos distintos**: la página pasaba solo las jugadas
+  y la acción todas. Lo que se enseñaba podía no ser lo que se creaba. Ahora las dos, todas.
+- Cuando ya no queda combinación nueva (segunda vuelta) la jornada se genera igual, **y se
+  avisa** de cuántos cruces repite. Hay un tope de búsqueda para que una liga grande no cuelgue
+  la pantalla.
+
+### Corregido — LA GRÁFICA DE ACTIVIDAD SE SALÍA DEL CUADRO
+
+- **Por arriba**, y era mío: en la v0.42 recorté el eje con `allowDataOverflow`, que le dice a
+  Recharts que pinte la línea aunque pase del eje. Ahora se dibuja el valor recortado al techo;
+  el real sigue en el tooltip y en la nota. La media de 7 días también se recorta, porque
+  cuando el día atípico entra en su ventana también pasaba del techo.
+- **De lado**: la tarjeta era hija directa de una rejilla sin `min-w-0`, así que no se encogía
+  por debajo del ancho de su contenido. Arreglado en el propio componente (y en el horario), para
+  que valga dondequiera que se use.
+
+### Cambiado
+
+- **Buscador de mazos con los Pokémon** al registrar partida. En la v0.43 restauré los
+  selectores de serie tal y como eran, con un `<select>` nativo de cien nombres. Ahora usan el
+  mismo `DeckPicker` que los mazos por juego: sprites y búsqueda por mazo o Pokémon. Grupos:
+  los del jugador, los de la liga y, aparte, «Solo el arquetipo».
+- Los arquetipos de los selectores por juego salían bajo «De la liga», que no lo son. Grupo
+  propio («arch» → «Solo el arquetipo»).
+- **Sin puntos en el resumen de la Liga**, a petición. La clasificación completa los enseña al
+  entrar.
+
+### Añadido
+
+- **Torneos online previstos en el calendario.** Cada noche, con el cron que ya existía, se
+  detectan en Limitless las series que se juegan cada semana con más de 100 jugadores de media
+  y se ponen sus dos próximas ediciones. Botón en Ajustes para hacerlo a mano.
+  - **Son previsiones.** La API de Limitless solo devuelve torneos ya jugados y su `players` es
+    quién participó: no hay inscripciones que leer. La fecha y la hora salen de las ediciones
+    anteriores (mismo día y hora, una semana después), y la nota del evento lo dice.
+  - **Semanal** = al menos 3 ediciones en 8 semanas y la mediana entre ediciones de 6 a 8 días.
+    Mediana y no media, para que una semana sin celebrar no tumbe la serie.
+  - **Eventos y no torneos**: un torneo previsto no es uno al que alguien se haya apuntado, y
+    el cron de limpieza lo borraría a los tres días. Las previsiones pasadas se retiran solas;
+    un evento puesto a mano nunca se toca. Si Limitless no contesta, no se borra nada.
+- `src/lib/seriesOnline.ts` (puro, 10 pruebas) y `src/lib/seriesOnlineDb.ts`.
+
+### Eliminado
+
+- `DeckOptions` de `MatchForm`, sin uso tras el buscador.
+- Las guías `IMPLEMENTAR-v0.41/42/43`, ya aplicadas.
+
+### Verificado
+
+- `npm run verificar`: codificación limpia, **491 de 491**, `tsc` sin errores propios.
+- `npm run build`: pendiente.
+
 ## [0.43.0] — 2026-10-15
 
 Mazo de la serie recuperado, resumen de la liga y limpieza.

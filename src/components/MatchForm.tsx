@@ -132,7 +132,40 @@ export function MatchForm({
     }
     return base;
   });
-  const archOpts: DeckOption[] = useMemo(() => [...archetypes].map((a) => ({ id: a.id, name: a.name, archetypeId: a.id, archetypeName: a.name, main: a.main, secondary: a.secondary, type: a.type, group: 'shared' as const, hasList: false })).sort((x, y) => x.name.localeCompare(y.name, 'es')), [archetypes]);
+  // v0.44 — grupo «arch» («Solo el arquetipo»), no «shared»: antes los
+  // arquetipos salían bajo «De la liga», que no lo son.
+  const archOpts: DeckOption[] = useMemo(() => [...archetypes].map((a) => ({ id: a.id, name: a.name, archetypeId: a.id, archetypeName: a.name, main: a.main, secondary: a.secondary, type: a.type, group: 'arch' as const, hasList: false })).sort((x, y) => x.name.localeCompare(y.name, 'es')), [archetypes]);
+
+  /* v0.44 — el buscador del mazo de la SERIE, con los Pokémon de cada
+     arquetipo y búsqueda. En la v0.43 se restauraron los selectores tal y
+     como eran antes del 9 de octubre, con un `<select>` nativo: una lista de
+     cien nombres sin un solo icono. Ahora es el mismo `DeckPicker` que ya
+     usaban los mazos por juego.
+
+     El orden de los grupos es el orden en que se pintan: los mazos de ese
+     jugador, los de la liga, y al final los arquetipos sueltos, en su propio
+     grupo («Solo el arquetipo») en vez de mezclados con los de la liga. */
+  const archPorId = useMemo(() => new Map(archetypes.map((a) => [a.id, a])), [archetypes]);
+  const opcionesSerie = (playerId: string): DeckOption[] => {
+    const dueno = players.find((p) => p.id === playerId);
+    const esMio = playerId === meId;
+    const deMazo = (d: Deck, group: DeckOption["group"], ownerName?: string): DeckOption => {
+      const a = archPorId.get(d.archetypeId);
+      return {
+        id: d.id, name: d.name, archetypeId: d.archetypeId, archetypeName: a?.name ?? "",
+        main: a?.main ?? "", secondary: a?.secondary ?? "", type: a?.type ?? "colorless",
+        group, ownerName, hasList: Boolean(d.list.trim()),
+      };
+    };
+    const propios = decks.filter((d) => d.playerId === playerId && !d.retired)
+      .map((d) => deMazo(d, esMio ? "mine" : "other", esMio ? undefined : dueno?.name));
+    const deLaLiga = decks.filter((d) => d.playerId == null && !d.retired).map((d) => deMazo(d, "shared"));
+    const soloArquetipo = archOpts.map((o) => ({ ...o, id: `arch:${o.archetypeId}` }));
+    return [...propios, ...deLaLiga, ...soloArquetipo];
+  };
+  /** El rival de fuera solo tiene arquetipo, y el servidor lo lee sin prefijo. */
+  const opcionesRivalFuera: DeckOption[] = archOpts;
+
   const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
@@ -212,10 +245,14 @@ export function MatchForm({
           {mazoFijo && (
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="deckAId">Su mazo</label>
-              <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
-                <option value="">— sin asignar —</option>
-                <DeckOptions decks={decks} playerId={aId} archetypes={archetypes} />
-              </select>
+              {/* `key` con el jugador: al cambiar de jugador se vacía, porque los
+                  mazos de uno no son los del otro. */}
+              <DeckPicker
+                key={`a-${aId}`} id="deckAId" name="deckAId"
+                options={opcionesSerie(aId)} defaultValue={aDeckId}
+                emptyLabel="— sin asignar —" placeholder="Buscar mazo o Pokémon"
+                searchFrom={1} onChange={setADeckId}
+              />
             </div>
           )}
 
@@ -237,13 +274,12 @@ export function MatchForm({
               {mazoFijo && (
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
-                  <select
-                    className="input" id="opponentArchetypeId" name="opponentArchetypeId"
-                    value={oppArch} onChange={(e) => setOppArch(e.target.value)}
-                  >
-                    <option value="">— no lo sé —</option>
-                    {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <DeckPicker
+                    key="rival-fuera" id="opponentArchetypeId" name="opponentArchetypeId"
+                    options={opcionesRivalFuera} defaultValue={oppArch}
+                    emptyLabel="— no lo sé —" placeholder="Buscar arquetipo o Pokémon"
+                    searchFrom={1} onChange={setOppArch}
+                  />
                 </div>
               )}
             </>
@@ -259,10 +295,12 @@ export function MatchForm({
               {mazoFijo && (
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="deckBId">Su mazo</label>
-                  <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
-                    <option value="">— sin asignar —</option>
-                    <DeckOptions decks={decks} playerId={bId} archetypes={archetypes} />
-                  </select>
+                  <DeckPicker
+                    key={`b-${bId}`} id="deckBId" name="deckBId"
+                    options={opcionesSerie(bId)} defaultValue={bDeckId}
+                    emptyLabel="— sin asignar —" placeholder="Buscar mazo o Pokémon"
+                    searchFrom={1} onChange={setBDeckId}
+                  />
                 </div>
               )}
             </>
@@ -516,31 +554,3 @@ export function MatchForm({
  * para esto: poder decir qué llevaba alguien sin tener que apropiarse el mazo
  * ni inventarle una cuenta al rival.
  */
-function DeckOptions({ decks, playerId, archetypes = [] }: { decks: Deck[]; playerId: string; archetypes?: Archetype[] }) {
-  const own = decks.filter((d) => d.playerId === playerId && !d.retired);
-  const shared = decks.filter((d) => d.playerId == null && !d.retired);
-  return (
-    <>
-      {own.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-      {shared.length > 0 && (
-        <optgroup label="De la liga">
-          {shared.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </optgroup>
-      )}
-      {/* v0.24: cualquier arquetipo, sin tener el mazo registrado. */}
-      {archetypes.length > 0 && (
-        <optgroup label="Solo el arquetipo">
-          {[...archetypes].sort((x, y) => x.name.localeCompare(y.name, "es")).map((a) => (
-            <option key={a.id} value={`arch:${a.id}`}>{a.name}</option>
-          ))}
-        </optgroup>
-      )}
-    </>
-  );
-}
-
-
-
-
-
-

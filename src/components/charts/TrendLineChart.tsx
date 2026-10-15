@@ -74,8 +74,29 @@ export function TrendLineChart({
   const escala = useMemo(() => escalaRobusta(pointsWithAvg.map((p) => p.value)), [pointsWithAvg]);
   const fueraDeEscala = escala.fuera.map((i) => pointsWithAvg[i]);
 
+  /* v0.44 — se dibuja el valor RECORTADO al techo, no el real.
+
+     En la v0.42 el recorte se hizo con `allowDataOverflow`, que le dice a
+     Recharts que pinte la línea aunque se pase del eje: el pico se salía por
+     encima de la tarjeta. Ahora la línea llega como mucho al techo, y el
+     valor real sigue en el tooltip y en la nota de debajo. La media de 7 días
+     también se recorta: cuando el día atípico entra en su ventana, ella
+     también pasa del techo, y se salía igual. */
+  const datosEje = useMemo(() => {
+    const t = escala.techo;
+    if (t == null) return pointsWithAvg.map((p) => ({ ...p, valorEje: p.value, mediaEje: p.avg7 }));
+    return pointsWithAvg.map((p) => ({
+      ...p,
+      valorEje: Math.min(p.value, t),
+      mediaEje: p.avg7 === undefined ? undefined : Math.min(p.avg7, t),
+    }));
+  }, [pointsWithAvg, escala.techo]);
+
   return (
-    <div className="card p-4">
+    <div className="card min-w-0 overflow-hidden p-4">
+      {/* v0.44 — `min-w-0`: dentro de una rejilla, sin esto la tarjeta no se
+          encoge por debajo del ancho de su contenido y el contenedor responsivo
+          de Recharts la empujaba fuera del cuadro. */}
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <div>
           <h3 className="text-base font-bold text-ink">{title}</h3>
@@ -96,7 +117,7 @@ export function TrendLineChart({
 
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={pointsWithAvg} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={datosEje} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" vertical={false} />
             <XAxis
               dataKey="date"
@@ -108,7 +129,6 @@ export function TrendLineChart({
             <YAxis
               allowDecimals={false}
               domain={escala.techo != null ? [0, escala.techo] : [0, "auto"]}
-              allowDataOverflow={escala.techo != null}
               tick={{ fontSize: 11, fill: "var(--muted)" }}
               stroke="var(--line)"
             />
@@ -140,7 +160,7 @@ export function TrendLineChart({
             {/* Línea principal diaria */}
             <Line
               type="monotone"
-              dataKey="value"
+              dataKey="valorEje"
               name={valueLabel}
               stroke="var(--info)"
               strokeWidth={2}
@@ -150,7 +170,7 @@ export function TrendLineChart({
             {/* Línea discontinua de media móvil 7d */}
             <Line
               type="monotone"
-              dataKey="avg7"
+              dataKey="mediaEje"
               name={avgLabel}
               stroke="var(--muted)"
               strokeWidth={1.5}

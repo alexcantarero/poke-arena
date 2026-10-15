@@ -285,7 +285,7 @@ export function deckOptions(
     })
     .filter((x): x is DeckOption => x !== null);
 
-  const rank: Record<DeckOption["group"], number> = { fav: 0, mine: 1, shared: 2, other: 3 };
+  const rank: Record<DeckOption["group"], number> = { fav: 0, mine: 1, shared: 2, other: 3, arch: 4 };
   return rows.sort((a, b) => rank[a.group] - rank[b.group] || a.name.localeCompare(b.name, "es"));
 }
 

@@ -65,7 +65,10 @@ export function HourlyChart({
   }, [data, peakHourStart, peakHourEnd]);
 
   return (
-    <div className="card p-4">
+    <div className="card min-w-0 overflow-hidden p-4">
+      {/* v0.44 — `min-w-0`: dentro de una rejilla, sin esto la tarjeta no se
+          encoge por debajo del ancho de su contenido y el contenedor responsivo
+          de Recharts la empujaba fuera del cuadro. */}
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <div>
           <h3 className="text-base font-bold text-ink">{title}</h3>

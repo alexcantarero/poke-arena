@@ -2,7 +2,7 @@ import Link from "next/link";
 import { compPlayers, currentPlayer, loadSnapshot } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
 import { isPlayed, standings } from "@/lib/stats";
-import { fmtDate, num, pct, todayISO, wrColor } from "@/lib/format";
+import { fmtDate, pct, todayISO, wrColor } from "@/lib/format";
 import { actividadTexto, diasEntre, ordenarCompeticiones, partidasEsperadas, progresoLiga } from "@/lib/resumenLiga";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
 import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
@@ -87,14 +87,12 @@ export default async function CompetitionsPage() {
 
                 {conPartidas.length ? (
                   <ol className="divide-y divide-line-soft border-t border-line-soft">
-                    {/* Cabecera: deja claro que se ordena por PUNTOS. Antes solo
-                        salía el %V, y un tercero con mejor porcentaje que el
-                        segundo parecía un error de la app. */}
+                    {/* v0.44 — sin la columna de puntos, a petición: en el resumen no
+                        aporta y la clasificación completa ya los enseña al entrar. */}
                     <li className="flex items-center gap-3 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted" aria-hidden="true">
                       <span className="w-5 flex-none" />
                       <span className="flex-1">Jugador</span>
                       <span className="hidden xs:block">V–D–E</span>
-                      <span className="w-10 text-right">Pts</span>
                       <span className="w-12 text-right">%V</span>
                     </li>
                     {conPartidas.slice(0, 5).map((r, i) => (
@@ -105,7 +103,6 @@ export default async function CompetitionsPage() {
                           {cerrada && i === 0 && <span className="chip chip-brand flex-none text-[10px]">Campeón</span>}
                         </span>
                         <span className="hidden xs:block"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
-                        <span className="w-10 text-right font-display text-base font-extrabold tabular">{num(r.points)}</span>
                         {/* El %V lleva al lado sobre cuántas partidas: un 100 %
                             sobre una no es un 100 % sobre diez. */}
                         <span className="flex w-12 flex-col items-end leading-tight">

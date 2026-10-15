@@ -764,8 +764,15 @@ export function pairRound(
      dejaba de compilar. */
   cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = DEFAULT_SETTINGS,
 ) {
+  /* v0.44 — cuentan TODOS los cruces que ya existen, jugados o pendientes.
+
+     Antes solo contaban los jugados (`filter(isPlayed)`), así que una jornada
+     creada y sin jugar era invisible para el generador, y la siguiente
+     proponía exactamente los mismos cruces: la J3 repetía la J2 entera. Un
+     cruce pendiente ya está decidido; repetirlo es repetirlo. */
   const seen = new Set<string>();
-  for (const m of playedMatches.filter(isPlayed)) {
+  for (const m of playedMatches) {
+    if (!m.playerBId) continue; // rival de fuera: no es un cruce de la liga
     seen.add(`${m.playerAId}|${m.playerBId}`);
     seen.add(`${m.playerBId}|${m.playerAId}`);
   }
@@ -781,16 +788,84 @@ export function pairRound(
     if (seeded.length % 2) order.push(seeded[Math.floor(seeded.length / 2)]);
   }
 
+  /* v0.44 — emparejar SIN repetir, siempre que se pueda.
+
+     El algoritmo de antes era voraz: cogía al primero, le buscaba un rival
+     libre y seguía; si se atascaba, caía en `k = 0` y repetía a propósito.
+     Medido con doce jugadores: repetía DESDE LA JORNADA 4, y en una liga
+     completa de 11 jornadas acumulaba 16 cruces repetidos, aunque existe una
+     combinación sin ninguno. Una elección temprana dejaba sin salida a los
+     últimos. (La prueba `tests/jornadas.test.ts` exige las 11 sin repetir.)
+
+     Ahora se busca con vuelta atrás: si una elección deja a alguien sin rival
+     libre, se deshace y se prueba la siguiente. Respeta el orden de
+     preferencia (en el suizo, emparejar a los de récord parecido), así que
+     el resultado es el mismo que antes cuando antes no había conflicto.
+
+     Solo si NO existe ninguna jornada sin repeticiones (todos han jugado ya
+     contra todos: empieza la segunda vuelta) se cae al método de antes, y la
+     función dice cuántos cruces repite para que la pantalla lo avise. */
+  const sinRepetir = emparejarSinRepetir(order, seen);
+  if (sinRepetir) return { ...sinRepetir, repetidos: 0 };
+
   const pool = [...order];
   const pairs: Array<[string, string]> = [];
+  let repetidos = 0;
   while (pool.length > 1) {
     const a = pool.shift()!;
     let k = pool.findIndex((b) => !seen.has(`${a}|${b}`));
-    if (k < 0) k = 0;
+    if (k < 0) { k = 0; repetidos++; }
     pairs.push([a, pool[k]]);
     pool.splice(k, 1);
   }
-  return { pairs, bye: pool[0] ?? null };
+  return { pairs, bye: pool[0] ?? null, repetidos };
+}
+
+/** Tope de pasos de la búsqueda. Con 12 jugadores el peor caso son ~10.000;
+    con 20, cientos de millones. El tope evita que una liga grande sin
+    combinación posible deje la pantalla colgada: si se alcanza, se rinde y
+    `pairRound` cae al método voraz, que siempre devuelve algo. */
+const TOPE_BUSQUEDA = 200_000;
+
+/**
+ * Busca una jornada completa en la que nadie repita rival.
+ *
+ * Con número impar, alguien descansa: se prueba primero el ÚLTIMO del orden
+ * (el de peor clasificación en el suizo, el mismo criterio que antes) y se
+ * sube si con él no hay solución.
+ *
+ * `null` si no existe, o si la búsqueda supera el tope.
+ */
+export function emparejarSinRepetir(
+  order: readonly string[],
+  seen: ReadonlySet<string>,
+): { pairs: Array<[string, string]>; bye: string | null } | null {
+  let pasos = 0;
+
+  const buscar = (pool: string[]): Array<[string, string]> | null => {
+    if (++pasos > TOPE_BUSQUEDA) return null;
+    if (pool.length === 0) return [];
+    const [a, ...resto] = pool;
+    for (let k = 0; k < resto.length; k++) {
+      const b = resto[k];
+      if (seen.has(`${a}|${b}`)) continue;
+      const sub = buscar([...resto.slice(0, k), ...resto.slice(k + 1)]);
+      if (sub) return [[a, b], ...sub];
+      if (pasos > TOPE_BUSQUEDA) return null;
+    }
+    return null;
+  };
+
+  if (order.length % 2 === 0) {
+    const pairs = buscar([...order]);
+    return pairs ? { pairs, bye: null } : null;
+  }
+  for (let i = order.length - 1; i >= 0; i--) {
+    const pairs = buscar(order.filter((_, j) => j !== i));
+    if (pairs) return { pairs, bye: order[i] };
+    if (pasos > TOPE_BUSQUEDA) return null;
+  }
+  return null;
 }
 
 /** Tipos de torneo por familia. El Día 2 solo existe en `TWO_PHASE_KINDS`. */

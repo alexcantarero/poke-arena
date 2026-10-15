@@ -45,6 +45,7 @@ import { CALENDAR_KINDS } from "@/lib/calendar";
 import {
   coverageOf, parseStandings, parseSummary, type ParseResult, type PasteMode,
 } from "@/lib/standings";
+import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 
 /* =========================================================================
    Server Actions.
@@ -3054,4 +3055,18 @@ export async function importarTorneosLimitless(fd: FormData) {
     : "";
   redirect(withFlash("/ajustes", "ok",
     `${nuevos} torneo(s) nuevo(s) y ${actualizados} ya conocido(s), de ${entradas.length} mirados.${pendientes}`));
+}
+
+/* v0.44 — torneos online semanales previstos, a mano (el cron lo hace a diario). */
+export async function sincronizarSeriesAhora() {
+  await requireManager();
+  const r = await sincronizarSeriesOnline();
+  revalidatePath("/", "layout");
+  if (r.sinRespuesta) {
+    redirect(withFlash("/ajustes", "error", "Limitless no ha contestado. No se ha tocado nada; prueba en un rato."));
+  }
+  redirect(withFlash("/ajustes", "ok",
+    r.series
+      ? `${r.series} serie(s) semanal(es) de +100 jugadores: ${r.creados} evento(s) nuevo(s), ${r.actualizados} actualizado(s), ${r.retirados} pasado(s) retirado(s).`
+      : `Ninguna serie semanal con más de 100 jugadores de media en las últimas 8 semanas.`));
 }

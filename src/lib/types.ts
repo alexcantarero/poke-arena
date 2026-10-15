@@ -86,8 +86,9 @@ export type DeckOption = {
   main: string;
   secondary: string;
   type: string;
-  /** fav = favorito tuyo · mine = tuyo · shared = de la liga · other = de otra persona */
-  group: "fav" | "mine" | "shared" | "other";
+  /** fav = favorito tuyo · mine = tuyo · shared = de la liga · other = de otra persona
+      · arch = solo el arquetipo, sin mazo con lista (v0.44) */
+  group: "fav" | "mine" | "shared" | "other" | "arch";
   /** Nombre del dueño, solo cuando el mazo es de otra persona. */
   ownerName?: string;
   hasList: boolean;
@@ -111,6 +112,7 @@ export const DECK_GROUP_LABEL: Record<DeckOption["group"], string> = {
   mine: "Tuyos",
   shared: "De la liga",
   other: "De otra gente",
+  arch: "Solo el arquetipo",
 };
 
 export type Side = "a" | "b";

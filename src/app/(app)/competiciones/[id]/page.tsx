@@ -85,7 +85,10 @@ export default async function CompetitionPage({
     }
   }
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
-  const previewLiga = pairRound(comp.kind, ids, played, snap.elo.rating, snap.config);
+  /* v0.44 — `inComp` y no `played`: la acción que crea la jornada recibe
+     todas las partidas de la competición, y la vista previa recibía solo las
+     jugadas. Lo que se enseñaba podía no ser lo que se creaba al pulsar. */
+  const previewLiga = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config);
   const kind =
     COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
 
@@ -108,6 +111,7 @@ export default async function CompetitionPage({
     ? {
         pairs: previewEquipos.cruces.flatMap(([a, b]) => partidasDeDuelo(equipoById.get(a)!, equipoById.get(b)!)),
         bye: null as string | null,
+        repetidos: 0,
       }
     : previewLiga;
 
@@ -402,6 +406,16 @@ export default async function CompetitionPage({
                     </li>
                   )}
                 </ul>
+                {/* v0.44 — si ya no queda ninguna combinación sin repetir (todos han
+                    jugado contra todos: segunda vuelta), la jornada se genera igual,
+                    pero se dice. Antes repetía en silencio y desde la jornada 4. */}
+                {preview.repetidos > 0 && (
+                  <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+                    Ya no quedan cruces nuevos: esta jornada repite{" "}
+                    <b className="text-ink">{preview.repetidos}</b>{" "}
+                    {preview.repetidos === 1 ? "enfrentamiento" : "enfrentamientos"}. Es la segunda vuelta.
+                  </p>
+                )}
                 {manager ? (
                   <form action={createPairings}>
                     <input type="hidden" name="competitionId" value={comp.id} />

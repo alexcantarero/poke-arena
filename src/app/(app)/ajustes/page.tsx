@@ -13,7 +13,7 @@ import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
-import { importarTorneosLimitless } from "@/actions";
+import { importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { deleteMetaEvent } from "@/actions";
 import { Icon } from "@/components/icons";
@@ -285,6 +285,26 @@ export default async function SettingsPage() {
               </label>
               <button className="btn btn-brand" type="submit">
                 <Icon name="refresh" className="size-4" /> Buscar e importar
+              </button>
+            </form>
+          </div>
+
+          {/* --- v0.44: torneos online semanales previstos en el calendario --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">Torneos online previstos</p>
+            <p className="mb-3 text-sm text-muted">
+              Busca en Limitless las series que se juegan cada semana con más de 100 jugadores de
+              media y pone en el calendario sus dos próximas ediciones. Se hace solo cada noche;
+              esto es por si no quieres esperar.
+            </p>
+            <p className="mb-3 text-xs text-muted">
+              Son previsiones, no inscripciones: la API de Limitless solo da los torneos ya jugados,
+              así que la fecha y la hora salen de las ediciones anteriores. Las ya pasadas se
+              retiran solas, y un evento que hayas puesto tú a mano nunca se toca.
+            </p>
+            <form action={sincronizarSeriesAhora}>
+              <button className="btn btn-brand" type="submit">
+                <Icon name="calendar" className="size-4" /> Buscar ahora
               </button>
             </form>
           </div>
