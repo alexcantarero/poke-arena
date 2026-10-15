@@ -37,3 +37,30 @@ export const ConversionEvolucionLazy = dynamic(
   () => import("./ConversionEvolucion").then((m) => m.ConversionEvolucion),
   { ssr: false, loading: () => <Hueco alto="h-80" /> },
 );
+
+/* -------------------------------------------------------------------------
+   v0.34 — Las dos que se habían quedado fuera.
+
+   `/estadisticas` y `LigaStats` importaban `TrendLineChart` y `HourlyChart`
+   desde `@/components/charts`, que es un barril: reexporta esas dos (que sí
+   usan Recharts) junto a `KpiCard` y `SegmentedFilter` (que no). Importar
+   cualquier cosa del barril arrastraba Recharts al paquete de la página,
+   aunque la gráfica estuviera al final y nadie bajara a verla.
+
+   Medido sobre el build del 13/10: `/estadisticas` pesaba 788 kB de
+   JavaScript y `/competiciones/[id]` 737, contra los ~370 del resto. Eran
+   las dos únicas rutas con ese problema, y son dos de las más visitadas.
+
+   Arreglo en dos partes: estas dos envueltas en `dynamic`, y `KpiCard` y
+   `SegmentedFilter` importados de su fichero, no del barril.
+   ------------------------------------------------------------------------- */
+
+export const TrendLineChartLazy = dynamic(
+  () => import("@/components/charts/TrendLineChart").then((m) => m.TrendLineChart),
+  { ssr: false, loading: () => <Hueco alto="h-56" /> },
+);
+
+export const HourlyChartLazy = dynamic(
+  () => import("@/components/charts/HourlyChart").then((m) => m.HourlyChart),
+  { ssr: false, loading: () => <Hueco alto="h-56" /> },
+);

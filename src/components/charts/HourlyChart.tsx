@@ -83,9 +83,17 @@ export function HourlyChart({
         </div>
       </div>
 
-      <div style={{ width: "100%", height }}>
+      {detectedPeak && (
+        <div className="mb-2 flex w-full justify-end overflow-hidden">
+          <span className="inline-flex max-w-full items-center rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+            {peakLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="w-full min-w-0 overflow-hidden" style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" vertical={false} />
             <XAxis
               dataKey="hour"
@@ -109,13 +117,6 @@ export function HourlyChart({
                 stroke="var(--series-1)"
                 strokeOpacity={0.25}
                 strokeDasharray="2 2"
-                label={{
-                  value: peakLabel,
-                  position: "top",
-                  fontSize: 10,
-                  fill: "var(--muted)",
-                  fontWeight: 600,
-                }}
               />
             )}
 

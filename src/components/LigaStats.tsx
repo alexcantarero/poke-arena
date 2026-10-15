@@ -7,7 +7,8 @@ import { MONTHS, pct, wrColor } from "@/lib/format";
 import { Avatar, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { H2HHeatmap } from "@/components/H2HHeatmap";
-import { KpiCard, TrendLineChart } from "@/components/charts";
+import { KpiCard } from "@/components/charts/KpiCard";
+import { TrendLineChartLazy } from "@/components/statistics/lazy";
 import { prepareDailyTrend } from "@/lib/chartData";
 import { matrizH2H } from "@/lib/h2h";
 
@@ -117,8 +118,13 @@ export function LigaStats({
         />
       </div>
 
-      {/* Primero los mazos y los Pokémon; después, las estadísticas de jugadores. */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {/* Primero los mazos y los Pokémon; después, las estadísticas de jugadores.
+
+          v0.40 — una columna, no dos. La matriz compartía fila con «Mazos
+          más jugados» y se quedaba con media tarjeta para diez columnas de
+          rivales: había que desplazarla de lado incluso en un monitor
+          grande. A ancho completo cabe entera. */}
+      <div className="grid grid-cols-1 gap-3">
         {arquetipos.length > 0 && (
           <div className="card min-w-0 p-4">
             <h3 className="mb-1 font-display text-lg font-extrabold tracking-tight text-ink">Mazos más jugados</h3>
@@ -255,7 +261,7 @@ export function LigaStats({
 
       {jugadas.length > 0 && (
         <div className="mt-3">
-          <TrendLineChart
+          <TrendLineChartLazy
             data={prepareDailyTrend(jugadas, 30)}
             title="Actividad diaria en la liga (últimos 30 días)"
             subtitle="Partidas jugadas por día y media móvil de 7 días"

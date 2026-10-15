@@ -13,11 +13,13 @@ import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
+import { importarTorneosLimitless } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { deleteMetaEvent } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { MotionToggle } from "@/components/MotionToggle";
+import { ServiceWorkerOff } from "@/components/ServiceWorkerOff";
 
 export const metadata = { title: "Ajustes" };
 
@@ -54,6 +56,13 @@ export default async function SettingsPage() {
     seasonsWithTournaments.map((y) => [y, snap.tournaments.filter((t) => t.season === y).length]),
   );
 
+  const atajos = [
+    { href: "#invitaciones", label: "Invitaciones" },
+    { href: "#liga", label: "Liga" },
+    { href: "#metagame", label: "Metagame" },
+    { href: "#sin-conexion", label: "Sin conexión" },
+  ];
+
   return (
     <>
       <PageHead
@@ -65,11 +74,52 @@ export default async function SettingsPage() {
 
       {manager && (
         <>
-          <Grupo titulo="Invitaciones" aside="cualquiera con el enlace puede darse de alta">
+          <section className="card mb-4 overflow-hidden">
+            <div className="border-b border-line-soft bg-surface-2/70 px-4 py-4 sm:px-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="label mb-1">Centro</p>
+                  <h2 className="font-display text-2xl font-bold leading-none text-ink">Resumen rápido</h2>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-strong">
+                  <Icon name="cog" className="size-3.5" /> {snap.config.name}
+                </span>
+              </div>
+            </div>
+            <div className="grid gap-3 p-4 md:grid-cols-[1.2fr_0.8fr]">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">Jugadores</p>
+                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.players.length}</p>
+                </div>
+                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">Torneos</p>
+                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.tournaments.length}</p>
+                </div>
+                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">Temporada</p>
+                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.config.season}</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
+                <p className="label mb-2">Atajos</p>
+                <div className="flex flex-wrap gap-2">
+                  {atajos.map((item) => (
+                    <a key={item.href} href={item.href} className="btn btn-sm btn-ghost">
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <Grupo id="invitaciones" titulo="Invitaciones" aside="cualquiera con el enlace puede darse de alta">
           <InviteManager invites={invites} />
 
           </Grupo>
-          <Grupo titulo="La liga">
+          <Grupo id="liga" titulo="La liga">
           <form action={saveSettings} className="card mb-6 flex flex-col gap-4 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -82,7 +132,7 @@ export default async function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 xs:grid-cols-3">
               {([["ptsWin", "Pts victoria"], ["ptsTie", "Pts empate"], ["ptsLoss", "Pts derrota"]] as const).map(([n, l]) => (
                 <div className="flex flex-col gap-1.5" key={n}>
                   <label className="label" htmlFor={`s-${n}`}>{l}</label>
@@ -211,6 +261,43 @@ export default async function SettingsPage() {
                 <Icon name="trash" className="size-4" /> Limpiar ahora
               </ConfirmButton>
             </form>
+          </div>
+
+          {/* --- v0.36: importar los torneos online de Limitless --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">Torneos online de Limitless</p>
+            <p className="mb-3 text-sm text-muted">
+              Busca a la gente de la liga en las clasificaciones de los torneos online recientes
+              y crea los que hayáis jugado, con vuestro puesto, récord y mazo ya puestos. Hace
+              falta que cada uno haya escrito su nick en su perfil.
+            </p>
+            <p className="mb-3 text-xs text-muted">
+              De cada clasificación solo se guarda lo vuestro: el resto de participantes se
+              descartan al leerlos. Un resultado que ya hayáis corregido a mano no se pisa.
+            </p>
+            <form action={importarTorneosLimitless} className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted">Torneos a mirar</span>
+                <input
+                  className="input w-24 text-center tabular" type="number" name="cuantos"
+                  min={1} max={50} defaultValue={25} inputMode="numeric"
+                />
+              </label>
+              <button className="btn btn-brand" type="submit">
+                <Icon name="refresh" className="size-4" /> Buscar e importar
+              </button>
+            </form>
+          </div>
+
+          {/* --- v0.35: la salida de emergencia del service worker --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">Modo sin conexión</p>
+            <p className="mb-3 text-sm text-muted">
+              La app guarda sus ficheros estáticos en el teléfono para abrir más rápido, y
+              enseña un aviso cuando no hay cobertura. Nunca guarda datos de la liga ni
+              páginas: esos se piden siempre al servidor.
+            </p>
+            <ServiceWorkerOff />
           </div>
 
           {/* --- v0.18: reset global para el cambio de temporada --- */}
@@ -512,9 +599,9 @@ export default async function SettingsPage() {
  * v0.24 — Un grupo de Ajustes, plegado por defecto (acordeón nativo con
  * <details>: funciona sin JavaScript). La cabecera dice qué hay dentro.
  */
-function Grupo({ titulo, aside, children }: { titulo: string; aside?: string; children: ReactNode }) {
+function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; aside?: string; children: ReactNode }) {
   return (
-    <details className="group mb-3">
+    <details id={id} className="group mb-3">
       <summary className="card tap cursor-pointer list-none justify-between gap-3 px-4">
         <span className="font-display text-lg font-bold">{titulo}</span>
         <span className="flex min-w-0 items-center gap-2 text-xs text-muted">

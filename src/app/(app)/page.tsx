@@ -120,6 +120,7 @@ export default async function HomePage({
   const archDe = (r: { deckId: string | null; archetypeId: string | null }): Archetype | undefined =>
     r.deckId ? snap.archIndex.get(r.deckId) : r.archetypeId ? snap.archById.get(r.archetypeId) : undefined;
 
+  const cfgSeason = snap.config.cpSeason;
   const mejoresResultados = mejoresPuestosDeTorneos(
     snap.tournaments
       .filter((t) => t.status === "closed")
@@ -133,9 +134,24 @@ export default async function HomePage({
   ).flatMap((r) => {
     const tournament = snap.toursById.get(r.tournamentId);
     const player = snap.playersById.get(r.playerId);
-    return tournament && player
-      ? [{ ...r, tournamentName: tournament.name }]
-      : [];
+    if (!tournament || !player) return [];
+
+    /* v0.40 — los CP que dio ese puesto, y el tipo de torneo.
+
+       Los CP se calculan con `effectiveCp()`, la misma función que usan el
+       perfil y la ficha del torneo. NO se lee la columna `cp_earned`: leerla
+       en crudo es exactamente el fallo de la v0.9.0, donde el perfil decía
+       una cifra y el torneo otra. Un valor metido a mano sigue mandando,
+       porque `effectiveCp` ya lo respeta. */
+    const resultado = tournament.results.find((x) => x.playerId === r.playerId);
+    const temporada = tournament.season ?? seasonOfDate(tournament.date) ?? cfgSeason;
+    const tipo = cpKindOf(tournament);
+    const cp = resultado
+      ? effectiveCp(temporada, tipo, resultado, tournament.playerCount)
+      : 0;
+    const tipoLabel = getSeason(temporada).events[tipo]?.label ?? tournament.kind;
+
+    return [{ ...r, tournamentName: tournament.name, cp, tipoLabel }];
   });
 
   // Vuestros resultados en forma de metagame, torneo a torneo.
@@ -467,6 +483,22 @@ export default async function HomePage({
                   <Link href={`/torneos/${r.tournamentId}`} className="mt-1 block truncate text-sm text-muted hover:text-info">
                     {r.tournamentName}
                   </Link>
+                  {/* v0.40 — tipo y puesto en etiquetas: se leen de un vistazo
+                      sin tener que entrar al torneo. */}
+                  <span className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className="chip text-[11px]">{r.tipoLabel}</span>
+                    <span className="chip text-[11px] tabular">{r.placement}.º puesto</span>
+                  </span>
+                </span>
+                {/* Los CP a la derecha y grandes: es la cifra que se viene a
+                    mirar. Un cero se pinta como guion, no como «+0»: puede
+                    ser un torneo que no reparte CP, y «+0» sugeriría que se
+                    jugó para nada. */}
+                <span className="flex flex-none flex-col items-end">
+                  <span className="font-display text-lg font-extrabold tabular text-brand">
+                    {r.cp > 0 ? `+${r.cp}` : "—"}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted">CP</span>
                 </span>
               </li>
             ))}

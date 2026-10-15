@@ -39,6 +39,9 @@ export const PUBLIC_PLAYER_COLUMNS = {
   bio: players.bio,
   favoriteArchetypeId: players.favoriteArchetypeId,
   playerTag: players.playerTag,
+  // v0.36: el nick de Limitless. Cada uno lo pone en su perfil y es su
+  // nombre en una web pública, así que no hay nada que esconder.
+  limitlessHandle: players.limitlessHandle,
   // El rango del ladder sí es público: el sentido es que se vea.
   ladderElo: players.ladderElo,
   ladderEloUpdatedAt: players.ladderEloUpdatedAt,
@@ -715,3 +718,34 @@ export const loadTournamentHeads = cache(async () =>
 /** Las competiciones. Para selectores y para poner el nombre. */
 export const loadCompetitionHeads = cache(async () =>
   db.select().from(competitions).orderBy(asc(competitions.start)));
+
+/* =========================================================================
+   v0.39 · Fase B del plan de rendimiento: consultas por pantalla.
+
+   La Fase A quitó el snapshot de Resultados. Esto hace lo mismo con las
+   pantallas que ya no necesitaban casi nada de él.
+
+   Qué cambia de verdad: `loadSnapshot()` lee las tablas `matches` y `games`
+   enteras, y son las dos únicas que crecen sin parar. Una pantalla que no
+   las necesita y las carga igual tiene un coste que sube con el historial
+   aunque la pantalla no cambie nunca. Eso es lo que se corta aquí.
+   ========================================================================= */
+
+/** Las jornadas y fechas señaladas de la liga. Tabla pequeña y estable. */
+export const loadEvents = cache(async () =>
+  db.select().from(events).orderBy(asc(events.date)));
+
+/**
+ * Solo las partidas que son rondas de un torneo.
+ *
+ * `/torneos` necesita las rondas para saber con qué mazo fue cada uno y
+ * cuántas lleva apuntadas, pero no le hacen ninguna falta las jornadas de
+ * liga ni los amistosos, que en una liga activa son la mayoría. Los juegos
+ * tampoco: esa pantalla no baja al detalle de cada juego.
+ */
+export const loadTournamentMatches = cache(async (): Promise<MatchFull[]> => {
+  const filas = await db.select().from(matches)
+    .where(sql`${matches.tournamentId} IS NOT NULL`)
+    .orderBy(asc(matches.date), asc(matches.round));
+  return filas.map((m) => ({ ...m, games: [] }));
+});

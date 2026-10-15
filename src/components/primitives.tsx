@@ -65,7 +65,10 @@ export function Kpi({
     >
       <div className="flex items-center gap-1.5">
         {icon && <Icon name={icon} className="size-3.5 flex-none" style={{ color: strong ? t.text : "var(--muted)" }} />}
-        <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{label}</span>
+        {/* v0.34 — antes `truncate`: «Liga regular interna» salía como
+            «LIGA REGULAR IN…». Dos líneas caben y se lee entero; el alto de
+            la tarjeta ya lo iguala la rejilla. */}
+        <span className="text-balance text-[10px] font-bold uppercase leading-tight tracking-[0.12em] text-muted">{label}</span>
       </div>
 
       <div

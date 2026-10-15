@@ -17,13 +17,15 @@ import { Avatar, Bars, Kpi, PageHead, Sprites } from "@/components/ui";
 import { Matrix } from "@/components/Matrix";
 import { FilterPanel } from "@/components/FilterPanel";
 import { SourceTabs, type Fuente } from "@/components/statistics/SourceTabs";
-import { KpiCard, TrendLineChart, HourlyChart } from "@/components/charts";
+import { KpiCard } from "@/components/charts/KpiCard";
+import { EnlaceArquetipo } from "@/components/EnlaceArquetipo";
+import { filtroBaseParaEnlaces } from "@/lib/enlacesFiltro";
 import { prepareDailyTrend, prepareHourlyDistribution } from "@/lib/chartData";
 import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
-import { ConversionEvolucionLazy } from "@/components/statistics/lazy";
+import { ConversionEvolucionLazy, HourlyChartLazy, TrendLineChartLazy } from "@/components/statistics/lazy";
 import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
 import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
@@ -169,6 +171,11 @@ export default async function StatsPage({
         winRate: st.played > 0 ? st.wins / st.played : 0,
       })).sort((a, b) => b.played - a.played);
   }
+
+  /* v0.37 — los filtros ya puestos se arrastran a los enlaces de las
+     gráficas: si estás mirando la temporada y la liga, pinchar en un
+     arquetipo debe llevarte a ESAS partidas, no a todas las de la historia. */
+  const queryFiltro = filtroBaseParaEnlaces(filter);
 
   const archs = agrupar
     ? agruparFilas(archsDetalle, raiz, agr.arquetipo)
@@ -372,7 +379,10 @@ export default async function StatsPage({
         sub={
           isFiltered(filter)
             ? `${rows.length} de ${all.length} partidas · ${resumen}`
-            : "Sobre las partidas registradas. Las que no llevan mazo en los dos lados cuentan para el ranking, pero no para la matriz."
+            // v0.34 — eran tres líneas en el móvil, por encima de todo lo
+            // que se viene a mirar. El matiz de la matriz se explica donde
+            // está la matriz, que es donde importa.
+            : `${all.length} partidas registradas.`
         }
       />
 
@@ -469,19 +479,21 @@ export default async function StatsPage({
 
           {rows.length > 0 && (
             <div className="my-4 grid gap-4 lg:grid-cols-2">
-              <TrendLineChart
+              <TrendLineChartLazy
                 data={prepareDailyTrend(rows, 30)}
                 title="Actividad diaria (30 días)"
                 subtitle="Partidas por día y media móvil de 7 días"
                 valueLabel="Partidas"
               />
-              <HourlyChart
-                data={prepareHourlyDistribution(rows)}
-                title="Distribución horaria"
-                subtitle="Partidas por hora (Europe/Madrid) según registro"
-                seriesALabel="Liga"
-                seriesBLabel="Torneos"
-              />
+              <div className="min-w-0">
+                <HourlyChartLazy
+                  data={prepareHourlyDistribution(rows)}
+                  title="Distribución horaria"
+                  subtitle="Partidas por hora (Europe/Madrid) según registro"
+                  seriesALabel="Liga"
+                  seriesBLabel="Torneos"
+                />
+              </div>
             </div>
           )}
         </>
@@ -512,7 +524,7 @@ export default async function StatsPage({
           <div className="p-4">
             {archs.length ? (
               <Bars rows={sortRows(archs, (a) => a.played, orden).slice(0, 10).map((a) => ({
-                label: <span className="inline-flex min-w-0 items-center gap-1.5"><Sprites archetype={a.archetype} size="sm" /><span className="truncate text-[13px]">{a.archetype?.name}</span></span>,
+                label: <EnlaceArquetipo arquetipo={a.archetype} filtroBase={queryFiltro} />,
                 value: a.played,
                 right: `${a.played} · ${pct(a.winRate, 0)}`,
               }))} />
@@ -531,7 +543,7 @@ export default async function StatsPage({
           <div className="p-4">
             {archs.filter((a) => a.played >= 2).length ? (
               <Bars max={100} rows={sortRows(archs.filter((a) => a.played >= 2), (a) => a.winRate, orden).slice(0, 10).map((a) => ({
-                label: <span className="inline-flex min-w-0 items-center gap-1.5"><Sprites archetype={a.archetype} size="sm" /><span className="truncate text-[13px]">{a.archetype?.name}</span></span>,
+                label: <EnlaceArquetipo arquetipo={a.archetype} filtroBase={queryFiltro} />,
                 value: (a.winRate ?? 0) * 100,
                 right: `${pct(a.winRate, 0)} (${a.played})`,
                 color: wrColor(a.winRate),
@@ -634,48 +646,50 @@ export default async function StatsPage({
             </div>
           </section>
 
-        <section className="card">`n          <div className="card-head"><h2 className="text-lg font-bold">Primer turno</h2></div>
-          <div className="p-4">
-            {ft.n && ft.winRate != null ? (
-              <>
-                <div className="font-display text-4xl font-extrabold tabular" style={{ color: wrColor(ft.winRate) }}>
-                  {pct(ft.winRate, 1)}
-                </div>
-                <p className="mt-1 mb-3 text-sm text-muted">
-                  de los {ft.n} juegos con turno anotado los gana quien empieza
-                </p>
-                <div className="flex h-2 overflow-hidden rounded-full bg-surface-3">
-                  <i className="block h-full bg-win" style={{ width: `${(ft.winRate * 100).toFixed(1)}%` }} />
-                  <i className="block h-full bg-loss" style={{ width: `${((1 - ft.winRate) * 100).toFixed(1)}%` }} />
-                </div>
-                {fts.n > 0 && fts.winRate != null && (
-                  <p className="mt-3 text-xs text-muted">
-                    Contando series completas en vez de juegos sueltos: {pct(fts.winRate, 1)} de{" "}
-                    {fts.n} partidas las gana quien salió primero. Aquí entran también las rondas
-                    de torneo apuntadas sin desglose, que tienen turno y resultado pero no juegos.
+          <section className="card">
+            <div className="card-head"><h2 className="text-lg font-bold">Primer turno</h2></div>
+            <div className="p-4">
+              {ft.n > 0 && ft.winRate != null ? (
+                <>
+                  <div className="font-display text-4xl font-extrabold tabular" style={{ color: wrColor(ft.winRate) }}>
+                    {pct(ft.winRate, 1)}
+                  </div>
+                  <p className="mt-1 mb-3 text-sm text-muted">
+                    De los {ft.n} juegos con turno anotado, los gana quien empieza.
                   </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted">
-                Anota quién empezó cada juego y aquí sabrás si el primer turno pesa tanto como dice todo el mundo.
-              </p>
-            )}
-          </div>
-        </section>
+                  <div className="flex h-2 overflow-hidden rounded-full bg-surface-3">
+                    <i className="block h-full bg-win" style={{ width: `${(ft.winRate * 100).toFixed(1)}%` }} />
+                    <i className="block h-full bg-loss" style={{ width: `${((1 - ft.winRate) * 100).toFixed(1)}%` }} />
+                  </div>
+                  {fts.n > 0 && fts.winRate != null && (
+                    <p className="mt-3 text-xs text-muted">
+                      Contando series completas en vez de juegos sueltos: {pct(fts.winRate, 1)} de{" "}
+                      {fts.n} partidas las gana quien salió primero. Aquí entran también las rondas
+                      de torneo apuntadas sin desglose, que tienen turno y resultado pero no juegos.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  Anota quién empezó cada juego y aquí sabrás si el primer turno pesa tanto como dice todo el mundo.
+                </p>
+              )}
+            </div>
+          </section>
 
-        <section className="card">
-          <div className="card-head"><h2 className="text-lg font-bold">Actividad</h2></div>
-          <div className="p-4">
-            {months.length
-              ? <Bars rows={months.map((x) => {
-                  const [y, m] = x.key.split("-");
-                  return { label: <span className="capitalize">{MONTHS[Number(m) - 1]} {y.slice(2)}</span>, value: x.n, right: String(x.n) };
-                })} />
-              : <p className="text-sm text-muted">Sin partidas.</p>}
-          </div>
-        </section>`n
-      </div>)}
+          <section className="card">
+            <div className="card-head"><h2 className="text-lg font-bold">Actividad</h2></div>
+            <div className="p-4">
+              {months.length
+                ? <Bars rows={months.map((x) => {
+                    const [y, m] = x.key.split("-");
+                    return { label: <span className="capitalize">{MONTHS[Number(m) - 1]} {y.slice(2)}</span>, value: x.n, right: String(x.n) };
+                  })} />
+                : <p className="text-sm text-muted">Sin partidas.</p>}
+            </div>
+          </section>
+        </div>
+      )}
       </>
       )}
       </>

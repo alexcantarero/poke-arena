@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { saveTournamentRound, deleteTournamentRound, dropFromTournament } from "@/actions";
 import type { Archetype, DeckOption, Side } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
@@ -10,6 +10,15 @@ import { DeckPicker } from "./DeckPicker";
 import { Sprites } from "./ui";
 import { Icon } from "./icons";
 import { PrizePicker } from "@/components/PrizePicker";
+
+/** Cuántos rivales se enseñan antes de plegar el resto. Seis caben en dos
+    filas en un móvil de 360 px sin empujar el formulario. */
+const TOPE_RIVALES = 6;
+
+/** Para buscar sin que importen acentos ni mayúsculas: «jimenez» encuentra
+    «Francesc Jimenez» y «ivan» encuentra «Iván Fernández». */
+const sinAcentos = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 /** Los premios de un juego mientras se edita. */
 type PremiosEnEdicion = {
@@ -325,6 +334,18 @@ export function RoundForm({
      a su perfil (mapa de enfrentamientos). Si escribes otra cosa, el enlace
      se suelta solo: no puede quedar «Pepe» enlazado a la cuenta de Alex. */
   const [rivalName, setRivalName] = useState<string>(m?.opponentName ?? "");
+  const [verTodos, setVerTodos] = useState(false);
+
+  /* v0.34 — rivales filtrados por lo que se escribe, sin acentos ni mayúsculas.
+     Con 21 personas en la liga, pintarlas todas eran siete filas de chips. */
+  const rivalesFiltrados = useMemo(() => {
+    const q = sinAcentos(rivalName);
+    if (!q) return rivalPlayers;
+    return rivalPlayers.filter((p: { id: string; name: string }) => sinAcentos(p.name).includes(q));
+  }, [rivalPlayers, rivalName]);
+
+  const rivalesVisibles = verTodos ? rivalesFiltrados : rivalesFiltrados.slice(0, TOPE_RIVALES);
+  const ocultos = verTodos ? 0 : rivalesFiltrados.length - rivalesVisibles.length;
   const [rivalId, setRivalId] = useState<string>(m?.opponentPlayerId ?? "");
   const pickRival = (p: { id: string; name: string }) => {
     if (rivalId === p.id) { setRivalId(""); return; }
@@ -427,6 +448,10 @@ export function RoundForm({
       <input type="hidden" name="tournamentId" value={tournamentId} />
       <input type="hidden" name="playerId" value={playerId} />
       <input type="hidden" name="mode" value={mode} />
+      {/* v0.34 — la lista de rivales era un muro: con 21 personas ocupaba siete
+          filas de chips y empujaba el resto del formulario fuera de la pantalla
+          del móvil. Ahora se filtra con lo que escribes y solo se enseñan unos
+          pocos, con un «+N más» para abrirla entera. */}
       {/* Al editar se manda el id de la fila. Sin él, cambiar el número de
           ronda insertaba una ronda nueva y dejaba la vieja donde estaba. */}
       {m && <input type="hidden" name="matchId" value={m.id} />}
@@ -443,7 +468,7 @@ export function RoundForm({
           <label className="label" htmlFor={`opp-${round}`}>Rival</label>
           <input
             className="input" id={`opp-${round}`} name="opponentName" required maxLength={60}
-            autoComplete="off" value={rivalName} placeholder="Como salga en el emparejamiento"
+            autoComplete="off" value={rivalName} placeholder="Nombre del rival"
             onChange={(e) => {
               setRivalName(e.target.value);
               const elegido = rivalPlayers.find((p) => p.id === rivalId);
@@ -457,10 +482,10 @@ export function RoundForm({
       {rivalPlayers.length > 0 && (
         <div className="-mt-1.5 flex flex-col gap-1.5">
           <span className="text-[11px] text-muted">
-            ¿Es alguien del grupo? Tócalo y queda enlazado a su perfil. Si no, escribe el nombre.
+            Si es del grupo, tócalo y queda enlazado a su perfil.
           </span>
           <div className="flex flex-wrap gap-1.5">
-            {rivalPlayers.map((p) => (
+            {rivalesVisibles.map((p) => (
               <button
                 key={p.id} type="button" onClick={() => pickRival(p)}
                 aria-pressed={rivalId === p.id}
@@ -469,7 +494,25 @@ export function RoundForm({
                 {rivalId === p.id ? "✓ " : ""}{p.name}
               </button>
             ))}
+            {ocultos > 0 && (
+              <button
+                type="button" onClick={() => setVerTodos(true)}
+                className="chip text-muted"
+              >
+                +{ocultos} más
+              </button>
+            )}
+            {verTodos && rivalesFiltrados.length > TOPE_RIVALES && (
+              <button type="button" onClick={() => setVerTodos(false)} className="chip text-muted">
+                Ver menos
+              </button>
+            )}
           </div>
+          {rivalName.trim() && rivalesFiltrados.length === 0 && (
+            <span className="text-[11px] text-muted">
+              Nadie del grupo se llama así. Se guardará como rival de fuera.
+            </span>
+          )}
         </div>
       )}
 
@@ -486,7 +529,7 @@ export function RoundForm({
             m?.deckBId ?? (m?.opponentArchetypeId ? archetypeValue(m.opponentArchetypeId) : "")
           }
           emptyLabel="— sin anotar —"
-          placeholder="Buscar el mazo del rival"
+          placeholder="Mazo del rival"
         />
       </div>
 
@@ -503,12 +546,12 @@ export function RoundForm({
             options={ownOptions}
             defaultValue={m?.deckAId ?? (m?.archetypeAId ? archetypeValue(m.archetypeAId) : "")}
             emptyLabel="— sin anotar —"
-            placeholder="Elegir tu mazo, o solo el arquetipo"
+            placeholder="Tu mazo o arquetipo"
           />
-          <p className="text-xs text-muted">
-            Se guarda para todo el torneo: en las rondas siguientes ya no te lo pregunto. Puedes
-            elegir un mazo con lista o solo el arquetipo si todavía no lo tienes registrado.
-          </p>
+          {/* v0.34 — eran tres líneas en el móvil, justo encima del bloque de
+              resultado. Lo que hay que saber antes de tocarlo cabe en una; el
+              resto se descubre solo al abrir el selector. */}
+          <p className="text-xs text-muted">Se guarda para todo el torneo.</p>
         </div>
       ) : null}
 

@@ -55,7 +55,26 @@ Ojo: los filtros de `filters.ts` son módulos puros que operan sobre objetos ya 
 reescribas**; añade al lado una función que convierta los mismos parámetros de URL a condiciones
 SQL, y deja un test que compruebe que los dos caminos dan el mismo conjunto para un caso conocido.
 
-### Fase B — índices derivados por pantalla (riesgo bajo)
+### Fase B — índices derivados por pantalla — **PARCIAL en la v0.39.0**
+
+> **Hecha:** `/calendario`, que desde la v0.38 (fuera las partidas del calendario) solo
+> necesitaba tres tablas pequeñas. Pasa de las 13 consultas del snapshot —con `matches` y
+> `games` enteras— a `loadEvents()`, `loadTournamentHeads()` y `loadCompetitionHeads()`.
+>
+> **No hecha, y por qué:**
+>
+> - **`/torneos`** está acoplado a `playerCp(snap, …)`, que recibe el snapshot entero. Narrar
+>   solo las tablas que la pantalla toca obligaría a cambiar antes la firma de `playerCp`, y
+>   eso es tocar el motor de CP: la pieza con más historial de fallos silenciosos del
+>   proyecto (v0.9.0). Si se hace, primero se le da a `playerCp` una entrada estrecha y con
+>   pruebas, y después se cambia la pantalla. Son dos versiones, no media.
+> - **`/mazos`** necesita de verdad todas las partidas jugadas: `archetypeStats()` recorre el
+>   historial completo para sacar los usos de cada mazo. Aquí no hay nada que recortar sin
+>   cambiar lo que se enseña, o sin precalcular los usos, que es Fase D.
+>
+> Lo que sigue es la descripción original del plan.
+
+#### Descripción original
 
 `/calendario` solo necesita eventos, torneos y las partidas con fecha en el mes que se mira.
 `/mazos` necesita mazos, arquetipos y favoritos. `/torneos` necesita torneos y jugadores.

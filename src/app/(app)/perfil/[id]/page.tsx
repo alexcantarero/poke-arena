@@ -27,6 +27,7 @@ import { FavStar } from "@/components/FavStar";
 import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
+import { SeccionPlegable } from "@/components/SeccionPlegable";
 
 /* De dónde salen las cifras de arriba.
    Mezclar la liga, los torneos de fuera y los amistosos da un número que no
@@ -79,7 +80,12 @@ export default async function ProfilePage({
   const elo = snap.elo.rating[id] ?? snap.config.eloStart;
   const history = (snap.elo.history[id] ?? []).map((h) => h.value);
   const archs = archetypeStats(mine, snap.archIndex, id, snap.archById);
-  const matchups = playerMatchups(all, id, snap.archIndex, 2, snap.archById);
+  /* v0.38 — mínimo 5 partidas y no 2. Con dos cruces el porcentaje solo
+     puede ser 0, 50 o 100, y una lista llena de «100% (2)» no dice nada:
+     parece información y es ruido. A partir de cinco el número empieza a
+     significar algo. */
+  const MIN_CRUCES = 5;
+  const matchups = playerMatchups(all, id, snap.archIndex, MIN_CRUCES, snap.archById);
   const rivals = headToHead(all, id);
   const decks = snap.decks.filter((d) => d.playerId === id);
   const cp = playerCp(snap, id);
@@ -294,11 +300,11 @@ export default async function ProfilePage({
       </div>
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
-        <section className="card">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Enfrentamientos directos</h2>
-            {scope !== "all" && <span className="text-xs text-muted">todas las partidas</span>}
-          </div>
+        <SeccionPlegable
+          titulo="Enfrentamientos directos"
+          clave="perfil-h2h"
+          nota={scope !== "all" ? "todas las partidas" : undefined}
+        >
           {rivals.length ? (
             <ul className="divide-y divide-line-soft">
               {rivals.map((t) => (
@@ -313,15 +319,13 @@ export default async function ProfilePage({
               ))}
             </ul>
           ) : <Empty title="Sin partidas registradas" />}
-        </section>
+        </SeccionPlegable>
 
-        <section className="card">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">Emparejamientos</h2>
-            <span className="text-xs text-muted">
-              mín. 2 partidas{scope !== "all" ? " · todas las partidas" : ""}
-            </span>
-          </div>
+        <SeccionPlegable
+          titulo="Emparejamientos"
+          clave="perfil-emparejamientos"
+          nota={`mín. ${MIN_CRUCES} partidas${scope !== "all" ? " · todas las partidas" : ""}`}
+        >
           {matchups.length ? (
             <ul className="divide-y divide-line-soft">
               {matchups.slice(0, 8).map((t) => (
@@ -341,10 +345,10 @@ export default async function ProfilePage({
             </ul>
           ) : (
             <Empty title="Todavía no hay cruces repetidos">
-              Cuando el mismo cruce de arquetipos se repita dos veces, aparecerá aquí.
+              Cuando el mismo cruce de arquetipos se repita cinco veces, aparecerá aquí.
             </Empty>
           )}
-        </section>
+        </SeccionPlegable>
       </div>
 
       {/* ------------------------- torneos: lo que se enseña ------------------------ */}

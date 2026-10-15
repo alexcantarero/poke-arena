@@ -5,6 +5,7 @@ import { irlMeta } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import { spriteUrl } from "@/lib/pokemon";
 import { pct, wrColor } from "@/lib/format";
+import { MetaTabs } from "@/components/MetaTabs";
 import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/ui";
 import { Icon } from "@/components/icons";
 
@@ -78,24 +79,8 @@ export default async function TopDecksPage({
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const nuestros = new Set(archetypes.map((a) => norm(a.name)));
 
-  const pestanas = (
-    <div className="scroll-x mb-4 flex gap-2" role="tablist" aria-label="Metagame">
-      <Link href={`/topdecks${query ? "?q=" + query : ""}`} role="tab" aria-selected={!presencial}
-        className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
-          ${!presencial ? "border-source-global bg-source-global-soft text-source-global"
-                        : "border-line bg-surface text-muted hover:text-ink"}`}>
-        <Icon name="globe" className="size-4" />
-        Online
-      </Link>
-      <Link href={`/topdecks?fuente=presencial${query ? "&q=" + query : ""}`} role="tab" aria-selected={presencial}
-        className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
-          ${presencial ? "border-brand-line bg-brand-soft text-brand"
-                       : "border-line bg-surface text-muted hover:text-ink"}`}>
-        <Icon name="trophy" className="size-4" />
-        Presencial
-      </Link>
-    </div>
-  );
+  // v0.40 — las tres pestañas, compartidas con /mazos (ver MetaTabs).
+  const pestanas = <MetaTabs actual={presencial ? "presencial" : "online"} query={query} />;
 
   /* ------------------------------------------------------------ presencial */
   if (presencial) {
@@ -359,9 +344,11 @@ export default async function TopDecksPage({
           </Link>
         </>
       )}
+
     </>
   );
 }
+
 
 /** El mazo con mejor porcentaje de top 4, entre los que tienen listas suficientes. */
 function mejorTop4(rows: MetaRow[]): MetaRow | null {

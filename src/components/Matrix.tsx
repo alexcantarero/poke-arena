@@ -41,11 +41,20 @@ export function Matrix({
        un `border`, para que se vea que la columna flota por encima de lo que
        pasa por debajo y no que la tabla tiene una raya más. */
     <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
-      <table className="border-collapse text-xs">
+      {/* v0.40 — `w-full min-w-max`: llena el ancho de la tarjeta cuando cabe
+          (antes se quedaba pegada a la izquierda con media tarjeta vacía) y,
+          cuando no cabe, no se aplasta: mantiene su tamaño y se desplaza.
+
+          Ojo: SIN `table-fixed`. Con reparto fijo el navegador ignora el
+          `min-width` de las celdas y, en el móvil, aplastaría las columnas
+          hasta hacerlas ilegibles en vez de dejar que la tabla se desplace.
+          Con el reparto automático las columnas salen iguales igualmente,
+          porque todas llevan lo mismo: un sprite y un número. */}
+      <table className="w-full min-w-max border-collapse text-xs">
         <thead>
           <tr>
             <th
-              className="sticky left-0 z-10 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted"
+              className="sticky left-0 z-10 w-16 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted sm:w-48"
               style={{ boxShadow: "6px 0 8px -8px rgb(0 0 0 / 0.35)" }}
             >
               Mi mazo \ Rival
@@ -56,7 +65,7 @@ export function Matrix({
               return (
                 <th
                   key={id} scope="col" title={name} aria-label={name}
-                  className="w-10 p-1 align-bottom font-normal"
+                  className="min-w-10 p-1 align-bottom font-normal sm:min-w-12"
                 >
                   <ColSprite archetype={arch} name={name} />
                 </th>
@@ -69,15 +78,22 @@ export function Matrix({
             const rowArch = byId.get(rowId);
             return (
               <tr key={rowId}>
-                <td
-                  className="sticky left-0 z-10 max-w-44 truncate border-y border-line-soft bg-surface px-2 py-1"
+                {/* v0.40 — en el móvil la columna de nombres se comía la mitad
+                    de una pantalla de 360 px y dejaba sitio para tres celdas.
+                    Por debajo de `sm` va solo con los sprites, igual que ya
+                    iban las cabeceras de columna; el nombre sigue en el
+                    `title` y para el lector de pantalla. */}
+                <th
+                  scope="row" title={rowArch?.name ?? rowId}
+                  className="sticky left-0 z-10 w-16 border-y border-line-soft bg-surface px-1.5 py-1 text-left font-normal
+                             sm:w-48 sm:px-2"
                   style={{ boxShadow: "6px 0 8px -8px rgb(0 0 0 / 0.35)" }}
                 >
-                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                     <Sprites archetype={rowArch} size="sm" />
-                    <span className="truncate">{rowArch?.name ?? rowId}</span>
+                    <span className="sr-only sm:not-sr-only sm:truncate">{rowArch?.name ?? rowId}</span>
                   </span>
-                </td>
+                </th>
                 {ids.map((colId) => {
                   if (rowId === colId) {
                     return <td key={colId} className="border border-line-soft bg-surface-3 text-center text-muted">·</td>;
@@ -101,7 +117,7 @@ export function Matrix({
                         role="img"
                         aria-label={`${rowArch?.name ?? rowId} contra ${byId.get(colId)?.name ?? colId}: ${Math.round(displayRate * 100)}% de victorias en ${v.n} partidas`}
                         title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
-                        className="relative grid h-8 place-items-center font-mono text-[11px] tabular transition-transform duration-150 hover:z-10 hover:scale-105 hover:shadow-md focus-visible:z-10 focus-visible:scale-105 focus-visible:outline-2 focus-visible:outline-info motion-reduce:transition-none"
+                        className="relative grid h-9 place-items-center font-mono sm:h-10 text-[11px] tabular transition-transform duration-150 hover:z-10 hover:scale-105 hover:shadow-md focus-visible:z-10 focus-visible:scale-105 focus-visible:outline-2 focus-visible:outline-info motion-reduce:transition-none"
                         style={{ background: `color-mix(in srgb, ${base} ${(alpha * 100).toFixed(0)}%, transparent)` }}
                       >
                         {Math.round(displayRate * 100)}

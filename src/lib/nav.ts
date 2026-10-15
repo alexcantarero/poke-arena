@@ -1,4 +1,16 @@
-export type NavItem = { href: string; label: string; icon: string };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  /**
+   * v0.38 — la sección existe y funciona, pero no se pinta en el menú.
+   *
+   * Sigue en `NAV_ITEMS` a propósito: es la lista con la que se resuelve
+   * «¿en qué sección estoy?» y el título de la cabecera. Sacarla de ahí
+   * dejaría /mazos sin nombre en la barra superior.
+   */
+  oculto?: boolean;
+};
 /** `key` es la clave de traducción del título del grupo (`lib/i18n.ts`). */
 export type NavGroup = { key: string; title: string; items: NavItem[] };
 
@@ -46,7 +58,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/ranking", label: "Ranking", icon: "rank" },
       { href: "/estadisticas", label: "Estadísticas", icon: "stats" },
       { href: "/topdecks", label: "Top Decks", icon: "globe" },
-      { href: "/mazos", label: "Mazos", icon: "deck" },
+      /* v0.38 — Mazos sale del menú. No desaparece: vive dentro de Top
+         Decks, que es donde se mira el metagame y se decide con qué ir, y
+         es justo el momento en que uno quiere abrir su biblioteca. Un menú
+         con dos entradas casi iguales («Top Decks» y «Mazos») obliga a
+         elegir antes de saber qué hay en cada una. */
+      { href: "/mazos", label: "Mazos", icon: "deck", oculto: true },
     ],
   },
   {
@@ -56,16 +73,24 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Todas las secciones, en orden. */
+/** Todas las secciones, en orden. Incluye las ocultas: esta lista es la que
+    resuelve en qué sección estás y cómo se titula la pantalla. */
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+/** Los grupos tal y como se pintan en el menú: sin las secciones ocultas, y
+    sin los grupos que se quedan vacíos al quitarlas. */
+export const NAV_GROUPS_VISIBLES: NavGroup[] = NAV_GROUPS
+  .map((g) => ({ ...g, items: g.items.filter((i) => !i.oculto) }))
+  .filter((g) => g.items.length > 0);
 
 /** Las que caben en la barra inferior del móvil. El resto van a «Más». */
 export const MOBILE_HREFS = ["/", "/estadisticas", "/torneos"];
 
-export const moreSections = () => NAV_ITEMS.filter((i) => !MOBILE_HREFS.includes(i.href));
+export const moreSections = () =>
+  NAV_ITEMS.filter((i) => !i.oculto && !MOBILE_HREFS.includes(i.href));
 
 /** «Más» del móvil, con los mismos grupos que la barra lateral. */
 export const moreGroups = (): NavGroup[] =>
-  NAV_GROUPS
+  NAV_GROUPS_VISIBLES
     .map((g) => ({ ...g, items: g.items.filter((i) => !MOBILE_HREFS.includes(i.href)) }))
     .filter((g) => g.items.length > 0);

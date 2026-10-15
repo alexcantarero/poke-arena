@@ -7,6 +7,7 @@ import { fmtDate, pct, wrColor } from "@/lib/format";
 import { prettyPokemon, typeOf } from "@/lib/pokemon";
 import type { Deck } from "@/lib/types";
 import { Empty, PageHead, SectionTitle, Sprites } from "@/components/ui";
+import { MetaTabs } from "@/components/MetaTabs";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
 
@@ -114,9 +115,14 @@ export default async function DecksPage({
     <>
       <PageHead
         title="Mazos"
-        sub="La biblioteca de la liga. Un mazo sin dueño lo puede usar cualquiera, para decir qué jugaste tú o qué llevaba tu rival."
+        sub="La biblioteca de la liga. Un mazo sin dueño lo puede usar cualquiera."
         actions={<Link className="btn btn-brand" href="/mazos/nuevo"><Icon name="plus" className="size-4" /> Mazo</Link>}
       />
+
+      {/* v0.40 — las mismas tres pestañas que en Top Decks, para poder volver
+          al metagame sin pasar por el menú. Sin esto, «Mazos» sería una
+          puerta de un solo sentido. */}
+      <MetaTabs actual="mazos" />
 
       {/* Las pestañas conservan el texto buscado (`keep`): cambiar de
           procedencia con una búsqueda a medias no debe borrarla. */}

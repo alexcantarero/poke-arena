@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
-import { MOBILE_HREFS, NAV_GROUPS, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
+import { MOBILE_HREFS, NAV_GROUPS_VISIBLES, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
 import { tr, type Lang } from "@/lib/i18n";
 
 /** v0.17: el texto de una sección en el idioma elegido (la clave es la ruta). */
@@ -13,14 +13,18 @@ function useActive() {
   const path = usePathname();
   return (href: string) => {
     if (href === "/") return path === "/";
-    return path === href || path.startsWith(href + "/");
+    if (path === href || path.startsWith(href + "/")) return true;
+    // v0.40 — /mazos vive dentro de Top Decks: ya no tiene entrada propia en
+    // el menú, así que estando en la biblioteca se ilumina Top Decks. Si no,
+    // el menú no marcaría nada y parecería que estás fuera de la app.
+    return href === "/topdecks" && (path === "/mazos" || path.startsWith("/mazos/"));
   };
 }
 
 /** Barra lateral: solo en pantallas anchas. Agrupada (v0.16, ver `lib/nav.ts`). */
 export function Sidebar({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
   const isActive = useActive();
-  const groups = NAV_GROUPS.map((g) =>
+  const groups = NAV_GROUPS_VISIBLES.map((g) =>
     g.key === "nav.group.account"
       ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user" }, ...g.items] }
       : g);

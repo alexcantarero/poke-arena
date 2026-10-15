@@ -29,6 +29,8 @@ import { pokeSlug } from "@/lib/pokemon";
 import { awardsCp, cpForPlacement, cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
+import { importarTorneos, type FilaClasificacion, type TorneoRemoto } from "@/lib/limitlessImport";
+import { fetchStandings, fetchTournaments } from "@/lib/sources/limitless";
 import { familiaDe, maxRondasDe } from "@/lib/estructura";
 import { normalizeLadderInput, rankOf } from "@/lib/rank";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
@@ -403,6 +405,9 @@ export async function saveProfile(_prev: FormState, fd: FormData): Promise<FormS
     bio: str(fd, "bio").slice(0, 280),
     favoriteArchetypeId: str(fd, "favoriteArchetypeId") || null,
     playerTag: str(fd, "playerTag").slice(0, 60) || null,
+    // v0.36 — el nick de Limitless. Se guarda tal cual se escribe; la
+    // comparación al importar ya es insensible a mayúsculas.
+    limitlessHandle: str(fd, "limitlessHandle").trim().slice(0, 60) || null,
   }).where(eq(players.id, targetId));
 
   refresh();
@@ -2919,4 +2924,116 @@ export async function setPersonalRegional(fd: FormData) {
     c.delete("personalRegional");
   }
   redirect("/#ultimo-regional");
+}
+
+/* =========================================================================
+   v0.36 — Importar de Limitless los torneos online que habéis jugado.
+
+   Cómo funciona: se piden los torneos online recientes, se baja la
+   clasificación de cada uno y se busca en ella a la gente de la liga por su
+   nick. Los que incluyan a alguien se crean con su resultado dentro; los
+   demás no se tocan.
+
+   Tres cosas que son a propósito:
+
+   · **De cada clasificación solo se queda lo vuestro.** `vuestrosEnElTorneo`
+     descarta las demás filas antes de devolver nada. Son personas con nombre
+     y apellidos que no se han dado de alta aquí (misma norma que la v0.12).
+   · **Idempotente.** El id del torneo lleva dentro el de Limitless
+     (`ltl-<id>`), así que reimportar cae sobre la misma fila. Y un resultado
+     que ya se editó a mano no se pisa: manda lo tecleado.
+   · **No borra nada.** Si un torneo importado no interesa, se borra a mano, o
+     lo hace solo el cron de limpieza si nadie apuntó nada en tres días.
+   ========================================================================= */
+
+export async function importarTorneosLimitless(fd: FormData) {
+  const actor = await requireManager();
+  const cuantos = Math.min(Math.max(1, Number(str(fd, "cuantos")) || 25), 50);
+
+  const jugadores = await db
+    .select({ id: players.id, name: players.name, limitlessHandle: players.limitlessHandle })
+    .from(players)
+    .where(eq(players.active, true));
+
+  if (!jugadores.some((j) => (j.limitlessHandle ?? "").trim())) {
+    redirect(withFlash("/ajustes", "error", "Nadie tiene nick de Limitless en su perfil todavía."));
+  }
+
+  const recientes = await fetchTournaments({ limit: cuantos });
+
+  // Las clasificaciones, de una en una y en serie a propósito: son hasta 50
+  // peticiones a una API pública y gratuita, y no hay ninguna prisa.
+  const entradas: Array<{ torneo: TorneoRemoto; clasificacion: FilaClasificacion[] }> = [];
+  for (const t of recientes) {
+    try {
+      entradas.push({ torneo: t, clasificacion: await fetchStandings(t.id) });
+    } catch {
+      // Un torneo que no responde no puede tumbar la importación entera.
+    }
+  }
+
+  const resumen = importarTorneos(entradas, jugadores);
+  if (!resumen.torneos.length) {
+    redirect(withFlash("/ajustes", "ok",
+      `Mirados ${entradas.length} torneos online: en ninguno jugó nadie del grupo.`));
+  }
+
+  // El catálogo, para casar el slug de Limitless con vuestros arquetipos.
+  const catalogo = await db.select().from(archetypes);
+  const porSlug = new Map(catalogo.filter((a) => a.limitlessId).map((a) => [a.limitlessId!, a]));
+
+  let nuevos = 0, actualizados = 0;
+
+  for (const t of resumen.torneos) {
+    const yaEstaba = await db.select({ id: tournaments.id }).from(tournaments)
+      .where(eq(tournaments.id, t.id)).limit(1);
+
+    await db.insert(tournaments).values({
+      id: t.id,
+      name: t.name,
+      kind: "online",
+      scope: "online",
+      format: t.format.toLowerCase() === "standard" ? "standard" : "other",
+      date: t.date,
+      playerCount: t.playerCount,
+      season: seasonOfDate(t.date),
+      status: "closed",
+      url: `https://play.limitlesstcg.com/tournament/${t.remoteId}`,
+      organizer: "Limitless",
+      createdBy: actor.id,
+    }).onConflictDoUpdate({
+      target: tournaments.id,
+      // Solo se refresca lo que puede cambiar en la fuente. El nombre y la
+      // fecha no se tocan por si alguien los corrigió a mano.
+      set: { playerCount: t.playerCount },
+    });
+
+    if (yaEstaba.length) actualizados++; else nuevos++;
+
+    for (const r of t.resultados) {
+      const arch = r.deckSlug ? porSlug.get(r.deckSlug) ?? null : null;
+      await db.insert(tournamentResults).values({
+        id: newId("tr"),
+        tournamentId: t.id,
+        playerId: r.playerId,
+        placement: r.placement,
+        wins: r.wins, losses: r.losses, ties: r.ties,
+        archetypeId: arch?.id ?? null,
+        notes: arch || !r.deckName ? "" : `Mazo en Limitless: ${r.deckName}`,
+      }).onConflictDoNothing({
+        // `DoNothing` y no `DoUpdate`: si ya hay un resultado es porque
+        // alguien lo apuntó o lo corrigió, y lo tecleado manda sobre lo
+        // importado. Siempre.
+        target: [tournamentResults.tournamentId, tournamentResults.playerId],
+      });
+    }
+  }
+
+  revalidatePath("/", "layout");
+
+  const pendientes = resumen.sinNick.length
+    ? ` Sin nick y por tanto sin buscar: ${resumen.sinNick.join(", ")}.`
+    : "";
+  redirect(withFlash("/ajustes", "ok",
+    `${nuevos} torneo(s) nuevo(s) y ${actualizados} ya conocido(s), de ${entradas.length} mirados.${pendientes}`));
 }

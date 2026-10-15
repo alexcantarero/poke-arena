@@ -72,7 +72,7 @@ export function SourceTabs({
   };
 
   return (
-    <div className="scroll-x mb-4 flex gap-2" role="tablist" aria-label="Fuente de los datos">
+    <div className="scroll-x scroll-fade mb-4 flex snap-x snap-proximity gap-2" role="tablist" aria-label="Fuente de los datos">
       {OPCIONES.map(({ value, label, Icon, on }) => {
         const activo = value === current;
         return (

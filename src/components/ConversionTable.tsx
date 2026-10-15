@@ -59,7 +59,7 @@ export function ConversionTable({
         {rows.map((r) => (
           <li key={r.id} className="px-4 py-3">
             <Cabecera row={r} />
-            <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+            <div className="mt-2 grid grid-cols-2 gap-2 text-center xs:grid-cols-4">
               <Mini label="%Cut" value={pct(r.cutRate, 0)} tone={r.cutRate} />
               <Mini label="Top 8" value={pct(r.top8Rate, 0)} tone={r.top8Rate} />
               <Mini label="Top 4" value={pct(r.top4Rate, 0)} tone={r.top4Rate} />

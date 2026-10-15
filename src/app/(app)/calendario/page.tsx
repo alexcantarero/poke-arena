@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { currentPlayer, loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadCompetitionHeads, loadEvents, loadTournamentHeads } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
-import { isPlayed, outcome } from "@/lib/stats";
+// v0.38: ya no se pintan partidas aquí, así que no hace falta leerlas.
 import { CALENDAR_KINDS, kindsPresent, toneOf } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
@@ -35,7 +35,17 @@ export default async function CalendarPage({
   const year = Number(q.y) || now.getFullYear();
   const month = q.m != null && q.m !== "" ? Number(q.m) : now.getMonth();
 
-  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
+  /* v0.39 — Fase B. Desde que la v0.38 quitó las partidas de aquí, esta
+     pantalla solo necesita tres tablas pequeñas y estables. Cargaba el
+     snapshot entero —con `matches` y `games`, las dos únicas que crecen sin
+     parar— para pintar un mes de calendario. */
+  const [eventos_, tours, comps, me] = await Promise.all([
+    loadEvents(), loadTournamentHeads(), loadCompetitionHeads(), currentPlayer(),
+  ]);
+  const toursById = new Map(tours.map((t) => [t.id, t]));
+  // Agrupado para no reescribir el cuerpo de la pantalla, pero NO es el
+  // snapshot: son tres consultas sueltas y se llama distinto por eso.
+  const datos = { events: eventos_, tournaments: tours, competitions: comps, toursById };
   const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
 
@@ -47,8 +57,8 @@ export default async function CalendarPage({
   /* Los tipos que de verdad hay entre los eventos y los torneos apuntados.
      Ofrecer un filtro de «Mundial» cuando no hay ninguno es ruido. */
   const disponibles = kindsPresent([
-    ...snap.events.map((e) => e.tournamentKind),
-    ...snap.tournaments.map((t) => t.kind),
+    ...datos.events.map((e) => e.tournamentKind),
+    ...datos.tournaments.map((t) => t.kind),
   ]);
 
   /** v0.18: `kind`/`scope` para el emblema (Regional, Challenge, Cup, Online). */
@@ -74,32 +84,27 @@ export default async function CalendarPage({
 
   /* v0.15 — un evento enlazado a un torneo que existe ya sale como torneo:
      pintarlo también como evento ponía Niza dos veces en el mismo día. */
-  const eventos = snap.events.filter((e) => !(e.tournamentId && snap.toursById.has(e.tournamentId)));
+  const eventos = datos.events.filter((e) => !(e.tournamentId && datos.toursById.has(e.tournamentId)));
 
   for (const e of eventos) {
     if (tipo && e.tournamentKind !== tipo) continue;
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
     pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind });
   }
-  for (const t of snap.tournaments) {
+  for (const t of datos.tournaments) {
     if (tipo && t.kind !== tipo) continue;
     const tone = toneOf(t.kind, "event");
     // v0.16: un torneo del calendario lleva a su ficha.
     pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope });
   }
-  // Las partidas solo cuando no hay filtro de tipo puesto: si alguien está
-  // mirando «Regionales», las partidas del martes no le interesan.
-  if (!tipo) {
-    for (const m of snap.matches.filter(isPlayed)) {
-      const o = outcome(m);
-      push(m.date, {
-        text: `${snap.playersById.get(m.playerAId)?.name ?? "?"} ${o.ga}–${o.gb} ${m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "?" : m.opponentName ?? "?"}`,
-        color: "var(--muted)",
-        label: "Partida",
-        href: `/partidas/${m.id}`,
-      });
-    }
-  }
+  /* v0.38 — las partidas ya NO salen en el calendario.
+
+     Un calendario sirve para ver qué viene y cuándo, y cada jornada metía
+     veinte líneas de «Ibai 1–2 Alex» que tapaban los torneos, que es lo
+     único que hay que planificar. El historial de partidas ya tiene su
+     pantalla, con filtros y paginación: Resultados.
+
+     Aquí quedan torneos y eventos oficiales, y nada más. */
 
   const first = new Date(year, month, 1);
   const start = (first.getDay() + 6) % 7;
@@ -133,7 +138,7 @@ export default async function CalendarPage({
         kind: e.tournamentKind as string | null,
         scope: null as string | null,
       })),
-    ...snap.tournaments
+    ...datos.tournaments
       .filter((t) => (t.endDate ?? t.date) >= today)
       .filter((t) => !tipo || t.kind === tipo)
       .map((t) => ({
@@ -281,7 +286,7 @@ export default async function CalendarPage({
           <div className="grid items-start gap-4 lg:grid-cols-3">
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">Añadir al calendario</h2></div>
-              <div className="p-4"><EventForm competitions={snap.competitions} tournaments={snap.tournaments} /></div>
+              <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
             </section>
 
             <section className="card">

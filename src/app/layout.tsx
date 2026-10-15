@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans, Saira_Condensed } from "next/font/google"
 import "./globals.css";
 import { getLang } from "@/lib/lang";
 import { estacionDe } from "@/lib/estacion";
+import { ServiceWorker } from "@/components/ServiceWorker";
 
 /* v0.20 — tipografías con `next/font`: se descargan al compilar y se sirven
    desde el propio dominio. Antes era una hoja de Google Fonts que BLOQUEABA
@@ -91,7 +92,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="dns-prefetch" href="https://r2.limitlesstcg.net" />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* v0.35 — registra el service worker después de cargar, y solo en
+            producción. Ver `src/components/ServiceWorker.tsx`. */}
+        <ServiceWorker buildId={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
+      </body>
     </html>
   );
 }

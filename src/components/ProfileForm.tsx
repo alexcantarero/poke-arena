@@ -58,6 +58,21 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
             />
             <p className="text-xs text-muted">Opcional. Sirve para localizarte en los resultados oficiales.</p>
           </div>
+
+          {/* v0.36 — con esto la app puede buscarte en las clasificaciones de
+              Limitless y traerse tus torneos online ya rellenos. */}
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="limitlessHandle">Nick en Limitless</label>
+            <input
+              className="input" id="limitlessHandle" name="limitlessHandle" maxLength={60}
+              defaultValue={player.limitlessHandle ?? ""} placeholder="Tu usuario de play.limitlesstcg.com"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            />
+            <p className="text-xs text-muted">
+              Opcional. Con esto, los torneos online que juegues ahí se importan solos con tu
+              puesto, tu récord y tu mazo.
+            </p>
+          </div>
         </div>
       </section>
 

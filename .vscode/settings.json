@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git rm --ignore-unmatch src/components/CutOutlook\\.tsx$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

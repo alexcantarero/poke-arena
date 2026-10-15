@@ -34,7 +34,7 @@ export function KpiCard({
       className={`card flex flex-col justify-between p-4 border-t-4 transition-all ${className}`}
       style={{ borderTopColor: BORDER_COLORS[color] }}
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted truncate">
+      <span className="min-w-0 w-full text-xs font-semibold uppercase tracking-wider text-muted leading-tight break-words">
         {label}
       </span>
       <div className="my-2 font-display text-3xl font-extrabold tabular text-ink sm:text-4xl">

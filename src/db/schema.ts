@@ -114,6 +114,19 @@ export const players = pgTable("players", {
   favoriteArchetypeId: text("favorite_archetype_id"),
   /** Nombre de jugador en Play! PokÃ©mon, para casar resultados oficiales. */
   playerTag: text("player_tag"),
+  /**
+   * v0.36 — el nick con el que juega en play.limitlesstcg.com.
+   *
+   * Sirve para encontrarle en las clasificaciones publicadas y traerse su
+   * resultado sin que lo teclee. Índice único (en minúsculas y solo para los
+   * no nulos) en `drizzle/0017_v0_36_0.sql`: dos personas con el mismo nick
+   * harían que un resultado se le asignara a quien saliera primero.
+   *
+   * NO es un dato público de la liga: va en `PUBLIC_PLAYER_COLUMNS` porque
+   * cada uno lo pone en su perfil y es su nombre en una web pública, pero si
+   * algún día deja de serlo, quitarlo de ahí es todo lo que hay que hacer.
+   */
+  limitlessHandle: text("limitless_handle"),
 
   /* --- ladder manual ---
      El rango que cada uno se pone a mano para picarse, de 1500 (Bronce) a

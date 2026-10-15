@@ -15,6 +15,9 @@ const P: Record<string, string> = {
   plus: "M12 5v14M5 12h14",
   more: "M4 6h16M4 12h16M4 18h16",
   back: "M15 6l-6 6 6 6",
+  // v0.38: la punta de flecha de las secciones plegables. Apunta abajo
+  // cuando está abierta y se gira 90° cuando se cierra.
+  chevron: "M6 9l6 6 6-6",
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9",
   share: "M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6",
   check: "M4 12.5 9.5 18 20 6",

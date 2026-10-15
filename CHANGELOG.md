@@ -2,6 +2,346 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.40.0] — 2026-10-15
+
+Pestaña de Mazos, matriz a ancho completo, CP en los mejores resultados y dos easter eggs.
+**Sin migración ni dependencias nuevas.**
+
+### Cambiado
+
+- **«Mazos» es la tercera pestaña de Top Decks**, junto a Online y Presencial, en vez de la
+  tarjeta al final de la página que entró en la v0.38. Una pestaña se ve nada más entrar.
+- **Las tres pestañas salen también en `/mazos`** (`MetaTabs`, compartido). Sin eso, «Mazos»
+  sería una puerta de un solo sentido y no habría forma de volver al metagame sin el menú.
+  Son un `<nav>` con `aria-current`, no un `tablist`: llevan a otras páginas, y un lector de
+  pantalla que oye «pestaña» espera que el contenido cambie sin salir.
+- **Estando en la biblioteca se ilumina «Top Decks»** en el menú lateral. Si no, el menú no
+  marcaría nada y parecería que estás fuera de la app.
+- **La matriz «Enfrentamientos entre mazos» ocupa todo el ancho.** Compartía fila con «Mazos
+  más jugados» y se quedaba con media tarjeta para diez columnas de rivales: había que
+  desplazarla de lado incluso en un monitor grande. La tabla es ahora `w-full min-w-max`:
+  llena la tarjeta cuando cabe y se desplaza cuando no, sin aplastarse.
+- **En el móvil la columna de nombres va solo con sprites**, como ya iban las cabeceras de
+  columna. Se comía media pantalla de 360 px y dejaba sitio para tres celdas. El nombre sigue
+  en el `title` y para el lector de pantalla, y la cabecera de fila es ahora un `<th scope=row>`.
+
+### Añadido
+
+- **«Mejores resultados de torneos» enseña los CP**, una etiqueta con el tipo de torneo y otra
+  con el puesto. Los CP salen de `effectiveCp()`, la misma función que el perfil y la ficha:
+  leer la columna `cp_earned` en crudo es el fallo de la v0.9.0. Un cero se pinta como guion
+  y no como «+0», porque puede ser un torneo que no reparte CP.
+- **Easter egg del tema.** Cada clic saca a **Solrock** si pasas a día o a **Lunatone** si pasas
+  a noche. Si lo machacas —cinco clics en dos segundos y medio— **Tadbulb revienta**.
+- `src/lib/rafaga.ts` (puro) con la regla de la ráfaga, y 9 pruebas.
+
+### Decisiones del easter egg
+
+- **Los Pokémon no se dibujan.** Son los sprites del mismo CDN que la app ya usa para cada
+  arquetipo. Lo propio es solo la animación, que es CSS genérico. Es la regla de la v0.11.
+- **Revienta una vez por ráfaga, no en cada clic de después**: al dispararse, el historial se
+  vacía. Hay prueba de eso.
+- **Un único destello, suave y radial**, no un fogonazo blanco: quien llega ahí acaba de
+  cambiar la pantalla entera cinco veces. Y la ráfaga se completa a dos cambios por segundo,
+  por debajo de los tres que marcan el riesgo por fotosensibilidad: no se premia pulsar más
+  rápido.
+- **Con las animaciones apagadas, el sprite sale quieto.** La regla global de la v0.22 deja
+  cada animación en su último fotograma, que aquí es opacidad 0: sin una excepción, quien
+  tiene el movimiento apagado no vería nunca el Pokémon. La excepción está en `globals.css`.
+
+### Eliminado
+
+- La tarjeta `TusMazos` de Top Decks (v0.38): la sustituye la pestaña.
+
+### Verificado
+
+- `npm test`: **445 de 445** (436 + 9).
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
+## [0.39.0] — 2026-10-14
+
+Fase B del plan de rendimiento, parcial y a propósito.
+**Sin migración ni dependencias nuevas.**
+
+### Cambiado
+
+- **`/calendario` deja de cargar el snapshot.** Desde que la v0.38 quitó las partidas del
+  calendario, esta pantalla solo necesitaba eventos, torneos y competiciones: tres tablas
+  pequeñas y estables. Cargaba las 13 consultas del snapshot —con `matches` y `games` enteras,
+  que son las dos únicas que crecen sin parar— para pintar un mes.
+
+### Añadido
+
+- `loadEvents()` y `loadTournamentMatches()` en `src/lib/data.ts`, cacheadas por petición. La
+  segunda trae solo las rondas de torneo, sin jornadas de liga ni amistosos ni juegos.
+
+### Lo que NO entra en la Fase B, y por qué
+
+- **`/torneos`** está acoplado a `playerCp(snap, …)`, que recibe el snapshot entero.
+  Estrecharlo exige cambiar antes la firma de `playerCp`, y eso es tocar el motor de CP: la
+  pieza con más historial de fallos silenciosos del proyecto. Primero se le da a `playerCp` una
+  entrada estrecha con pruebas, y después se cambia la pantalla. Son dos versiones, no media.
+- **`/mazos`** necesita de verdad todas las partidas: `archetypeStats()` recorre el historial
+  completo para los usos de cada mazo. No hay nada que recortar sin cambiar lo que se enseña.
+
+Está escrito en `docs/13-plan-rendimiento.md` para que no haya que volver a averiguarlo.
+
+### Verificado
+
+- `npm test`: **436 de 436**.
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
+## [0.38.0] — 2026-10-14
+
+Arreglo del build, limpieza y reorganización. **Sin migración ni dependencias nuevas.**
+
+### Corregido — EL BUILD ESTABA ROTO
+
+- **`src/app/(app)/estadisticas/page.tsx` no compilaba**: «Expected '</', got ';'». Al
+  reorganizar las tres tarjetas de abajo (series, primer turno, actividad) dentro de la rejilla
+  se perdieron **dos cierres de fragmento** (`</>` con su `)}`), los que cerraban
+  `{conLocal && (<>` y la rama `else` del ternario de la fuente. El compilador señalaba la
+  línea 694, que es donde se acaba el fichero, no donde está el fallo.
+- **Los números de debajo del % no se leían** en la matriz de enfrentamientos. El récord iba a
+  10 px con `text-muted`, que es un gris pensado para el fondo de la tarjeta, no para una celda
+  teñida de verde o rojo. Ahora hereda el color del texto de la celda y se separa con opacidad
+  —que mantiene el contraste sea cual sea el tinte— y sube a 11 px.
+
+### Cambiado
+
+- **El calendario ya no pinta partidas.** Cada jornada metía veinte líneas de «Ibai 1–2 Alex»
+  que tapaban los torneos, que es lo único que hay que planificar. Quedan torneos y eventos
+  oficiales. El historial ya tiene su pantalla, con filtros y paginación.
+- **Emparejamientos del perfil: mínimo 5 partidas**, antes 2. Con dos cruces el porcentaje solo
+  puede ser 0, 50 o 100, y una lista de «100% (2)» parece información y es ruido.
+- **«Mazos» sale del menú lateral** y entra como sección dentro de **Top Decks**. El momento en
+  que uno quiere abrir su biblioteca es justo después de mirar qué se está jugando. La ruta
+  `/mazos` no cambia: los enlaces guardados siguen funcionando. `NavItem` tiene ahora un
+  `oculto?` y la sección sigue en `NAV_ITEMS`, que es lo que resuelve el título de la cabecera.
+
+### Añadido
+
+- **`SeccionPlegable`**: tarjeta que se pliega y **se acuerda** entre visitas
+  (`localStorage`). Aplicada a «Enfrentamientos directos» y «Emparejamientos» del perfil. La
+  cabecera es un `<button>` de verdad: tabulador, Enter y `aria-expanded`.
+- **`src/lib/ultimosCp.ts` + `UltimosCp`**: los últimos 5 resultados que dieron Championship
+  Points, con fecha, torneo, tipo, puesto, jugador y CP. 8 pruebas. Pensado para **sustituir la
+  pestaña del Elo** de la portada (ver la nota de abajo).
+- Icono `chevron`.
+
+### Nota sobre la pestaña del Elo
+
+El bloque «Cómo va la cosa» con las pestañas Elo / Metajuego / Tus CP **no existe en este
+repositorio**: no aparece en ningún fichero de `src/`. El componente que lo sustituye va
+entregado y es props-only, listo para enchufar donde esté ese bloque.
+
+### Eliminado
+
+- `src/components/CompSelector.tsx`, `src/components/LadderTimeline.tsx` y
+  `src/components/ui/toggle-group.tsx`: sin una sola referencia.
+- `LEEME.md`, `CAMBIOS-DE-HOY.md`, `ESTRUCTURA-2026.md` y las nueve guías
+  `IMPLEMENTAR-v0.3x.md` ya aplicadas. Lo que valía de ellas está en el CHANGELOG y en `docs/`.
+- Se conserva `src/lib/utils.ts` aunque no lo use nadie: `components.json` lo declara como el
+  helper de shadcn y borrarlo rompería el próximo `npx shadcn@latest add`.
+
+### Verificado
+
+- `npm test`: **436 de 436**.
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente — y en esta versión es lo primero que hay que lanzar.
+
+## [0.37.0] — 2026-10-14
+
+Pinchar una gráfica navega. **Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Los arquetipos de «Uso» y «Rendimiento» en Estadísticas son enlaces.** Ves que con
+  Dragapult vas al 61 % y lo tocas: vas a Resultados con esas partidas delante. Antes había
+  que ir a Resultados y rearmar el filtro a mano, y para entonces ya se te había ido la
+  pregunta.
+- **Los filtros puestos se arrastran.** Si estás mirando la temporada y la liga, el enlace
+  mantiene ese contexto en vez de sacarte a todas las partidas de la historia.
+- `src/lib/enlacesFiltro.ts` (puro) y `src/components/EnlaceArquetipo.tsx`. 14 pruebas.
+
+### Por qué esto y no «gráficas mejores»
+
+Una gráfica contesta una pregunta y abre otra. El filtro ya existía desde la v0.6 y ya viajaba
+en la URL desde entonces: lo único que faltaba era que tocar una barra fuera navegar. No hace
+falta ninguna librería nueva para eso, hace falta construir bien una cadena de consulta.
+
+### Dos decisiones
+
+- **Es un `<Link>`, no un `onClick`.** Se abre en otra pestaña, se comparte, funciona sin
+  JavaScript y un lector de pantalla lo anuncia como enlace. Un `div` con `onClick` no hace
+  nada de eso.
+- **Cada enlace lleva su `aria-label`** («Ver las partidas de Dragapult ex»). Sin eso, para un
+  lector de pantalla la gráfica es un montón de enlaces llamados todos «61 %».
+
+### El test que evita el fallo tonto
+
+Los nombres de los parámetros los decide `filterToQuery` en `filters.ts`. Una prueba lee ese
+fichero y comprueba que conoce todos los que escribe este módulo: dos sitios generando la
+misma URL con nombres distintos es una pantalla que se abre sin filtrar y nadie entiende por
+qué. Otra prueba cubre febrero y los bisiestos al convertir un mes en su rango, que es donde
+falla escribir 30 o 31 a mano.
+
+### Verificado
+
+- `npm test`: **428 de 428** (414 + 14).
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
+## [0.36.0] — 2026-10-14
+
+Importar de Limitless los torneos online que habéis jugado.
+**Lleva migración:** `drizzle/0017_v0_36_0.sql`. Sin dependencias nuevas.
+
+### Añadido
+
+- **`players.limitless_handle`**: el nick de cada uno en play.limitlesstcg.com, con un campo
+  en el perfil. Índice único sobre `lower(handle)` y solo para los no nulos: dos personas con
+  el mismo nick harían que un resultado se le asignara a quien saliera primero, sin error.
+- **Ajustes → «Torneos online de Limitless»**: mira los N torneos online más recientes, os
+  busca en sus clasificaciones y crea los que hayáis jugado con puesto, récord y mazo puestos.
+  El arquetipo se casa con vuestro catálogo por el slug de Limitless; si no cuaja, el nombre
+  del mazo queda en las notas del resultado.
+- `src/lib/limitlessImport.ts` (puro) con el emparejamiento, y 12 pruebas.
+
+### Las tres reglas que lleva dentro
+
+- **De una clasificación de 300 personas solo sale lo vuestro.** Las demás filas se descartan
+  dentro de `vuestrosEnElTorneo`, antes de devolver nada; hay una prueba que serializa el
+  resultado y comprueba que no se cuela ni un nombre ajeno. Misma norma que la v0.12. Lo único
+  que cruza del resto es el número de participantes, que es un recuento.
+- **Idempotente.** El id del torneo lleva dentro el de Limitless (`ltl-<id>`), así que
+  reimportar cae sobre la misma fila en vez de duplicar.
+- **Lo tecleado manda.** Un resultado que ya existe no se pisa (`onConflictDoNothing`): si
+  alguien lo corrigió a mano, fue por algo.
+
+### Detalles que evitan fallos silenciosos
+
+- Los nicks se comparan en minúsculas: «IbaiM» encuentra «ibaim». Sin eso, el torneo se
+  importaría con el resultado de nadie y sin un solo error por ninguna parte.
+- Se mira el nick y también el nombre visible, porque la API trae uno u otro según el torneo.
+- Un puesto ausente o a cero queda a **nulo**, no a cero: no es lo mismo «no entró» que «no se
+  sabe».
+- El resumen distingue «no jugó nadie» de «a X no se le ha buscado porque no tiene nick».
+- Un torneo en el que no jugó nadie del grupo **no se crea**: sería un torneo vacío que además
+  el cron de limpieza borraría a los tres días.
+
+### Verificado
+
+- `npm test`: **414 de 414** (402 + 12).
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build` y la migración: pendientes.
+
+## [0.35.0] — 2026-10-14
+
+Modo sin conexión. **Sin migración ni dependencias nuevas.**
+
+> Lee la sección «el riesgo» antes de desplegar. Es la versión con más
+> posibilidades de dar un susto, y por eso trae una salida de emergencia.
+
+### Añadido
+
+- **Service worker** (`public/sw.js`), registrado solo en producción y después de que la
+  página termine de cargar.
+- **Página `/sin-conexion`**, fuera del grupo `(app)` porque ese layout pide sesión y base de
+  datos, que es justo lo que no hay cuando se enseña.
+- **Botón «Desactivar modo sin conexión»** en Ajustes: da de baja el worker, borra sus cachés
+  y recarga.
+- `src/lib/swRutas.ts` (puro) con las tres decisiones del worker, y 9 pruebas.
+
+### El riesgo, y cómo está acotado
+
+El fallo clásico de un service worker es servir una versión vieja después de desplegar: tú ves
+lo nuevo, tus amigos ven lo viejo y nadie entiende por qué. Tres reglas lo impiden:
+
+1. **Nada de HTML en caché.** Las páginas van siempre a la red. Sin red, sale `/sin-conexion`.
+   La app no finge estar actualizada.
+2. **Solo se guarda lo inmutable**: `/_next/static/` y `/logos/`, que llevan hash en el nombre.
+   Si cambia el contenido cambia la URL, así que una entrada vieja no la pide nadie.
+3. **Nada de `/api/`**: ahí van datos de la liga detrás del login.
+
+Y dos cierres más: el worker se registra como `/sw.js?v=<build id>`, así que al desplegar
+cambia la URL y el navegador se baja el worker nuevo en vez de servir el viejo desde su propia
+caché HTTP; y `skipWaiting` + `clients.claim` hacen que la versión nueva tome el control sin
+quedarse esperando.
+
+### Nota sobre las dos copias
+
+`public/sw.js` no pasa por el empaquetador, así que no puede importar `swRutas.ts` y tiene una
+copia literal de sus funciones. El test `sw.js no se ha separado de swRutas.ts` comprueba que
+las listas y las tres funciones siguen ahí. **Si tocas una, toca la otra.**
+
+### Verificado
+
+- `npm test`: **402 de 402** (393 + 9).
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
+## [0.34.0] — 2026-10-14
+
+Móvil. Nace de tres capturas reales, no de una lista de buenas prácticas: cada cambio sale de
+algo que se veía mal en una pantalla de 360 px.
+**Sin migración de base de datos, dependencias ni variables de entorno nuevas.**
+
+### Corregido — lo que se veía mal
+
+- **La lista de rivales era un muro.** Con 21 personas en la liga, el formulario de ronda
+  pintaba 21 chips: siete filas que empujaban el resultado fuera de la pantalla. Ahora la lista
+  **se filtra con lo que escribes** —sin acentos ni mayúsculas, así que «ivan» encuentra «Iván
+  Fernández»— y solo se enseñan seis, con un «+N más» para abrirla entera. Si no hay nadie que
+  se llame así, lo dice en vez de dejar un hueco.
+- **Los títulos de las tarjetas de cifras se cortaban**: «Liga regular interna» salía como
+  «LIGA REGULAR IN…». Ahora caben en dos líneas.
+- **La tira de pestañas de Estadísticas se cortaba a media palabra** y parecía un fallo de
+  maquetación en vez de «hay más a la derecha». Lleva un degradado en los bordes que aparece
+  solo del lado por el que queda contenido (`animation-timeline: scroll()`, con un degradado
+  fijo a la derecha donde el navegador no lo soporte) y anclaje de desplazamiento.
+- **Las partículas de estación caían sobre el texto.** En el móvil el contenido ocupa todo el
+  ancho, así que no hay margen por donde caigan sin molestar. Por debajo de 640 px van a la
+  mitad de opacidad, al 70 % de tamaño y cae una de cada dos. En escritorio no cambian.
+- **Dos placeholders se cortaban**: «Como salga en el empareja…» y «Elegir tu mazo, o solo el
+  arquet…». Ahora son «Nombre del rival» y «Tu mazo o arquetipo».
+- **Dos rejillas se apretaban por debajo de 400 px**: la de conversión (`grid-cols-4`) y la de
+  Ajustes (`grid-cols-3`). Pasan a una o dos columnas y se abren en `xs`.
+- **Textos de ayuda de tres líneas** en el sitio donde hay que decidir deprisa: el del mazo del
+  torneo y la cabecera de Estadísticas. Lo que hay que saber antes de tocar algo cabe en una.
+
+### Rendimiento
+
+- **`/estadisticas` pasaba de 788 kB de JavaScript y `/competiciones/[id]` de 737, contra los
+  ~370 del resto.** La causa: las dos importaban `TrendLineChart` y `HourlyChart` desde
+  `@/components/charts`, que es un barril y reexporta esas dos —que usan Recharts— junto a
+  `KpiCard` y `SegmentedFilter`, que no. Importar cualquier cosa del barril arrastraba Recharts
+  al paquete de la página, aunque la gráfica estuviera al final y nadie bajara a verla.
+  Ahora las dos van por `next/dynamic` (`TrendLineChartLazy`, `HourlyChartLazy`) y `KpiCard` se
+  importa de su fichero. Eran las dos únicas rutas con ese problema, y son dos de las más
+  visitadas.
+
+### Eliminado
+
+- **`src/components/CutOutlook.tsx`**: 619 líneas que no importaba nadie desde que
+  `CaminoAlCorte` lo sustituyó.
+
+### Lo que NO entra, y por qué
+
+- **Service worker.** Era el candidato número uno para «que vaya rápido», y lo he dejado fuera
+  a propósito: un service worker mal puesto sirve una versión vieja de la app después de
+  desplegar y es de los fallos más difíciles de diagnosticar desde un móvil ajeno. Merece una
+  versión propia con su estrategia de invalidación, no un hueco al final de otra.
+
+### Verificado
+
+- `npm test`: **393 de 393**.
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente, lo lanza Ibai — y en esta versión importa, porque es la que dice
+  cuánto bajan de verdad esos 788 kB.
+
 ## [0.33.0] — 2026-10-14
 
 Simplifica los rankings de liga quitando la cifra de puntos de las vistas.
