@@ -1004,16 +1004,23 @@ html[data-motion="off"] .season-pokemon-sprite {
    sprite se retira por un temporizador, no al acabar la animación.
    ========================================================================= */
 
-/* Solrock / Lunatone: asoma bajo el botón, sube un poco y se desvanece. */
-.pkmn-asoma { animation: pkmn-asoma 1.3s ease-out both; }
-@keyframes pkmn-asoma {
-  /* Solo `transform`: el centrado horizontal lo pone `-translate-x-1/2`,
-     que es la propiedad `translate` y se compone con esta. Si la animación
-     se apaga, el sprite sigue centrado. */
-  0%   { opacity: 0; transform: translateY(-6px) scale(0.6) rotate(-12deg); }
-  20%  { opacity: 1; transform: translateY(6px) scale(1.1) rotate(4deg); }
+/* Solrock / Lunatone. v0.41: dos direcciones, porque el botón está abajo en
+   la barra lateral y arriba en la cabecera móvil. El centrado horizontal lo
+   pone `-translate-x-1/2` (propiedad `translate`); la animación solo toca
+   `transform`, y las dos se componen. */
+.pkmn-asoma-arriba { animation: pkmn-asoma-arriba 1.3s ease-out both; }
+@keyframes pkmn-asoma-arriba {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.6) rotate(-12deg); }
+  20%  { opacity: 1; transform: translateY(0) scale(1.1) rotate(4deg); }
+  70%  { opacity: 1; transform: translateY(-4px) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(-22px) scale(0.9) rotate(0deg); }
+}
+.pkmn-asoma-abajo { animation: pkmn-asoma-abajo 1.3s ease-out both; }
+@keyframes pkmn-asoma-abajo {
+  0%   { opacity: 0; transform: translateY(-16px) scale(0.6) rotate(-12deg); }
+  20%  { opacity: 1; transform: translateY(0) scale(1.1) rotate(4deg); }
   70%  { opacity: 1; transform: translateY(4px) scale(1) rotate(0deg); }
-  100% { opacity: 0; transform: translateY(18px) scale(0.9) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(22px) scale(0.9) rotate(0deg); }
 }
 
 /* Tadbulb: se hincha, tiembla y revienta. */
@@ -1060,12 +1067,14 @@ html[data-motion="off"] .season-pokemon-sprite {
    animaciones apagadas: el sprite aparece quieto, sin chispas ni destello,
    y lo retira el mismo temporizador de siempre. */
 @media (prefers-reduced-motion: reduce) {
-  html:not([data-motion="on"]) .pkmn-asoma,
+  html:not([data-motion="on"]) .pkmn-asoma-arriba,
+  html:not([data-motion="on"]) .pkmn-asoma-abajo,
   html:not([data-motion="on"]) .pkmn-boom { animation: none !important; opacity: 1; }
   html:not([data-motion="on"]) .pkmn-chispa,
   html:not([data-motion="on"]) .pkmn-destello { display: none; }
 }
-html[data-motion="off"] .pkmn-asoma,
+html[data-motion="off"] .pkmn-asoma-arriba,
+html[data-motion="off"] .pkmn-asoma-abajo,
 html[data-motion="off"] .pkmn-boom { animation: none !important; opacity: 1; }
 html[data-motion="off"] .pkmn-chispa,
 html[data-motion="off"] .pkmn-destello { display: none; }

@@ -12,6 +12,8 @@ import { Icon } from "@/components/icons";
 import { canManageLeague } from "@/lib/auth";
 import { importLocalTournaments } from "@/actions";
 import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
+import { AutoSubmitForm } from "@/components/AutoSubmitForm";
+import { toneOf } from "@/lib/calendar";
 
 export const metadata = { title: "Torneos" };
 
@@ -53,6 +55,20 @@ export default async function TournamentsPage({
   const fDesde = sp.desde && ISO.test(sp.desde) ? sp.desde : "";
   const fHasta = sp.hasta && ISO.test(sp.hasta) ? sp.hasta : "";
   const conFiltros = Boolean(filterPlayer || fTipo || fEstado || fDesde || fHasta);
+
+  /* v0.41 — la URL de un chip: los filtros que ya hay, con uno cambiado.
+     Sin esto, pulsar «Regional» borraría la persona y las fechas elegidas. */
+  const urlFiltro = (cambio: Partial<Record<"estado" | "tipo", string>>) => {
+    const q = new URLSearchParams();
+    const actual: Record<string, string> = {
+      jugador: filterId === "all" ? "" : filterId,
+      tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta,
+      ...cambio,
+    };
+    for (const [k, v] of Object.entries(actual)) if (v) q.set(k, v);
+    const t = q.toString();
+    return t ? `/torneos?${t}` : "/torneos";
+  };
 
   const filtered = filtrarTorneos(snap.tournaments, {
     dePersona: filterPlayer
@@ -164,44 +180,91 @@ export default async function TournamentsPage({
         {filterPlayer ? `Torneos de ${filterPlayer.name}` : "Todos los torneos"}
       </SectionTitle>
 
-      {/* v0.16 — filtros: persona, tipo, estado y fechas. */}
-      <form method="get" action="/torneos" className="card mb-4 grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-6">
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="label">Persona</span>
-          <select className="input" name="jugador" defaultValue={filterId === "all" ? "" : filterId}>
-            <option value="">Todas</option>
-            {playerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="label">Tipo</span>
-          <select className="input" name="tipo" defaultValue={fTipo}>
-            <option value="">Todos</option>
-            {tiposPresentes.map((k) => (
-              <option key={k} value={k}>{table.events[k]?.label ?? k}</option>
+      {/* v0.16 — filtros: persona, tipo, estado y fechas.
+
+          v0.41 — rediseñados. Antes eran cinco controles del mismo tamaño en
+          fila y un botón «Filtrar»: para ver los Regionales había que abrir
+          un desplegable, elegir y pulsar otro botón. Ahora:
+
+            · Lo que tiene pocas opciones (estado, tipo) son CHIPS: un toque y
+              filtrado. Son enlaces, así que funcionan sin JavaScript y la URL
+              se puede compartir. Los tipos llevan el mismo color que en el
+              calendario, para que «Regional» se lea igual en las dos pantallas.
+            · Lo que tiene muchas (persona) y las fechas se aplican solos al
+              cambiar (`AutoSubmitForm`), sin botón. Sin JavaScript, ese
+              componente ya enseña su propio botón de aplicar. */}
+      <div className="card mb-4 flex flex-col gap-3 p-3 sm:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <span className="label w-14 flex-none">Estado</span>
+          <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
+            {[["", "Todos"], ...Object.entries(TOURNAMENT_STATUS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
+              <Link
+                key={k || "todos"}
+                href={urlFiltro({ estado: k })}
+                scroll={false}
+                aria-current={fEstado === k ? "true" : undefined}
+                className={`chip flex-none ${fEstado === k ? "chip-brand" : ""}`}
+              >
+                {label}
+              </Link>
             ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="label">Estado</span>
-          <select className="input" name="estado" defaultValue={fEstado}>
-            <option value="">Todos</option>
-            {Object.entries(TOURNAMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="label">Desde</span>
-          <input className="input" type="date" name="desde" defaultValue={fDesde} />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="label">Hasta</span>
-          <input className="input" type="date" name="hasta" defaultValue={fHasta} />
-        </label>
-        <div className="flex items-end gap-2">
-          <button className="btn btn-brand flex-1" type="submit">Filtrar</button>
-          {conFiltros && <Link className="btn btn-ghost" href="/torneos">Quitar</Link>}
+          </div>
         </div>
-      </form>
+
+        {tiposPresentes.length > 1 && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <span className="label w-14 flex-none">Tipo</span>
+            <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
+              <Link
+                href={urlFiltro({ tipo: "" })} scroll={false}
+                aria-current={!fTipo ? "true" : undefined}
+                className={`chip flex-none ${!fTipo ? "chip-brand" : ""}`}
+              >
+                Todos
+              </Link>
+              {tiposPresentes.map((k) => (
+                <Link
+                  key={k}
+                  href={urlFiltro({ tipo: k })} scroll={false}
+                  aria-current={fTipo === k ? "true" : undefined}
+                  className={`chip flex-none items-center gap-1.5 ${fTipo === k ? "chip-brand" : ""}`}
+                >
+                  <i className="size-2 flex-none rounded-full" style={{ background: toneOf(k).color }} aria-hidden="true" />
+                  {table.events[k]?.label ?? toneOf(k).label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <AutoSubmitForm action="/torneos" className="grid grid-cols-1 gap-2 border-t border-line-soft pt-3 xs:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          {/* Lo que ya está puesto con chips viaja oculto: si no, cambiar la
+              persona borraría el estado y el tipo elegidos. */}
+          {fEstado && <input type="hidden" name="estado" value={fEstado} />}
+          {fTipo && <input type="hidden" name="tipo" value={fTipo} />}
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className="label">Persona</span>
+            <select className="input" name="jugador" defaultValue={filterId === "all" ? "" : filterId}>
+              <option value="">Todas</option>
+              {playerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className="label">Desde</span>
+            <input className="input" type="date" name="desde" defaultValue={fDesde} />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className="label">Hasta</span>
+            <input className="input" type="date" name="hasta" defaultValue={fHasta} />
+          </label>
+        </AutoSubmitForm>
+
+        {conFiltros && (
+          <Link href="/torneos" scroll={false} className="w-fit text-xs text-muted underline-offset-2 hover:underline">
+            Quitar todos los filtros
+          </Link>
+        )}
+      </div>
 
       {ordenados.length ? (
         <div className="flex flex-col gap-5">

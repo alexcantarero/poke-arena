@@ -64,3 +64,43 @@ test("fechaCorta", () => {
   assert.equal(fechaCorta("2026-01-05"), "5 ene");
   assert.equal(fechaCorta("vaya"), "vaya");
 });
+
+/* --------------------------------------------------------- v0.41: mayores */
+
+import { asModoResultados, mayoresConCp } from "../src/lib/ultimosCp.ts";
+
+test("mayoresConCp: del que más CP dio al que menos", () => {
+  const r = mayoresConCp([
+    e({ id: "a", cp: 20 }), e({ id: "b", cp: 200 }), e({ id: "c", cp: 60 }),
+  ]);
+  assert.deepEqual(r.map((x) => x.id), ["b", "c", "a"]);
+});
+
+test("mayoresConCp: los ceros no entran", () => {
+  assert.deepEqual(mayoresConCp([e({ id: "a", cp: 0 }), e({ id: "b", cp: 15 })]).map((x) => x.id), ["b"]);
+});
+
+test("mayoresConCp: a igual CP, el más reciente arriba", () => {
+  const r = mayoresConCp([
+    e({ id: "viejo", cp: 50, fecha: "2026-06-01" }),
+    e({ id: "nuevo", cp: 50, fecha: "2026-10-01" }),
+  ]);
+  assert.deepEqual(r.map((x) => x.id), ["nuevo", "viejo"]);
+});
+
+test("mayores y recientes dan listas distintas con los mismos datos", () => {
+  // Es la razón de tener las dos: si dieran lo mismo, sobraría el selector.
+  const datos = [
+    e({ id: "grande-viejo", cp: 200, fecha: "2026-03-01" }),
+    e({ id: "chico-nuevo", cp: 15, fecha: "2026-10-10" }),
+  ];
+  assert.equal(mayoresConCp(datos, 1)[0].id, "grande-viejo");
+  assert.equal(ultimosConCp(datos, 1)[0].id, "chico-nuevo");
+});
+
+test("asModoResultados: por defecto «más CP»", () => {
+  assert.equal(asModoResultados("recientes"), "recientes");
+  assert.equal(asModoResultados("cp"), "cp");
+  assert.equal(asModoResultados(undefined), "cp");
+  assert.equal(asModoResultados("cualquier-cosa"), "cp");
+});

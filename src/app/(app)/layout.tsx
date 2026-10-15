@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
-      {/* v0.22: partÃ­culas de temporada al fondo (detrÃ¡s de todo). */}
+      {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
       <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
         <div className="px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
-          {/* v0.19: debajo solo la temporada (Â«SEASON 1Â»), sin repetir la marca. */}
+          {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
           <SeasonPokemonTrigger
             estacion={estacion}
@@ -85,12 +85,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* --------------------------------- mÃ³vil -------------------------------- */}
+      {/* --------------------------------- móvil -------------------------------- */}
       <div className="min-w-0">
-        {/* `viewportFit: "cover"` en el layout raÃ­z hace que la web pinte por
-            debajo de la muesca; sin `safe-top`, en un iPhone el tÃ­tulo queda
-            medio tapado. `--safe-extra` es el padding que tendrÃ­a de todas
-            formas, porque en un mÃ³vil sin muesca `env()` vale 0. */}
+        {/* `viewportFit: "cover"` en el layout raíz hace que la web pinte por
+            debajo de la muesca; sin `safe-top`, en un iPhone el título queda
+            medio tapado. `--safe-extra` es el padding que tendría de todas
+            formas, porque en un móvil sin muesca `env()` vale 0. */}
         <header
           className="shell-dark safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line px-4 pb-2 md:hidden"
           style={{ "--safe-extra": "0.5rem" } as React.CSSProperties}
@@ -114,7 +114,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
-            mÃ³vil de 360px son 8px mÃ¡s de tarjeta para tablas y grÃ¡ficas. */}
+            móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
         <main className="mx-auto w-full max-w-5xl px-3 pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
@@ -122,19 +122,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <BottomNav meId={me.id} lang={lang} />
 
-      {/* El aviso de Â«guardado correctamenteÂ» / Â«no se ha podido guardarÂ».
-          Va aquÃ­, en el layout, y no en cada pantalla: el mensaje lo deja una
-          Server Action en la URL justo antes de redirigir, asÃ­ que tiene que
-          haber alguien escuchando en CUALQUIER pÃ¡gina a la que se redirija.
+      {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
+          Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una
+          Server Action en la URL justo antes de redirigir, así que tiene que
+          haber alguien escuchando en CUALQUIER página a la que se redirija.
 
-          ExistÃ­a desde la v0.5.0 pero no estaba montado en ningÃºn sitio, que
-          es exactamente por quÃ© no aparecÃ­a nunca.
+          Existía desde la v0.5.0 pero no estaba montado en ningún sitio, que
+          es exactamente por qué no aparecía nunca.
 
-          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin Ã©l
+          El <Suspense> no es opcional: `useSearchParams` lo exige, y sin él
           `next build` falla al prerenderizar. */}
       <Suspense fallback={null}>
         <Snackbar />
-        {/* v0.21: recuerda los filtros de Ranking, EstadÃ­sticas y Resultados. */}
+        {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
         <FilterMemory />
       </Suspense>
     </div>

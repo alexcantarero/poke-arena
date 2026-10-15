@@ -11,7 +11,13 @@ const P: Record<string, string> = {
   // v0.16 — la Liga: un escudo con la tabla dentro, para no confundirla con Torneos.
   league: "M12 3 4.5 5.8v5.7c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V5.8zM8.5 10h7M8.5 13.5h7M8.5 17h4",
   trophy: "M6 3h12v5a6 6 0 0 1-12 0zM9 21h6M12 14v7M4 5H2v2a4 4 0 0 0 4 4M20 5h2v2a4 4 0 0 1-4 4",
-  cog: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM12 2v3m0 14v3M2 12h3m14 0h3M4.5 4.5 6.6 6.6m10.8 10.8 2.1 2.1M19.5 4.5 17.4 6.6M6.6 17.4 4.5 19.5",
+  /* v0.41 — dos engranajes que engranan. El anterior era un círculo con
+     ocho rayas: se leía como un SOL, y estaba justo al lado del sol del
+     botón de tema. Generado por cálculo (dientes trapezoidales, no
+     triángulos, que es lo que lo hace leerse como engranaje y no como
+     estrella) y comprobado a 20 px en los dos temas: el agujero del
+     pequeño sigue abierto y los dos no se funden donde se tocan. */
+  cog: "M13.8 14.7L15.2 15.7 14.7 16.9 13.0 16.8 12.0 17.8 12.2 19.4 11.0 19.9 9.9 18.6 8.6 18.6 7.5 20.0 6.3 19.5 6.4 17.8 5.5 16.8 3.8 17.0 3.3 15.8 4.5 14.7 4.5 13.3 3.2 12.3 3.7 11.1 5.4 11.2 6.4 10.2 6.2 8.6 7.4 8.1 8.5 9.3 9.8 9.3 10.9 8.0 12.1 8.5 12.0 10.2 12.9 11.2 14.6 11.0 15.1 12.2 13.8 13.3ZM11.3 14.0a2.1 2.1 0 1 0 -4.2 0a2.1 2.1 0 1 0 4.2 0ZM20.7 6.9L21.5 7.8 20.9 8.8 19.7 8.4 18.8 8.9 18.4 10.1 17.3 10.0 17.0 8.8 16.1 8.2 14.8 8.4 14.3 7.5 15.2 6.6 15.3 5.5 14.5 4.6 15.1 3.6 16.3 4.0 17.2 3.5 17.6 2.3 18.7 2.4 19.0 3.6 19.9 4.2 21.2 4.0 21.7 4.9 20.8 5.8ZM19.4 6.2a1.4 1.4 0 1 0 -2.9 0a1.4 1.4 0 1 0 2.9 0Z",
   plus: "M12 5v14M5 12h14",
   more: "M4 6h16M4 12h16M4 18h16",
   back: "M15 6l-6 6 6 6",

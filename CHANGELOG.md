@@ -2,6 +2,70 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.41.0] — 2026-10-15
+
+Texto corrompido reparado, amistosos con mazo fijo, easter eggs por encima de todo, engranaje,
+filtros de torneos y resultados por CP. **Sin migración ni dependencias nuevas.**
+
+### Corregido — TEXTO CORROMPIDO DESDE EL 9 DE OCTUBRE
+
+- **Doble codificación en `src/actions/index.ts`, `src/app/(app)/layout.tsx` y
+  `src/db/schema.ts`**, también en mensajes que ven los usuarios: el error de la pantalla de
+  entrar salía como «Correo o contraseÃ±a incorrectos.», y lo mismo en invitaciones, cambio
+  de contraseña y varios avisos.
+- **Origen:** el commit `2a08264` «Seguridad Fase 1». Antes de él el fichero estaba limpio; esa
+  sesión lo reescribió leyendo UTF-8 como Windows-1252. No se podía restaurar sin más porque
+  encima había cambios reales.
+- **Reparación:** invirtiendo la codificación por tramos de caracteres no ASCII, no por línea,
+  para no tocar el texto que ya estaba bien al lado del roto. **Comprobada** contra la última
+  versión limpia (`a4805a9`): 353 de 359 líneas con acentos vuelven exactamente a como eran;
+  las otras 6 son las que se cambiaron de verdad después.
+- Un carácter de `MatchForm` («— selecciona mazo —») se había perdido del todo (`U+FFFD`) y se
+  ha escrito a mano.
+
+### Cambiado
+
+- **Amistosos con mazo fijo.** El selector de mazo por juego y el «N bloqueado» solo salen en
+  partidas de liga. En un amistoso se fija un mazo y se juega toda la serie con él, sea Bo1,
+  Bo3 o Bo5. El servidor ya solo aplicaba el bloqueo con competición; ahora además descarta
+  mazos por juego en un amistoso aunque lleguen, porque una Server Action es un endpoint
+  público. Vacío significa «el de la serie», que es justo la regla.
+- **Easter eggs con portal.** El botón de tema vive en la barra lateral (`sticky` con
+  `overflow-y-auto`) y en la cabecera móvil (`sticky z-30`). El `overflow` recortaba a Solrock y
+  Lunatone, y el `sticky` atrapaba a Tadbulb detrás de los menús: ningún `z-index` sale de ese
+  contexto. Ahora los dos se pintan con `createPortal` en el `<body>`.
+- **Solrock y Lunatone asoman hacia arriba**, que es donde se ven en la barra lateral. Si arriba
+  no hay sitio —en el móvil el botón está pegado al borde superior— asoman por debajo. Las
+  excepciones de «movimiento apagado» se han actualizado a las clases nuevas: sin eso volvería
+  el fallo de la 0.40 de un Pokémon invisible.
+- **Icono de Ajustes: dos engranajes.** El anterior era un círculo con ocho rayas y se leía como
+  un sol, justo al lado del sol del botón de tema. El nuevo está generado por cálculo (dientes
+  trapezoidales, no triángulos, que es lo que lo distingue de una estrella) y comprobado a
+  20 px en los dos temas.
+- **Filtros de torneos rediseñados.** Estado y tipo son chips de un toque, que son enlaces: sin
+  JavaScript funcionan y la URL se comparte. Los tipos llevan el color del calendario. Persona
+  y fechas se aplican solos al cambiar (`AutoSubmitForm`), sin botón «Filtrar». Cada chip
+  conserva los demás filtros.
+- **Mejores resultados: «Más CP» o «Recientes».** Antes se ordenaba por puesto, y un 1.º en un
+  Challenge de doce personas salía por encima de un top 16 en un Regional que vale diez veces
+  más. Solo entran resultados que puntuaron. El selector y el de «El último Regional» se
+  conservan mutuamente al cambiar.
+
+### Añadido
+
+- `mayoresConCp()` y `asModoResultados()` en `src/lib/ultimosCp.ts`, con 5 pruebas.
+
+### Sin uso
+
+- `mejoresPuestosDeTorneos()` en `src/lib/torneosLista.ts` ya no la usa ninguna pantalla. Sigue
+  con sus pruebas; se puede retirar junto a ellas.
+
+### Verificado
+
+- `npm test`: **450 de 450**.
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
 ## [0.40.0] — 2026-10-15
 
 Pestaña de Mazos, matriz a ancho completo, CP en los mejores resultados y dos easter eggs.

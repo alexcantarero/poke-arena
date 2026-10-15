@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { spriteUrl } from "@/lib/pokemon";
 import { pokemonDelTema, registrarClic } from "@/lib/rafaga";
 
@@ -27,11 +28,22 @@ import { pokemonDelTema, registrarClic } from "@/lib/rafaga";
  * lleva una excepción para que, con el movimiento apagado, el sprite salga
  * quieto en vez de no salir. Lo retira un temporizador de JavaScript, no el
  * final de la animación, así que se va igual en los dos casos.
+ *
+ * v0.41 — los dos se pintan con un PORTAL en el `<body>`. El botón vive dentro
+ * de la barra lateral (`sticky` con `overflow-y-auto`) y de la cabecera móvil
+ * (`sticky z-30`). El `overflow` recortaba lo que sobresalía —por eso Solrock
+ * «se iba de la pantalla»— y el `sticky` crea un contexto de apilamiento del
+ * que ningún `z-index` puede escapar —por eso Tadbulb quedaba detrás de los
+ * menús—. Fuera de ese contenedor, las dos cosas se arreglan solas.
  */
 
 type Aparicion =
-  | { tipo: "tema"; slug: "solrock" | "lunatone"; id: number }
+  | { tipo: "tema"; slug: "solrock" | "lunatone"; id: number; x: number; y: number; arriba: boolean }
   | { tipo: "boom"; id: number };
+
+/** Lo que mide el sprite y lo que necesita de hueco para asomar sin salirse. */
+const SPRITE = 48;
+const HUECO = SPRITE + 24;
 
 /** Lo que dura en pantalla cada aparición, en ms. */
 const DURACION = { tema: 1300, boom: 1700 } as const;
@@ -42,6 +54,7 @@ export function ThemeToggle() {
   const historial = useRef<number[]>([]);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contador = useRef(0);
+  const boton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setDark(document.documentElement.dataset.theme === "dark");
@@ -66,15 +79,26 @@ export function ThemeToggle() {
 
     // La ráfaga manda sobre el Pokémon del tema: si las dos cosas pasan en el
     // mismo clic, lo que se ha ganado es la explosión.
-    mostrar(r.rafaga
-      ? { tipo: "boom", id: contador.current }
-      : { tipo: "tema", slug: pokemonDelTema(next), id: contador.current });
+    if (r.rafaga) {
+      mostrar({ tipo: "boom", id: contador.current });
+      return;
+    }
+
+    /* Hacia ARRIBA del botón, que es donde se ve: en la barra lateral el
+       botón está abajo del todo, y salir por debajo era salirse de la
+       pantalla. Si arriba no hay sitio —en el móvil el botón está en la
+       cabecera, pegado al borde superior— se asoma por debajo. */
+    const rect = boton.current?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const arriba = rect ? rect.top > HUECO : false;
+    const y = rect ? (arriba ? rect.top - SPRITE - 6 : rect.bottom + 6) : 80;
+    mostrar({ tipo: "tema", slug: pokemonDelTema(next), id: contador.current, x, y, arriba });
   }
 
   return (
     <span className="relative inline-flex">
       <button
-        type="button" onClick={toggle}
+        ref={boton} type="button" onClick={toggle}
         className="btn btn-ghost btn-sm px-2"
         aria-label={dark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
         title={dark ? "Tema claro" : "Tema oscuro"}
@@ -91,7 +115,7 @@ export function ThemeToggle() {
         </svg>
       </button>
 
-      {aparicion?.tipo === "tema" && (
+      {aparicion?.tipo === "tema" && createPortal(
         // `key` con el id: un clic nuevo reinicia la animación en vez de
         // dejar la anterior a medias.
         <img
@@ -99,13 +123,16 @@ export function ThemeToggle() {
           src={spriteUrl(aparicion.slug)}
           alt=""
           aria-hidden="true"
-          className="pkmn-asoma pointer-events-none absolute left-1/2 top-full z-50 size-12 -translate-x-1/2 object-contain"
+          className={`pointer-events-none fixed z-[100] -translate-x-1/2 object-contain
+            ${aparicion.arriba ? "pkmn-asoma-arriba" : "pkmn-asoma-abajo"}`}
+          style={{ left: aparicion.x, top: aparicion.y, width: SPRITE, height: SPRITE }}
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
+        />,
+        document.body,
       )}
 
-      {aparicion?.tipo === "boom" && (
-        <span key={aparicion.id} className="pointer-events-none fixed inset-0 z-[60] grid place-items-center" aria-hidden="true">
+      {aparicion?.tipo === "boom" && createPortal(
+        <span key={aparicion.id} className="pointer-events-none fixed inset-0 z-[100] grid place-items-center" aria-hidden="true">
           {/* Un único destello, suave y radial: NO un fogonazo blanco a
               pantalla completa. Quien llega aquí acaba de cambiar el tema
               cinco veces seguidas, y la pantalla ya ha parpadeado bastante. */}
@@ -114,7 +141,7 @@ export function ThemeToggle() {
             <img
               src={spriteUrl("tadbulb")}
               alt=""
-              className="pkmn-boom size-24 object-contain"
+              className="pkmn-boom size-28 object-contain"
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
             />
             {/* Las chispas son puntos de color, no partes del Pokémon. */}
@@ -126,7 +153,8 @@ export function ThemeToggle() {
               />
             ))}
           </span>
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   );

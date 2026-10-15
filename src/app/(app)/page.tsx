@@ -23,7 +23,7 @@ import { irlMeta, panelDeEvento } from "@/lib/metaIrl";
 import { ordenaPorCuota } from "@/lib/metaBadges";
 import { fetchMetaSnapshot } from "@/lib/sources/limitless";
 import type { Archetype } from "@/lib/types";
-import { mejoresPuestosDeTorneos } from "@/lib/torneosLista";
+import { asModoResultados, mayoresConCp, ultimosConCp, type EntradaCp } from "@/lib/ultimosCp";
 
 /** Los tipos que tienen Día 2 y cuentan como «Regional» en el inicio. */
 const KINDS_REGIONAL = new Set(["regional", "special", "international"]);
@@ -54,7 +54,7 @@ const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vista?: string }>;
+  searchParams: Promise<{ vista?: string; resultados?: string }>;
 }) {
   const q = await searchParams;
   const vista: Vista = q.vista === "grupo" ? "grupo" : "global";
@@ -121,38 +121,40 @@ export default async function HomePage({
     r.deckId ? snap.archIndex.get(r.deckId) : r.archetypeId ? snap.archById.get(r.archetypeId) : undefined;
 
   const cfgSeason = snap.config.cpSeason;
-  const mejoresResultados = mejoresPuestosDeTorneos(
-    snap.tournaments
-      .filter((t) => t.status === "closed")
-      .flatMap((t) => t.results.map((r) => ({
-        tournamentId: t.id,
-        playerId: r.playerId,
-        date: t.date,
-        placement: r.placement,
-      }))),
-    today,
-  ).flatMap((r) => {
-    const tournament = snap.toursById.get(r.tournamentId);
-    const player = snap.playersById.get(r.playerId);
-    if (!tournament || !player) return [];
 
-    /* v0.40 — los CP que dio ese puesto, y el tipo de torneo.
+  /* v0.41 — los resultados que DIERON CP, en dos órdenes a elegir:
 
-       Los CP se calculan con `effectiveCp()`, la misma función que usan el
-       perfil y la ficha del torneo. NO se lee la columna `cp_earned`: leerla
-       en crudo es exactamente el fallo de la v0.9.0, donde el perfil decía
-       una cifra y el torneo otra. Un valor metido a mano sigue mandando,
-       porque `effectiveCp` ya lo respeta. */
-    const resultado = tournament.results.find((x) => x.playerId === r.playerId);
-    const temporada = tournament.season ?? seasonOfDate(tournament.date) ?? cfgSeason;
-    const tipo = cpKindOf(tournament);
-    const cp = resultado
-      ? effectiveCp(temporada, tipo, resultado, tournament.playerCount)
-      : 0;
-    const tipoLabel = getSeason(temporada).events[tipo]?.label ?? tournament.kind;
+       · «Más CP»: los grandes resultados de la temporada.
+       · «Recientes»: lo que acaba de pasar.
 
-    return [{ ...r, tournamentName: tournament.name, cp, tipoLabel }];
-  });
+     Antes era «mejores puestos», ordenado por puesto, y un 1.º en un
+     Challenge de doce personas salía por encima de un top 16 en un Regional
+     que vale diez veces más. Ordenar por CP pone cada resultado en su sitio.
+
+     Los CP salen de `effectiveCp()`, la misma función que el perfil y la
+     ficha del torneo (v0.40). NUNCA de la columna `cp_earned` en crudo: ese
+     fue el fallo de la v0.9.0. Un CP metido a mano sigue mandando. */
+  const modoResultados = asModoResultados(q.resultados);
+  const entradasCp: EntradaCp[] = snap.tournaments
+    .filter((t) => t.status === "closed")
+    .flatMap((t) => {
+      const temporada = t.season ?? seasonOfDate(t.date) ?? cfgSeason;
+      const tipo = cpKindOf(t);
+      const tipoLabel = getSeason(temporada).events[tipo]?.label ?? t.kind;
+      return t.results.flatMap((r) => {
+        const player = snap.playersById.get(r.playerId);
+        if (!player) return [];
+        return [{
+          id: `${t.id}-${r.playerId}`,
+          torneoId: t.id, torneo: t.name, fecha: t.date, tipo: tipoLabel,
+          jugadorId: r.playerId, jugador: player.name, puesto: r.placement,
+          cp: effectiveCp(temporada, tipo, r, t.playerCount),
+        }];
+      });
+    });
+  const mejoresResultados = modoResultados === "recientes"
+    ? ultimosConCp(entradasCp, 5)
+    : mayoresConCp(entradasCp, 5);
 
   // Vuestros resultados en forma de metagame, torneo a torneo.
   const resultadosDe = (t: (typeof snap.tournaments)[number]): ResultadoGrupo[] => {
@@ -173,7 +175,12 @@ export default async function HomePage({
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   let panel: Parameters<typeof UltimoRegional>[0];
-  const hrefs = { global: "/#ultimo-regional", grupo: "/?vista=grupo#ultimo-regional" };
+  // v0.41 — conserva el orden de «Mejores resultados» al cambiar de vista.
+  const rq = q.resultados === "recientes" ? "resultados=recientes" : "";
+  const hrefs = {
+    global: `/${rq ? `?${rq}` : ""}#ultimo-regional`,
+    grupo: `/?vista=grupo${rq ? `&${rq}` : ""}#ultimo-regional`,
+  };
 
     const personalId = (await cookies()).get("personalRegional")?.value;
   if (vista === "global") {
@@ -468,36 +475,55 @@ export default async function HomePage({
           <h2 className="text-lg font-bold">{tr(lang, "home.bestTournamentResults")}</h2>
           <Link className="btn btn-ghost btn-sm" href="/torneos">{tr(lang, "home.viewTournaments")}</Link>
         </div>
+
+        {/* v0.41 — dos órdenes. Son enlaces y no un interruptor de JavaScript:
+            funcionan sin él, la URL se comparte, y `scroll={false}` evita que
+            la página salte arriba al cambiar. */}
+        <div className="flex gap-1.5 border-b border-line-soft px-3.5 py-2.5">
+          {([["cp", "Más CP"], ["recientes", "Recientes"]] as const).map(([v, label]) => (
+            <Link
+              key={v}
+              // Conserva `vista` (el selector de «El último Regional»): sin esto,
+              // cambiar el orden de aquí te devolvía la otra vista a su valor por defecto.
+              href={(() => {
+                const p = new URLSearchParams();
+                if (q.vista) p.set("vista", q.vista);
+                if (v === "recientes") p.set("resultados", "recientes");
+                const t = p.toString();
+                return t ? `/?${t}` : "/";
+              })()}
+              scroll={false}
+              aria-current={modoResultados === v ? "true" : undefined}
+              className={`chip ${modoResultados === v ? "chip-brand" : ""}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+
         {mejoresResultados.length ? (
           <ol className="divide-y divide-line-soft">
             {mejoresResultados.map((r) => (
-              <li key={`${r.tournamentId}-${r.playerId}`} className="flex items-center gap-3 px-3.5 py-3">
+              <li key={r.id} className="flex items-center gap-3 px-3.5 py-3">
                 <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-brand-soft font-display text-sm font-extrabold tabular text-brand">
-                  #{r.placement}
+                  {r.puesto ? `#${r.puesto}` : "—"}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-2">
-                    <PlayerTag player={snap.playersById.get(r.playerId)} size="xs" className="text-sm" />
-                    <span className="flex-none text-xs text-muted">{fechaCorta(r.date, lang === "en" ? "en-GB" : "es-ES")}</span>
+                    <PlayerTag player={snap.playersById.get(r.jugadorId)} size="xs" className="text-sm" />
+                    <span className="flex-none text-xs text-muted">{fechaCorta(r.fecha, lang === "en" ? "en-GB" : "es-ES")}</span>
                   </span>
-                  <Link href={`/torneos/${r.tournamentId}`} className="mt-1 block truncate text-sm text-muted hover:text-info">
-                    {r.tournamentName}
+                  <Link href={`/torneos/${r.torneoId}`} className="mt-1 block truncate text-sm text-muted hover:text-info">
+                    {r.torneo}
                   </Link>
-                  {/* v0.40 — tipo y puesto en etiquetas: se leen de un vistazo
-                      sin tener que entrar al torneo. */}
                   <span className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className="chip text-[11px]">{r.tipoLabel}</span>
-                    <span className="chip text-[11px] tabular">{r.placement}.º puesto</span>
+                    <span className="chip text-[11px]">{r.tipo}</span>
+                    {r.puesto ? <span className="chip text-[11px] tabular">{r.puesto}.º puesto</span> : null}
                   </span>
                 </span>
-                {/* Los CP a la derecha y grandes: es la cifra que se viene a
-                    mirar. Un cero se pinta como guion, no como «+0»: puede
-                    ser un torneo que no reparte CP, y «+0» sugeriría que se
-                    jugó para nada. */}
+                {/* Aquí todos tienen CP: los ceros ya no entran en la lista. */}
                 <span className="flex flex-none flex-col items-end">
-                  <span className="font-display text-lg font-extrabold tabular text-brand">
-                    {r.cp > 0 ? `+${r.cp}` : "—"}
-                  </span>
+                  <span className="font-display text-lg font-extrabold tabular text-brand">+{r.cp}</span>
                   <span className="text-[10px] uppercase tracking-wide text-muted">CP</span>
                 </span>
               </li>

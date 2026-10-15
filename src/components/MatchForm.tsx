@@ -59,6 +59,21 @@ export function MatchForm({
   const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
   const [bestOf, setBestOf] = useState(match?.bestOf ?? initialBestOf ?? 3);
   // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
+  /* v0.41 — de liga o amistoso. La regla de mazos es distinta en cada una:
+
+       · Liga: cada juego lleva su mazo, y uno con el que ya ganaste un juego
+         de la serie no se puede repetir (v0.25). El servidor también lo
+         comprueba, y solo cuando hay competición.
+       · Amistoso (sin competición): se fija UN mazo y se juega toda la
+         serie con él, sea Bo1, Bo3 o Bo5. No hay nada que elegir por juego
+         ni nada que bloquear.
+
+     Antes el formulario enseñaba el selector por juego y el «1 bloqueado»
+     también en los amistosos: el servidor ya los trataba bien, pero la
+     pantalla pedía un dato que no tocaba y aplicaba una regla que no era. */
+  const [compId, setCompId] = useState<string>(match?.competitionId ?? "");
+  const esLiga = Boolean(compId);
+
   const [games, setGames] = useState<JuegoEnEdicion[]>(() => {
     /* Anotado a mano, y no inferido del literal: un objeto con `premiosA:
        null` infiere el tipo `null` a secas y después no deja asignarle un
@@ -309,7 +324,13 @@ export function MatchForm({
 
                 {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
                     en un juego anterior de la serie no se ofrece (regla de liga;
-                    el servidor también lo comprueba). */}
+                    el servidor también lo comprueba).
+
+                    v0.41 — SOLO en liga. En un amistoso no se pinta: el mazo de
+                    la serie vale para todos los juegos, y al no enviarse los
+                    `g{i}_arch*` el servidor los guarda vacíos, que significa
+                    exactamente eso («el de la serie»). */}
+                {esLiga && (
                 <div className="mt-2 grid grid-cols-1 gap-2 xs:grid-cols-2">
                   {(["a", "b"] as const).map((lado) => {
                     const fuera = bloqueados(juegosMazos, i, lado);
@@ -326,16 +347,23 @@ export function MatchForm({
   defaultValue={games[i][campo]}
   onChange={(val) => setGame(i, { [campo]: val })}
   locked={over}
-  emptyLabel="� selecciona mazo �"
+  emptyLabel="— selecciona mazo —"
 />
                       </label>
                     );
                   })}
                 </div>
+                )}
               </div>
             );
           })}
         </div>
+
+        {!esLiga && (
+          <p className="mt-3 text-xs text-muted">
+            Amistoso: se juega toda la serie con el mismo mazo, el que hayas elegido arriba.
+          </p>
+        )}
 
         {!decided && (
           <p className="mt-3 text-sm text-muted">
@@ -350,7 +378,7 @@ export function MatchForm({
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="competitionId">Competición</label>
-            <select className="input" id="competitionId" name="competitionId" defaultValue={match?.competitionId ?? ""}>
+            <select className="input" id="competitionId" name="competitionId" value={compId} onChange={(e) => setCompId(e.target.value)}>
               {/* v0.19 — una sola categoría «Amistoso»: sin competición. Las
                   competiciones de tipo «Amistosos» ya no se ofrecen (la
                   migración 0012 las funde aquí). */}
