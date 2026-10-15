@@ -12,7 +12,6 @@
 | **08** | [Datos externos y APIs](08-datos-externos.md) | Quien vaya a modificar el código |
 | **09** | [Mantenimiento](09-mantenimiento.md) | Quien lo mantiene |
 | **10** | [Solución de problemas](10-solucion-de-problemas.md) | Cualquiera, cuando algo falla |
-| **11** | [Novedades de la v0.3.0](11-v0.3.0.md) | Quien venga de una versión anterior |
 | **12** | [Antigravity y entornos dev/prod](12-antigravity.md) | Quien desarrolle con un agente |
 | **13** | [Plan de rendimiento](13-plan-rendimiento.md) | **Obligatorio antes de tocar `data.ts`** |
 | **14** | [Datos y visualización](14-datos-y-visualizacion.md) | Qué capturar y con qué pintarlo |

@@ -52,11 +52,24 @@ export function MatchForm({
   const [aId, setAId] = useState(match?.playerAId ?? initialP1 ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
   const [bId, setBId] = useState(match?.playerBId ?? initialP2 ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
+  /* El valor de partida: el de la serie si lo hay; si no, el de los juegos
+     cuando es el mismo en todos los juegos de ese lado. */
+  const aDesdeJuegos = (() => {
+    const ids = new Set((match?.games ?? []).map((g) => g.archetypeAId).filter(Boolean));
+    return ids.size === 1 ? `arch:${[...ids][0]}` : "";
+  })();
+  const bDesdeJuegos = (() => {
+    const ids = new Set((match?.games ?? []).map((g) => g.archetypeBId).filter(Boolean));
+    return ids.size === 1 ? [...ids][0] as string : "";
+  })();
   const [aDeckId, setADeckId] = useState(
-    match?.deckAId ?? (match?.archetypeAId ? `arch:${match.archetypeAId}` : ""));
+    match?.deckAId ?? (match?.archetypeAId ? `arch:${match.archetypeAId}` : aDesdeJuegos));
   const [bDeckId, setBDeckId] = useState(
-    match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId ? `arch:${match.opponentArchetypeId}` : ""));
-  const [oppArch, setOppArch] = useState(match?.opponentArchetypeId ?? "");
+    match?.deckBId ?? (match?.playerBId && match.opponentArchetypeId
+      ? `arch:${match.opponentArchetypeId}`
+      : match?.playerBId && bDesdeJuegos ? `arch:${bDesdeJuegos}` : ""));
+  const [oppArch, setOppArch] = useState(
+    match?.opponentArchetypeId ?? (match && !match.playerBId ? bDesdeJuegos : ""));
   const [bestOf, setBestOf] = useState(match?.bestOf ?? initialBestOf ?? 3);
   // v0.25: cada juego lleva además el arquetipo de cada lado (opcional).
   /* v0.41 — de liga o amistoso. La regla de mazos es distinta en cada una:
@@ -73,6 +86,27 @@ export function MatchForm({
      pantalla pedía un dato que no tocaba y aplicaba una regla que no era. */
   const [compId, setCompId] = useState<string>(match?.competitionId ?? "");
   const esLiga = Boolean(compId);
+
+  /* v0.43 — ¿se juega toda la serie con el mismo mazo, o se puede cambiar
+     entre juegos? Es un botón y no una regla fija, porque las dos cosas
+     pasan en amistosos y en liga.
+
+     Al EDITAR se deduce de lo guardado:
+       · con mazo de la serie, fijo;
+       · sin él, pero con el mismo mazo en todos los juegos de cada lado,
+         también fijo, y se preselecciona ese arriba (así se arreglan solas
+         las partidas guardadas desde el 9 de octubre al volver a abrirlas);
+       · con mazos distintos entre juegos, por juego.
+     Se calcula a mano y no con `arquetipoPorJuegos` de `lib/stats` a
+     propósito: importar `lib/stats` desde un componente de cliente se lleva
+     el módulo entero al navegador (la lección de la v0.7). */
+  const juegosConMazo = (match?.games ?? []).some((g) => g.archetypeAId || g.archetypeBId);
+  const [mazoFijo, setMazoFijo] = useState<boolean>(() => {
+    if (!juegosConMazo) return true;
+    const variaA = new Set((match?.games ?? []).map((g) => g.archetypeAId).filter(Boolean)).size > 1;
+    const variaB = new Set((match?.games ?? []).map((g) => g.archetypeBId).filter(Boolean)).size > 1;
+    return !variaA && !variaB;
+  });
 
   const [games, setGames] = useState<JuegoEnEdicion[]>(() => {
     /* Anotado a mano, y no inferido del literal: un objeto con `premiosA:
@@ -171,7 +205,19 @@ export function MatchForm({
             </>)}
           </div>
 
-          
+          {/* v0.43 — el mazo de la SERIE, de vuelta. Se borró en el commit
+              «V0.25.3» (9 de octubre) y dejó estas líneas en blanco; desde
+              entonces ninguna partida guardaba su mazo de serie. Solo se pinta
+              con el mazo fijado: si se cambia entre juegos, va en cada juego. */}
+          {mazoFijo && (
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="deckAId">Su mazo</label>
+              <select className="input" id="deckAId" name="deckAId" value={aDeckId} onChange={(e) => setADeckId(e.target.value)}>
+                <option value="">— sin asignar —</option>
+                <DeckOptions decks={decks} playerId={aId} archetypes={archetypes} />
+              </select>
+            </div>
+          )}
 
           <hr className="border-line-soft" />
 
@@ -188,7 +234,18 @@ export function MatchForm({
                   y para la matriz de emparejamientos.
                 </p>
               </div>
-              
+              {mazoFijo && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
+                  <select
+                    className="input" id="opponentArchetypeId" name="opponentArchetypeId"
+                    value={oppArch} onChange={(e) => setOppArch(e.target.value)}
+                  >
+                    <option value="">— no lo sé —</option>
+                    {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -199,7 +256,15 @@ export function MatchForm({
                     .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              
+              {mazoFijo && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="label" htmlFor="deckBId">Su mazo</label>
+                  <select className="input" id="deckBId" name="deckBId" value={bDeckId} onChange={(e) => setBDeckId(e.target.value)}>
+                    <option value="">— sin asignar —</option>
+                    <DeckOptions decks={decks} playerId={bId} archetypes={archetypes} />
+                  </select>
+                </div>
+              )}
             </>
           )}
 
@@ -216,6 +281,28 @@ export function MatchForm({
               <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
             ))}
           </div>
+        </div>
+
+        {/* v0.43 — fijar el mazo o no. Un botón con `aria-pressed`, no una
+            casilla escondida: es una decisión que cambia el formulario entero
+            y tiene que verse. Viaja al servidor en `mazo_fijo`. */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={mazoFijo}
+            onClick={() => setMazoFijo((v) => !v)}
+            className={`chip ${mazoFijo ? "chip-brand" : ""}`}
+          >
+            {mazoFijo ? "✓ Mismo mazo toda la serie" : "Mazo distinto en cada juego"}
+          </button>
+          <span className="text-xs text-muted">
+            {mazoFijo
+              ? "El mazo se elige arriba, junto a cada jugador. Tócalo para cambiar entre juegos."
+              : esLiga
+                ? "Cada juego lleva su mazo. Liga: no se repite uno con el que ya ganaste un juego."
+                : "Cada juego lleva su mazo."}
+          </span>
+          <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
         </div>
 
         <div className="mb-4 flex items-center justify-center gap-4 rounded-xl bg-ground py-3">
@@ -330,10 +417,12 @@ export function MatchForm({
                     la serie vale para todos los juegos, y al no enviarse los
                     `g{i}_arch*` el servidor los guarda vacíos, que significa
                     exactamente eso («el de la serie»). */}
-                {esLiga && (
+                {!mazoFijo && (
                 <div className="mt-2 grid grid-cols-1 gap-2 xs:grid-cols-2">
                   {(["a", "b"] as const).map((lado) => {
-                    const fuera = bloqueados(juegosMazos, i, lado);
+                    // El bloqueo es la regla de LIGA; en un amistoso se puede
+                    // repetir el mazo que se quiera.
+                    const fuera = esLiga ? bloqueados(juegosMazos, i, lado) : new Set<string>();
                     const campo = lado === "a" ? "archA" : "archB";
                     return (
                       <label key={lado} className="flex min-w-0 flex-col gap-1">
@@ -358,12 +447,6 @@ export function MatchForm({
             );
           })}
         </div>
-
-        {!esLiga && (
-          <p className="mt-3 text-xs text-muted">
-            Amistoso: se juega toda la serie con el mismo mazo, el que hayas elegido arriba.
-          </p>
-        )}
 
         {!decided && (
           <p className="mt-3 text-sm text-muted">

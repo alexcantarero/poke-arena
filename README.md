@@ -109,7 +109,6 @@ metagame mundial y sin el buscador de cartas, y nada más. Se ve su estado en
 | Documento | De qué trata |
 |---|---|
 | **[02 · Manual de usuario](docs/02-manual-de-usuario.md)** | Pantalla por pantalla: entrar, registrar mazos y partidas, montar competiciones, leer el ranking y las estadísticas. |
-| **[02b · Apéndice v0.5.0](docs/02-manual-usuario-apendice-v0.5.0.md)** | Lo que cambió en el flujo de torneos. |
 | **[05 · Cómo se calcula todo](docs/05-estadisticas.md)** | Puntos, %V, resistencia, Elo, matriz de emparejamientos y ventaja del primer turno, con ejemplos numéricos. |
 
 ### Para mantenerlo y modificarlo

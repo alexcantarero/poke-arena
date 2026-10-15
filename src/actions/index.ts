@@ -790,15 +790,25 @@ export async function saveMatch(fd: FormData) {
       if (r.archetypeBId && !existen.has(r.archetypeBId)) r.archetypeBId = null;
     }
   }
-  /* v0.41 — en un amistoso se juega toda la serie con el mismo mazo. El
-     formulario ya no pide mazo por juego fuera de una liga, pero esto es un
-     endpoint público: si llega uno igualmente, no se guarda. Vacío significa
-     «el de la serie», que es justo la regla. */
-  if (!values.competitionId) {
+  /* v0.43 — «mismo mazo toda la serie» es un botón del formulario, no una
+     regla de liga o amistoso. Sustituye a la regla de la v0.41 («amistoso ⇒
+     sin mazo por juego»), que era incompleta: se puede cambiar de mazo en un
+     amistoso, y se puede jugar una liga con el mismo de principio a fin.
+
+       · Con el mazo FIJO, manda el de la serie y los de cada juego se
+         descartan aunque lleguen (endpoint público). Vacío = «el de la serie».
+       · SIN fijar, cada juego lleva el suyo. El de la serie no llega, y las
+         estadísticas lo deducen de los juegos (`arquetipoPorJuegos`).
+
+     Un formulario viejo en caché que no mande `mazo_fijo` cae en «sin
+     fijar»: se guarda lo que traiga, que es lo que hacía antes. */
+  if (str(fd, "mazo_fijo") === "1") {
     for (const r of rows) { r.archetypeAId = null; r.archetypeBId = null; }
   }
 
-  if (values.competitionId) {
+  // El bloqueo de mazo es la regla de LIGA, y solo tiene sentido si se cambia
+  // de mazo entre juegos.
+  if (values.competitionId && str(fd, "mazo_fijo") !== "1") {
     const fallo = validarMazosPorJuego(rows.map((r) => ({ winner: r.winner, archA: r.archetypeAId, archB: r.archetypeBId })));
     if (fallo) {
       redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error",

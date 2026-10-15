@@ -2,6 +2,70 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.43.0] — 2026-10-15
+
+Mazo de la serie recuperado, resumen de la liga y limpieza.
+**Sin migración ni dependencias nuevas.**
+
+### Corregido — PARTIDAS INVISIBLES PARA LAS ESTADÍSTICAS DESDE EL 9 DE OCTUBRE
+
+- **El formulario de partida no tenía selector de mazo de la serie.** Se borró en el commit
+  `ecb4717` «V0.25.3» (9 de octubre) y dejó líneas en blanco donde estaban los tres selectores;
+  el estado (`aDeckId`, `bDeckId`, `oppArch`) seguía declarado pero no se pintaba.
+- **La consecuencia era peor que la pantalla:** `archetypesOfMatch` solo miraba el mazo de la
+  serie, así que toda partida registrada desde entonces era invisible para «Mazos más
+  jugados», el %V por arquetipo y el filtro de arquetipo de Resultados. Solo la matriz la
+  veía, porque desde la v0.25 cuenta juego a juego.
+- **Recuperadas sin migrar nada.** Si la serie no tiene mazo pero sus juegos sí,
+  `arquetipoPorJuegos()` toma el más repetido (a igualdad, el del juego más temprano). El dato
+  ya estaba guardado; solo no se leía. 7 pruebas, una con el caso exacto.
+- **Mi error de la v0.41**, que lo agravaba: oculté el mazo por juego en los amistosos diciendo
+  «se juega con el mazo que hayas elegido arriba», y arriba no había ningún selector. No lo
+  comprobé. Con la v0.41 aplicada, un amistoso nuevo no guardaba mazo en ningún sitio.
+
+### Cambiado
+
+- **«Mismo mazo toda la serie» es un botón**, bajo Bo1/Bo3/Bo5, en amistosos y en liga.
+  Activado: un mazo por jugador junto a su nombre, para toda la serie. Desactivado: cada juego
+  lleva el suyo, con el bloqueo de liga solo si es de liga. Sustituye a la regla de la v0.41
+  («amistoso ⇒ sin mazo por juego»), que era incompleta.
+- **Al editar una partida guardada desde el 9 de octubre** se deduce sola: si todos sus juegos
+  llevan el mismo mazo, se abre con el botón activado y ese mazo ya elegido.
+- El servidor descarta los mazos por juego si llega `mazo_fijo`, y valida el bloqueo de liga
+  solo cuando no está fijo. Un formulario viejo en caché que no lo mande guarda lo que traiga.
+
+### Resumen de la Liga
+
+- **La clasificación enseña los PUNTOS**, que es por lo que se ordena. Antes solo salía el %V,
+  y un tercero con mejor porcentaje que el segundo parecía un error. Con cabecera de columnas.
+- **El %V lleva debajo sobre cuántas partidas**: un 100 % sobre una no es un 100 % sobre diez.
+- **Progreso de la liga** en las de todos contra todos («40 de 66 partidas», con barra). Solo
+  donde hay un número fijo, y nunca por encima del 100 %: una liga a doble vuelta no enseña
+  «120 %», no enseña nada.
+- **Cuándo fue la última partida**, en vez del «líder», que repetía al primero de la tabla.
+- En curso primero; el título lleva a la liga; «Campeón» en las cerradas; «Todavía sin
+  partidas» en vez de una tarjeta vacía.
+- `src/lib/resumenLiga.ts` (puro), con 7 pruebas.
+
+### Eliminado
+
+- **Los siete componentes de shadcn** (`src/components/ui/`): preparados en la v0.6 «para más
+  adelante» y sin usar en 37 versiones. Se conservan `components.json` y `lib/utils.ts`, que es
+  lo que necesita un `npx shadcn@latest add` futuro.
+- `Tabs.tsx`, `Filters.tsx` y `UltimosCp.tsx` (este último, mío de la v0.38, nunca se cableó y
+  su trabajo ya lo hace el bloque de resultados de Inicio). Cero referencias.
+- `mejoresPuestosDeTorneos()` y su prueba: sin uso desde la v0.41.
+- `COMO-TRABAJAMOS.md`, `docs/11-v0.3.0.md` y `docs/02-manual-usuario-apendice-v0.5.0.md`:
+  notas de un solo uso ya caducadas. Enlaces quitados de los índices.
+- Las guías `IMPLEMENTAR-v0.38/39/40` ya aplicadas.
+
+### Verificado
+
+- `npm run verificar:codificacion`: limpio.
+- `npm test`: **476 de 476**.
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
 ## [0.42.0] — 2026-10-15
 
 Calidad de los datos mostrados. Ninguna función nueva: lo que ya había, enseñado mejor.

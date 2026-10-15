@@ -444,7 +444,58 @@ export function archetypesOfMatch(
   let b = m.deckBId ? index.get(m.deckBId) : undefined;
   // v0.24: también para un rival del grupo que se apuntó solo con arquetipo.
   if (!b && m.opponentArchetypeId) b = archById?.get(m.opponentArchetypeId);
+
+  /* v0.43 — si la SERIE no tiene mazo, se saca de sus JUEGOS.
+
+     Desde el commit «V0.25.3» (9 de octubre) el formulario de partida dejó de
+     pintar el selector de mazo de la serie, así que toda partida registrada
+     desde entonces llegaba con el mazo solo en cada juego. Esta función solo
+     miraba la serie, y esas partidas eran invisibles para «Mazos más
+     jugados», el %V por arquetipo y el filtro de Resultados. Solo la matriz
+     las veía, porque desde la v0.25 cuenta juego a juego.
+
+     Con este respaldo vuelven a contar todas, sin migrar nada: el dato ya
+     estaba guardado, solo no se leía. */
+  if (!a) {
+    const id = arquetipoPorJuegos(m.games, "a");
+    if (id) a = archById?.get(id);
+  }
+  if (!b) {
+    const id = arquetipoPorJuegos(m.games, "b");
+    if (id) b = archById?.get(id);
+  }
   return { a, b };
+}
+
+/**
+ * El arquetipo con el que un lado jugó la serie, deducido de sus juegos.
+ *
+ * El más repetido. A igualdad, el del juego más temprano: en un 1-1 con dos
+ * mazos distintos, el del juego 1 es con el que empezó la serie, que es la
+ * mejor respuesta a «¿con qué jugó?» que dan los datos.
+ *
+ * `null` si ningún juego lo apuntó. Nunca se inventa.
+ */
+export function arquetipoPorJuegos(
+  games: ReadonlyArray<{ number: number; archetypeAId?: string | null; archetypeBId?: string | null }>,
+  lado: "a" | "b",
+): string | null {
+  const cuenta = new Map<string, { n: number; primero: number }>();
+  for (const g of games) {
+    const id = lado === "a" ? g.archetypeAId : g.archetypeBId;
+    if (!id) continue;
+    const c = cuenta.get(id);
+    if (c) { c.n++; c.primero = Math.min(c.primero, g.number); }
+    else cuenta.set(id, { n: 1, primero: g.number });
+  }
+  let mejor: string | null = null;
+  let mejorC = { n: 0, primero: Infinity };
+  for (const [id, c] of cuenta) {
+    if (c.n > mejorC.n || (c.n === mejorC.n && c.primero < mejorC.primero)) {
+      mejor = id; mejorC = c;
+    }
+  }
+  return mejor;
 }
 
 export type ArchRow = {
