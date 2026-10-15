@@ -7,6 +7,7 @@ import {
   mulliganChance, probAtLeastOne, simulateHands, type SimResult,
 } from "@/lib/mulligan";
 import { cardImageUrl, cardLine } from "@/lib/cards";
+import { num, pct } from "@/lib/format";
 
 /* =========================================================================
    Probar el mazo sin sacarlo de la funda.
@@ -110,7 +111,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
         <div className="rounded-xl border border-line-soft bg-ground p-4 text-center">
           <p className="label">Mulligan</p>
           <p className="font-display text-4xl font-extrabold tabular leading-none">
-            {(exacto * 100).toFixed(1)}%
+            {pct(exacto)}
           </p>
           <p className="mt-1 text-xs text-muted">
             {exacto > 0 && Number.isFinite(seguidos)
@@ -155,7 +156,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
         {elegida && pApertura != null && (
           <p className="text-sm text-ink-2">
             Con {elegida.n} copia{elegida.n === 1 ? "" : "s"} en {size} cartas, la abres en el{" "}
-            <b className="font-display text-lg tabular">{(pApertura * 100).toFixed(1)}%</b> de
+            <b className="font-display text-lg tabular">{pct(pApertura)}</b> de
             las manos.
           </p>
         )}
@@ -181,11 +182,11 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
             <p className="text-sm">
               De <b className="tabular">{sim.hands.toLocaleString("es")}</b> manos,{" "}
               <b className="tabular">{sim.mulligans.toLocaleString("es")}</b> mulligans —{" "}
-              <b className="tabular">{(sim.mulliganRate * 100).toFixed(1)}%</b>.
-              <span className="text-muted"> La fórmula dice {(sim.exactRate * 100).toFixed(1)}%.</span>
+              <b className="tabular">{pct(sim.mulliganRate)}</b>.
+              <span className="text-muted"> La fórmula dice {pct(sim.exactRate)}.</span>
             </p>
             <p className="mt-1 text-xs text-muted">
-              Media de {sim.avgBasics.toFixed(2)} básicos por mano. Cuantas más manos tires,
+              Media de {num(sim.avgBasics, 2)} básicos por mano. Cuantas más manos tires,
               más se acerca lo observado a la fórmula: si con diez mil no se parecen, es que el
               número de básicos de arriba no cuadra con lo que has marcado.
             </p>
@@ -202,7 +203,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
             Tiradas de esta sesión:{" "}
             {historial.map((h, i) => (
               <span key={i} className="tabular">
-                {i > 0 ? " · " : ""}{(h.rate * 100).toFixed(1)}% ({h.hands.toLocaleString("es")})
+                {i > 0 ? " · " : ""}{pct(h.rate)} ({num(h.hands)})
               </span>
             ))}
           </p>

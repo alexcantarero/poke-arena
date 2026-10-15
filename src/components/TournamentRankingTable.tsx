@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
+import { num } from "@/lib/format";
 
 /* =========================================================================
    v0.15 — Ranking de torneos: torneos jugados, V–D–E, conversión al top cut,
@@ -65,7 +66,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
     ? { key: k, dir: (s.dir * -1) as 1 | -1 }
     : { key: k, dir: ASC_ES_MEJOR[k] ? 1 : -1 }));
 
-  const media = (v: number | null) => (v == null ? "—" : v.toFixed(1).replace(".", ","));
+  const media = (v: number | null) => num(v, 1);
   const corte = (r: TourRankRow) => (r.cutRate == null ? "—" : `${pct(r.cutRate, 0)}`);
 
   if (!rows.length) {

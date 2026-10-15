@@ -6,6 +6,7 @@ import {
 } from "@/lib/metaBadges";
 import { OtherMark } from "./ui";
 import { RegionalPicker } from "./RegionalPicker";
+import { num, pct } from "@/lib/format";
 
 /* =========================================================================
    «El último Regional» en el inicio — el panel a lo Ciphermaniac.
@@ -152,7 +153,7 @@ export function UltimoRegional(p: Props) {
               />
               <TarjetaInsignia
                 titulo="Sobrejugado" tono="info" ins={ins?.sobrejugado ?? null}
-                grande={(i) => `+${i.valor.toFixed(1).replace(".", ",")} pp`}
+                grande={(i) => `+${num(i.valor, 1)} pp`}
                 pequeno="frente al meta online"
                 pie={(i) => p.campo
                   ? `${pctTxt(i.fila.field / p.campo.decks)} aquí · ${pctTxt(i.fila.onlineShare)} online`
@@ -355,7 +356,8 @@ function Duo({ main, secondary, size }: { main?: string; secondary?: string; siz
   );
 }
 
-function pctTxt(v: number | null | undefined, digits = 0): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  return `${(v * 100).toFixed(digits).replace(".", ",")}%`;
-}
+/* v0.42 — antes repetía a mano lo que ya hace `pct`. Se queda el nombre para
+   no tocar los usos de esta pantalla, pero el formato vive en un solo sitio:
+   si algún día cambia, cambia en toda la app a la vez. Ojo: aquí el valor por
+   defecto es SIN decimales, a diferencia de `pct`. */
+const pctTxt = (v: number | null | undefined, digits = 0): string => pct(v, digits);

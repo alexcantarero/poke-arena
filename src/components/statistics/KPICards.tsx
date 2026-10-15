@@ -1,6 +1,7 @@
 import { Kpi } from "@/components/primitives";
 import type { StatsPayload } from "@/lib/types";
 import type { ChartRow } from "./Charts";
+import { pct } from "@/lib/format";
 
 /* =========================================================================
    Las cifras de cabecera del metagame online.
@@ -68,7 +69,7 @@ export function KPICards({ mode, data, rows }: Props) {
         tone="global"
         icon="stats"
         label="Victorias (media)"
-        value={medio != null ? `${(medio * 100).toFixed(1)}%` : "—"}
+        value={pct(medio)}
         note="ponderada por nº de listas"
       />
 

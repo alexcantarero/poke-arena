@@ -10,6 +10,8 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { escalaRobusta } from "@/lib/escala";
+import { num } from "@/lib/format";
 
 export interface TrendPoint {
   date: string; // ISO YYYY-MM-DD
@@ -66,6 +68,12 @@ export function TrendLineChart({
 
   const lastPoint = pointsWithAvg[pointsWithAvg.length - 1];
 
+  /* v0.42 — escala que no deja que un día raro aplaste a los demás. Ver
+     `lib/escala.ts`: solo recorta si hay un atípico de verdad, y lo que queda
+     fuera se dice debajo en texto. Recortar sin avisar sería mentir. */
+  const escala = useMemo(() => escalaRobusta(pointsWithAvg.map((p) => p.value)), [pointsWithAvg]);
+  const fueraDeEscala = escala.fuera.map((i) => pointsWithAvg[i]);
+
   return (
     <div className="card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -73,17 +81,15 @@ export function TrendLineChart({
           <h3 className="text-base font-bold text-ink">{title}</h3>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
         </div>
-        {lastPoint && (
+        {/* v0.42 — la cifra destacada es la MEDIA, no «hoy». El último punto
+            de la serie es casi siempre el día en curso, que casi siempre va
+            a cero porque no ha terminado: el chip dorado decía «0 partidas»
+            y era lo primero que se leía de la gráfica. */}
+        {lastPoint && lastPoint.avg7 !== undefined && (
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-mono text-muted tabular">Último:</span>
-            <span className="chip chip-brand font-bold tabular">
-              {lastPoint.value} {valueLabel.toLowerCase()}
-            </span>
-            {lastPoint.avg7 !== undefined && (
-              <span className="text-[11px] text-muted tabular">
-                (media: {lastPoint.avg7})
-              </span>
-            )}
+            <span className="text-muted">{avgLabel}:</span>
+            <span className="chip chip-brand font-bold tabular">{num(lastPoint.avg7, 1)}</span>
+            <span className="text-[11px] text-muted tabular">hoy: {num(lastPoint.value)}</span>
           </div>
         )}
       </div>
@@ -101,6 +107,8 @@ export function TrendLineChart({
             />
             <YAxis
               allowDecimals={false}
+              domain={escala.techo != null ? [0, escala.techo] : [0, "auto"]}
+              allowDataOverflow={escala.techo != null}
               tick={{ fontSize: 11, fill: "var(--muted)" }}
               stroke="var(--line)"
             />
@@ -115,13 +123,13 @@ export function TrendLineChart({
                       <p className="flex items-center gap-2">
                         <span className="size-2 rounded-full bg-[var(--info)]" />
                         <span>{valueLabel}:</span>
-                        <b className="tabular font-mono ml-auto">{point.value}</b>
+                        <b className="tabular font-mono ml-auto">{num(point.value)}</b>
                       </p>
                       {point.avg7 !== undefined && (
                         <p className="flex items-center gap-2 text-muted">
                           <span className="size-2 rounded-full border border-dashed border-[var(--muted)]" />
                           <span>{avgLabel}:</span>
-                          <b className="tabular font-mono ml-auto">{point.avg7}</b>
+                          <b className="tabular font-mono ml-auto">{num(point.avg7, 1)}</b>
                         </p>
                       )}
                     </div>
@@ -152,6 +160,19 @@ export function TrendLineChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {fueraDeEscala.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted">
+          Fuera de escala, para que se lean los demás días:{" "}
+          {fueraDeEscala.map((p, i) => (
+            <span key={p.date}>
+              {i > 0 && " · "}
+              <b className="tabular text-ink-2">{num(p.value)}</b> el {formatShortDate(p.date)}
+            </span>
+          ))}
+          .
+        </p>
+      )}
     </div>
   );
 }

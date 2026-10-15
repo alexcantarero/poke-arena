@@ -26,6 +26,7 @@ import type { Pestana } from "@/components/CaminoAlCorte";
 import { deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Icon } from "@/components/icons";
+import { num } from "@/lib/format";
 
 /* =========================================================================
    La ficha del torneo, que es donde se hace el trabajo.
@@ -535,7 +536,7 @@ export default async function TournamentPage({
             {t.venue ? ` · ${t.venue}` : ""}
             {t.city ? `, ${t.city}` : ""}
             {t.entryFeeCents != null
-              ? ` · ${(t.entryFeeCents / 100).toFixed(2).replace(".", ",")} €`
+              ? ` · ${num(t.entryFeeCents / 100, 2)} €`
               : ""}
           </>
         }

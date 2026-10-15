@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Icon } from "./icons";
+import { num } from "@/lib/format";
 
 /* =========================================================================
    Piezas sueltas sin dependencias.
@@ -84,7 +85,7 @@ export function Kpi({
           style={{ color: delta > 0 ? "var(--win)" : delta < 0 ? "var(--loss)" : "var(--muted)" }}
         >
           <span aria-hidden="true">{delta > 0 ? "\u25b2" : delta < 0 ? "\u25bc" : "\u2013"}</span>
-          {delta > 0 ? "+" : ""}{delta.toFixed(1)} pts
+          {delta > 0 ? "+" : ""}{num(delta, 1)} pts
         </div>
       )}
 

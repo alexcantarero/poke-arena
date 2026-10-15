@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
+import { num } from "@/lib/format";
 
 /* =========================================================================
    v0.15.1 — El ranking con «Todo»: UNA tabla con todo sumado.
@@ -73,7 +74,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
     ? { key: k, dir: (s.dir * -1) as 1 | -1 }
     : { key: k, dir: ASC_ES_MEJOR[k] ? 1 : -1 }));
 
-  const media = (v: number | null) => (v == null ? "—" : v.toFixed(1).replace(".", ","));
+  const media = (v: number | null) => num(v, 1);
   const destacado = (r: TodoRow): { v: ReactNode; l: string } => {
     switch (sort.key) {
       case "winRate": return { v: pct(r.winRate, 0), l: "%V" };

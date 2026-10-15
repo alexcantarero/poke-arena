@@ -16,3 +16,19 @@
 - Mantén los cambios acotados y sigue los patrones existentes del proyecto.
 - Valida los cambios con `npm test` y, cuando sea pertinente, `npm run build`.
 - No publiques cambios ni despliegues a producción sin una solicitud explícita del usuario.
+
+## Codificación — obligatorio (v0.42)
+
+Todos los ficheros en **UTF-8 sin BOM**. El 9 de octubre una sesión reescribió
+`src/actions/index.ts` leyéndolo como Windows-1252 y el texto con acentos se
+corrompió («contraseña» pasó a ser dos caracteres raros por cada ñ). Estuvo así
+diez días porque **ni los tests, ni `tsc`, ni el build lo detectan**.
+
+Antes de dar nada por terminado:
+
+```bash
+npm run verificar   # codificación + tests + tsc
+npm run build
+```
+
+En Windows, nunca `Set-Content` ni `Out-File` sin `-Encoding utf8`.

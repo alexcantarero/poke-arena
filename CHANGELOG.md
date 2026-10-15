@@ -2,6 +2,59 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.42.0] — 2026-10-15
+
+Calidad de los datos mostrados. Ninguna función nueva: lo que ya había, enseñado mejor.
+**Sin migración ni dependencias nuevas.**
+
+### Números en español en toda la app
+
+- **`pct()` escribía `54.3%`, con punto decimal inglés.** Ahora `54,3%`. Es un formateador
+  central, así que se arreglan a la vez las 59 pantallas que lo usan.
+- **`num()`** nuevo, para el resto de números: `2,7`, `12.840`.
+- **Doce sitios formateaban a mano** saltándose el central: el delta de las tarjetas de
+  cifras, el simulador de mulligan (cinco porcentajes), la media de la gráfica de actividad,
+  las medias del ranking, la cuota de entrada… Todos pasan por `pct()`/`num()`.
+- **Sin espacio antes de %**, a propósito. La RAE recomienda el espacio, pero hay columnas de
+  ancho fijo (`w-10`, `w-11`) donde «100,0 %» desbordaría.
+- **«5453 listas» se queda así**: la norma española no separa los miles en números de cuatro
+  cifras. A partir de 10.000, sí. Es lo que hace `Intl` en `es-ES` sin pedírselo.
+- Nulo o no finito se pinta como guion, nunca `NaN%`. Un cero sigue siendo `0,0%`.
+
+### Gráfica de actividad
+
+- **Un solo día atípico aplastaba los otros 29.** El eje no estaba fijado, así que el máximo
+  era el día más alto: con una media de 2,7 partidas y un día con ~90, el resto quedaba pegado
+  al suelo. Ahora la escala se recorta por encima de lo normal **y se dice debajo** qué días
+  han quedado fuera y con cuánto. Recortar sin avisar sería mentir.
+- **La cifra destacada es la media de 7 días, no «hoy».** El último punto es casi siempre el
+  día en curso, que casi siempre va a cero: el chip dorado decía «0 partidas» y era lo primero
+  que se leía.
+- `src/lib/escala.ts` (puro): `escalaRobusta()` y `percentil()`, con 6 pruebas. La regla usa
+  el **percentil 75 y no el 90**, y la prueba lo demostró: con dos días disparados de doce, los
+  propios atípicos arrastraban el percentil 90 y la regla dejaba de verlos.
+
+### Proceso
+
+- **`npm run verificar`**: codificación + tests + `tsc` en un solo comando, para tu flujo de VS
+  Code. **`npm run verificar:codificacion`** suelto. Busca texto corrompido por doble
+  codificación en `src/`, `tests/` y `scripts/`, que es lo único de este mes que no detectaban
+  ni los tests, ni `tsc`, ni el build. Comprobado con un fichero corrompido de prueba: señala
+  la línea rota y respeta la correcta de al lado.
+- La regla de codificación queda escrita en `CLAUDE.md` y `AGENTS.md`.
+
+### Eliminado (otra vez)
+
+- `CompSelector.tsx`, `LadderTimeline.tsx` y `ui/toggle-group.tsx`. La v0.38 los borraba,
+  pero seguían en tu repositorio: los documentos sí se fueron y estos tres no. Cero referencias.
+
+### Verificado
+
+- `npm run verificar:codificacion`: limpio.
+- `npm test`: **463 de 463** (450 + 6 de escala + 7 de formato).
+- `npx tsc --noEmit`: sin errores propios.
+- `npm run build`: pendiente.
+
 ## [0.41.0] — 2026-10-15
 
 Texto corrompido reparado, amistosos con mazo fijo, easter eggs por encima de todo, engranaje,

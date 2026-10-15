@@ -1,6 +1,6 @@
 {
   "name": "poke-arena",
-  "version": "0.41.0",
+  "version": "0.42.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "invite": "tsx scripts/create-invite.ts",
     "verificar:fase-a": "node --conditions=react-server --import=tsx scripts/verificar-fase-a.ts",
+    "verificar:codificacion": "node scripts/verificar-codificacion.mjs",
+    "verificar": "node scripts/verificar-codificacion.mjs && npm test && tsc --noEmit",
     "ui:add": "shadcn add"
   },
   "dependencies": {

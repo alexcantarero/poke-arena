@@ -55,9 +55,47 @@ export function relDays(iso: string) {
   return n > 0 ? `en ${n} días` : `hace ${Math.abs(n)} días`;
 }
 
+/* v0.42 — números en español.
+
+   Antes `pct` escribía `54.3%`, con punto decimal, en una interfaz en
+   español: «54,3%». Un formateador en un solo sitio arregla las 59 pantallas
+   que lo usan a la vez.
+
+   Dos decisiones:
+
+   · `54,3%` SIN espacio. La RAE recomienda el espacio antes de %, pero hay
+     columnas de ancho fijo (`w-10`, `w-11`) donde un carácter más haría
+     desbordar «100,0 %». Lo que de verdad faltaba era la coma.
+   · Los miles van con punto a partir de 10.000, y NO en los de cuatro cifras
+     («5453 listas», no «5.453»). Es la norma española, y es lo que hace
+     `Intl` en `es-ES` sin decirle nada: no es un descuido.
+
+   Los formateadores se crean una vez por número de decimales y se reutilizan:
+   construir un `Intl.NumberFormat` en cada llamada es caro, y `pct` se llama
+   cientos de veces al pintar una tabla de ranking. */
+const FORMATOS = new Map<number, Intl.NumberFormat>();
+function formato(decimales: number): Intl.NumberFormat {
+  let f = FORMATOS.get(decimales);
+  if (!f) {
+    f = new Intl.NumberFormat("es-ES", {
+      minimumFractionDigits: decimales,
+      maximumFractionDigits: decimales,
+    });
+    FORMATOS.set(decimales, f);
+  }
+  return f;
+}
+
+/** Un número en español: `2,7`, `5453`, `12.840`. */
+export function num(v: number | null | undefined, digits = 0): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return formato(digits).format(v);
+}
+
+/** Un porcentaje en español: `54,3%`. Nulo o no finito → guion, nunca `NaN%`. */
 export function pct(v: number | null | undefined, digits = 1) {
-  if (v == null || Number.isNaN(v)) return "—";
-  return `${(v * 100).toFixed(digits)}%`;
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${formato(digits).format(v * 100)}%`;
 }
 
 export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
