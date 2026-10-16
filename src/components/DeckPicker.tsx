@@ -5,6 +5,8 @@ import type { DeckOption } from "@/lib/types";
 import { DECK_GROUP_LABEL } from "@/lib/types";
 import { spriteUrl } from "@/lib/pokemon";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Elegir mazo.
@@ -48,6 +50,8 @@ export function DeckPicker({
   name, options, defaultValue, emptyLabel = "— sin anotar —",
   placeholder = "Elegir mazo", id, locked = false, lockedReason, searchFrom = 8, onChange,
 }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [value, setValue] = useState(defaultValue ?? "");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -134,10 +138,10 @@ export function DeckPicker({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-                placeholder="Buscar por nombre o Pokémon…"
+                placeholder={tr(lng, "x.96ef04d1")}
                 autoFocus
                 autoComplete="off"
-                aria-label="Buscar mazo"
+                aria-label={tr(lng, "x.07cebc85")}
               />
             </div>
           )}
@@ -181,7 +185,7 @@ export function DeckPicker({
                       </span>
                     </span>
                     {o.hasList && (
-                      <span className="chip flex-none text-[10px]">lista</span>
+                      <span className="chip flex-none text-[10px]">{tr(lng, "x.22d01cec")}</span>
                     )}
                   </button>
                 ))}

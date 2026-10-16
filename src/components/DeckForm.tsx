@@ -5,6 +5,8 @@ import { deleteDeck, saveDeck } from "@/actions";
 import { parseDeckList, suggestArchetype, validateDeck } from "@/lib/decklist";
 import { pokeSlug, prettyPokemon, spriteUrl, TYPES, TYPE_KEYS } from "@/lib/pokemon";
 import type { Archetype, Deck, PublicPlayer } from "@/lib/types";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export function DeckForm({
   deck, players, archetypes, defaultPlayerId, canPickPlayer, back,
@@ -17,6 +19,8 @@ export function DeckForm({
   /** A dónde volver al guardar. Crear un mazo suele ser un desvío. */
   back?: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [list, setList] = useState(deck?.list ?? "");
   const [main, setMain] = useState(deck?.archetype?.main ?? "");
   const [secondary, setSecondary] = useState(deck?.archetype?.secondary ?? "");
@@ -59,51 +63,50 @@ export function DeckForm({
       <section className="card p-4">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <span className="label">De quién es</span>
+            <span className="label">{tr(lng, "x.b58a509a")}</span>
             <div className="seg w-full">
-              <button type="button" data-on={scope === "mine"} onClick={() => setScope("mine")}>Mío</button>
-              <button type="button" data-on={scope === "shared"} onClick={() => setScope("shared")}>De la liga</button>
+              <button type="button" data-on={scope === "mine"} onClick={() => setScope("mine")}>{tr(lng, "x.a46e13bd")}</button>
+              <button type="button" data-on={scope === "shared"} onClick={() => setScope("shared")}>{tr(lng, "x.3d779469")}</button>
             </div>
             <p className="text-sm text-muted">
-              <b>Mío</b> es el mazo que juegas tú; <b>de la liga</b> no es de nadie y lo puede elegir
-              cualquiera, que es lo que hace falta para apuntar el mazo que llevaba un rival.
+              <b>{tr(lng, "x.a46e13bd")}</b> es el mazo que juegas tú; <b>{tr(lng, "x.2dfa04f2")}</b> {tr(lng, "x.f6e1613f")}
             </p>
           </div>
 
           {canPickPlayer && scope === "mine" && (
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="playerId">Jugador</label>
+              <label className="label" htmlFor="playerId">{tr(lng, "x.588eb828")}</label>
               <select className="input" id="playerId" name="playerId" defaultValue={deck?.playerId ?? defaultPlayerId}>
                 {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="name">Nombre del mazo</label>
-            <input className="input" id="name" name="name" defaultValue={deck?.name ?? ""} placeholder="Dragapult control" />
+            <label className="label" htmlFor="name">{tr(lng, "x.4de20b4b")}</label>
+            <input className="input" id="name" name="name" defaultValue={deck?.name ?? ""} placeholder={tr(lng, "x.59a6e309")} />
           </div>
         </div>
       </section>
 
       <section className="card p-4">
-        <h2 className="mb-1 text-lg font-bold">Arquetipo</h2>
-        <p className="mb-4 text-sm text-muted">Es lo que agrupa todas las estadísticas.</p>
+        <h2 className="mb-1 text-lg font-bold">{tr(lng, "x.92fdb4c1")}</h2>
+        <p className="mb-4 text-sm text-muted">{tr(lng, "x.128a3c0d")}</p>
 
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="main">Pokémon principal</label>
+              <label className="label" htmlFor="main">{tr(lng, "x.e31f5d45")}</label>
               <input className="input" id="main" name="main" value={main}
                 onChange={(e) => { setMain(e.target.value); setReuse(""); }}
                 list="pkmn-list"
-                placeholder="dragapult" autoCapitalize="none" spellCheck={false} />
+                placeholder={tr(lng, "x.19a607ba")} autoCapitalize="none" spellCheck={false} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="secondary">Secundario</label>
+              <label className="label" htmlFor="secondary">{tr(lng, "x.ed30ea2b")}</label>
               <input className="input" id="secondary" name="secondary" value={secondary}
                 onChange={(e) => { setSecondary(e.target.value); setReuse(""); }}
                 list="pkmn-list"
-                placeholder="opcional" autoCapitalize="none" spellCheck={false} />
+                placeholder={tr(lng, "x.f85ebde6")} autoCapitalize="none" spellCheck={false} />
             </div>
 
             <datalist id="pkmn-list">
@@ -120,20 +123,20 @@ export function DeckForm({
                   ))
                 : <span className="grid size-10 place-items-center rounded-full bg-surface-3 text-muted">?</span>}
             </span>
-            <span className="min-w-0 flex-1 truncate font-semibold">{previewName || "Sin arquetipo"}</span>
+            <span className="min-w-0 flex-1 truncate font-semibold">{previewName || tr(lng, "x.f8e80533")}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="type">Tipo</label>
+              <label className="label" htmlFor="type">{tr(lng, "x.6cc6198d")}</label>
               <select className="input" id="type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
                 {TYPE_KEYS.map((k) => <option key={k} value={k}>{TYPES[k].name}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="reuse">O uno existente</label>
+              <label className="label" htmlFor="reuse">{tr(lng, "x.6b97f816")}</label>
               <select className="input" id="reuse" value={reuse} onChange={(e) => pickExisting(e.target.value)}>
-                <option value="">— nuevo —</option>
+                <option value="">{tr(lng, "x.fc6e5740")}</option>
                 {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
@@ -145,14 +148,14 @@ export function DeckForm({
 
       <section className="card p-4">
         <h2 className="mb-1 text-lg font-bold">PTCG Live</h2>
-        <p className="mb-4 text-sm text-muted">Apunta manualmente cuántas partidas has ganado y perdido con este mazo en el juego online para que salgan en Estadísticas.</p>
+        <p className="mb-4 text-sm text-muted">{tr(lng, "x.51e75e90")}</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="liveWins">Victorias</label>
+            <label className="label" htmlFor="liveWins">{tr(lng, "x.dce1e265")}</label>
             <input className="input" id="liveWins" name="liveWins" type="number" min="0" defaultValue={deck?.liveWins ?? 0} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="liveLosses">Derrotas</label>
+            <label className="label" htmlFor="liveLosses">{tr(lng, "x.a80f28ed")}</label>
             <input className="input" id="liveLosses" name="liveLosses" type="number" min="0" defaultValue={deck?.liveLosses ?? 0} />
           </div>
         </div>
@@ -160,9 +163,9 @@ export function DeckForm({
 
       <section className="card p-4">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="list">Lista completa</label>
+          <label className="label" htmlFor="list">{tr(lng, "x.334344b7")}</label>
           <p className="text-sm text-muted">
-            Pega la exportación de <b>Pokémon TCG Live</b> o de Limitless. También vale el formato antiguo de PTCGO.
+            {tr(lng, "x.1efd3453")} <b>{tr(lng, "x.5e7dd13b")}</b> {tr(lng, "x.8f71907a")}
           </p>
           <textarea
             className="input mt-1" id="list" name="list" value={list} onChange={(e) => setList(e.target.value)}
@@ -187,7 +190,7 @@ export function DeckForm({
               {(["pokemon", "trainer", "energy"] as const).map((k) => {
                 const cards = parsed[k];
                 const n = cards.reduce((a, c) => a + c.n, 0);
-                const label = k === "pokemon" ? "Pokémon" : k === "trainer" ? "Entrenador" : "Energía";
+                const label = k === "pokemon" ? "Pokémon" : k === "trainer" ? "Entrenador" : tr(lng, "x.0ac5b9db");
                 return (
                   <div key={k}>
                     <div className="flex items-baseline justify-between">
@@ -214,13 +217,13 @@ export function DeckForm({
 
       <label className="inline-flex items-center gap-2 text-sm">
         <input type="checkbox" name="retired" className="size-4" defaultChecked={deck?.retired ?? false} />
-        Retirado (no aparece al registrar partidas)
+        {tr(lng, "x.0c77e31c")}
       </label>
 
       <div className="flex gap-2">
-        <button className="btn btn-brand flex-1" type="submit">{deck ? "Guardar" : "Crear mazo"}</button>
+        <button className="btn btn-brand flex-1" type="submit">{deck ? "Guardar" : tr(lng, "x.38545810")}</button>
         {deck && (
-          <button className="btn btn-danger" type="submit" formAction={deleteDeck} name="id" value={deck.id}>Borrar</button>
+          <button className="btn btn-danger" type="submit" formAction={deleteDeck} name="id" value={deck.id}>{tr(lng, "x.d7b82b21")}</button>
         )}
       </div>
     </form>

@@ -316,7 +316,11 @@ export function compPlayers(snap: Snapshot, compId: string) {
 }
 
 /** Championship Points de un jugador en la temporada indicada. */
-export function playerCp(snap: Snapshot, playerId: string, season?: number): CpTotals {
+/** Lo único que necesita `playerCp`. v0.47: antes pedía el snapshot entero,
+    y eso obligaba a cargar las 13 tablas en cualquier pantalla con CP. */
+export type DatosCp = Pick<Snapshot, "config" | "resultsByPlayer" | "toursById">;
+
+export function playerCp(snap: DatosCp, playerId: string, season?: number): CpTotals {
   const target = season ?? snap.config.cpSeason;
   const rows: CpResultInput[] = (snap.resultsByPlayer.get(playerId) ?? [])
     .map((r) => {
@@ -747,5 +751,49 @@ export const loadTournamentMatches = cache(async (): Promise<MatchFull[]> => {
   const filas = await db.select().from(matches)
     .where(sql`${matches.tournamentId} IS NOT NULL`)
     .orderBy(asc(matches.date), asc(matches.round));
-  return filas.map((m) => ({ ...m, games: [] }));
+  /* v0.47 — con sus juegos: una ronda apuntada juego a juego no tiene el
+     resultado de la serie escrito, y sin los juegos su récord saldría vacío.
+     Solo los de estas partidas, no la tabla entera. */
+  const ids = filas.map((m) => m.id);
+  const juegos = ids.length
+    ? await db.select().from(games).where(inArray(games.matchId, ids)).orderBy(asc(games.number))
+    : [];
+  const porPartida = new Map<string, Game[]>();
+  for (const g of juegos as Game[]) {
+    const l = porPartida.get(g.matchId);
+    if (l) l.push(g); else porPartida.set(g.matchId, [g]);
+  }
+  return filas.map((m) => ({ ...m, games: porPartida.get(m.id) ?? [] }));
+});
+
+/**
+ * v0.47 — Fase B: lo que necesita `/torneos`, sin el snapshot.
+ *
+ * La pantalla solo usa torneos con sus resultados, jugadores, el índice de
+ * mazos y las RONDAS de torneo. El snapshot le traía además todas las
+ * jornadas de liga, los amistosos y sus juegos —en una liga activa, la
+ * mayoría de las partidas— para no enseñar ninguna.
+ *
+ * Devuelve las mismas formas que el snapshot (`TournamentFull`, los mismos
+ * mapas), para que la pantalla no cambie su lógica y `playerCp` dé
+ * exactamente las mismas cifras.
+ */
+export const loadTorneosPantalla = cache(async () => {
+  const [config, players, tourRows, resultRows, archIndex, roundMatches] = await Promise.all([
+    loadConfig(), loadPlayers(), loadTournamentHeads(),
+    db.select().from(tournamentResults) as Promise<TournamentResult[]>,
+    loadDeckArchetypeIndex(), loadTournamentMatches(),
+  ]);
+  const resultsByTour = new Map<string, TournamentResult[]>();
+  const resultsByPlayer = new Map<string, TournamentResult[]>();
+  for (const r of resultRows) {
+    const t = resultsByTour.get(r.tournamentId); if (t) t.push(r); else resultsByTour.set(r.tournamentId, [r]);
+    const q = resultsByPlayer.get(r.playerId); if (q) q.push(r); else resultsByPlayer.set(r.playerId, [r]);
+  }
+  const tournaments: TournamentFull[] = tourRows.map((t) => ({ ...t, results: resultsByTour.get(t.id) ?? [] }));
+  return {
+    config, players, tournaments, archIndex, matches: roundMatches, resultsByPlayer,
+    playersById: new Map(players.map((p) => [p.id, p])),
+    toursById: new Map(tournaments.map((t) => [t.id, t])),
+  };
 });

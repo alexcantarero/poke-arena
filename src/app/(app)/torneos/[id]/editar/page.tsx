@@ -5,6 +5,8 @@ import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { TournamentForm } from "@/components/TournamentForm";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Editar torneo" };
 
@@ -20,6 +22,8 @@ export const metadata = { title: "Editar torneo" };
  * encontrarse un formulario que la acción va a rechazar en silencio.
  */
 export default async function EditTournamentPage({ params }: { params: Promise<{ id: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const { id } = await params;
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   const t = snap.toursById.get(id);
@@ -30,11 +34,11 @@ export default async function EditTournamentPage({ params }: { params: Promise<{
   return (
     <>
       <PageHead
-        title="Editar torneo"
+        title={tr(lng, "x.75af5434")}
         sub={t.name}
         actions={
           <Link className="btn btn-ghost btn-sm" href={`/torneos/${id}`}>
-            <Icon name="back" className="size-4" /> Volver
+            <Icon name="back" className="size-4" /> {tr(lng, "x.84a715a7")}
           </Link>
         }
       />

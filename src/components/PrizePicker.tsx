@@ -1,6 +1,8 @@
 "use client";
 
 import { avisosDePremios, objetivoDe, OBJETIVO_BASE, type PremiosDeJuego } from "@/lib/premios";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Premios de un juego: dos filas de 0 a 6 y una casilla de penalización.
@@ -34,6 +36,8 @@ type Props = {
 const NUMEROS = [0, 1, 2, 3, 4, 5, 6];
 
 export function PrizePicker({ campo, nombreA, nombreB, valor, winner, disabled, onChange }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const juego: PremiosDeJuego = { ...valor, winner };
   const avisos = avisosDePremios(juego, nombreA, nombreB);
 
@@ -100,7 +104,7 @@ export function PrizePicker({ campo, nombreA, nombreB, valor, winner, disabled, 
 
   return (
     <div className="mt-2 rounded-md border border-line p-2">
-      <p className="mb-1.5 text-xs text-muted">Premios cogidos</p>
+      <p className="mb-1.5 text-xs text-muted">{tr(lng, "x.8be41a82")}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {fila("a")}
         {fila("b")}

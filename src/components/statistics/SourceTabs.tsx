@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Database, Globe, GitCompare, Landmark, MapPin, Trophy } from "lucide-react";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    De dónde miramos los datos: tu liga, el mundo, o los dos.
@@ -60,9 +62,11 @@ const OPCIONES = [
 
 export type Fuente = "local" | "regionales" | "city" | "global" | "both" | "evento" | "live";
 
-export function SourceTabs({
+export async function SourceTabs({
   current, query,
 }: { current: Fuente; query: string }) {
+  const lng = await getLang(); // v0.49
+
   const href = (v: string) => {
     const p = new URLSearchParams(query);
     if (v === "local") p.delete("fuente");
@@ -72,7 +76,7 @@ export function SourceTabs({
   };
 
   return (
-    <div className="scroll-x scroll-fade mb-4 flex snap-x snap-proximity gap-2" role="tablist" aria-label="Fuente de los datos">
+    <div className="scroll-x scroll-fade mb-4 flex snap-x snap-proximity gap-2" role="tablist" aria-label={tr(lng, "x.da8315d3")}>
       {OPCIONES.map(({ value, label, Icon, on }) => {
         const activo = value === current;
         return (

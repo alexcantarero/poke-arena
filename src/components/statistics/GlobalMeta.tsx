@@ -6,6 +6,8 @@ import { spriteUrl } from "@/lib/pokemon";
 import { Skeleton } from "@/components/primitives";
 import { ArchetypeChart, ShareChart, type ChartRow } from "./Charts";
 import { KPICards } from "./KPICards";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    El metagame online, y la comparación con el vuestro.
@@ -34,6 +36,8 @@ type Props = {
 };
 
 export function GlobalMeta({ mode, local, days, query }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [data, setData] = useState<StatsPayload["global"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -54,7 +58,7 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
         if (json.error) setError(json.error);
         setData(json.global ?? null);
       })
-      .catch(() => { if (vivo) setError("No se ha podido conectar con Limitless."); })
+      .catch(() => { if (vivo) setError(tr(lng, "x.0fffe53e")); })
       .finally(() => { if (vivo) setCargando(false); });
 
     return () => { vivo = false; };
@@ -93,7 +97,7 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
        nada de sitio, que es todo el objetivo. */
     return (
       <div role="status" aria-live="polite">
-        <span className="sr-only">Cargando el metagame online…</span>
+        <span className="sr-only">{tr(lng, "x.680c1ce6")}</span>
         <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="card p-3 sm:p-4">
@@ -118,10 +122,10 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
     return (
       <div className="card mb-6 p-4">
         <p className="text-sm font-semibold text-loss">
-          {error ?? "Limitless no ha devuelto datos."}
+          {error ?? tr(lng, "x.a4e08da6")}
         </p>
         <p className="mt-1 text-xs text-muted">
-          El metagame online es un extra: todo lo de tu liga sigue funcionando sin él.
+          {tr(lng, "x.049bdc15")}
         </p>
       </div>
     );
@@ -132,14 +136,14 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
       <KPICards mode={mode} data={data} rows={filas} />
 
       <section className="card mb-4 border-source-global/40 bg-source-global-soft p-4">
-        <h2 className="font-display text-lg font-bold">Metagame online</h2>
+        <h2 className="font-display text-lg font-bold">{tr(lng, "x.efdbda76")}</h2>
         <p className="mt-1 text-sm text-ink-2">
-          De <b className="tabular">{data.tournaments}</b> torneos y{" "}
+          {tr(lng, "x.6b98c9b5")} <b className="tabular">{data.tournaments}</b> torneos y{" "}
           <b className="tabular">{data.entries}</b> listas de los últimos{" "}
-          <b className="tabular">{data.days}</b> días, según Limitless.
+          <b className="tabular">{data.days}</b> {tr(lng, "x.48713745")}
         </p>
         <p className="mt-1 text-xs text-muted">
-          Son los <b>torneos online</b> de Limitless: su API cubre su plataforma por internet,
+          {tr(lng, "x.8434c0ce")} <b>{tr(lng, "x.d50be887")}</b> de Limitless: su API cubre su plataforma por internet,
           no los Regionales presenciales. Y no se puede filtrar por país — el parámetro existe
           pero lo ignora—, así que tampoco hay forma de recortarlo a España.
           {data.failed > 0 && (
@@ -151,19 +155,19 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
           <h3 className="mb-1 font-bold">
-            {mode === "both" ? "Victorias: tu liga contra el mundo" : "Victorias por arquetipo"}
+            {mode === "both" ? "Victorias: tu liga contra el mundo" : tr(lng, "x.418ad24e")}
           </h3>
           <p className="mb-3 text-xs text-muted">
             {mode === "both"
-              ? "Azul, lo vuestro. Naranja, el mundial. Donde se separan mucho, hay algo que mirar."
-              : "Porcentaje de victorias en torneos de todo el mundo."}
+              ? tr(lng, "x.c2d871f7")
+              : tr(lng, "x.f93167c8")}
           </p>
           <ArchetypeChart rows={filas} mode={mode} />
         </section>
 
         <section className="card p-4">
-          <h3 className="mb-1 font-bold">Cuánto se juega cada uno</h3>
-          <p className="mb-3 text-xs text-muted">Qué parte de todas las listas es cada mazo.</p>
+          <h3 className="mb-1 font-bold">{tr(lng, "x.179558b2")}</h3>
+          <p className="mb-3 text-xs text-muted">{tr(lng, "x.0ea61944")}</p>
           <ShareChart rows={filas} />
         </section>
       </div>
@@ -181,6 +185,8 @@ export function GlobalMeta({ mode, local, days, query }: Props) {
  * alguien no sabe jugarlo o alguien sabe jugar contra él muy bien.
  */
 function Desvios({ rows }: { rows: ChartRow[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const con = rows
     .filter((r) => r.local != null && r.global != null && (r.played ?? 0) > 0)
     .map((r) => ({ ...r, diff: (r.local as number) - (r.global as number) }))
@@ -190,10 +196,9 @@ function Desvios({ rows }: { rows: ChartRow[] }) {
   if (!con.length) {
     return (
       <section className="card mb-6 p-4">
-        <h3 className="font-bold">Dónde os separáis del mundo</h3>
+        <h3 className="font-bold">{tr(lng, "x.7072d77d")}</h3>
         <p className="mt-1 text-sm text-muted">
-          Todavía no hay ningún arquetipo con partidas en los dos sitios. Registra más partidas
-          con mazos que se jueguen fuera y aparecerá la comparación.
+          {tr(lng, "x.03c6e19f")}
         </p>
       </section>
     );
@@ -202,8 +207,8 @@ function Desvios({ rows }: { rows: ChartRow[] }) {
   return (
     <section className="card mb-6">
       <div className="card-head">
-        <h3 className="text-lg font-bold">Dónde os separáis del mundo</h3>
-        <span className="text-xs text-muted">diferencia de %V</span>
+        <h3 className="text-lg font-bold">{tr(lng, "x.7072d77d")}</h3>
+        <span className="text-xs text-muted">{tr(lng, "x.dfb01197")}</span>
       </div>
       <ul className="divide-y divide-line-soft">
         {con.map((r) => {

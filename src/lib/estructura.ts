@@ -409,22 +409,100 @@ const NOMBRES_CORTE = ["Final", "Semifinal", "Cuartos", "Octavos"];
 export type TorneoForma = {
   kind: string;
   playerCount?: number | null;
-  /** Rondas suizas apuntadas en el torneo. Mandan sobre la tabla. */
+  /** Rondas suizas apuntadas en el torneo (el TOTAL). Mandan sobre la tabla. */
   rounds?: number | null;
+  /** v0.45 — cuántas de esas rondas son de una segunda fase propia. */
+  roundsPhase2?: number | null;
   topCut?: number | null;
+  /** v0.47 — puntos para pasar a la fase 2 (o el top `phase2Top`, lo que dé más). */
+  phase2Points?: number | null;
+  phase2Top?: number | null;
+  /** v0.47 — puntos para pasar al top cut (o el top `topCut`, lo que dé más). */
+  cutPoints?: number | null;
 };
 
 /** Suizo, fase uno y corte efectivos: lo tecleado manda, la tabla rellena. */
 export function formaDe(t: TorneoForma): {
   familia: Familia; suizo: number | null; fase1: number | null; corte: number; asimetrico: boolean;
+  /** ¿Se parte el suizo en dos fases? Por la tabla oficial o por lo tecleado. */
+  dosFases: boolean;
+  /** `true` cuando la segunda fase la tecleó alguien (online, eventos propios). */
+  faseManual: boolean;
+  /** v0.47 — cómo se pasa a la fase 2 en una estructura propia; nulo si no se dijo. */
+  paso2: PasoDeFase | null;
+  /** v0.47 — cómo se pasa al top cut en una estructura propia; nulo si no se dijo. */
+  pasoCorte: PasoDeFase | null;
 } {
   const familia = familiaDe(t.kind);
   const e = estructuraDe(t.playerCount, t.kind);
   const suizo = (t.rounds && t.rounds > 0 ? t.rounds : null) ?? e?.total ?? null;
-  // Solo la Variante #5 parte el suizo en dos días.
-  const fase1 = familia === "dosFases" && e && e.fase2 > 0 ? e.fase1 : suizo;
-  const corte = familia === "challenge" ? 0 : (t.topCut ?? e?.topCut ?? 0);
-  return { familia, suizo, fase1, corte, asimetrico: familia === "dosFases" && (e?.asimetrico ?? true) };
+
+  /* v0.45 — una segunda fase TECLEADA manda sobre la tabla, igual que ya
+     mandaban las rondas y el corte. Es lo que permite describir un online
+     como el Moujii's Dojo (8 rondas, luego 3 más con los de 16 puntos o
+     más, y top 8), que no sale de ninguna tabla oficial.
+
+     Solo vale si deja al menos una ronda en la primera fase: con 5 rondas en
+     total, «6 de fase 2» es un dato imposible y se ignora en vez de partir
+     el torneo por un sitio que no existe. Pasa si alguien cambia las rondas
+     totales desde el panel rápido de asistencia sin tocar la fase 2. */
+  const f2 = t.roundsPhase2 && t.roundsPhase2 > 0 ? t.roundsPhase2 : null;
+  const faseManual = f2 != null && suizo != null && f2 < suizo;
+
+  // Sin fase propia, solo la Variante #5 parte el suizo en dos días.
+  const fase1 = faseManual
+    ? suizo! - f2!
+    : familia === "dosFases" && e && e.fase2 > 0 ? e.fase1 : suizo;
+  const dosFases = faseManual || (familia === "dosFases" && fase1 != null && suizo != null && suizo > fase1);
+
+  // Un Challenge no tiene corte por reglamento; un torneo con estructura
+  // propia sí puede tenerlo, aunque su tipo diga otra cosa.
+  const corte = familia === "challenge" && !faseManual ? 0 : (t.topCut ?? e?.topCut ?? 0);
+  /* v0.47 — los umbrales de paso, solo con estructura propia: en un torneo
+     oficial los pone el reglamento y ya los sabe `umbralesDe`. */
+  const paso2 = faseManual && t.phase2Points && t.phase2Points > 0
+    ? { puntos: t.phase2Points, top: t.phase2Top && t.phase2Top > 0 ? t.phase2Top : 8 }
+    : null;
+  const pasoCorte = faseManual && t.cutPoints && t.cutPoints > 0 && corte > 0
+    ? { puntos: t.cutPoints, top: corte }
+    : null;
+
+  return {
+    familia, suizo, fase1, corte, dosFases, faseManual, paso2, pasoCorte,
+    asimetrico: familia === "dosFases" && (e?.asimetrico ?? true),
+  };
+}
+/* =========================================================================
+   v0.47 — Pasar de fase por PUNTOS O POR PUESTO, lo que dé más gente.
+
+   La regla de los online como Moujii's Dojo: «pasan los de 16 puntos o más,
+   o el top 8, lo que sea mayor». Hay dos formas de pasar, y eso cambia el
+   veredicto de una manera que no es evidente:
+
+     · Con los puntos, se pasa SEGURO: todos los que lleguen, pasan.
+     · Sin ellos NO es «fuera». Si menos de 8 personas llegan a 16, pasan los
+       8 primeros, y con 13 puntos se puede entrar. Es «depende», y depende de
+       cómo le vaya a los demás, que es algo que la app no sabe.
+
+   Por eso aquí no existe «fuera»: decir «fuera» por debajo de los puntos
+   sería decirle a alguien que se ha quedado fuera cuando quizá ha entrado.
+   ========================================================================= */
+
+export type PasoDeFase = {
+  /** Con estos puntos o más, se pasa seguro. */
+  puntos: number;
+  /** O el top N, si con los puntos pasa menos gente. */
+  top: number;
+};
+
+export function veredictoPaso(puntos: number, paso: PasoDeFase | null): Veredicto | null {
+  if (!paso) return null;
+  return puntos >= paso.puntos ? "dentro" : "depende";
+}
+
+/** La regla en una frase, para enseñarla tal cual en pantalla. */
+export function reglaDePaso(paso: PasoDeFase, destino: string): string {
+  return `Pasan a ${destino} los de ${paso.puntos} puntos o más, o el top ${paso.top} si así pasa más gente.`;
 }
 
 /**
@@ -438,11 +516,16 @@ export function etapaDeRonda(
   round: number, t: TorneoForma,
 ): { tipo: "suizo" | "dia2" | "corte"; etiqueta: string | null } {
   const f = formaDe(t);
-  if (f.familia === "challenge" || f.familia === "libre" || !f.suizo) {
+  /* v0.45 — con estructura propia se etiqueta siempre, sea del tipo que sea:
+     un online de 8 + 3 y top 8 tiene fase 2 y tiene eliminatoria, y antes
+     sus rondas salían todas como suizo normal por ser de familia «libre». */
+  if (!f.faseManual && (f.familia === "challenge" || f.familia === "libre" || !f.suizo)) {
     return { tipo: "suizo", etiqueta: null };
   }
-  if (f.familia === "dosFases" && f.fase1 != null && round > f.fase1 && round <= f.suizo) {
-    return { tipo: "dia2", etiqueta: "Día 2" };
+  if (!f.suizo) return { tipo: "suizo", etiqueta: null };
+  if (f.dosFases && f.fase1 != null && round > f.fase1 && round <= f.suizo) {
+    // «Día 2» es el nombre oficial; un online lo llama «Fase 2».
+    return { tipo: "dia2", etiqueta: f.faseManual ? "Fase 2" : "Día 2" };
   }
   if (round <= f.suizo) return { tipo: "suizo", etiqueta: null };
 

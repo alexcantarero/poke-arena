@@ -1,4 +1,6 @@
 import { badgesOf, earnedCount, BADGE_TOTAL, type Badge, type BadgeInput } from "@/lib/badges";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    La vitrina de medallas, como la de los juegos.
@@ -62,14 +64,16 @@ function requisitoObjetivo(target: number, unit: string, mode: "atLeast" | "atMo
   return `${target}${unit ? ` ${unit}` : ""}`;
 }
 
-export function BadgeCase({ input, owner }: { input: BadgeInput; owner: string }) {
+export async function BadgeCase({ input, owner }: { input: BadgeInput; owner: string }) {
+  const lng = await getLang(); // v0.49
+
   const badges = badgesOf(input);
   const ganadas = earnedCount(badges);
 
   return (
     <section className="card mb-6">
       <div className="card-head">
-        <h2 className="text-lg font-bold">Medallas</h2>
+        <h2 className="text-lg font-bold">{tr(lng, "x.1efa93e8")}</h2>
         <span className="text-xs text-muted tabular">{ganadas} de {BADGE_TOTAL}</span>
       </div>
 
@@ -96,7 +100,7 @@ export function BadgeCase({ input, owner }: { input: BadgeInput; owner: string }
               </span>
 
               <span className="block text-[11px] font-semibold leading-tight">
-                {b.name.replace("Medalla ", "")}
+                {b.name.replace(tr(lng, "x.356a2186"), "")}
               </span>
               <span className="block text-[10px] leading-tight text-muted">{ganada ? TIER_LABEL[b.tier] : b.hint}</span>
               {b.requirements.map((r) => (

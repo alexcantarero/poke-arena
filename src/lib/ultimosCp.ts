@@ -105,13 +105,3 @@ export const asModoResultados = (v: string | undefined | null): ModoResultados =
 export function puestoTexto(puesto: number | null): string {
   return puesto && puesto > 0 ? `${puesto}.º` : "—";
 }
-
-/** `2026-10-11` → `11 oct`. Sin año: todo esto es de las últimas semanas. */
-export function fechaCorta(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  const meses = ["ene", "feb", "mar", "abr", "may", "jun",
-                 "jul", "ago", "sep", "oct", "nov", "dic"];
-  const mes = meses[Number(m[2]) - 1];
-  return mes ? `${Number(m[3])} ${mes}` : iso;
-}

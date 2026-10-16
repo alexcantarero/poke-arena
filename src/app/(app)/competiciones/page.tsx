@@ -7,10 +7,14 @@ import { actividadTexto, diasEntre, ordenarCompeticiones, partidasEsperadas, pro
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
 import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Liga" };
 
 export default async function CompetitionsPage() {
+  const lng = await getLang(); // v0.49
+
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   const played = snap.matches.filter(isPlayed);
   const manager = me ? canManageLeague(me.role) : false;
@@ -18,8 +22,8 @@ export default async function CompetitionsPage() {
   return (
     <>
       <PageHead
-        title="Liga"
-        sub="Vuestras competiciones internas: liga todos contra todos, suizo con top cut o eliminatoria."
+        title={tr(lng, "x.942efd43")}
+        sub={tr(lng, "x.748f9484")}
       />
 
       {/* v0.25: sin gráfica de Elo en la Liga (queda en el Ranking). */}
@@ -53,8 +57,8 @@ export default async function CompetitionsPage() {
                     </Link>
                   </div>
                   <div className="flex flex-none items-center gap-2">
-                    <span className={`chip ${cerrada ? "" : "chip-win"}`}>{cerrada ? "Cerrada" : "En curso"}</span>
-                    <Link className="btn btn-sm" href={`/competiciones/${c.id}`}>Abrir</Link>
+                    <span className={`chip ${cerrada ? "" : "chip-win"}`}>{cerrada ? "Cerrada" : tr(lng, "x.f9ade367")}</span>
+                    <Link className="btn btn-sm" href={`/competiciones/${c.id}`}>{tr(lng, "x.bf763df7")}</Link>
                   </div>
                 </div>
 
@@ -91,16 +95,16 @@ export default async function CompetitionsPage() {
                         aporta y la clasificación completa ya los enseña al entrar. */}
                     <li className="flex items-center gap-3 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted" aria-hidden="true">
                       <span className="w-5 flex-none" />
-                      <span className="flex-1">Jugador</span>
-                      <span className="hidden xs:block">V–D–E</span>
-                      <span className="w-12 text-right">%V</span>
+                      <span className="flex-1">{tr(lng, "x.588eb828")}</span>
+                      <span className="hidden xs:block">{tr(lng, "x.e5f65dc6")}</span>
+                      <span className="w-12 text-right">{tr(lng, "x.39683ef7")}</span>
                     </li>
                     {conPartidas.slice(0, 5).map((r, i) => (
                       <li key={r.playerId} className="flex items-center gap-3 px-4 py-2">
                         <span className={`w-5 flex-none text-center font-display font-extrabold tabular ${i === 0 ? "text-brand" : "text-muted"}`}>{i + 1}</span>
                         <span className="flex min-w-0 flex-1 items-center gap-2">
                           <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0" />
-                          {cerrada && i === 0 && <span className="chip chip-brand flex-none text-[10px]">Campeón</span>}
+                          {cerrada && i === 0 && <span className="chip chip-brand flex-none text-[10px]">{tr(lng, "x.c4274e98")}</span>}
                         </span>
                         <span className="hidden xs:block"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
                         {/* El %V lleva al lado sobre cuántas partidas: un 100 %
@@ -113,14 +117,14 @@ export default async function CompetitionsPage() {
                     ))}
                   </ol>
                 ) : (
-                  <p className="border-t border-line-soft px-4 py-3 text-sm text-muted">Todavía sin partidas.</p>
+                  <p className="border-t border-line-soft px-4 py-3 text-sm text-muted">{tr(lng, "x.8a42f06a")}</p>
                 )}
               </section>
             );
           })}
         </div>
       ) : (
-        <div className="card mb-6"><Empty title="Sin competiciones">Crea una liga o un torneo para agrupar las partidas.</Empty></div>
+        <div className="card mb-6"><Empty title={tr(lng, "x.216a4f59")}>{tr(lng, "x.a405d648")}</Empty></div>
       )}
 
       {/* v0.18 — plegado por defecto (abierto solo si todavía no hay ninguna). */}
@@ -129,9 +133,9 @@ export default async function CompetitionsPage() {
           {/* El formulario ya trae sus propias tarjetas: aquí solo la cabecera es tarjeta. */}
           <summary className="card tap mb-3 cursor-pointer justify-between px-4 font-display text-lg font-bold">
             <span className="flex items-center gap-2">
-              <span aria-hidden="true">+</span> Nueva competición
+              <span aria-hidden="true">+</span> {tr(lng, "x.4938a56c")}
             </span>
-            <span className="text-xs font-normal text-muted">organizador</span>
+            <span className="text-xs font-normal text-muted">{tr(lng, "x.4e9effbb")}</span>
           </summary>
           <CompetitionForm players={snap.players} />
         </details>

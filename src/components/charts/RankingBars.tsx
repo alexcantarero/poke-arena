@@ -10,6 +10,8 @@ import {
   LabelList,
   Cell,
 } from "recharts";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export interface RankingItem {
   id: string;
@@ -34,6 +36,8 @@ export function RankingBars({
   height,
   valueFormatter = (v) => String(v),
 }: RankingBarsProps) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   // Ajuste automático de altura según cantidad de barras si no se pasa explícita
   const chartHeight = height ?? Math.max(200, items.length * 36 + 40);
 
@@ -71,7 +75,7 @@ export function RankingBars({
                     <p className="font-bold text-ink">{item.label}</p>
                     {item.sub && <p className="text-muted text-[11px] mb-1">{item.sub}</p>}
                     <p className="font-mono text-ink-2 font-semibold">
-                      Valor: <b className="text-brand tabular">{valueFormatter(item.value)}</b>
+                      {tr(lng, "x.0d1aa244")} <b className="text-brand tabular">{valueFormatter(item.value)}</b>
                     </p>
                   </div>
                 );

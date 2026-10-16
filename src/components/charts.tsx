@@ -2,6 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { clamp, pct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export { KpiCard, type KpiColor } from "./charts/KpiCard";
 export { TrendLineChart, type TrendPoint } from "./charts/TrendLineChart";
@@ -89,6 +91,8 @@ export type EloSeries = {
  * que poder aislar, y ese es el motivo de la leyenda pulsable.
  */
 export function EloChart({ series, start = 1000 }: { series: EloSeries[]; start?: number }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [off, setOff] = useState<Set<string>>(new Set());
   const [tip, setTip] = useState<Tip>(null);
 
@@ -122,7 +126,7 @@ export function EloChart({ series, start = 1000 }: { series: EloSeries[]; start?
   };
 
   if (!series.length) {
-    return <p className="px-4 py-8 text-center text-sm text-muted">Aún no hay partidas que dibujar.</p>;
+    return <p className="px-4 py-8 text-center text-sm text-muted">{tr(lng, "x.b6bfa262")}</p>;
   }
 
   return (
@@ -214,7 +218,7 @@ export function EloChart({ series, start = 1000 }: { series: EloSeries[]; start?
                 type="button"
                 className={`chip ${hidden ? "opacity-45" : ""}`}
                 aria-pressed={!hidden}
-                title="Pulsa para esconder · doble clic para ver solo a esta persona"
+                title={tr(lng, "x.921a1a28")}
                 onClick={(e) => toggle(s.id, e.altKey)}
                 onDoubleClick={() => toggle(s.id, true)}
               >
@@ -253,6 +257,8 @@ export type MetaRow = {
  * hace evidente cuál es el mazo que todo el mundo juega y pierde.
  */
 export function MetaChart({ rows }: { rows: MetaRow[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [mode, setMode] = useState<"share" | "wr">("share");
   const [tip, setTip] = useState<Tip>(null);
 
@@ -273,7 +279,7 @@ export function MetaChart({ rows }: { rows: MetaRow[] }) {
   if (!rows.length) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted">
-        Registra alguna partida con el mazo anotado y aquí sale el reparto.
+        {tr(lng, "x.ee7e85db")}
       </p>
     );
   }
@@ -283,12 +289,12 @@ export function MetaChart({ rows }: { rows: MetaRow[] }) {
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted">
           {mode === "share"
-            ? "Porcentaje de partidas jugadas con cada arquetipo."
+            ? tr(lng, "x.ddece73b")
             : "%V = (victorias + medio empate) ÷ partidas."}
         </p>
         <div className="seg flex-none">
-          <button type="button" data-on={mode === "share"} onClick={() => setMode("share")}>Uso</button>
-          <button type="button" data-on={mode === "wr"} onClick={() => setMode("wr")}>%V</button>
+          <button type="button" data-on={mode === "share"} onClick={() => setMode("share")}>{tr(lng, "x.2483c704")}</button>
+          <button type="button" data-on={mode === "wr"} onClick={() => setMode("wr")}>{tr(lng, "x.39683ef7")}</button>
         </div>
       </div>
 
@@ -350,6 +356,8 @@ export type CpBar = {
  * merece la pena ir a otra Cup?» sin tener que abrir una hoja de cálculo.
  */
 export function CpChart({ bars, season }: { bars: CpBar[]; season: number }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [showDropped, setShowDropped] = useState(true);
   const [tip, setTip] = useState<Tip>(null);
 
@@ -359,7 +367,7 @@ export function CpChart({ bars, season }: { bars: CpBar[]; season: number }) {
   if (!bars.length) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted">
-        Apunta un torneo de fuera y aquí verás tus CP de la temporada.
+        {tr(lng, "x.5c2acbd5")}
       </p>
     );
   }
@@ -377,7 +385,7 @@ export function CpChart({ bars, season }: { bars: CpBar[]; season: number }) {
               type="checkbox" className="size-4"
               checked={showDropped} onChange={(e) => setShowDropped(e.target.checked)}
             />
-            Ver descartados
+            {tr(lng, "x.8d717f55")}
           </label>
         )}
       </div>

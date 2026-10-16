@@ -3,6 +3,8 @@ import { setTournamentStatus } from "@/actions";
 import { TOURNAMENT_STATUS, type TournamentStatus } from "@/lib/types";
 import { fmtDateLong, isoInLeagueTz } from "@/lib/format";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    En qué punto está el torneo, y qué toca hacer ahora.
@@ -24,7 +26,7 @@ import { Icon } from "./icons";
 
 type Step = { label: string; done: boolean; hint?: string; href?: string };
 
-export function TournamentLifecycle({
+export async function TournamentLifecycle({
   id, status, closedAt, canManage, steps, roundsDone, totalRounds,
 }: {
   id: string;
@@ -36,6 +38,8 @@ export function TournamentLifecycle({
   roundsDone: number;
   totalRounds: number | null;
 }) {
+  const lng = await getLang(); // v0.49
+
   const meta = TOURNAMENT_STATUS[status];
   const pending = steps.filter((s) => !s.done);
 
@@ -58,21 +62,21 @@ export function TournamentLifecycle({
           <div className="flex flex-none flex-wrap gap-2">
             {status === "draft" && (
               <StatusButton id={id} to="open" className="btn btn-brand btn-sm">
-                <Icon name="check" className="size-4" /> Empezar el torneo
+                <Icon name="check" className="size-4" /> {tr(lng, "x.633ef9e0")}
               </StatusButton>
             )}
             {status === "open" && (
               <StatusButton id={id} to="closed" className="btn btn-sm">
-                Cerrar torneo
+                {tr(lng, "x.ad110684")}
               </StatusButton>
             )}
             {status === "closed" && (
               <StatusButton id={id} to="open" className="btn btn-ghost btn-sm">
-                Reabrir
+                {tr(lng, "x.3a7b783c")}
               </StatusButton>
             )}
             <Link className="btn btn-ghost btn-sm" href={`/torneos/${id}/editar`}>
-              <Icon name="edit" className="size-4" /> Editar
+              <Icon name="edit" className="size-4" /> {tr(lng, "x.2b5f2343")}
             </Link>
           </div>
         )}
@@ -90,7 +94,7 @@ export function TournamentLifecycle({
                 {s.hint && <span className="block text-xs text-muted">{s.hint}</span>}
               </span>
               {s.href && (
-                <Link className="btn btn-ghost btn-sm flex-none" href={s.href}>Ir</Link>
+                <Link className="btn btn-ghost btn-sm flex-none" href={s.href}>{tr(lng, "x.96e58e54")}</Link>
               )}
             </li>
           ))}
@@ -99,7 +103,7 @@ export function TournamentLifecycle({
 
       {status === "closed" && (
         <p className="border-t border-line-soft px-4 py-2.5 text-xs text-muted">
-          Cerrado: no se pueden apuntar rondas nuevas. Reábrelo si hay que corregir algo.
+          {tr(lng, "x.028072b6")}
         </p>
       )}
     </section>

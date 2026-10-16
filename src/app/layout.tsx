@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Saira_Condensed } from "next/font/google";
 import "./globals.css";
 import { getLang } from "@/lib/lang";
+import { LangProvider } from "@/components/LangProvider";
 import { estacionDe } from "@/lib/estacion";
 import { ServiceWorker } from "@/components/ServiceWorker";
 
@@ -93,10 +94,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
+        {/* v0.49 — el idioma para los componentes de cliente, en TODA la app:
+            también en entrar y registrarse, que están fuera del layout (app). */}
+        <LangProvider lang={lang}>
         {children}
         {/* v0.35 — registra el service worker después de cargar, y solo en
             producción. Ver `src/components/ServiceWorker.tsx`. */}
         <ServiceWorker buildId={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
+        </LangProvider>
       </body>
     </html>
   );

@@ -1,6 +1,8 @@
 import { explainCp, resolveEventDef } from "@/lib/cp";
 import { setTournamentAttendance } from "@/actions";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    «¿Cuánta gente hubo?» — el campo que nunca se rellenaba.
@@ -38,9 +40,11 @@ type Props = {
   canEdit: boolean;
 };
 
-export function AttendanceForm({
+export async function AttendanceForm({
   tournamentId, season, kind, playerCount, rounds, topCut, results, nameOf, canEdit,
 }: Props) {
+  const lng = await getLang(); // v0.49
+
   const def = resolveEventDef(season, kind);
   const daCp = Boolean(def?.tiers?.length);
 
@@ -68,7 +72,7 @@ export function AttendanceForm({
     <section className={`card mb-5 ${playerCount == null && perdidos > 0 ? "border-brand-line" : ""}`}>
       <div className="card-head">
         <h2 className="text-lg font-bold">
-          {playerCount == null ? "Falta la asistencia" : "Asistencia y estructura"}
+          {playerCount == null ? "Falta la asistencia" : tr(lng, "x.ba64c987")}
         </h2>
         {playerCount != null && <span className="text-xs text-muted">{playerCount} jugadores</span>}
       </div>
@@ -113,7 +117,7 @@ export function AttendanceForm({
           <form action={setTournamentAttendance} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={tournamentId} />
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="att-count">Cuánta gente</label>
+              <label className="label" htmlFor="att-count">{tr(lng, "x.3eb39e63")}</label>
               <input
                 className="input w-28 tabular" id="att-count" name="playerCount"
                 type="number" min={1} inputMode="numeric"
@@ -121,7 +125,7 @@ export function AttendanceForm({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="att-rounds">Rondas suizas</label>
+              <label className="label" htmlFor="att-rounds">{tr(lng, "x.9db42d2a")}</label>
               <input
                 className="input w-24 tabular" id="att-rounds" name="rounds"
                 type="number" min={1} max={50} inputMode="numeric"
@@ -129,7 +133,7 @@ export function AttendanceForm({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="att-cut">Top cut</label>
+              <label className="label" htmlFor="att-cut">{tr(lng, "x.2ec4eeea")}</label>
               <input
                 className="input w-24 tabular" id="att-cut" name="topCut"
                 type="number" min={0} max={512} inputMode="numeric"
@@ -137,12 +141,12 @@ export function AttendanceForm({
               />
             </div>
             <button className="btn btn-brand" type="submit">
-              <Icon name="check" className="size-4" /> Guardar y recalcular
+              <Icon name="check" className="size-4" /> {tr(lng, "x.62614edd")}
             </button>
           </form>
         ) : (
           <p className="text-sm text-muted">
-            Esto lo rellena quien creó el torneo o un organizador.
+            {tr(lng, "x.6a97ed0e")}
           </p>
         )}
 

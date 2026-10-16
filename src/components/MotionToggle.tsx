@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.22 — Ajuste «Animaciones»: Automático (lo que diga el móvil), Sí o No.
@@ -22,6 +24,8 @@ const OPCIONES: Array<{ v: Modo; label: string }> = [
 ];
 
 export function MotionToggle() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [modo, setModo] = useState<Modo>("auto");
   const [sistemaReduce, setSistemaReduce] = useState(false);
 
@@ -44,8 +48,8 @@ export function MotionToggle() {
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="label">Animaciones</span>
-      <div className="seg w-full sm:w-auto" role="radiogroup" aria-label="Animaciones">
+      <span className="label">{tr(lng, "x.a45e7802")}</span>
+      <div className="seg w-full sm:w-auto" role="radiogroup" aria-label={tr(lng, "x.a45e7802")}>
         {OPCIONES.map((o) => (
           <button key={o.v} type="button" role="radio" aria-checked={modo === o.v}
             data-on={modo === o.v} onClick={() => elegir(o.v)}>
@@ -55,10 +59,10 @@ export function MotionToggle() {
       </div>
       <p className="text-xs text-muted">
         {modo === "auto" && sistemaReduce
-          ? "Tu móvil tiene «reducir movimiento» activado, así que ahora mismo están apagadas. Pulsa «Sí» para verlas."
+          ? tr(lng, "x.23d3fdef")
           : modo === "auto"
-            ? "Sigue el ajuste de tu móvil. Incluye las partículas de temporada del fondo."
-            : modo === "on" ? "Siempre activadas en este navegador." : "Siempre apagadas en este navegador."}
+            ? tr(lng, "x.30f1ea0e")
+            : modo === "on" ? "Siempre activadas en este navegador." : tr(lng, "x.fd743455")}
       </p>
     </div>
   );

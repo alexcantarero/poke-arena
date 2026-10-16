@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  archetypesOfMatch, matchupMatrix, metaShare, outcome, performanceByRoundNumber, roundResult, roundStage,
-  suggestedRounds, suggestedTopCut,
+  archetypesOfMatch, matchupMatrix, metaShare, outcome, performanceByRoundNumber, roundResult,
 } from "../src/lib/stats.ts";
+import { suggestedRounds, suggestedTopCut } from "../src/lib/sugerencias.ts";
 import type { Archetype, MatchFull } from "../src/lib/types.ts";
 
 /* ----------------------------------------------------- utilidades de test -- */
@@ -41,25 +41,9 @@ const match = (over: Partial<MatchFull> = {}): MatchFull => ({
   ...over,
 });
 
-/* ------------------------------------------------------------ roundStage -- */
 
-test("roundStage: dentro de las rondas de suizo declaradas", () => {
-  assert.deepEqual(roundStage(1, 5, 8), { kind: "swiss", label: "Suizo" });
-  assert.deepEqual(roundStage(5, 5, 8), { kind: "swiss", label: "Suizo" });
-});
-
-test("roundStage: el top cut se nombra desde el final hacia atrás", () => {
-  // Top 8 = 3 rondas de cuadro: cuartos, semi, final.
-  assert.deepEqual(roundStage(6, 5, 8), { kind: "cut", label: "Cuartos" });
-  assert.deepEqual(roundStage(7, 5, 8), { kind: "cut", label: "Semifinal" });
-  assert.deepEqual(roundStage(8, 5, 8), { kind: "cut", label: "Final" });
-});
-
-test("roundStage: top 32 tiene cinco rondas de cuadro", () => {
-  assert.deepEqual(roundStage(6, 5, 32), { kind: "cut", label: "Dieciseisavos" });
-  assert.deepEqual(roundStage(7, 5, 32), { kind: "cut", label: "Octavos" });
-  assert.deepEqual(roundStage(10, 5, 32), { kind: "cut", label: "Final" });
-});
+
+
 
 test("matchupMatrix: agrupar combina variantes y recalcula el porcentaje de victorias", () => {
   const varianteA = arch("dragapult-dudunsparce");
@@ -89,57 +73,11 @@ test("matchupMatrix: agrupar combina variantes y recalcula el porcentaje de vict
   assert.deepEqual(matrix.cell("dragapult", B.id), { n: 2, wins: 1, winRate: 0.5 });
   assert.ok(matrix.ids.includes("dragapult"));
 });
-
-test("roundStage: sin rondas de suizo declaradas, todo es suizo", () => {
-  assert.equal(roundStage(9, null, 8).kind, "swiss");
-});
-
-test("roundStage: más allá de lo que el top cut explica, se llama solo Top cut", () => {
-  // topCut chico pero se siguen apuntando rondas por encima (torneo que
-  // recorta o crece más de lo anunciado): no se inventa un nombre.
-  assert.deepEqual(roundStage(20, 5, 8), { kind: "cut", label: "Top cut" });
-});
-
-test("roundStage: estructura regional estándar (12 suizas: 8 Día 1 + 4 Día 2 + Top 8)", () => {
-  // Día 1: rondas 1 a 8
-  assert.deepEqual(roundStage(1, 12, 8), { kind: "swiss", label: "Día 1", day: 1 });
-  assert.deepEqual(roundStage(8, 12, 8), { kind: "swiss", label: "Día 1", day: 1 });
-  // Día 2: rondas 9 a 12
-  assert.deepEqual(roundStage(9, 12, 8), { kind: "swiss", label: "Día 2", day: 2 });
-  assert.deepEqual(roundStage(12, 12, 8), { kind: "swiss", label: "Día 2", day: 2 });
-  // Top 8: rondas 13 (cuartos), 14 (semi), 15 (final)
-  assert.deepEqual(roundStage(13, 12, 8), { kind: "cut", label: "Cuartos" });
-  assert.deepEqual(roundStage(14, 12, 8), { kind: "cut", label: "Semifinal" });
-  assert.deepEqual(roundStage(15, 12, 8), { kind: "cut", label: "Final" });
-});
-
-test("roundStage: estructura regional de 14 suizas (2049–4096: 8 Día 1 + 6 Día 2 + Top 8)", () => {
-  const options = { playerCount: 2500 };
-  // Día 1: rondas 1 a 8
-  assert.deepEqual(roundStage(1, 14, 8, options), { kind: "swiss", label: "Día 1", day: 1 });
-  assert.deepEqual(roundStage(8, 14, 8, options), { kind: "swiss", label: "Día 1", day: 1 });
-  // Día 2: rondas 9 a 14
-  assert.deepEqual(roundStage(9, 14, 8, options), { kind: "swiss", label: "Día 2", day: 2 });
-  assert.deepEqual(roundStage(14, 14, 8, options), { kind: "swiss", label: "Día 2", day: 2 });
-  // Top 8: rondas 15, 16, 17
-  assert.deepEqual(roundStage(15, 14, 8, options), { kind: "cut", label: "Cuartos" });
-  assert.deepEqual(roundStage(16, 14, 8, options), { kind: "cut", label: "Semifinal" });
-  assert.deepEqual(roundStage(17, 14, 8, options), { kind: "cut", label: "Final" });
-});
-
-test("roundStage: estructura regional de 15 suizas (4097–8192: 9 Día 1 + 6 Día 2 + Top 8)", () => {
-  const options = { playerCount: 5000 };
-  // Día 1: rondas 1 a 9
-  assert.deepEqual(roundStage(1, 15, 8, options), { kind: "swiss", label: "Día 1", day: 1 });
-  assert.deepEqual(roundStage(9, 15, 8, options), { kind: "swiss", label: "Día 1", day: 1 });
-  // Día 2: rondas 10 a 15
-  assert.deepEqual(roundStage(10, 15, 8, options), { kind: "swiss", label: "Día 2", day: 2 });
-  assert.deepEqual(roundStage(15, 15, 8, options), { kind: "swiss", label: "Día 2", day: 2 });
-  // Top 8: rondas 16, 17, 18
-  assert.deepEqual(roundStage(16, 15, 8, options), { kind: "cut", label: "Cuartos" });
-  assert.deepEqual(roundStage(17, 15, 8, options), { kind: "cut", label: "Semifinal" });
-  assert.deepEqual(roundStage(18, 15, 8, options), { kind: "cut", label: "Final" });
-});
+
+
+
+
+
 
 test("suggestedRounds: según el Play! Pokémon Tournament Rules Handbook (Variant #5)", () => {
   assert.equal(suggestedRounds(100, "regional"), 9);   // 65–128: 9 rondas
@@ -259,12 +197,7 @@ test("archetypesOfMatch cae al arquetipo propio cuando no hay mazo con lista", (
 });
 
 /* ------------------------------------ v0.13: el Día 2 es solo de Regional -- */
-
-test("v0.13 · roundStage: un Challenge o una Cup grandes no tienen Día 2", () => {
-  assert.deepEqual(roundStage(9, 9, 0, { playerCount: 200, kind: "league_challenge" }), { kind: "swiss", label: "Suizo" });
-  assert.deepEqual(roundStage(9, 9, 8, { playerCount: 300, kind: "pokemon_cup" }), { kind: "swiss", label: "Suizo" });
-  assert.deepEqual(roundStage(10, 9, 8, { playerCount: 300, kind: "pokemon_cup" }), { kind: "cut", label: "Cuartos" });
-});
+
 
 test("v0.13 · suggestedTopCut: el Challenge nunca tiene corte", () => {
   assert.equal(suggestedTopCut(200, "league_challenge"), 0);

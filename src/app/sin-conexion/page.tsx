@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Sin conexión" };
 
@@ -12,18 +14,19 @@ export const metadata = { title: "Sin conexión" };
  * Y no finge: no enseña datos viejos ni dice que todo va bien. Dice que no
  * hay red, y ya.
  */
-export default function SinConexion() {
+export default async function SinConexion() {
+  const lng = await getLang(); // v0.49
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="font-display text-2xl font-bold">Sin conexión</h1>
+      <h1 className="font-display text-2xl font-bold">{tr(lng, "x.33b7e702")}</h1>
       <p className="text-sm text-muted">
-        La app necesita red para enseñarte los datos de la liga: los resultados, el ranking y los
-        torneos están en el servidor, no en el teléfono.
+        {tr(lng, "x.d06daf4b")}
       </p>
       <p className="text-sm text-muted">
-        En cuanto vuelva la cobertura, recarga.
+        {tr(lng, "x.d2c11273")}
       </p>
-      <Link href="/" className="btn btn-brand">Reintentar</Link>
+      <Link href="/" className="btn btn-brand">{tr(lng, "x.adec7b4f")}</Link>
     </main>
   );
 }

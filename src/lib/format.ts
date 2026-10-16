@@ -148,3 +148,28 @@ export function byAgenda<T extends { date: string }>(today: string) {
     return futuroA ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
   };
 }
+
+/**
+ * Fecha corta para mostrar: «19 sept», «5 ene».
+ *
+ * v0.47 — la ÚNICA. Había tres funciones llamadas igual: una en Inicio con
+ * `Intl`, otra en `ultimosCp.ts` con una tabla de meses escrita a mano (que
+ * ponía «sep» donde la otra ponía «sept»), y una tercera que en realidad solo
+ * recortaba la fecha a día. Dos pantallas escribían la misma fecha de dos
+ * maneras.
+ *
+ * En UTC a propósito: las fechas de torneo se guardan como día, sin hora, y
+ * convertirlas a la hora local podría moverlas al día anterior.
+ * Una cadena que no es una fecha se devuelve tal cual, en vez de «Invalid Date».
+ */
+const FECHAS_CORTAS = new Map<string, Intl.DateTimeFormat>();
+export function fechaCorta(iso: string, locale = "es-ES"): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  let f = FECHAS_CORTAS.get(locale);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" });
+    FECHAS_CORTAS.set(locale, f);
+  }
+  return f.format(d);
+}

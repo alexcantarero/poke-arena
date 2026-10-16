@@ -6,14 +6,18 @@ import { archetypesOfMatch, outcome, toRoundView } from "@/lib/stats";
 import { archetypeValue } from "@/lib/types";
 import { maxRondasDe } from "@/lib/estructura";
 import { margenDe } from "@/lib/premios";
-import { RoundForm } from "@/components/TournamentRounds";
+import { RoundForm } from "@/components/RoundForm";
 import { fmtDateLong } from "@/lib/format";
 import { Avatar, PageHead, Sprites } from "@/components/ui";
 import { MatchForm } from "@/components/MatchForm";
 import { DeckList } from "@/components/DeckList";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const { id } = await params;
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   const match = snap.matches.find((m) => m.id === id);
@@ -43,7 +47,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     ? snap.decks.find((d) => d.playerId === rivalId && d.archetypeId === archB.id && d.list)
     : undefined;
   const deckB = deckBExact ?? deckBGuess;
-  const nameB = B?.name ?? match.opponentName ?? "el rival";
+  const nameB = B?.name ?? match.opponentName ?? tr(lng, "x.f21ea765");
 
   const eloHistoryA = snap.elo.history[match.playerAId]?.find((h) => h.matchId === match.id);
   const deltaA = eloHistoryA?.delta ? Math.round(eloHistoryA.delta) : null;
@@ -57,12 +61,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const sides = [
     {
       key: "a",
-      name: A?.name ?? "el jugador",
+      name: A?.name ?? tr(lng, "x.1530a422"),
       deck: deckA,
       guess: false,
       missing: deckA
         ? `«${deckA.name}» no tiene guardada la lista de 60 cartas. Se añade desde la ficha del mazo.`
-        : "Aquí no se anotó con qué mazo jugó. Elígelo abajo, al editar la partida.",
+        : tr(lng, "x.4b1d0924"),
     },
     {
       key: "b",
@@ -73,7 +77,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         ? `${nameB} es de fuera de la liga: de esas partidas se anota el arquetipo, no la lista. No hay ninguna guardada.`
         : deckB
           ? `«${deckB.name}» no tiene guardada la lista de 60 cartas.`
-          : "Aquí no se anotó qué mazo llevaba. Elígelo abajo, al editar la partida.",
+          : tr(lng, "x.cd9ebd78"),
     },
   ];
 
@@ -94,10 +98,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         sub={`ID: ${match.id} · ${fmtDateLong(match.date)}${context ? ` · ${context}` : ""}${match.round ? ` · Jornada ${match.round}` : ""}`}
         actions={match.tournamentId
           // v0.16 — si la partida es de un torneo, se vuelve al torneo.
-          ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> Volver al torneo</Link>
+          ? <Link className="btn btn-ghost btn-sm" href={`/torneos/${match.tournamentId}`}><Icon name="back" className="size-4" /> {tr(lng, "x.a44bc5ae")}</Link>
           : match.competitionId
-            ? <Link className="btn btn-ghost btn-sm" href={`/competiciones/${match.competitionId}`}><Icon name="back" className="size-4" /> Volver a la liga</Link>
-            : <Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> Resultados</Link>}
+            ? <Link className="btn btn-ghost btn-sm" href={`/competiciones/${match.competitionId}`}><Icon name="back" className="size-4" /> {tr(lng, "x.0582c003")}</Link>
+            : <Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> {tr(lng, "x.b164a1ab")}</Link>}
       />
 
       {!pending && (
@@ -152,7 +156,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           {o.declared && (
             <p className="mt-5 rounded-lg bg-ground p-3 text-sm text-ink-2">
               De esta ronda solo se apuntó el resultado, no el juego a juego.
-              {match.firstTurn ? ` Salió primero ${match.firstTurn === "a" ? (A?.name ?? "el jugador") : (B?.name ?? match.opponentName ?? "el rival")}.` : ""}
+              {match.firstTurn ? ` Salió primero ${match.firstTurn === "a" ? (A?.name ?? tr(lng, "x.1530a422")) : (B?.name ?? match.opponentName ?? tr(lng, "x.f21ea765"))}.` : ""}
             </p>
           )}
 
@@ -171,17 +175,17 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <span className="w-16 flex-none font-display font-bold text-muted">Juego {g.number}</span>
                   <span className={`chip flex-none items-center gap-1.5 ${g.winner === "tie" ? "chip-tie" : "chip-win"}`}>
                     {winnerArch && <Sprites archetype={winnerArch} size="sm" />}
-                    {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : "Empate"}
+                    {g.winner === "a" ? A?.name : g.winner === "b" ? (B?.name ?? match.opponentName) : tr(lng, "x.09d03513")}
                   </span>
                   {margen && (
                     <span
                       className="chip flex-none tabular"
                       title={margen.conPenalizacion
-                        ? "Hubo penalización de premios: el objetivo del rival bajó a 4"
+                        ? tr(lng, "x.76bbb827")
                         : `Al perdedor le faltaban ${margen.faltaban} premios`}
                     >
                       {margen.marcador}
-                      {margen.conPenalizacion && <span className="text-loss"> ·P</span>}
+                      {margen.conPenalizacion && <span className="text-loss"> {tr(lng, "x.df61ef44")}</span>}
                     </span>
                   )}
                   <span className="flex-1" />
@@ -209,10 +213,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 <summary className="tap cursor-pointer justify-start gap-2 text-sm font-semibold">
                   <span className="truncate">Lista de {s.name}</span>
                   {s.guess && (
-                    <span className="flex-none text-xs font-normal text-muted">· su mazo de ese arquetipo</span>
+                    <span className="flex-none text-xs font-normal text-muted">{tr(lng, "x.4c9de4a7")}</span>
                   )}
                   {!s.deck?.list && (
-                    <span className="flex-none text-xs font-normal text-muted">· sin registrar</span>
+                    <span className="flex-none text-xs font-normal text-muted">{tr(lng, "x.084860cc")}</span>
                   )}
                 </summary>
                 <div className="border-t border-line-soft py-3">
@@ -268,7 +272,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   .map((p) => ({ id: p.id, name: p.name }))}
               />
               <p className="mt-3 text-xs text-muted">
-                Es una ronda de <Link className="underline" href={`/torneos/${tour.id}`}>{tour.name}</Link>:
+                {tr(lng, "x.21de2799")} <Link className="underline" href={`/torneos/${tour.id}`}>{tour.name}</Link>:
                 se queda en el torneo aunque el rival sea alguien del grupo.
               </p>
             </div>
@@ -277,8 +281,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       ) : (
       <details className="card" open={pending}>
         <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-          {pending ? "Anotar el resultado" : "Editar la partida"}
-          {!pending && <span className="text-xs font-normal text-muted">mazos, juegos y fecha</span>}
+          {pending ? "Anotar el resultado" : tr(lng, "x.2aafe5e4")}
+          {!pending && <span className="text-xs font-normal text-muted">{tr(lng, "x.fcc38db1")}</span>}
         </summary>
         <div className="border-t border-line-soft p-4">
           <MatchForm

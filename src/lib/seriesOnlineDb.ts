@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { fetchTournaments } from "@/lib/sources/limitless";
 import { num } from "@/lib/format";
+import { SERIES_SEGUIDAS } from "@/data/seriesSeguidas";
 import {
   detectarSeries, idEventoPrevisto, PREFIJO_PREVISTO, proximasEdiciones,
 } from "./seriesOnline";
@@ -29,7 +30,8 @@ export type ResultadoSeries = {
   sinRespuesta: boolean;
 };
 
-const fechaCorta = (iso: string) => iso.slice(0, 10);
+/** De «2026-10-18T18:00:00.000Z» a «2026-10-18»: la columna es `date`. */
+const soloDia = (iso: string) => iso.slice(0, 10);
 
 export async function sincronizarSeriesOnline(
   ahora = new Date(),
@@ -43,12 +45,15 @@ export async function sincronizarSeriesOnline(
     return { series: 0, creados: 0, actualizados: 0, retirados: 0, sinRespuesta: true };
   }
 
-  const series = detectarSeries(torneos, ahora, { minJugadores });
+  // v0.45 — más las series que se siguen siempre (src/data/seriesSeguidas.ts).
+  const series = detectarSeries(torneos, ahora, {
+    minJugadores, seguidas: SERIES_SEGUIDAS.map((x) => x.patron),
+  });
 
   const filas = series.flatMap((s) => proximasEdiciones(s, ahora, semanas).map((cuando) => ({
     id: idEventoPrevisto(s, cuando),
     title: `${s.nombre} (online)`,
-    date: fechaCorta(cuando),
+    date: soloDia(cuando),
     endDate: null,
     kind: "tourney",
     tournamentKind: "online",
@@ -57,8 +62,8 @@ export async function sincronizarSeriesOnline(
     competitionId: null,
     tournamentId: null,
     // Que se lea como lo que es: una previsión, no una inscripción.
-    note: `Previsto: serie semanal con ${s.ediciones} ediciones recientes y una media de `
-      + `${num(s.mediaJugadores)} jugadores. Hora prevista ${cuando.slice(11, 16)} UTC. `
+    note: `Previsto${s.seguida ? " (serie que seguís)" : ""}: ${s.ediciones} ediciones recientes, `
+      + `una media de ${num(s.mediaJugadores)} jugadores. Hora prevista ${cuando.slice(11, 16)} UTC. `
       + `El enlace es la última edición; confirma la próxima en Limitless.`,
   })));
 
@@ -81,7 +86,7 @@ export async function sincronizarSeriesOnline(
 
   // Las previsiones ya pasadas se retiran: no son historia, eran una apuesta.
   // Solo las de este prefijo; un evento puesto a mano nunca se toca.
-  const hoy = fechaCorta(ahora.toISOString());
+  const hoy = soloDia(ahora.toISOString());
   const retirados = await db.delete(events)
     .where(and(like(events.id, `${PREFIJO_PREVISTO}%`), lt(events.date, hoy)))
     .returning({ id: events.id });

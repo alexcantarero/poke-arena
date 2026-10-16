@@ -6,8 +6,12 @@ import { DeckForm } from "@/components/DeckForm";
 import { DeckList } from "@/components/DeckList";
 import { MulliganSim } from "@/components/MulliganSim";
 import { CardSearch } from "@/components/CardSearch";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export default async function EditDeckPage({ params }: { params: Promise<{ id: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const { id } = await params;
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const deck = snap.decksById.get(id);
@@ -29,7 +33,7 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
   const archetype = snap.archById.get(deck.archetypeId);
   return (
     <>
-      <PageHead title={deck.name} sub={archetype?.name} back={{ href: "/mazos", label: "Mazos" }} />
+      <PageHead title={deck.name} sub={archetype?.name} back={{ href: "/mazos", label: tr(lng, "x.78f2cee5") }} />
       <DeckForm
         deck={{ ...deck, archetype }}
         players={snap.players}
@@ -42,8 +46,8 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
           lo de esta pantalla que no es el formulario. */}
       <details className="card mt-4">
         <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-          Buscar cartas
-          <span className="text-xs font-normal text-muted">set y número</span>
+          {tr(lng, "x.00f5042b")}
+          <span className="text-xs font-normal text-muted">{tr(lng, "x.46c4a48c")}</span>
         </summary>
         <div className="border-t border-line-soft p-4">
           <CardSearch />
@@ -57,8 +61,8 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
         <>
           <details className="card mt-4">
             <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-              Simulador de manos
-              <span className="text-xs font-normal text-muted">mulligan y aperturas</span>
+              {tr(lng, "x.6cb523f6")}
+              <span className="text-xs font-normal text-muted">{tr(lng, "x.fe777a76")}</span>
             </summary>
             <div className="border-t border-line-soft p-4">
               <MulliganSim list={deck.list} listJson={deck.listJson} />
@@ -67,8 +71,8 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
 
           <details className="card mt-4">
             <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-              La lista
-              <span className="text-xs font-normal text-muted">texto o cartas</span>
+              {tr(lng, "x.5bbb562a")}
+              <span className="text-xs font-normal text-muted">{tr(lng, "x.36d25802")}</span>
             </summary>
             <div className="border-t border-line-soft p-4">
               <DeckList list={deck.list} listJson={deck.listJson} />

@@ -15,7 +15,7 @@ import { KindEmblem, emblemKindOf } from "./Emblems";
    navegador. Separados, se lleva lo que usa. Las pantallas que ya importaban
    de aquí siguen funcionando igual. */
 export {
-  Kpi, Skeleton, SkeletonText, SkeletonCard, SkeletonRows, PageSkeleton,
+  Kpi, Skeleton,
 } from "./primitives";
 
 /* Piezas compartidas por todas las pantallas. Todas pensadas para que

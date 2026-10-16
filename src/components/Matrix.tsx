@@ -4,6 +4,8 @@ import { Sprites } from "./ui";
 import { spriteUrl } from "@/lib/pokemon";
 import { clamp } from "@/lib/format";
 import { wilsonScore } from "@/lib/stats";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /**
  * Matriz de emparejamientos: % de victorias de la fila contra la columna.
@@ -19,14 +21,16 @@ import { wilsonScore } from "@/lib/stats";
  * `aria-label`—, así que ni se pierde al pasar por encima ni para quien lo lee
  * con un lector de pantalla.
  */
-export function Matrix({
+export async function Matrix({
   data, byId, limit = 10,
 }: { data: MatrixData; byId: Map<string, Archetype>; limit?: number }) {
+  const lng = await getLang(); // v0.49
+
   const ids = data.ids.slice(0, limit);
   if (!ids.length) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted">
-        Aún no hay emparejamientos. Registra partidas indicando el mazo de los dos lados.
+        {tr(lng, "x.26be5ee3")}
       </p>
     );
   }
@@ -57,7 +61,7 @@ export function Matrix({
               className="sticky left-0 z-10 w-16 bg-surface p-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted sm:w-48"
               style={{ boxShadow: "6px 0 8px -8px rgb(0 0 0 / 0.35)" }}
             >
-              Mi mazo \ Rival
+              {tr(lng, "x.d9ad6da7")}
             </th>
             {ids.map((id) => {
               const arch = byId.get(id);

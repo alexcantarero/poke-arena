@@ -2,6 +2,271 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.49.0] — 2026-10-16
+
+**La app en inglés.** Sin migración ni dependencias nuevas.
+
+### Añadido
+
+- **Unas 1.000 claves nuevas**, en español y en inglés, en 140 ficheros. El diccionario inglés
+  está tipado: si falta una traducción, no compila.
+- **`useLang()`** (`components/LangProvider.tsx`): el idioma para los componentes de cliente,
+  desde el layout raíz, así que llega también a entrar y registrarse.
+- **Los avisos del servidor**, traducidos al crearlos: `msj()` en `actions/_comun.ts` lee la
+  misma cookie que las pantallas. 44 avisos.
+- **`INGLES_DISPONIBLE = true`**: el botón EN vuelve a salir para todos.
+- **113 ficheros blindados** en el medidor: con `npm run verificar` falla si alguno vuelve a
+  tener texto escrito a mano.
+
+### Cómo se hizo, y lo que se comprobó
+
+- Automatizado: un script localiza cada texto, decide si su sitio es seguro (componente de
+  cliente con su `useLang()` en la PRIMERA línea, o de servidor que puede leer la cookie) y lo
+  sustituye. Tres pasadas: el texto de JSX, las cadenas dentro del código y los avisos.
+- **Ningún hook mal colocado**: todos los `useLang()` son la primera línea de su componente,
+  comprobado uno a uno. `tsc` no lo vigila; solo fallaría en el navegador.
+- **Ninguna cadena que fuera un valor**: no se tocaron las 87 que estaban junto a una
+  comparación, y se buscó activamente el caso de un texto traducido en un sitio y comparado en
+  otro. Apareció en el camino al corte (`F2 === "Día 2"`): ahora se compara el dato
+  (`forma.faseManual`), no el texto, y funciona igual en los dos idiomas.
+- `tsc` rechazó 33 sustituciones (valores por defecto de parámetros y constantes de módulo, donde
+  el idioma aún no existe): se devolvieron a su texto original.
+
+### Lo que sigue en español
+
+- Unas **134 frases montadas con valores dentro** (`${n} jugadores`), algunos textos en
+  constantes de módulo y valores por defecto, 7 textos pequeños de `ui.tsx` (que se usa a la vez
+  en cliente y servidor), 2 avisos que se montan por trozos, y los **números y fechas**, que
+  siguen en formato español (coma decimal).
+
+### Verificado
+
+- `npm run verificar`: codificación, «use server», i18n estricto, **521 de 521** y `tsc`.
+- `npm run build`: pendiente.
+
+## [0.48.0] — 2026-10-16
+
+El inglés: medirlo, poder verlo en local, e Inicio traducido entero.
+**Sin migración ni dependencias nuevas.**
+
+### El tamaño real del trabajo
+
+- **~878 textos sin traducir en 89 ficheros**, medido. Más los avisos de las Server Actions,
+  que viven en ficheros `.ts` y el medidor no cuenta. Antes había 64 traducidos.
+- Por zonas: estadísticas, ranking y top decks 222 · torneos 185 · ajustes 122 · partidas y
+  mazos 118 · liga y calendario 93 · comunes 74 · perfil y cuenta 64.
+
+### Añadido
+
+- **`npm run verificar:i18n`**: cuánto falta y dónde (`--todos` lista todos los ficheros).
+  Con `--estricto`, que va dentro de `npm run verificar`, falla si una pantalla YA traducida
+  vuelve a tener texto escrito a mano: así no puede retroceder sin que nadie se entere.
+  Comprobado metiendo un texto a mano en Inicio a propósito: falla; quitándolo, pasa.
+- **`ARENA_INGLES=1`**: enciende el inglés solo donde esté puesta la variable. En tu PC, para
+  ver cómo va quedando; en producción, sin ella, todo el mundo sigue en español.
+- **`trf()`** (huecos para valores), **`ordinal()`** (3.º / 3rd, con 11th, 12th y 13th como
+  excepción) y **`diasRelativos()`** en `lib/i18n.ts`, con 6 pruebas.
+
+### Inicio, traducido entero
+
+- La pantalla, el bloque «El último Regional» con sus cuatro insignias, los días de la semana
+  (con `Intl`), los días relativos, las fechas y los ordinales: **87 claves nuevas** en los dos
+  idiomas. El diccionario inglés está tipado de forma que, si falta una clave, no compila.
+
+### Corregido
+
+- **Tu %V en Inicio sobre muy pocas partidas.** «Tú: 0 %» tras una sola derrota se leía igual
+  que un 0 % sobre cien. Por debajo de 5 partidas sale el guion y cuántas faltan.
+- **El medidor no veía los textos de varias líneas**, y daba una cifra más baja de la real
+  (759 en vez de 878). Arreglado antes de entregarlo.
+
+### Verificado
+
+- `npm run verificar`: codificación, «use server», i18n estricto, **521 de 521** y `tsc`.
+- `npm run build`: pendiente.
+
+## [0.47.0] — 2026-10-16
+
+Las seis mejoras de la revisión y los umbrales de paso de fase.
+**Lleva migración:** `drizzle/0019_v0_47_0.sql`. Sin dependencias nuevas.
+
+### 1. `src/actions/index.ts` partido por temas
+
+- De **3.088 líneas y 60 acciones** a ocho ficheros: `cuenta`, `mazos`, `partidas`, `torneos`,
+  `ligas`, `calendario`, `ajustes` y `metagame`, más `_comun.ts` con los 37 ayudantes.
+  `index.ts` queda como barril que reexporta: **ningún componente cambia sus importaciones**.
+- Comprobado tres veces: las mismas 60 acciones, cada uno de los 97 trozos del original
+  exactamente una vez (ni perdido ni duplicado), y `tsc` limpio. Sin ciclos: ningún ayudante
+  llama a una acción.
+- `_comun.ts` va SIN `"use server"` (tiene constantes y funciones normales) y con
+  `server-only`. El barril, también sin la directiva.
+- **`npm run verificar:acciones`** (nuevo, dentro de `npm run verificar`): un fichero
+  `"use server"` solo puede exportar funciones `async`, y eso no lo comprueban ni `tsc` ni los
+  tests; solo falla el build.
+
+### 2. Los formularios ya no se llevan `lib/stats` al navegador
+
+- `suggestedRounds` y `suggestedTopCut` se mudan a **`src/lib/sugerencias.ts`**. Los
+  formularios de torneo y de liga son de cliente y las importaban de `stats.ts`, arrastrando
+  sus 1.284 líneas para usar dos funciones. Ya **ningún componente de cliente importa valores
+  de `lib/stats`**.
+
+### 3. Código muerto fuera
+
+- **`TournamentRounds.tsx` (724 líneas)**: el componente que daba nombre al fichero no se
+  pintaba en ningún sitio. Lo que sí se usaba, `RoundForm`, vive ahora en `RoundForm.tsx`
+  (477 líneas).
+- **`roundStage()`** y su tipo: solo los usaba ese componente. Fuera, con sus 9 pruebas.
+
+### 4. Una sola `fechaCorta`
+
+- Había tres: una en Inicio con `Intl`, otra en `ultimosCp.ts` con los meses escritos a mano
+  (ponía «sep» donde la otra «sept»), y una tercera que solo recortaba a día. Ahora hay una, en
+  `format.ts`; la tercera se llama `soloDia`, que es lo que hace.
+
+### 5. El inglés, apagado hasta que esté entero
+
+- Solo había 52 textos traducidos y 17 de 25 pantallas sin ninguno. **`INGLES_DISPONIBLE`** en
+  `lib/i18n.ts`: con él a `false`, el botón EN no se pinta y todo el mundo ve español, **también
+  quien tuviera la cookie en inglés**, que si no se quedaría atascado sin botón para volver. Nada
+  se borra: el día que esté traducido, se pone a `true`.
+
+### 6. `/torneos` sin el snapshot (Fase B)
+
+- `playerCp()` pedía el snapshot entero y solo usaba tres cosas. Ahora su parámetro es
+  `DatosCp` (configuración, resultados por jugador, torneos por id): **el motor de CP no se ha
+  tocado**, y quien le pasaba el snapshot entero sigue funcionando igual.
+- `loadTorneosPantalla()`: torneos con sus resultados, jugadores, índice de mazos y **solo las
+  rondas de torneo**, sin las jornadas de liga ni los amistosos. Devuelve las mismas formas que
+  el snapshot, así que la pantalla no cambia de lógica.
+- `loadTournamentMatches()` trae ahora también los juegos de esas rondas: una ronda apuntada
+  juego a juego no tiene escrito el resultado de la serie.
+
+### Añadido — umbrales de paso de fase
+
+- **Columnas `phase2_points`, `phase2_top` y `cut_points`.** La regla de los online como
+  Moujii's Dojo: pasan los que lleguen a los puntos **o** el top N, lo que dé más gente.
+- En el formulario, dentro de «Estructura», cuando hay segunda fase: «Para pasar a la fase 2:
+  [16] puntos, o el top [8]» y «Para el top cut: [24] puntos, o el top 8».
+- **El veredicto cambia de forma que no es evidente:** con los puntos se pasa seguro, pero sin
+  ellos **no es «fuera», es «depende»**: si no llegan N personas, pasan los N primeros, y la app
+  no sabe cómo le ha ido a los demás. Decir «fuera» sería decirle a alguien que no ha entrado
+  cuando quizá sí. El camino al corte enseña la regla en una frase.
+- Solo con estructura propia: en un torneo oficial manda el reglamento.
+- `veredictoPaso()` y `reglaDePaso()` en `estructura.ts`, con 7 pruebas.
+
+### Sin cambios
+
+- Los torneos sin participación siguen **borrándose** a los tres días de pasada su fecha, como
+  ya hacían desde la v0.19.
+
+### Verificado
+
+- `npm run verificar`: codificación, regla «use server», **515 de 515** y `tsc` sin errores.
+- `npm run build` y la migración: pendientes.
+
+## [0.46.0] — 2026-10-16
+
+Pantalla de carga con una Ball. **Sin migración ni dependencias nuevas.**
+
+### Cambiado
+
+- **Las seis pantallas de carga** (la general y las de Estadísticas, Ranking, Resultados, Top
+  Decks y Torneos) enseñan una Ball en el centro con un círculo blanco girando, en lugar del
+  esqueleto gris. Sale también al cambiar de pestaña, porque Next la pinta mientras el servidor
+  contesta. Cada una con su texto («Cargando el ranking…», «Mirando el metagame…»).
+- **La Ball cambia en cada carga**: Poké Ball, Super Ball y Ultra Ball la mitad de las veces, y
+  de vez en cuando una Master, Lujo, Ocaso, Veloz, Sana, Turno o Honor Ball. Se mueve como cuando
+  intenta escaparse: dos sacudidas y una pausa.
+
+### Decisiones
+
+- **Las Balls no se dibujan.** Son los sprites de objetos del repositorio oficial de PokéAPI,
+  que los aloja para que se usen. Misma regla que en la v0.11 con los Pokémon.
+- **Sobre una ficha oscura**, la de la barra lateral: el círculo es blanco, y blanco sobre el
+  fondo claro de la app no se vería.
+- **La Ball se elige después de montar**: si se eligiera al pintar, el servidor y el navegador
+  sacarían una distinta y React se quejaría. Mientras tanto se ve el círculo.
+- **150 ms de retraso antes de aparecer**, para que no parpadee cuando el servidor contesta rápido.
+- **Con las animaciones apagadas se sigue viendo**: todas acaban en un fotograma visible. Es el
+  fallo del easter egg de la v0.40, evitado desde el diseño.
+- Si el sprite no carga, se queda el círculo solo.
+- `src/lib/balls.ts` (puro), con 4 pruebas.
+
+### Eliminado
+
+- `PageSkeleton`, `SkeletonText`, `SkeletonCard` y `SkeletonRows`: sin uso tras el cambio. Se
+  queda `Skeleton`, que usan las gráficas diferidas mientras cargan.
+
+### Verificado
+
+- `npm run verificar`: codificación limpia, **515 de 515**, `tsc` sin errores propios.
+- Auditoría de las 60 Server Actions: todas las que escriben datos comprueban sesión y permisos.
+- `npm run build`: pendiente.
+
+## [0.45.0] — 2026-10-16
+
+Estructura de torneo con segunda fase, cierre automático y más series online.
+**Lleva migración:** `drizzle/0018_v0_45_0.sql`. Sin dependencias nuevas.
+
+### Añadido — segunda fase suiza y top cut, a la vista
+
+- **Columna `tournaments.rounds_phase2`**: cuántas de las rondas suizas son de una segunda
+  fase propia. `rounds` sigue siendo el TOTAL de rondas suizas, como siempre, así que el resto
+  de la app no cambia. Permite describir un online como Moujii's Dojo: 8 rondas, después 3 más
+  con los que pasan, y top 8.
+- **Formulario de torneo**: un bloque «Estructura» con las rondas de la fase 1, la segunda fase
+  opcional y el tamaño del corte, juntos y a la vista. Botones de más y menos de 44 px en vez de
+  teclear; chips para el corte (Sin corte · Top 4 · 8 · 16 · 32 · Otro), con el recomendado por
+  asistencia marcado; y un resumen arriba: «8 + 3 rondas suizas · top 8». Antes el corte estaba
+  escondido dentro de «Más detalles».
+- La segunda fase propia solo se ofrece donde no hay tabla oficial de dos fases (online, tienda,
+  eventos propios). En un Regional el reglamento ya pone el Día 1 y el Día 2.
+
+### Cambiado — una sola fuente para las fases
+
+- **`formaDe()` aprende la fase 2 tecleada**, que manda sobre la tabla como ya mandaban las
+  rondas y el corte. Devuelve `dosFases` y `faseManual`.
+- **`CaminoAlCorte` deja de hacer su propia cuenta** desde la tabla oficial y usa `formaDe`,
+  la misma función que la ficha del torneo. Antes eran dos cálculos que podían no coincidir.
+- Con estructura propia, las rondas se etiquetan «Fase 2» (no «Día 2», que es el nombre
+  oficial) y la eliminatoria sale etiquetada aunque el torneo sea de tipo online: antes sus
+  rondas salían todas como suizo normal.
+- Una fase 2 imposible (que no deja ninguna ronda en la fase 1) se ignora al leer y no se
+  guarda al escribir.
+
+### Añadido — cierre automático
+
+- **Un torneo en curso, con participación, cuya fecha pasó hace más de una semana, se cierra
+  solo**, en el cron de cada noche y en el botón «Limpiar ahora». Hace lo mismo que el botón
+  «Cerrar» de la ficha. No toca los borradores (solo se cierra desde «en curso») ni los vacíos.
+  Los de varios días cuentan desde el último. `torneosParaCerrar()`, con 7 pruebas.
+- Los torneos **sin participación** siguen como hasta ahora: se **borran** a los tres días de
+  pasada su fecha (v0.19).
+
+### Cambiado — más torneos online en el calendario
+
+- **Series seguidas** (`src/data/seriesSeguidas.ts`): **Crown of Spain** y **Mouji's Dojo**
+  entran siempre, con dos ediciones recientes y sin mínimo de jugadores. Se comparan sin
+  mayúsculas, acentos, espacios ni símbolos, así que «🏆 Moujii's Dojo 🏆» encaja con «mouji».
+- **Series más frecuentes que semanales.** Antes se exigían de 6 a 8 días entre ediciones, y una
+  diaria se descartaba justo por jugarse más. Ahora vale cualquier frecuencia hasta semanal
+  (hasta quincenal para las seguidas).
+- **Varias franjas por semana.** Una serie de martes y sábados se preveía solo en sábado,
+  porque se miraba la última edición. Ahora se prevé cada día en que se juega, con un tope de
+  siete fechas por serie para que una diaria no llene el calendario.
+- 7 pruebas nuevas (17 en total).
+
+### Encontrado
+
+- El componente `TournamentRounds` (el que usaba `roundStage`) no se pinta en ningún sitio; de
+  ese fichero solo se usa `RoundForm`. Es código muerto: candidato a retirarse.
+
+### Verificado
+
+- `npm run verificar`: codificación limpia, **511 de 511**, `tsc` sin errores propios.
+- `npm run build` y la migración: pendientes.
+
 ## [0.44.0] — 2026-10-15
 
 Jornadas sin repetir, buscador de mazos con sprites, gráfica en su cuadro y torneos online

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    La salida de emergencia — v0.35.
@@ -16,6 +18,8 @@ import { useState } from "react";
    ========================================================================= */
 
 export function ServiceWorkerOff() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [estado, setEstado] = useState<"quieto" | "yendo" | "hecho" | "nada">("quieto");
 
   const desactivar = async () => {
@@ -27,7 +31,7 @@ export function ServiceWorkerOff() {
 
       // El propio worker borra sus cachés al recibir el mensaje; aquí se
       // fuerza la baja por si estuviera parado y no llegara a escucharlo.
-      regs.forEach((r) => r.active?.postMessage("desactivar"));
+      regs.forEach((r) => r.active?.postMessage(tr(lng, "x.ac7fff22")));
       await Promise.all(regs.map((r) => r.unregister()));
       if ("caches" in window) {
         const nombres = await caches.keys();
@@ -45,13 +49,13 @@ export function ServiceWorkerOff() {
   return (
     <div className="flex flex-col gap-1.5">
       <button type="button" className="btn w-fit" onClick={desactivar} disabled={estado === "yendo"}>
-        {estado === "yendo" ? "Desactivando…" : "Desactivar modo sin conexión"}
+        {estado === "yendo" ? "Desactivando…" : tr(lng, "x.8a0d0cae")}
       </button>
       <p className="text-xs text-muted">
-        {estado === "hecho" && "Desactivado. Recargando…"}
-        {estado === "nada" && "No había nada que desactivar."}
+        {estado === "hecho" && tr(lng, "x.9db49f0e")}
+        {estado === "nada" && tr(lng, "x.6633fd67")}
         {(estado === "quieto" || estado === "yendo") &&
-          "Úsalo si la app se queda enseñando una versión antigua después de un despliegue. Se puede volver a activar recargando."}
+          tr(lng, "x.2927b37a")}
       </p>
     </div>
   );

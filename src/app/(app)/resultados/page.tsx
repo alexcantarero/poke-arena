@@ -13,6 +13,8 @@ import { getSeason } from "@/lib/cp";
 import { Empty, MatchCard, MatchList, PageHead } from "@/components/ui";
 import { FilterPanel } from "@/components/FilterPanel";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Resultados" };
 
@@ -38,6 +40,8 @@ export default async function ResultsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   const filter = parseMatchFilter(q);
   const plan = planDeConsulta(filter);
@@ -119,11 +123,11 @@ export default async function ResultsPage({
   return (
     <>
       <PageHead
-        title="Resultados"
+        title={tr(lng, "x.b164a1ab")}
         sub={subtitulo}
         actions={
           <Link className="btn btn-brand hidden md:inline-flex" href="/partidas/nueva">
-            <Icon name="plus" className="size-4" /> Registrar
+            <Icon name="plus" className="size-4" /> {tr(lng, "x.caacc66c")}
           </Link>
         }
       />
@@ -145,8 +149,7 @@ export default async function ResultsPage({
 
       {!plan.paginable && pageData.totalRecortado && (
         <p className="mb-3 text-xs text-muted">
-          Filtrando por arquetipo sobre un historial muy largo: la cuenta puede quedarse corta.
-          Acota también por fecha o por torneo para verlo completo.
+          {tr(lng, "x.342e6493")}
         </p>
       )}
 
@@ -169,25 +172,25 @@ export default async function ResultsPage({
             ))}
           </MatchList>
         ) : (
-          <Empty title="Ninguna partida con estos filtros">
+          <Empty title={tr(lng, "x.f75fc8cd")}>
             {isFiltered(filter)
-              ? <><a className="underline underline-offset-2" href="/resultados?limpiar=1">Quítalos</a> y vuelve a mirar.</>
-              : "Registra la primera y aparecerá aquí."}
+              ? <><a className="underline underline-offset-2" href="/resultados?limpiar=1">{tr(lng, "x.b605ff08")}</a> {tr(lng, "x.b2639653")}</>
+              : tr(lng, "x.2bf60f0b")}
           </Empty>
         )}
       </div>
 
       {(hayMas || pagina > 1) && (
-        <nav className="mt-3 flex items-center justify-between gap-2" aria-label="Paginación">
+        <nav className="mt-3 flex items-center justify-between gap-2" aria-label={tr(lng, "x.f0f3ce8c")}>
           {pagina > 1 ? (
             <Link href={hrefPagina(pagina - 1)} scroll={false} className="btn">
-              <Icon name="back" className="size-4" /> Anteriores
+              <Icon name="back" className="size-4" /> {tr(lng, "x.e859e9dd")}
             </Link>
           ) : <span />}
           <span className="text-xs text-muted tabular">Página {pagina}</span>
           {hayMas ? (
             <Link href={hrefPagina(pagina + 1)} scroll={false} className="btn">
-              Siguientes
+              {tr(lng, "x.cdf489d6")}
             </Link>
           ) : <span />}
         </nav>

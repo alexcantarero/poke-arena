@@ -1,5 +1,7 @@
 import { DATE_PRESETS, MATCH_SCOPES, countFilters, type DatePreset, type MatchFilter, type MatchScope } from "@/lib/filters";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    El panel de filtros, uno para todas las pantallas.
@@ -47,11 +49,13 @@ type Props = {
 
 const TODOS = "— todos —";
 
-export function FilterPanel({
+export async function FilterPanel({
   action, filter, show = ["scope", "date", "tournament", "competition", "archetype", "player"],
   tournaments = [], competitions = [], tournamentKinds = [], competitionKinds = [],
   archetypes = [], players = [], formats = [], keep = {},
 }: Props) {
+  const lng = await getLang(); // v0.49
+
   const n = countFilters(filter);
   const ver = (k: NonNullable<Props["show"]>[number]) => show.includes(k);
 
@@ -64,7 +68,7 @@ export function FilterPanel({
           {n > 0 && <span className="chip chip-brand tabular">{n}</span>}
         </span>
         <span className="text-xs font-normal text-muted">
-          {n > 0 ? "toca para cambiarlos" : "sin filtrar"}
+          {n > 0 ? "toca para cambiarlos" : tr(lng, "x.b597b9b0")}
         </span>
       </summary>
 
@@ -76,7 +80,7 @@ export function FilterPanel({
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ver("scope") && (
-            <Campo label="De dónde" id="f-ambito">
+            <Campo label={tr(lng, "x.619d40ec")} id="f-ambito">
               <select id="f-ambito" name="ambito" className="input" defaultValue={filter.scope}>
                 {(Object.entries(MATCH_SCOPES) as Array<[MatchScope, string]>).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -87,7 +91,7 @@ export function FilterPanel({
 
           {ver("date") && (
             <>
-              <Campo label="Cuándo" id="f-cuando">
+              <Campo label={tr(lng, "x.b2d383d2")} id="f-cuando">
                 <select
                   id="f-cuando" name="cuando" className="input"
                   defaultValue={filter.preset === "custom" ? "all" : filter.preset}
@@ -98,18 +102,18 @@ export function FilterPanel({
                 </select>
               </Campo>
 
-              <Campo label="O un rango" id="f-desde">
+              <Campo label={tr(lng, "x.184419d0")} id="f-desde">
                 <div className="flex items-center gap-1.5">
                   <input
                     id="f-desde" name="desde" type="date" className="input min-w-0 flex-1 px-2"
                     defaultValue={filter.preset === "custom" ? filter.from : ""}
-                    aria-label="Desde"
+                    aria-label={tr(lng, "x.966c7c4c")}
                   />
                   <span className="flex-none text-xs text-muted">a</span>
                   <input
                     name="hasta" type="date" className="input min-w-0 flex-1 px-2"
                     defaultValue={filter.preset === "custom" ? filter.to : ""}
-                    aria-label="Hasta"
+                    aria-label={tr(lng, "x.ccdaad85")}
                   />
                 </div>
               </Campo>
@@ -117,43 +121,43 @@ export function FilterPanel({
           )}
 
           {ver("tournament") && tournaments.length > 0 && (
-            <Campo label="Torneo" id="f-torneo">
+            <Campo label={tr(lng, "x.250eff11")} id="f-torneo">
               <Select id="f-torneo" name="torneo" value={filter.tournamentId} options={tournaments} />
             </Campo>
           )}
 
           {ver("tournamentKind") && tournamentKinds.length > 0 && (
-            <Campo label="Tipo de torneo" id="f-tipoTorneo">
+            <Campo label={tr(lng, "x.bd5fd7b1")} id="f-tipoTorneo">
               <Select id="f-tipoTorneo" name="tipoTorneo" value={filter.tournamentKind} options={tournamentKinds} />
             </Campo>
           )}
 
           {ver("competition") && competitions.length > 0 && (
-            <Campo label="Competición" id="f-comp">
+            <Campo label={tr(lng, "x.c28ef3fd")} id="f-comp">
               <Select id="f-comp" name="comp" value={filter.competitionId} options={competitions} />
             </Campo>
           )}
 
           {ver("competitionKind") && competitionKinds.length > 0 && (
-            <Campo label="Tipo de competición" id="f-tipoComp">
+            <Campo label={tr(lng, "x.76ed4400")} id="f-tipoComp">
               <Select id="f-tipoComp" name="tipoComp" value={filter.competitionKind} options={competitionKinds} />
             </Campo>
           )}
 
           {ver("archetype") && archetypes.length > 0 && (
-            <Campo label="Arquetipo" id="f-arquetipo">
+            <Campo label={tr(lng, "x.92fdb4c1")} id="f-arquetipo">
               <Select id="f-arquetipo" name="arquetipo" value={filter.archetypeId} options={archetypes} />
             </Campo>
           )}
 
           {ver("player") && players.length > 0 && (
-            <Campo label="Jugador" id="f-jugador">
+            <Campo label={tr(lng, "x.588eb828")} id="f-jugador">
               <Select id="f-jugador" name="jugador" value={filter.playerId} options={players} />
             </Campo>
           )}
 
           {ver("round") && (
-            <Campo label="Jornada" id="f-jornada">
+            <Campo label={tr(lng, "x.74d2b97e")} id="f-jornada">
               <input
                 id="f-jornada"
                 name="jornada"
@@ -161,13 +165,13 @@ export function FilterPanel({
                 min="1"
                 className="input"
                 defaultValue={filter.round ?? ""}
-                placeholder="Todas"
+                placeholder={tr(lng, "x.8a3c3440")}
               />
             </Campo>
           )}
 
           {ver("format") && formats.length > 0 && (
-            <Campo label="Formato" id="f-formato">
+            <Campo label={tr(lng, "x.c25b742e")} id="f-formato">
               <Select id="f-formato" name="formato" value={filter.format} options={formats} />
             </Campo>
           )}
@@ -175,19 +179,19 @@ export function FilterPanel({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button className="btn btn-brand min-w-36 flex-1 sm:flex-none" type="submit">
-            <Icon name="check" className="size-4" /> Aplicar
+            <Icon name="check" className="size-4" /> {tr(lng, "x.4ac3b311")}
           </button>
           {n > 0 && (
             // Un enlace y no un botón: quitar los filtros es ir a la pantalla
             // sin query, y eso es navegar, no enviar un formulario.
             /* v0.21: `limpiar=1` borra también los filtros recordados (FilterMemory). */
-            <a className="btn btn-ghost" href={queryOf(action, { ...keep, limpiar: "1" })}>Quitar filtros</a>
+            <a className="btn btn-ghost" href={queryOf(action, { ...keep, limpiar: "1" })}>{tr(lng, "x.632d4ca5")}</a>
           )}
         </div>
 
         {ver("date") && (
           <p className="mt-2 text-xs text-muted">
-            Si escribes un rango de fechas, manda sobre el atajo de arriba.
+            {tr(lng, "x.c8b56d50")}
           </p>
         )}
       </form>

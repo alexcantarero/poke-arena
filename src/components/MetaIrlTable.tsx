@@ -4,6 +4,8 @@ import { fmtDate, pct } from "@/lib/format";
 import { mejorConversion, top4Rate, top8Rate, type IrlRow, type IrlSummary } from "@/lib/metaIrl";
 import { Empty, isOtherArchetype, Kpi, OtherMark } from "@/components/ui";
 import { CALENDAR_KINDS } from "@/lib/calendar";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    El metagame de papel: lo que cortó en los Regionales.
@@ -24,7 +26,9 @@ import { CALENDAR_KINDS } from "@/lib/calendar";
    sin su contexto se cita luego sin él.
    ========================================================================= */
 
-export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary; nuestros: Set<string>; query?: string }) {
+export async function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary; nuestros: Set<string>; query?: string }) {
+  const lng = await getLang(); // v0.49
+
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const needle = query.toLowerCase();
   const filas = meta.rows.filter((r) => {
@@ -37,14 +41,12 @@ export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary;
   if (!meta.events) {
     return (
       <section className="card">
-        <Empty icon="trophy" title="Todavía no has importado ningún Regional">
-          En Ajustes → «Metagame presencial» se pega la clasificación de un Regional y la app se
-          queda con los mazos. Con un evento al mes ya se ve por dónde va el formato de papel,
-          que no siempre es por donde va el online.
+        <Empty icon="trophy" title={tr(lng, "x.af67e92c")}>
+          {tr(lng, "x.c43d8886")}
         </Empty>
         <div className="border-t border-line-soft px-4 py-3">
           <Link className="btn btn-brand w-full sm:w-auto" href="/ajustes">
-            Ir a importar el primero
+            {tr(lng, "x.75a45f60")}
           </Link>
         </div>
       </section>
@@ -54,31 +56,31 @@ export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary;
   return (
     <>
       <p className="mb-4 rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-ink-2">
-        <b>Esto es el metagame del corte, no el del torneo.</b>{" "}
+        <b>{tr(lng, "x.192135da")}</b>{" "}
         {cobertura != null
           ? `Lo importado llega hasta el puesto ${cobertura}, así que lo que se ve son los mazos que llegaron ahí.`
-          : "Lo importado son desgloses por mazo, sin puestos."}{" "}
+          : tr(lng, "x.1c940140")}{" "}
         Un mazo que juega mucha gente y que no corta sale aquí bajo, y es correcto: la muestra
         está elegida por resultados. Todo se ha metido a mano desde webs públicas; la app no
         raspa ninguna.
       </p>
 
       <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Kpi tone="brand" icon="trophy" label="Eventos" value={meta.events}
+        <Kpi tone="brand" icon="trophy" label={tr(lng, "x.c7b33878")} value={meta.events}
           note={meta.latest ? `último: ${fmtDate(meta.latest.date)}` : ""} />
-        <Kpi tone="brand" icon="deck" label="Listas" value={meta.entries.toLocaleString("es")}
+        <Kpi tone="brand" icon="deck" label={tr(lng, "x.2a4d9a65")} value={meta.entries.toLocaleString("es")}
           note={meta.attendance ? `de ${meta.attendance.toLocaleString("es")} asistentes` : "importadas"} />
-        <Kpi tone="brand" icon="star" label="Más jugado"
+        <Kpi tone="brand" icon="star" label={tr(lng, "x.ab2a0aaa")}
           value={filas[0] ? `${Math.round(filas[0].share * 100)}%` : "—"}
           note={filas[0]?.name ?? ""} />
-        <Kpi tone="diff" icon="compare" label="Mejor en top 4"
+        <Kpi tone="diff" icon="compare" label={tr(lng, "x.94fa659c")}
           value={campeon?.name ?? "—"}
-          note={campeon ? `${pct(top4Rate(campeon), 0)} de sus listas` : "hacen falta más datos"} />
+          note={campeon ? `${pct(top4Rate(campeon), 0)} de sus listas` : tr(lng, "x.89bb4d1b")} />
       </div>
 
       <section className="card">
         <div className="card-head">
-          <h2 className="text-lg font-bold">Lo que cortó</h2>
+          <h2 className="text-lg font-bold">{tr(lng, "x.14f961e3")}</h2>
           <span className="text-xs text-muted">
             {meta.events} evento{meta.events === 1 ? "" : "s"} importado{meta.events === 1 ? "" : "s"}
           </span>
@@ -96,7 +98,7 @@ export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary;
                 <span className="flex items-center gap-1.5">
                   <span className="truncate text-sm font-semibold">{r.name}</span>
                   {nuestros.has(norm(r.name)) && (
-                    <span className="chip chip-diff flex-none text-[10px]">lo tenéis</span>
+                    <span className="chip chip-diff flex-none text-[10px]">{tr(lng, "x.84ef7ea0")}</span>
                   )}
                 </span>
                 <span className="block text-[11px] text-muted tabular">
@@ -112,19 +114,19 @@ export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary;
                   <span className="block font-display text-base font-extrabold tabular text-brand">
                     {Math.round(r.share * 100)}%
                   </span>
-                  <span className="block text-[10px] text-muted">cuota</span>
+                  <span className="block text-[10px] text-muted">{tr(lng, "x.cdd02ce6")}</span>
                 </span>
                 <span className="w-12">
                   <span className="block font-display text-base font-extrabold tabular">
                     {pct(top8Rate(r), 0)}
                   </span>
-                  <span className="block text-[10px] text-muted">top 8</span>
+                  <span className="block text-[10px] text-muted">{tr(lng, "x.e2575a95")}</span>
                 </span>
                 <span className="hidden w-12 sm:block">
                   <span className="block font-display text-base font-extrabold tabular">
                     {pct(top4Rate(r), 0)}
                   </span>
-                  <span className="block text-[10px] text-muted">top 4</span>
+                  <span className="block text-[10px] text-muted">{tr(lng, "x.26c8e96f")}</span>
                 </span>
               </span>
             </li>
@@ -133,9 +135,8 @@ export function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary;
 
         <div className="border-t border-line-soft px-4 py-3 text-xs text-muted">
           <p>
-            <b>Cuota</b> es qué parte de las listas importadas es ese mazo. <b>Top 8</b> y{" "}
-            <b>top 4</b> son cuántas de sus listas llegaron ahí — solo cuentan las filas que
-            traían puesto, así que un evento metido como desglose suma cuota pero no conversión.
+            <b>{tr(lng, "x.d344b5b2")}</b> {tr(lng, "x.dd2c55a4")} <b>{tr(lng, "x.55d0b1f1")}</b> y{" "}
+            <b>{tr(lng, "x.26c8e96f")}</b> {tr(lng, "x.44871d53")}
           </p>
         </div>
       </section>
@@ -163,12 +164,14 @@ export type EventoCitado = {
  * dentro de seis meses nadie se acuerda de si el top 32 de Lille lo sacó de
  * Limitless o de otro sitio. La cita va debajo de la tabla, siempre.
  */
-export function MetaIrlEvents({ eventos }: { eventos: EventoCitado[] }) {
+export async function MetaIrlEvents({ eventos }: { eventos: EventoCitado[] }) {
+  const lng = await getLang(); // v0.49
+
   if (!eventos.length) return null;
   return (
     <section className="card mt-4">
       <div className="card-head">
-        <h2 className="text-base font-bold">De dónde sale</h2>
+        <h2 className="text-base font-bold">{tr(lng, "x.617b2b43")}</h2>
         <span className="text-xs text-muted tabular">{eventos.length}</span>
       </div>
       <ul className="divide-y divide-line-soft">

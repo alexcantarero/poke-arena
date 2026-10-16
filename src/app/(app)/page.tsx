@@ -1,5 +1,5 @@
 import { getLang } from "@/lib/lang";
-import { tr } from "@/lib/i18n";
+import { diasRelativos, ordinal, tr, trf } from "@/lib/i18n";
 import { posicionesDe } from "@/lib/data";
 import Link from "next/link";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
@@ -7,7 +7,7 @@ import { readSession } from "@/lib/auth";
 import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
-import { byAgenda, pct, relDays, shortName, todayISO, wrColor } from "@/lib/format";
+import { byAgenda, fechaCorta, num, pct, shortName, todayISO, wrColor } from "@/lib/format";
 import { toneOf } from "@/lib/calendar";
 import {
   Empty, Kpi, PageHead, PlayerTag, TournamentEmblem,
@@ -46,10 +46,11 @@ async function cuotaOnline(): Promise<Array<{ name: string; share: number }>> {
 }
 
 /** «18 sept.» — la fecha corta de las listas. */
-const fechaCorta = (iso: string, locale = "es-ES") =>
-  new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" })
-    .format(new Date(`${iso}T00:00:00Z`));
-const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+/** v0.48 — por debajo de esto, tu %V en Inicio sale como guion. */
+const MIN_PARTIDAS_PCT = 5;
+/** Días desde hoy hasta una fecha (negativo si ya pasó). */
+const diasHasta = (iso: string) =>
+  Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${todayISO()}T12:00:00Z`)) / 86_400_000);
 
 export default async function HomePage({
   searchParams,
@@ -83,6 +84,8 @@ export default async function HomePage({
     ? played.filter((m) => m.playerAId === session.playerId || m.playerBId === session.playerId).length
     : 0;
   const lang = await getLang();
+  // v0.48 — el día de la semana en su idioma: «lun» / «Mon».
+  const diaCorto = new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "es-ES", { weekday: "short", timeZone: "UTC" });
   const myCp = session ? playerCp(snap, session.playerId) : null;
   const archs = archetypeStats(played, snap.archIndex, undefined, snap.archById);
   const today = todayISO();
@@ -164,7 +167,7 @@ export default async function HomePage({
       const a = archDe(r);
       return {
         playerId: r.playerId, tournamentId: t.id, umbralDiaDos: umbral, topCut: corte,
-        archetypeId: a?.id ?? null, archetypeName: a?.name ?? "Mazo sin anotar",
+        archetypeId: a?.id ?? null, archetypeName: a?.name ?? tr(lang, "home.deckUnknown"),
         main: a?.main ?? "", secondary: a?.secondary ?? "",
         placement: r.placement, wins: r.wins, losses: r.losses, ties: r.ties,
       };
@@ -194,23 +197,23 @@ export default async function HomePage({
       vista, hrefs,
       evento: ev ? {
         id: ev.id,
-        name: ev.name, date: fechaCorta(ev.date), location: ev.location || null,
+        name: ev.name, date: fechaCorta(ev.date, lang === "en" ? "en-GB" : "es-ES"), location: ev.location || null,
         playerCount: ev.playerCount,
-        muestra: ev.coverage ? `top ${ev.coverage} importado (${p.campo.decks} listas)` : `${p.campo.decks} listas importadas`,
+        muestra: ev.coverage ? trf(lang, "home.importedTop", { top: ev.coverage, decks: p.campo.decks }) : trf(lang, "home.importedDecks", { decks: p.campo.decks }),
         href: "/topdecks?fuente=presencial",
       } : null,
       filas: p.filas, campo: p.campo,
-      etiquetaConversion: "al top cut",
+      etiquetaConversion: tr(lang, "home.toTopCut"),
       corte: p.corte.map((c) => ({ placement: c.placement, titulo: c.name, main: c.main, secondary: c.secondary })),
-      corteTitulo: "Top cut", corteTamano: p.campo.topCut,
+      corteTitulo: tr(lang, "home.topCut"), corteTamano: p.campo.topCut,
       top: top.rows.slice(0, 10).map((r) => ({
         key: r.key, name: r.name, main: r.main || undefined, secondary: r.secondary || undefined,
         share: r.share, decks: r.entries,
       })),
-      topNota: `${top.events} eventos · temporada ${temporada} · lo importado`,
+      topNota: trf(lang, "home.importedNote", { events: top.events, season: temporada }),
       recientes: irl.events.filter((e) => e.kind !== "city_league").slice(0, 6).map((e) => ({
         key: e.id, date: fechaCorta(e.date), name: e.name, tipo: etiquetaTipo(e.kind),
-        aside: e.playerCount ? `${e.playerCount.toLocaleString("es")} jugadores` : undefined,
+        aside: e.playerCount ? trf(lang, "home.players", { n: num(e.playerCount) }) : undefined,
         href: "/topdecks?fuente=presencial",
       })),
       regionales: irl.events
@@ -218,9 +221,9 @@ export default async function HomePage({
         .map((e) => ({ id: e.id, name: e.name, date: e.date })),
       vacio: (
         <>
-          Todavía no hay ningún Regional importado. Se importa en{" "}
-          <Link className="underline" href="/ajustes">Ajustes → Metagame presencial</Link>, pegando la
-          clasificación del top 32 o 64: solo se guardan puesto y mazo, ningún nombre.
+          {tr(lang, "home.noRegionalA")}{" "}
+          <Link className="underline" href="/ajustes">{tr(lang, "home.noRegionalLink")}</Link>
+          {tr(lang, "home.noRegionalB")}
         </>
       ),
     };
@@ -241,11 +244,11 @@ export default async function HomePage({
       evento: t ? {
         name: t.name, date: fechaCorta(t.date), location: t.city || t.venue || null,
         playerCount: t.playerCount,
-        muestra: `${r.resultados} del grupo`,
+        muestra: trf(lang, "home.fromGroup", { n: r.resultados }),
         href: `/torneos/${t.id}`,
       } : null,
       filas: ordenaPorCuota(conCuotaOnline(r.filas, online)), campo: r.campo,
-      etiquetaConversion: "a Día 2",
+      etiquetaConversion: tr(lang, "home.toDay2"),
       corte: [...t?.results ?? []]
         .sort((a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9))
         .map((x) => {
@@ -253,8 +256,8 @@ export default async function HomePage({
           const cp = t ? effectiveCp(temporadaEv, cpKindOf(t), x, t.playerCount) : 0;
           return {
             placement: x.placement ?? 0,
-            titulo: snap.playersById.get(x.playerId)?.name ?? "Alguien",
-            sub: a?.name ?? "Mazo sin anotar",
+            titulo: snap.playersById.get(x.playerId)?.name ?? tr(lang, "home.someone"),
+            sub: a?.name ?? tr(lang, "home.deckUnknown"),
             main: a?.main || undefined, secondary: a?.secondary || undefined,
             extra: (
               <span className="flex flex-none items-center gap-1.5 text-xs tabular">
@@ -264,21 +267,21 @@ export default async function HomePage({
             ),
           };
         }),
-      corteTitulo: "Vuestros resultados", corteTamano: topT,
+      corteTitulo: tr(lang, "home.yourResults"), corteTamano: topT,
       top: ordenaPorCuota(rTemp.filas).slice(0, 10).map((f) => ({
         key: f.key, name: f.name, main: f.main || undefined, secondary: f.secondary || undefined,
         share: f.field / decksTemp, decks: f.field,
       })),
-      topNota: `${rTemp.resultados} resultados en ${rTemp.torneos} torneos · temporada ${temporada}`,
+      topNota: trf(lang, "home.groupNote", { results: rTemp.resultados, tournaments: rTemp.torneos, season: temporada }),
       recientes: jugados.slice(0, 6).map((x) => {
         const mejor = Math.min(...x.results.map((r) => r.placement ?? 9e9));
         return {
           key: x.id, date: fechaCorta(x.date), name: x.name, tipo: etiquetaTipo(x.kind),
           href: `/torneos/${x.id}`,
-          aside: `${x.results.length} del grupo${Number.isFinite(mejor) && mejor < 9e9 ? ` · mejor ${mejor}.º` : ""}`,
+          aside: `${trf(lang, "home.fromGroup", { n: x.results.length })}${Number.isFinite(mejor) && mejor < 9e9 ? ` · ${trf(lang, "home.bestPlace", { n: ordinal(lang, mejor) })}` : ""}`,
         };
       }),
-      vacio: <>Nadie del grupo tiene todavía un Regional apuntado con resultado.</>,
+      vacio: <>{tr(lang, "home.noGroupRegional")}</>,
     };
   }
 
@@ -287,7 +290,7 @@ export default async function HomePage({
       <PageHead
         gradient
         title={snap.config.name}
-        sub={`${snap.config.season} · ${snap.activePlayerIds.length} jugadores · ${played.length} partidas`}
+        sub={trf(lang, "home.sub", { season: snap.config.season, players: snap.activePlayerIds.length, matches: played.length })}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
@@ -299,7 +302,7 @@ export default async function HomePage({
             value={<>{misPartidas}<span className="text-base font-semibold text-muted"> / {played.length}</span></>}
             note={tr(lang, "home.ofLeague")} />
         ) : (
-          <Kpi icon="results" tone="local" label="Partidas" value={played.length} note={`${played.filter((m) => !isInternal(m)).length} contra gente de fuera`} />
+          <Kpi icon="results" tone="local" label={tr(lang, "home.matches")} value={played.length} note={trf(lang, "home.vsOutside", { n: played.filter((m) => !isInternal(m)).length })} />
         )}
         {posiciones?.liga ? (
           <Kpi
@@ -320,37 +323,44 @@ export default async function HomePage({
           <Kpi
             tone="brand"
             icon="trophy"
-            label={mainComp ? shortName(mainComp.name, 16) : "Líder"}
+            label={mainComp ? shortName(mainComp.name, 16) : tr(lang, "home.leader")}
             value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
-            note={leader ? pct(leader.winRate, 0) : "sin datos"}
+            note={leader ? pct(leader.winRate, 0) : tr(lang, "home.noData")}
           />
         )}
         {mine
           ? <Kpi
               icon="user"
               tone={mine.winRate != null && mine.winRate >= 0.5 ? "win" : "neutral"}
-              label="Tú" value={pct(mine.winRate, 0)} note={`${mine.wins}V ${mine.losses}D · Elo ${mine.elo}`}
+              label={tr(lang, "home.you")}
+              /* v0.48 — un porcentaje sobre una o dos partidas no dice nada: un
+                 0 % tras una derrota se leía igual que un 0 % sobre cien. Por
+                 debajo de MIN_PARTIDAS_PCT se enseña el guion y cuántas faltan. */
+              value={mine.played >= MIN_PARTIDAS_PCT ? pct(mine.winRate, 0) : "—"}
+              note={mine.played >= MIN_PARTIDAS_PCT
+                ? trf(lang, "home.youNote", { w: mine.wins, l: mine.losses, elo: mine.elo })
+                : `${trf(lang, "home.youFew", { n: mine.played, min: MIN_PARTIDAS_PCT })} · Elo ${mine.elo}`}
             />
-          : <Kpi icon="deck" tone="global" label="Arquetipos" value={archs.length} note="vistos en la liga" />}
+          : <Kpi icon="deck" tone="global" label={tr(lang, "home.archetypes")} value={archs.length} note={tr(lang, "home.seenInLeague")} />}
         <Kpi
           icon="star"
           tone="diff"
-          label="Tus CP"
+          label={tr(lang, "home.yourCp")}
           value={myCp ? myCp.total : "—"}
-          note={myCp ? `temporada ${myCp.season}${myCp.confirmed ? "" : " · provisional"}` : "sin torneos"}
+          note={myCp ? `${trf(lang, "home.cpSeason", { season: myCp.season })}${myCp.confirmed ? "" : ` · ${tr(lang, "home.provisional")}`}` : tr(lang, "home.noTournaments")}
         />
       </div>
 
 
 
       {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
-      <UltimoRegional {...panel} />
+      <UltimoRegional {...panel} lang={lang} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
           <div className="card-head">
-            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Ranking Liga</h2>
-            <Link className="btn btn-ghost btn-sm" href="/ranking">Ver toda</Link>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lang, "home.leagueRanking")}</h2>
+            <Link className="btn btn-ghost btn-sm" href="/ranking">{tr(lang, "home.seeAll")}</Link>
           </div>
           {table.some((r) => r.played) ? (
             <ol className="divide-y divide-line-soft">
@@ -405,13 +415,13 @@ export default async function HomePage({
                 );
               })}
             </ol>
-          ) : <Empty title="Sin partidas todavía">Registra la primera y esto se llena solo.</Empty>}
+          ) : <Empty title={tr(lang, "home.noMatchesYet")}>{tr(lang, "home.noMatchesHint")}</Empty>}
         </section>
 
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Próximos Torneos</h2>
-            <Link className="btn btn-ghost btn-sm" href="/calendario">Calendario</Link>
+            <h2 className="text-lg font-bold">{tr(lang, "home.upcoming")}</h2>
+            <Link className="btn btn-ghost btn-sm" href="/calendario">{tr(lang, "nav./calendario")}</Link>
           </div>
           {upcoming.length ? (
             <ul className="divide-y divide-line-soft">
@@ -428,7 +438,7 @@ export default async function HomePage({
                         {varios ? <span className="text-sm">–{Number(item.endDate!.slice(8, 10))}</span> : null}
                       </span>
                       <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-2">
-                        {DIAS[new Date(`${item.date}T12:00:00Z`).getUTCDay()].slice(0, 3)}
+                        {diaCorto.format(new Date(`${item.date}T12:00:00Z`)).replace(".", "")}
                       </span>
                     </span>
                     <span className="min-w-0 flex-1">
@@ -443,7 +453,7 @@ export default async function HomePage({
                         >
                           {item.kindLabel}
                         </span>
-                        <span>{relDays(item.date)}</span>
+                        <span>{diasRelativos(lang, diasHasta(item.date))}</span>
                         {item.sub && <span className="truncate">· {item.sub}</span>}
                       </span>
                     </span>
@@ -463,8 +473,8 @@ export default async function HomePage({
               })}
             </ul>
           ) : (
-            <Empty title="Nada en la agenda">
-              Añade una jornada o apunta el próximo torneo al que vayáis.
+            <Empty title={tr(lang, "home.emptyAgenda")}>
+              {tr(lang, "home.emptyAgendaHint")}
             </Empty>
           )}
         </section>
@@ -480,7 +490,7 @@ export default async function HomePage({
             funcionan sin él, la URL se comparte, y `scroll={false}` evita que
             la página salte arriba al cambiar. */}
         <div className="flex gap-1.5 border-b border-line-soft px-3.5 py-2.5">
-          {([["cp", "Más CP"], ["recientes", "Recientes"]] as const).map(([v, label]) => (
+          {([["cp", tr(lang, "home.moreCp")], ["recientes", tr(lang, "home.recent")]] as const).map(([v, label]) => (
             <Link
               key={v}
               // Conserva `vista` (el selector de «El último Regional»): sin esto,
@@ -518,7 +528,7 @@ export default async function HomePage({
                   </Link>
                   <span className="mt-1.5 flex flex-wrap gap-1.5">
                     <span className="chip text-[11px]">{r.tipo}</span>
-                    {r.puesto ? <span className="chip text-[11px] tabular">{r.puesto}.º puesto</span> : null}
+                    {r.puesto ? <span className="chip text-[11px] tabular">{trf(lang, "home.place", { n: ordinal(lang, r.puesto) })}</span> : null}
                   </span>
                 </span>
                 {/* Aquí todos tienen CP: los ceros ya no entran en la lista. */}

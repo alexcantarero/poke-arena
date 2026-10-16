@@ -11,6 +11,8 @@ import { KpiCard } from "@/components/charts/KpiCard";
 import { TrendLineChartLazy } from "@/components/statistics/lazy";
 import { prepareDailyTrend } from "@/lib/chartData";
 import { matrizH2H } from "@/lib/h2h";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    v0.19 — Estadísticas de la liga, dentro de la propia sección de Liga.
@@ -24,13 +26,15 @@ import { matrizH2H } from "@/lib/h2h";
 
 type Fila = { id: string; player?: PublicPlayer; w: number; l: number };
 
-export function LigaStats({
+export async function LigaStats({
   matches, playersById, titulo = "Estadísticas de la liga", archIndex, archById,
 }: {
   matches: MatchFull[]; playersById: Map<string, PublicPlayer>; titulo?: string;
   /** v0.24: para los arquetipos de la liga. Sin ellos, ese bloque no sale. */
   archIndex?: Map<string, Archetype | undefined>; archById?: Map<string, Archetype>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const jugadas = matches.filter(isPlayed).filter((m) => m.playerBId && outcome(m).winner !== "tie");
   if (!jugadas.length) return null;
   const matriz = archIndex ? matchupMatrix(jugadas, archIndex, 1, archById) : null;
@@ -107,11 +111,11 @@ export function LigaStats({
     <section className="mb-5">
       <h2 className="mb-2 px-1 font-display text-xl font-bold">{titulo}</h2>
       <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <KpiCard label="Partidas" value={jugadas.length} sub={`${juegos} juegos disputados`} color="blue" />
-        <KpiCard label="Arquetipos" value={porArch.size} sub={`${usosTotales} mazos registrados`} color="purple" />
-        <KpiCard label="Jugadores" value={tabla.length} sub="con alguna partida" color="green" />
+        <KpiCard label={tr(lng, "x.64f94394")} value={jugadas.length} sub={`${juegos} juegos disputados`} color="blue" />
+        <KpiCard label={tr(lng, "x.ba25296c")} value={porArch.size} sub={`${usosTotales} mazos registrados`} color="purple" />
+        <KpiCard label={tr(lng, "x.b5291b8d")} value={tabla.length} sub={tr(lng, "x.c3da8d73")} color="green" />
         <KpiCard
-          label="Primer turno"
+          label={tr(lng, "x.6835d550")}
           value={pct(ft.winRate, 0)}
           sub={`${ft.n} juegos (gana 1.º)`}
           color={(ft.winRate ?? 0) > 0.55 ? "green" : "blue"}
@@ -127,8 +131,8 @@ export function LigaStats({
       <div className="grid grid-cols-1 gap-3">
         {arquetipos.length > 0 && (
           <div className="card min-w-0 p-4">
-            <h3 className="mb-1 font-display text-lg font-extrabold tracking-tight text-ink">Mazos más jugados</h3>
-            <p className="mb-3 text-xs text-muted">Uso y porcentaje de victorias por arquetipo.</p>
+            <h3 className="mb-1 font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.c5acf750")}</h3>
+            <p className="mb-3 text-xs text-muted">{tr(lng, "x.1595ca29")}</p>
             <ul className="flex flex-col gap-2.5">
               {arquetipos.map((r, i) => {
                 const wr = r.n ? r.w / r.n : null;
@@ -148,35 +152,35 @@ export function LigaStats({
               })}
             </ul>
             <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
-              <span>Usos: cada lado de cada partida.</span><span>%V: victorias entre usos.</span>
+              <span>{tr(lng, "x.a2821e76")}</span><span>{tr(lng, "x.7cb71221")}</span>
             </p>
           </div>
         )}
 
         <div className="card min-w-0 p-4">
-          <h3 className="mb-1 font-display text-lg font-extrabold tracking-tight text-ink">Enfrentamientos entre mazos</h3>
-          <p className="mb-3 text-xs text-muted">Porcentaje de victorias del mazo de la fila contra el de la columna.</p>
+          <h3 className="mb-1 font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.5bc9bdb3")}</h3>
+          <p className="mb-3 text-xs text-muted">{tr(lng, "x.5cb58095")}</p>
           {matriz ? (
             <>
               <Matrix data={matriz} byId={archById ?? new Map<string, Archetype>()} />
               <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
-                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />favorable (≥55%)</span>
-                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
-                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />desfavorable (≤45%)</span>
-                <span>El color se intensifica con más partidas.</span>
+                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.8acc75fa")}</span>
+                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
+                <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.c8d5d524")}</span>
+                <span>{tr(lng, "x.8fd46bb1")}</span>
               </p>
             </>
           ) : (
-            <p className="py-6 text-center text-sm text-muted">Aún no hay suficientes datos de mazos.</p>
+            <p className="py-6 text-center text-sm text-muted">{tr(lng, "x.2806c96e")}</p>
           )}
         </div>
       </div>
 
-      <h3 className="mt-5 px-1 font-display text-lg font-extrabold tracking-tight text-ink">Rendimiento de jugadores</h3>
+      <h3 className="mt-5 px-1 font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.11baef9b")}</h3>
       <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="card min-w-0 p-4">
-          <h4 className="mb-1 font-bold">Victorias y derrotas</h4>
-          <p className="mb-3 text-xs text-muted">Récord y porcentaje de victorias por jugador.</p>
+          <h4 className="mb-1 font-bold">{tr(lng, "x.5a072bd3")}</h4>
+          <p className="mb-3 text-xs text-muted">{tr(lng, "x.8e8c62c2")}</p>
           <ul className="flex flex-col gap-2">
             {tabla.map((f) => (
               <li key={f.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-2">
@@ -194,14 +198,14 @@ export function LigaStats({
             ))}
           </ul>
           <p className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted">
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />victorias</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />derrotas</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.b72ce0fb")}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.23fad703")}</span>
           </p>
         </div>
 
         <div className="card min-w-0 p-4">
-          <h4 className="mb-1 font-bold">Partidas por mes</h4>
-          <p className="mb-3 text-xs text-muted">Actividad de la temporada.</p>
+          <h4 className="mb-1 font-bold">{tr(lng, "x.b52528a0")}</h4>
+          <p className="mb-3 text-xs text-muted">{tr(lng, "x.534ea84d")}</p>
           <div className="flex h-36 items-end gap-1.5">
             {meses.map((m) => {
               const [y, mm] = m.key.split("-").map(Number);
@@ -227,22 +231,22 @@ export function LigaStats({
       <section className="card mt-3 overflow-hidden">
         <div className="card-head items-start">
           <div>
-            <h4 className="font-display text-lg font-extrabold tracking-tight text-ink">Enfrentamientos directos</h4>
-            <p className="mt-0.5 text-xs text-muted">Porcentaje de victorias del jugador de la fila contra el de la columna. Pasa o enfoca una casilla para ver el récord.</p>
+            <h4 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.55125239")}</h4>
+            <p className="mt-0.5 text-xs text-muted">{tr(lng, "x.36ce1944")}</p>
           </div>
         </div>
         <div className="p-4">
           <H2HHeatmap matriz={matrizJugadores} jugadores={jugadoresH2H} colorMode="winRate" />
           <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />más victorias que derrotas</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />más derrotas que victorias</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.e5244e23")}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.d974a81d")}</span>
           </p>
         </div>
       </section>
 
       <section className="card mt-3 p-4">
-        <h4 className="mb-3 font-display text-lg font-extrabold tracking-tight text-ink">Rachas actuales</h4>
+        <h4 className="mb-3 font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.e5f58687")}</h4>
         <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {listaRachas.map((r) => (
             <li key={r.id} className="group flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2">
@@ -263,9 +267,9 @@ export function LigaStats({
         <div className="mt-3">
           <TrendLineChartLazy
             data={prepareDailyTrend(jugadas, 30)}
-            title="Actividad diaria en la liga (últimos 30 días)"
-            subtitle="Partidas jugadas por día y media móvil de 7 días"
-            valueLabel="Partidas"
+            title={tr(lng, "x.03d9173a")}
+            subtitle={tr(lng, "x.db4f8607")}
+            valueLabel={tr(lng, "x.64f94394")}
             height={220}
           />
         </div>

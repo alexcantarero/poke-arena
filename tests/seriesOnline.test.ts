@@ -75,3 +75,69 @@ test("el id del evento es estable: reimportar no duplica", () => {
   assert.ok(a.startsWith("ltl-serie-"));
   assert.ok(a.endsWith("2026-10-18"));
 });
+
+/* ------------------------------------------------- v0.45: seguidas ------ */
+
+import { normalizar } from "../src/lib/seriesOnline.ts";
+
+const SEGUIDAS = ["crownofspain", "mouji"];
+
+test("normalizar: el mismo nombre se escriba como se escriba", () => {
+  assert.equal(normalizar("🏆 Moujii's Dojo 🏆"), "moujiisdojo");
+  assert.ok(normalizar("🏆 Moujii's Dojo 🏆").includes("mouji"));
+  assert.ok(normalizar("Mouji's Dojo").includes("mouji"));
+  assert.equal(normalizar("CrownOfSpain #8"), "crownofspain8");
+});
+
+test("una serie seguida entra aunque tenga poca gente y solo dos ediciones", () => {
+  const dos = semanal("CrownOfSpain", 2, 40);
+  assert.equal(detectarSeries(dos, AHORA).length, 0, "sin seguir, no entra");
+  const r = detectarSeries(dos, AHORA, { seguidas: SEGUIDAS });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].seguida, true);
+});
+
+test("el nombre con emojis y sin numeración también agrupa", () => {
+  // Moujii's Dojo se llama igual en cada edición: no lleva «#14».
+  const eds = [4, 11].map((d) => t("🏆 Moujii's Dojo 🏆", new Date(Date.UTC(2026, 9, d, 19)).toISOString(), 60));
+  const r = detectarSeries(eds, AHORA, { seguidas: SEGUIDAS });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].nombre, "🏆 Moujii's Dojo 🏆");
+});
+
+test("una serie seguida quincenal también entra; una mensual, no", () => {
+  const quincenal = [0, 1, 2].map((i) => t("CrownOfSpain", new Date(Date.UTC(2026, 8, 13 + 14 * i, 18)).toISOString(), 50));
+  assert.equal(detectarSeries(quincenal, AHORA, { seguidas: SEGUIDAS }).length, 1);
+  const mensual = [0, 1, 2].map((i) => t("CrownOfSpain", new Date(Date.UTC(2026, 6 + i, 10, 18)).toISOString(), 50));
+  assert.equal(detectarSeries(mensual, AHORA, { seguidas: SEGUIDAS, ventanaDias: 120 }).length, 0);
+});
+
+/* ------------------------------------------ v0.45: más frecuentes ------- */
+
+test("una serie DIARIA ya no se descarta por jugarse más de una vez a la semana", () => {
+  // Antes se exigía una mediana de 6 a 8 días: una diaria (1) se tiraba.
+  const diaria = Array.from({ length: 10 }, (_, i) =>
+    t(`Daily Grind #${i}`, new Date(Date.UTC(2026, 9, 5 + i, 20)).toISOString(), 150));
+  const [s] = detectarSeries(diaria, AHORA);
+  assert.ok(s, "debería detectarla");
+  assert.equal(s.franjas.length, 7, "una franja por cada día de la semana");
+});
+
+test("una diaria no llena el calendario: como mucho siete fechas", () => {
+  const diaria = Array.from({ length: 10 }, (_, i) =>
+    t(`Daily Grind #${i}`, new Date(Date.UTC(2026, 9, 5 + i, 20)).toISOString(), 150));
+  const [s] = detectarSeries(diaria, AHORA);
+  const fechas = proximasEdiciones(s, AHORA, 2);
+  assert.equal(fechas.length, 7);
+  // Y sin repetir día: el id del evento lleva la fecha.
+  assert.equal(new Set(fechas.map((f) => f.slice(0, 10))).size, 7);
+});
+
+test("martes y sábados: dos franjas, y se prevén las dos", () => {
+  const dosDias = [6, 10, 13].map((d, i) =>
+    t(`Twice Weekly #${i}`, new Date(Date.UTC(2026, 9, d, 19)).toISOString(), 200));
+  const [s] = detectarSeries(dosDias, AHORA);
+  assert.equal(s.franjas.length, 2);
+  const fechas = proximasEdiciones(s, AHORA, 1);
+  assert.deepEqual(fechas.map((f) => new Date(f).getUTCDay()).sort(), [2, 6]);
+});

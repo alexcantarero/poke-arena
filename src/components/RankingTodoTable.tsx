@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
 import { num } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.15.1 — El ranking con «Todo»: UNA tabla con todo sumado.
@@ -55,6 +57,8 @@ const COLS: Array<{ key: Key; short: string; label: string }> = [
 const ASC_ES_MEJOR: Partial<Record<Key, true>> = { avgPlacement: true };
 
 export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 }>({ key: "points", dir: -1 });
 
   const val = (r: TodoRow, k: Key): number => {
@@ -78,12 +82,12 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
   const destacado = (r: TodoRow): { v: ReactNode; l: string } => {
     switch (sort.key) {
       case "winRate": return { v: pct(r.winRate, 0), l: "%V" };
-      case "played": return { v: r.played, l: "partidas" };
+      case "played": return { v: r.played, l: tr(lng, "x.18fd2bbc") };
       case "elo": return { v: r.elo, l: "Elo" };
       case "cp": return { v: r.cp, l: "CP" };
       case "torneos": return { v: r.torneos, l: "torneos" };
-      case "cutRate": return { v: pct(r.cutRate, 0), l: r.conCorte ? `corte ${r.cortes}/${r.conCorte}` : "sin corte" };
-      case "avgPlacement": return { v: media(r.avgPlacement), l: "puesto medio" };
+      case "cutRate": return { v: pct(r.cutRate, 0), l: r.conCorte ? `corte ${r.cortes}/${r.conCorte}` : tr(lng, "x.ebc2ebf2") };
+      case "avgPlacement": return { v: media(r.avgPlacement), l: tr(lng, "x.faf6cb86") };
       default: return { v: r.points, l: "pts" };
     }
   };
@@ -145,7 +149,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
             </li>
           );
         })}
-        {!sorted.length && <li className="px-4 py-8 text-center text-sm text-muted">Sin jugadores.</li>}
+        {!sorted.length && <li className="px-4 py-8 text-center text-sm text-muted">{tr(lng, "x.a083367e")}</li>}
       </ol>
 
       {/* -------- escritorio -------- */}
@@ -154,8 +158,8 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
           <thead>
             <tr>
               <th className="w-10 text-center">#</th>
-              <th>Jugador</th>
-              <th>V–D–E</th>
+              <th>{tr(lng, "x.588eb828")}</th>
+              <th>{tr(lng, "x.e5f65dc6")}</th>
               {COLS.map((c) => (
                 <th key={c.key} className="text-right">
                   <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={c.label}>

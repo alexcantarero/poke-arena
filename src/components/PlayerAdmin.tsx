@@ -3,6 +3,8 @@
 import type { PublicPlayer } from "@/lib/types";
 import { deletePlayer, setPlayerActive, setPlayerRole } from "@/actions";
 import { Avatar } from "./ui";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 const ROLE_LABEL: Record<string, string> = { owner: "Organizador", admin: "Admin", player: "Jugador" };
 
@@ -15,6 +17,8 @@ export function PlayerAdmin({
   meId: string;
   meRole: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   // Tocar al organizador solo puede el organizador. La acción lo comprueba
   // igualmente; aquí es para que el botón no prometa algo que no va a pasar.
   const locked = (p: PublicPlayer) =>
@@ -27,11 +31,11 @@ export function PlayerAdmin({
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">
               {p.name}
-              {p.id === meId && <span className="ml-1.5 chip chip-info">tú</span>}
-              {!p.active && <span className="ml-1.5 chip">inactivo</span>}
+              {p.id === meId && <span className="ml-1.5 chip chip-info">{tr(lng, "x.044e993f")}</span>}
+              {!p.active && <span className="ml-1.5 chip">{tr(lng, "x.184505ca")}</span>}
             </span>
             <span className="block truncate text-xs text-muted">
-              {emails[p.id] ?? "sin correo"} · {counts[p.id] ?? 0} partidas
+              {emails[p.id] ?? tr(lng, "x.433a2e34")} · {counts[p.id] ?? 0} partidas
             </span>
           </span>
 
@@ -60,13 +64,13 @@ export function PlayerAdmin({
           {counts[p.id] === 0 && !locked(p) && p.role !== "owner" && (
             <form action={deletePlayer} className="flex-none">
               <input type="hidden" name="id" value={p.id} />
-              <button className="btn btn-ghost btn-sm text-loss" type="submit" title="Borrar">×</button>
+              <button className="btn btn-ghost btn-sm text-loss" type="submit" title={tr(lng, "x.d7b82b21")}>×</button>
             </form>
           )}
         </div>
       ))}
       <p className="px-4 py-3 text-xs text-muted">
-        Un jugador con partidas no se puede borrar: se desactiva, para no dejar el historial huérfano.
+        {tr(lng, "x.c70800b0")}
       </p>
     </section>
   );

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /**
  * v0.19 - Formulario GET que se envía solo al cambiar un desplegable o una
@@ -11,6 +13,8 @@ import { useRouter } from "next/navigation";
 export function AutoSubmitForm({
   action, children, className = "",
 }: { action: string; children: ReactNode; className?: string }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const router = useRouter();
 
   return (
@@ -47,7 +51,7 @@ export function AutoSubmitForm({
     >
       {children}
       <noscript>
-        <button className="btn btn-brand btn-sm" type="submit">Aplicar</button>
+        <button className="btn btn-brand btn-sm" type="submit">{tr(lng, "x.4ac3b311")}</button>
       </noscript>
     </form>
   );

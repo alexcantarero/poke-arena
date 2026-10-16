@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/ui";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 type Turn = { player: "p1" | "p2"; start: number; end?: number };
 type Game = { turns: Turn[]; winner?: "p1" | "p2" | "tie" };
@@ -15,6 +17,8 @@ type TrackerState = {
 };
 
 export function TableTracker({ players, meId }: { players: any[]; meId?: string }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [state, setState] = useState<TrackerState>({
     status: "setup", p1Id: meId ?? "", p2Id: "", p1Name: "", p2Name: "",
     bestOf: 3, games: [],
@@ -44,8 +48,8 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
     return () => clearInterval(interval);
   }, [state.status]);
 
-  const p1 = players.find(p => p.id === state.p1Id) || { name: state.p1Name || "Jugador 1" };
-  const p2 = players.find(p => p.id === state.p2Id) || { name: state.p2Name || "Jugador 2" };
+  const p1 = players.find(p => p.id === state.p1Id) || { name: state.p1Name || tr(lng, "x.93ecf7d6") };
+  const p2 = players.find(p => p.id === state.p2Id) || { name: state.p2Name || tr(lng, "x.09bf4a66") };
 
   const startGame = (first: "p1" | "p2") => {
     setState(s => ({
@@ -112,7 +116,7 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
   };
 
   const reset = () => {
-    if (confirm("¿Borrar esta partida y empezar otra?")) {
+    if (confirm(tr(lng, "x.b1d5ffd7"))) {
       setState({ status: "setup", p1Id: meId ?? "", p2Id: "", p1Name: "", p2Name: "", bestOf: 3, games: [] });
     }
   };
@@ -120,38 +124,38 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
   if (state.status === "setup") {
     return (
       <div className="mx-auto max-w-md p-4">
-        <h1 className="font-display text-2xl font-extrabold mb-6">Mi Mesa</h1>
+        <h1 className="font-display text-2xl font-extrabold mb-6">{tr(lng, "x.0239d9fa")}</h1>
         <div className="card flex flex-col gap-4 p-5 mb-6">
           <div className="flex flex-col gap-1.5">
-            <label className="label">Jugador 1 (Tú)</label>
+            <label className="label">{tr(lng, "x.2c415568")}</label>
             <select className="input" value={state.p1Id} onChange={e => setState({...state, p1Id: e.target.value})}>
-              <option value="">(Invitado)</option>
+              <option value="">{tr(lng, "x.9d20112f")}</option>
               {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {!state.p1Id && (
-              <input className="input mt-1" placeholder="Nombre..." value={state.p1Name} onChange={e => setState({...state, p1Name: e.target.value})} />
+              <input className="input mt-1" placeholder={tr(lng, "x.0ca6ddc8")} value={state.p1Name} onChange={e => setState({...state, p1Name: e.target.value})} />
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label">Jugador 2 (Rival)</label>
+            <label className="label">{tr(lng, "x.6d9c8077")}</label>
             <select className="input" value={state.p2Id} onChange={e => setState({...state, p2Id: e.target.value})}>
-              <option value="">(Invitado)</option>
+              <option value="">{tr(lng, "x.9d20112f")}</option>
               {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {!state.p2Id && (
-              <input className="input mt-1" placeholder="Nombre..." value={state.p2Name} onChange={e => setState({...state, p2Name: e.target.value})} />
+              <input className="input mt-1" placeholder={tr(lng, "x.0ca6ddc8")} value={state.p2Name} onChange={e => setState({...state, p2Name: e.target.value})} />
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label">Formato</label>
+            <label className="label">{tr(lng, "x.c25b742e")}</label>
             <select className="input" value={state.bestOf} onChange={e => setState({...state, bestOf: Number(e.target.value)})}>
-              <option value={1}>Al mejor de 1 (Bo1)</option>
-              <option value={3}>Al mejor de 3 (Bo3)</option>
-              <option value={5}>Al mejor de 5 (Bo5)</option>
+              <option value={1}>{tr(lng, "x.c2fe34bd")}</option>
+              <option value={3}>{tr(lng, "x.a7627f5d")}</option>
+              <option value={5}>{tr(lng, "x.b55c97ca")}</option>
             </select>
           </div>
           <button className="btn btn-brand w-full py-3 text-lg mt-2" onClick={() => startGame("p1")}>
-            ¡Empezar Partida!
+            {tr(lng, "x.bea615d4")}
           </button>
         </div>
       </div>
@@ -193,7 +197,7 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
   if (state.status === "match_over") {
     return (
       <div className="mx-auto max-w-md p-4 text-center">
-        <h2 className="font-display text-3xl font-extrabold mb-2">¡Partida Terminada!</h2>
+        <h2 className="font-display text-3xl font-extrabold mb-2">{tr(lng, "x.1109bccf")}</h2>
         <div className="flex items-center justify-center gap-4 text-2xl font-bold mb-8">
           <span>{p1.name} {p1Wins}</span>
           <span className="text-muted">-</span>
@@ -201,7 +205,7 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
         </div>
 
         <div className="card p-4 text-left mb-6 space-y-4">
-          <h3 className="font-bold border-b border-line-soft pb-2">Resumen de Tiempos</h3>
+          <h3 className="font-bold border-b border-line-soft pb-2">{tr(lng, "x.64d6d377")}</h3>
           <div className="flex justify-between">
             <div>
               <p className="font-bold">{p1.name}</p>
@@ -221,8 +225,8 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
            // We can pre-fill /partidas/nueva
            let url = `/partidas/nueva?p1=${state.p1Id}&p2=${state.p2Id}&p1n=${encodeURIComponent(state.p1Name)}&p2n=${encodeURIComponent(state.p2Name)}&w1=${p1Wins}&w2=${p2Wins}`;
            window.location.href = url;
-        }}>Guardar en PokeArena</button>
-        <button className="btn btn-ghost w-full" onClick={reset}>Nueva partida de mesa</button>
+        }}>{tr(lng, "x.621366eb")}</button>
+        <button className="btn btn-ghost w-full" onClick={reset}>{tr(lng, "x.21c435e8")}</button>
       </div>
     );
   }
@@ -276,11 +280,11 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
       {/* DIVIDER with WIN BUTTONS */}
       <div className="h-14 flex items-center justify-center gap-2 bg-surface-3 z-10 border-y border-line">
         {state.status === "paused" ? (
-          <span className="font-bold tracking-widest uppercase text-muted">PAUSADO</span>
+          <span className="font-bold tracking-widest uppercase text-muted">{tr(lng, "x.103d7558")}</span>
         ) : (
           <>
             <button className="btn btn-sm btn-ghost text-xs" onClick={() => winGame("p2")}>Gana {p2.name}</button>
-            <button className="btn btn-sm btn-ghost text-xs" onClick={() => winGame("tie")}>Empate</button>
+            <button className="btn btn-sm btn-ghost text-xs" onClick={() => winGame("tie")}>{tr(lng, "x.09d03513")}</button>
             <button className="btn btn-sm btn-ghost text-xs" onClick={() => winGame("p1")}>Gana {p1.name}</button>
           </>
         )}
@@ -303,7 +307,7 @@ export function TableTracker({ players, meId }: { players: any[]; meId?: string 
           onClick={passTurn}
           className="absolute bottom-4 left-4 right-4 bg-brand text-brand-fg font-extrabold text-2xl py-6 rounded-2xl shadow-xl active:scale-95 transition-transform"
         >
-          PASAR TURNO
+          {tr(lng, "x.80ed3b9f")}
         </button>
       )}
     </div>

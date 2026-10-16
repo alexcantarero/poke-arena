@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import {
   CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.19 — Evolución del ladder: una línea por jugador, un punto por cada vez
@@ -40,6 +42,8 @@ export function LadderChart({
   pie?: string;
   etiquetaReset?: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const porDefecto = useMemo(
     () => new Set([
       ...destacados.filter((d) => series.some((s) => s.id === d)),
@@ -72,7 +76,7 @@ export function LadderChart({
   const elos = todos.map((p) => p.elo).filter((v): v is number => v != null);
 
   if (!series.length) {
-    return <p className="px-4 py-6 text-center text-sm text-muted">Todavía no hay cambios de rango que dibujar.</p>;
+    return <p className="px-4 py-6 text-center text-sm text-muted">{tr(lng, "x.a09d71cd")}</p>;
   }
 
   const tMin = tiempos.length ? Math.min(...tiempos) : Date.now();
@@ -82,7 +86,7 @@ export function LadderChart({
 
   return (
     <div className="px-3 pb-3 pt-2 xs:px-4">
-      <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Jugadores en la gráfica">
+      <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
         {series.map((s) => {
           const on = elegidos.has(s.id);
           return (
@@ -95,13 +99,13 @@ export function LadderChart({
           );
         })}
         <button type="button" className="text-xs font-semibold text-info hover:underline"
-          onClick={() => setElegidos(new Set(series.map((s) => s.id)))}>Todos</button>
+          onClick={() => setElegidos(new Set(series.map((s) => s.id)))}>{tr(lng, "x.a4114a83")}</button>
         <button type="button" className="text-xs font-semibold text-muted hover:underline"
-          onClick={() => setElegidos(new Set())}>Ninguno</button>
+          onClick={() => setElegidos(new Set())}>{tr(lng, "x.f3c24118")}</button>
       </div>
 
       {visibles.length === 0 ? (
-        <p className="grid h-48 place-items-center text-sm text-muted">Elige a alguien para ver su evolución.</p>
+        <p className="grid h-48 place-items-center text-sm text-muted">{tr(lng, "x.923fbcf6")}</p>
       ) : (
         <div className="h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -151,8 +155,8 @@ export function LadderChart({
         </div>
       )}
       <p className="mt-1 text-[11px] text-muted">
-        {pie ?? "Un punto por cada vez que alguien actualiza su rango."}{" "}
-        <span className="font-semibold text-loss">Rojo</span>: reset de temporada.
+        {pie ?? tr(lng, "x.0f902f4c")}{" "}
+        <span className="font-semibold text-loss">{tr(lng, "x.696f8123")}</span>: reset de temporada.
       </p>
     </div>
   );

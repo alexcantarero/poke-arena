@@ -3,6 +3,8 @@
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Cómo evoluciona la conversión mes a mes.
@@ -67,10 +69,12 @@ function Caja({ active, payload, label }: {
 }
 
 export function ConversionChart({ points }: { points: ConversionPoint[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (points.length < 2) {
     return (
       <p className="grid h-40 place-items-center text-center text-sm text-muted">
-        Hacen falta al menos dos meses con torneos para dibujar una tendencia.
+        {tr(lng, "x.021abebc")}
       </p>
     );
   }

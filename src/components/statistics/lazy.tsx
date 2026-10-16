@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/primitives";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.20 — Las gráficas de Recharts, cargadas bajo demanda.

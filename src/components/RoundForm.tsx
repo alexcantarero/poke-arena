@@ -1,15 +1,21 @@
 "use client";
 
+/* v0.47 — RoundForm vivía en `TournamentRounds.tsx`, junto a un componente
+   `TournamentRounds` de casi 250 líneas que no se pintaba en ningún sitio y
+   que, además, importaba `roundStage` de `lib/stats`: como esto es un
+   componente de cliente, eso se llevaba `lib/stats` entero al navegador. El
+   componente muerto se ha borrado y este fichero solo tiene lo que se usa. */
+
 import { useMemo, useState } from "react";
-import { saveTournamentRound, deleteTournamentRound, dropFromTournament } from "@/actions";
-import type { Archetype, DeckOption, Side } from "@/lib/types";
+import { saveTournamentRound, dropFromTournament } from "@/actions";
+import type { DeckOption, Side } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
-import type { RoundView, RoundRecord } from "@/lib/stats";
-import { roundStage } from "@/lib/stats";
+import type { RoundView } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
-import { Sprites } from "./ui";
 import { Icon } from "./icons";
 import { PrizePicker } from "@/components/PrizePicker";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /** Cuántos rivales se enseñan antes de plegar el resto. Seis caben en dos
     filas en un móvil de 360 px sin empujar el formulario. */
@@ -52,257 +58,6 @@ type PremiosEnEdicion = {
    interactivo.
    ========================================================================= */
 
-type Props = {
-  tournamentId: string;
-  playerId: string;
-  playerName: string;
-  bestOf: number;
-  rounds: RoundView[];
-  record: RoundRecord;
-  /** Mazos que puede haber llevado el rival: todo lo que haya. */
-  rivalDecks: DeckOption[];
-  /** Arquetipos sueltos, para el rival del que solo sabes qué llevaba. */
-  archetypeOptions: DeckOption[];
-  /** Tus mazos, para fijar el del torneo si aún no está. */
-  myDecks: DeckOption[];
-  /** El mazo ya fijado para este torneo, si lo hay. */
-  lockedDeckId: string | null;
-  /** Su nombre, resuelto en el servidor: puede estar retirado y no salir en las listas. */
-  lockedDeckName?: string | null;
-  /** Si estas rondas son de quien está mirando. Decide el título, nada más. */
-  isMine: boolean;
-  /** Rondas anunciadas por la organización, si se saben. */
-  totalRounds: number | null;
-  /** Tamaño del top cut, si se sabe. Junto con totalRounds da el nombre de cada fase. */
-  topCut: number | null;
-  playerCount?: number | null;
-  archById: Map<string, Archetype>;
-  /** El torneo está cerrado: se puede mirar, no escribir. */
-  closed: boolean;
-  canEdit: boolean;
-};
-
-export function TournamentRounds({
-  tournamentId, playerId, playerName, bestOf, rounds, record,
-  rivalDecks, archetypeOptions, myDecks, lockedDeckId, lockedDeckName, isMine,
-  totalRounds, topCut, playerCount, archById, closed, canEdit,
-}: Props) {
-  const [editing, setEditing] = useState<number | null>(null);
-  const nextRound = rounds.length ? Math.max(...rounds.map((r) => r.round)) + 1 : 1;
-  const finished = totalRounds != null && totalRounds > 0 && nextRound > totalRounds;
-  const writable = canEdit && !closed;
-
-  const archOfRound = (r: RoundView) =>
-    r.match.opponentArchetypeId ? archById.get(r.match.opponentArchetypeId) : undefined;
-
-  /* El nombre del mazo fijado viene resuelto del servidor: buscarlo en las
-     listas fallaba cuando el mazo estaba retirado, porque los selectores no los
-     ofrecen y el aviso desaparecía aunque el mazo siguiera fijado. */
-  const lockedLabel = lockedDeckId
-    ? lockedDeckName
-      ?? myDecks.find((d) => d.id === lockedDeckId)?.name
-      ?? rivalDecks.find((d) => d.id === lockedDeckId)?.name
-      ?? archetypeOptions.find((d) => d.id === lockedDeckId)?.name
-      ?? null
-    : null;
-
-  return (
-    <section className="card">
-      <div className="card-head">
-        <div className="min-w-0">
-          {/* Por identidad, no por permiso: un organizador tiene canEdit sobre
-              las rondas de todos, y el título decía «Tus rondas» en las de los
-              demás — que encima era lo único que identificaba de quién eran. */}
-          <h2 className="text-lg font-bold">
-            {isMine ? "Tus rondas" : `Rondas de ${playerName}`}
-          </h2>
-          <p className="text-xs text-muted">
-            {record.label} · {record.points} punto{record.points === 1 ? "" : "s"}
-            {record.open > 0 ? ` · ${record.open} sin cerrar` : ""}
-            {totalRounds ? ` · ${rounds.length} de ${totalRounds}` : ""}
-          </p>
-        </div>
-        <span className="font-display text-3xl font-extrabold tabular leading-none">
-          {record.wins}–{record.losses}{record.ties ? `–${record.ties}` : ""}
-        </span>
-      </div>
-
-      {lockedLabel && (
-        <p className="flex items-center gap-2 border-b border-line-soft px-4 py-2 text-xs text-muted">
-          <Icon name="lock" className="size-3.5 flex-none" />
-          {isMine ? "Jugando" : "Jugó"} <b className="font-semibold text-ink-2">{lockedLabel}</b> todo el torneo.
-        </p>
-      )}
-
-      {rounds.length > 0 && (
-        <ol className="divide-y divide-line-soft">
-          {rounds.map((r) => {
-            const arch = archOfRound(r);
-            const open = editing === r.round;
-            return (
-              <li key={r.match.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex flex-none flex-col items-center gap-0.5">
-                    <span
-                      className={`grid size-9 flex-none place-items-center rounded-lg font-display text-sm font-extrabold
-                        ${r.result === "w" ? "bg-win-soft text-win"
-                          : r.result === "l" ? "bg-loss-soft text-loss"
-                          : r.result === "d" ? "bg-tie-soft text-tie"
-                          : "border border-dashed border-line text-muted"}`}
-                      title={
-                        r.result === "w" ? "Ganada" : r.result === "l" ? "Perdida"
-                        : r.result === "d" ? "Empatada" : "Sin cerrar"
-                      }
-                    >
-                      R{r.round}
-                    </span>
-                    {/* Solo se etiqueta el top cut o el Día 2 */}
-                    {(() => {
-                      const stage = roundStage(r.round, totalRounds, topCut, playerCount);
-                      if (stage.kind === "cut") {
-                        return (
-                          <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-brand">
-                            {stage.label}
-                          </span>
-                        );
-                      }
-                      if (stage.day === 2) {
-                        return (
-                          <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-info">
-                            Día 2
-                          </span>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </span>
-
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    <Sprites archetype={arch} size="sm" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">
-                        {r.match.opponentName || "Rival sin nombre"}
-                      </span>
-                      <span className="block truncate text-[11px] text-muted">
-                        {arch?.name ?? "Mazo sin anotar"}
-                      </span>
-                    </span>
-                  </span>
-
-                  <span className="flex flex-none flex-col items-end gap-1">
-                    <span className="text-[13px] font-semibold">
-                      {r.result === null
-                        ? <span className="text-muted">Abierta</span>
-                        : r.declared
-                          ? (r.result === "w" ? "Ganada" : r.result === "l" ? "Perdida" : "Empate")
-                          : <span className="font-mono tabular">{r.ga}–{r.gb}</span>}
-                    </span>
-                    {r.firstGameOne !== null && (
-                      <span className="text-[10px] text-muted">
-                        salí {r.firstGameOne ? "1.º" : "2.º"}
-                      </span>
-                    )}
-                  </span>
-
-                  {writable && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm flex-none"
-                      aria-expanded={open}
-                      onClick={() => setEditing(open ? null : r.round)}
-                    >
-                      {open ? "Cerrar" : "Editar"}
-                    </button>
-                  )}
-                </div>
-
-                {r.match.note && (
-                  <p className="mt-1.5 pl-12 text-xs text-ink-2">{r.match.note}</p>
-                )}
-
-                {open && writable && (
-                  <div className="mt-3 flex flex-col gap-2">
-                    <RoundForm
-                      tournamentId={tournamentId}
-                      playerId={playerId}
-                      round={r.round}
-                      bestOf={bestOf}
-                      rivalDecks={rivalDecks}
-                      archetypeOptions={archetypeOptions}
-                      myDecks={myDecks}
-                      lockedDeckId={lockedDeckId}
-                      existing={r}
-                      onCancel={() => setEditing(null)}
-                    />
-                    {/* Hermano del formulario de edición, no hijo: un <form>
-                        dentro de otro es HTML inválido y el botón de borrar
-                        acabaría enviando el de guardar. */}
-                    <form action={deleteTournamentRound}>
-                      <input type="hidden" name="id" value={r.match.id} />
-                      <input type="hidden" name="tournamentId" value={tournamentId} />
-                      <button className="btn btn-ghost btn-sm btn-danger" type="submit">
-                        Borrar la ronda {r.round}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {closed ? (
-        rounds.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted">
-            Torneo cerrado sin rondas apuntadas.
-          </p>
-        ) : null
-      ) : canEdit ? (
-        finished ? (
-          <p className="px-4 py-5 text-center text-sm text-muted">
-            Tienes las {totalRounds} rondas apuntadas. Si hubo top cut, sigue añadiendo con el
-            número de ronda que quieras.
-          </p>
-        ) : (
-          <div className="border-t border-line-soft p-4">
-            <h3 className="mb-3 flex flex-wrap items-center gap-1.5 font-display text-base font-bold">
-              Apuntar la ronda {nextRound}
-              {totalRounds ? <span className="text-sm font-normal text-muted">de {totalRounds}</span> : null}
-              {(() => {
-                const stage = roundStage(nextRound, totalRounds, topCut, playerCount);
-                if (stage.kind === "cut") {
-                  return <span className="chip chip-brand text-[10px]">{stage.label}</span>;
-                }
-                if (stage.day === 2) {
-                  return <span className="chip chip-info text-[10px]">Día 2</span>;
-                }
-                return null;
-              })()}
-            </h3>
-            <RoundForm
-              tournamentId={tournamentId}
-              playerId={playerId}
-              round={nextRound}
-              bestOf={bestOf}
-              rivalDecks={rivalDecks}
-              archetypeOptions={archetypeOptions}
-              myDecks={myDecks}
-              lockedDeckId={lockedDeckId}
-            />
-          </div>
-        )
-      ) : rounds.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted">
-          {playerName} no ha apuntado rondas de este torneo.
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------ formulario -- */
-
 const RESULTS = [
   { v: "a", label: "Gané", cls: "data-[on=true]:bg-win data-[on=true]:text-white" },
   { v: "tie", label: "Empate", cls: "data-[on=true]:bg-tie data-[on=true]:text-white" },
@@ -328,6 +83,8 @@ export function RoundForm({
   /** v0.15 — gente del grupo que puede ser tu rival (todos menos tú). */
   rivalPlayers?: Array<{ id: string; name: string }>;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const m = existing?.match;
   /* v0.15 — el rival puede ser alguien del grupo o un nombre cualquiera. Si
      tocas un nombre del grupo, se rellena el campo y la ronda queda enlazada
@@ -458,17 +215,17 @@ export function RoundForm({
 
       <div className="grid grid-cols-[5.5rem_1fr] gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor={`round-${round}`}>Ronda</label>
+          <label className="label" htmlFor={`round-${round}`}>{tr(lng, "x.0d3a8a99")}</label>
           <input
             className="input px-2 text-center tabular" id={`round-${round}`} name="round"
             type="number" min={1} max={maxRound ?? 50} inputMode="numeric" defaultValue={round}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor={`opp-${round}`}>Rival</label>
+          <label className="label" htmlFor={`opp-${round}`}>{tr(lng, "x.dca34e30")}</label>
           <input
             className="input" id={`opp-${round}`} name="opponentName" required maxLength={60}
-            autoComplete="off" value={rivalName} placeholder="Nombre del rival"
+            autoComplete="off" value={rivalName} placeholder={tr(lng, "x.488edc18")}
             onChange={(e) => {
               setRivalName(e.target.value);
               const elegido = rivalPlayers.find((p) => p.id === rivalId);
@@ -482,7 +239,7 @@ export function RoundForm({
       {rivalPlayers.length > 0 && (
         <div className="-mt-1.5 flex flex-col gap-1.5">
           <span className="text-[11px] text-muted">
-            Si es del grupo, tócalo y queda enlazado a su perfil.
+            {tr(lng, "x.a4246d24")}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {rivalesVisibles.map((p) => (
@@ -504,13 +261,13 @@ export function RoundForm({
             )}
             {verTodos && rivalesFiltrados.length > TOPE_RIVALES && (
               <button type="button" onClick={() => setVerTodos(false)} className="chip text-muted">
-                Ver menos
+                {tr(lng, "x.f83a31bf")}
               </button>
             )}
           </div>
           {rivalName.trim() && rivalesFiltrados.length === 0 && (
             <span className="text-[11px] text-muted">
-              Nadie del grupo se llama así. Se guardará como rival de fuera.
+              {tr(lng, "x.ca3ad430")}
             </span>
           )}
         </div>
@@ -521,15 +278,15 @@ export function RoundForm({
           sueltos. Es justo para lo que existen los mazos sin dueño: apuntar lo
           que llevaba el rival sin inventarle una cuenta. */}
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor={`arch-${round}`}>Contra qué mazo</label>
+        <label className="label" htmlFor={`arch-${round}`}>{tr(lng, "x.d5d31276")}</label>
         <DeckPicker
           id={`arch-${round}`} name="opponentDeck"
           options={rivalOptions}
           defaultValue={
             m?.deckBId ?? (m?.opponentArchetypeId ? archetypeValue(m.opponentArchetypeId) : "")
           }
-          emptyLabel="— sin anotar —"
-          placeholder="Mazo del rival"
+          emptyLabel={tr(lng, "x.59787b9a")}
+          placeholder={tr(lng, "x.acb9d3fc")}
         />
       </div>
 
@@ -540,28 +297,28 @@ export function RoundForm({
         <input type="hidden" name="deckAId" value={lockedDeckId} />
       ) : ownOptions.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor={`deck-${round}`}>Con qué mazo juegas el torneo</label>
+          <label className="label" htmlFor={`deck-${round}`}>{tr(lng, "x.36530283")}</label>
           <DeckPicker
             id={`deck-${round}`} name="deckAId"
             options={ownOptions}
             defaultValue={m?.deckAId ?? (m?.archetypeAId ? archetypeValue(m.archetypeAId) : "")}
-            emptyLabel="— sin anotar —"
-            placeholder="Tu mazo o arquetipo"
+            emptyLabel={tr(lng, "x.59787b9a")}
+            placeholder={tr(lng, "x.7bc58df3")}
           />
           {/* v0.34 — eran tres líneas en el móvil, justo encima del bloque de
               resultado. Lo que hay que saber antes de tocarlo cabe en una; el
               resto se descubre solo al abrir el selector. */}
-          <p className="text-xs text-muted">Se guarda para todo el torneo.</p>
+          <p className="text-xs text-muted">{tr(lng, "x.daa09444")}</p>
         </div>
       ) : null}
 
       {/* --- resultado: rápido o juego a juego --- */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="label">Resultado</span>
+          <span className="label">{tr(lng, "x.c7589dbf")}</span>
           <div className="seg">
-            <button type="button" data-on={mode === "quick"} onClick={() => setMode("quick")}>Rápido</button>
-            <button type="button" data-on={mode === "games"} onClick={() => setMode("games")}>Juego a juego</button>
+            <button type="button" data-on={mode === "quick"} onClick={() => setMode("quick")}>{tr(lng, "x.778dc9d0")}</button>
+            <button type="button" data-on={mode === "games"} onClick={() => setMode("games")}>{tr(lng, "x.d7d79088")}</button>
           </div>
         </div>
 
@@ -584,9 +341,9 @@ export function RoundForm({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="label">Salí</span>
+              <span className="label">{tr(lng, "x.60f320e3")}</span>
               <div className="seg w-full">
-                {([["a", "1.º"], ["b", "2.º"], ["", "No me acuerdo"]] as const).map(([v, label]) => (
+                {([["a", "1.º"], ["b", "2.º"], ["", tr(lng, "x.145e7fbe")]] as const).map(([v, label]) => (
                   <button
                     key={v || "none"} type="button"
                     data-on={(firsts[0] ?? "") === v}
@@ -600,8 +357,7 @@ export function RoundForm({
 
             {!result && (
               <p className="text-xs text-muted">
-                Sin marcar nada la ronda se guarda abierta, y el resultado lo pones al acabar.
-                Útil para apuntar el emparejamiento antes de jugar.
+                {tr(lng, "x.ef502bd1")}
               </p>
             )}
           </>
@@ -628,7 +384,7 @@ export function RoundForm({
 
                 {/* Quién salió primero, en este juego. */}
                 <div className="flex items-center gap-2">
-                  <span className="w-14 flex-none text-[11px] font-semibold text-muted">Salí</span>
+                  <span className="w-14 flex-none text-[11px] font-semibold text-muted">{tr(lng, "x.60f320e3")}</span>
                   <div className="seg min-w-0 flex-1 text-[13px]">
                     {([["a", "1.º"], ["b", "2.º"], ["", "—"]] as const).map(([v, label]) => (
                       <button
@@ -648,7 +404,7 @@ export function RoundForm({
                 <PrizePicker
                   campo={`g${i}`}
                   nombreA="Tú"
-                  nombreB={rivalName || "Rival"}
+                  nombreB={rivalName || tr(lng, "x.dca34e30")}
                   winner={gameWinners[i]}
                   valor={premios[i]}
                   onChange={(parcial) => setPremio(i, parcial)}
@@ -665,27 +421,27 @@ export function RoundForm({
                   type="checkbox" name="timeCalled" className="size-4"
                   checked={timeCalled} onChange={(e) => setTimeCalled(e.target.checked)}
                 />
-                Se acabó el tiempo: la ronda queda {won > lost ? "ganada" : lost > won ? "perdida" : "en empate"}
+                Se acabó el tiempo: la ronda queda {won > lost ? "ganada" : lost > won ? "perdida" : tr(lng, "x.4b560f59")}
               </label>
             )}
             <p className="text-xs text-muted">
               {settled
                 ? `Ronda ${won > lost ? "ganada" : "perdida"} ${won}–${lost}.`
                 : decidedByTie
-                  ? `Un juego empatado corta la ronda aquí: queda ${won > lost ? "ganada" : lost > won ? "perdida" : "en empate"} ${won}–${lost}.`
+                  ? `Un juego empatado corta la ronda aquí: queda ${won > lost ? "ganada" : lost > won ? "perdida" : tr(lng, "x.4b560f59")} ${won}–${lost}.`
                   : gameWinners.some(Boolean)
                     ? `${won}–${lost} y todavía sin decidir. Marca «se acabó el tiempo» si la ronda terminó así.`
-                    : "Marca cada juego. En cuanto haya mayoría o un empate, el resto desaparece."}
+                    : tr(lng, "x.f02bae59")}
             </p>
           </div>
         )}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor={`note-${round}`}>Nota</label>
+        <label className="label" htmlFor={`note-${round}`}>{tr(lng, "x.1a6b7be7")}</label>
         <input
           className="input" id={`note-${round}`} name="note" maxLength={300}
-          defaultValue={m?.note ?? ""} placeholder="Bricheo raro, la decisión de la ronda, lo que sea"
+          defaultValue={m?.note ?? ""} placeholder={tr(lng, "x.63c4669d")}
         />
       </div>
 
@@ -695,7 +451,7 @@ export function RoundForm({
           {existing ? "Guardar cambios" : `Guardar ronda ${round}`}
         </button>
         {onCancel && (
-          <button className="btn btn-ghost" type="button" onClick={onCancel}>Cancelar</button>
+          <button className="btn btn-ghost" type="button" onClick={onCancel}>{tr(lng, "x.c111e0ab")}</button>
         )}
       </div>
 
@@ -706,16 +462,16 @@ export function RoundForm({
       {!existing && (
         <div className="flex items-center gap-3 border-t border-line-soft pt-3">
           <p className="min-w-0 flex-1 text-xs text-muted">
-            ¿No sigues? Apunta el drop y no te pediré más rondas.
+            {tr(lng, "x.08a74cb2")}
           </p>
           <button
             type="submit" formAction={dropFromTournament} formNoValidate
             className="btn btn-sm flex-none border-loss/50 font-bold text-loss hover:bg-loss-soft"
             onClick={(e) => {
-              if (!window.confirm("¿Apuntar el drop? No podrás añadir más rondas (se puede deshacer).")) e.preventDefault();
+              if (!window.confirm(tr(lng, "x.498ac1c5"))) e.preventDefault();
             }}
           >
-            DROP · me retiro
+            {tr(lng, "x.2480c0fe")}
           </button>
         </div>
       )}

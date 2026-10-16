@@ -3,6 +3,8 @@ import { loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { DeckForm } from "@/components/DeckForm";
 import { CardSearch } from "@/components/CardSearch";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Nuevo mazo" };
 
@@ -17,11 +19,13 @@ const safeBack = (v: string | undefined) =>
 export default async function NewDeckPage({
   searchParams,
 }: { searchParams: Promise<{ player?: string; back?: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const [q, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   return (
     <>
-      <PageHead title="Nuevo mazo" sub="Lo mínimo es el Pokémon principal. La lista completa se puede pegar luego." back={{ href: "/mazos", label: "Mazos" }} />
+      <PageHead title={tr(lng, "x.58677581")} sub={tr(lng, "x.6902fdf8")} back={{ href: "/mazos", label: tr(lng, "x.78f2cee5") }} />
       <DeckForm
         players={snap.players}
         archetypes={snap.archetypes}
@@ -34,8 +38,8 @@ export default async function NewDeckPage({
           mano y te falta el set de dos cartas. */}
       <details className="card mt-4">
         <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-          Buscar cartas
-          <span className="text-xs font-normal text-muted">set y número</span>
+          {tr(lng, "x.00f5042b")}
+          <span className="text-xs font-normal text-muted">{tr(lng, "x.46c4a48c")}</span>
         </summary>
         <div className="border-t border-line-soft p-4">
           <CardSearch />

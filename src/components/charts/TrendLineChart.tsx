@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import { escalaRobusta } from "@/lib/escala";
 import { num } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export interface TrendPoint {
   date: string; // ISO YYYY-MM-DD
@@ -54,6 +56,8 @@ export function TrendLineChart({
   avgLabel = "Media 7 días",
   height = 280,
 }: TrendLineChartProps) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   // Aseguramos el cálculo de la media móvil de 7 días si no viene precalculada
   const pointsWithAvg = useMemo(() => {
     return data.map((pt, i, arr) => {

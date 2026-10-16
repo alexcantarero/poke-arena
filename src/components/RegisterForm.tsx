@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { register } from "@/actions";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export function RegisterForm({
   token, askForToken = false,
@@ -10,6 +12,8 @@ export function RegisterForm({
   /** true en `/registro`, donde el código se escribe a mano. */
   askForToken?: boolean;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [state, action, pending] = useActionState(register, null);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState(token);
@@ -26,46 +30,46 @@ export function RegisterForm({
     <form action={action} className="flex flex-col gap-4">
       {askForToken ? (
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="code">Código de invitación</label>
+          <label className="label" htmlFor="code">{tr(lng, "x.f0ea57e1")}</label>
           <input
             className="input font-mono text-sm" id="code" required
             autoComplete="off" autoCapitalize="none" spellCheck={false}
             value={code} onChange={(e) => setCode(e.target.value)}
-            placeholder="Pega aquí el código o el enlace entero"
+            placeholder={tr(lng, "x.578da78c")}
           />
         </div>
       ) : null}
       <input type="hidden" name="token" value={askForToken ? cleanCode : token} />
 
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="name">Cómo te llamamos</label>
+        <label className="label" htmlFor="name">{tr(lng, "x.ae4670b4")}</label>
         <input
           className="input" id="name" name="name" required maxLength={40}
-          autoComplete="nickname" placeholder="Ibai"
+          autoComplete="nickname" placeholder={tr(lng, "x.fbfe9a85")}
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="email">Correo</label>
+        <label className="label" htmlFor="email">{tr(lng, "x.98f00c3e")}</label>
         <input
           className="input" id="email" name="email" type="email" required
           autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false}
-          placeholder="tu@correo.com"
+          placeholder={tr(lng, "x.771f5db9")}
         />
-        <p className="text-xs text-muted">Solo se usa para entrar. No se enseña a nadie más.</p>
+        <p className="text-xs text-muted">{tr(lng, "x.780c2ecd")}</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="password">Contraseña</label>
+        <label className="label" htmlFor="password">{tr(lng, "x.5a6d1c61")}</label>
         <input
           className="input" id="password" name="password" type="password" required
           autoComplete="new-password" minLength={8}
           value={password} onChange={(e) => setPassword(e.target.value)}
         />
         <p className={`text-xs ${short || noDigit ? "text-loss" : "text-muted"}`}>
-          {short ? "Al menos 8 caracteres."
-            : noDigit ? "Mezcla al menos una letra y un número."
-            : "Al menos 8 caracteres, con letras y números."}
+          {short ? tr(lng, "x.1bfd8485")
+            : noDigit ? tr(lng, "x.7d17004f")
+            : tr(lng, "x.89a8078d")}
         </p>
       </div>
 
@@ -76,7 +80,7 @@ export function RegisterForm({
       )}
 
       <button className="btn btn-brand w-full" type="submit" disabled={pending}>
-        {pending ? "Creando la cuenta…" : "Unirme a la liga"}
+        {pending ? "Creando la cuenta…" : tr(lng, "x.0ee455c3")}
       </button>
     </form>
   );

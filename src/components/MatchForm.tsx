@@ -9,6 +9,8 @@ import { Avatar } from "./ui";
 import { PrizePicker } from "@/components/PrizePicker";
 import { DeckPicker } from "./DeckPicker";
 import type { DeckOption } from "@/lib/types";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /** Un juego mientras se edita en el formulario. */
 type JuegoEnEdicion = {
@@ -48,6 +50,8 @@ export function MatchForm({
   match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
   initialP1, initialP2, initialBestOf, initialGames
 }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const active = players.filter((p) => p.active || match);
   const [aId, setAId] = useState(match?.playerAId ?? initialP1 ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
@@ -210,27 +214,27 @@ export function MatchForm({
       {/* ------------------------------ quién ------------------------------ */}
       <section className="card p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Quién juega</h2>
+          <h2 className="text-lg font-bold">{tr(lng, "x.ec039ecb")}</h2>
           <label className="inline-flex items-center gap-2 text-sm">
             <input
               type="checkbox" className="size-4" checked={external}
               onChange={(e) => setExternal(e.target.checked)}
             />
-            Rival de fuera
+            {tr(lng, "x.814556e6")}
           </label>
         </div>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             {canPickPlayer ? (<>
-              <label className="label" htmlFor="pa">Jugador</label>
+              <label className="label" htmlFor="pa">{tr(lng, "x.588eb828")}</label>
               <select className="input" id="pa" value={aId} onChange={(e) => { setAId(e.target.value); setADeckId(""); }}>
                 {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </>) : (<>
               {/* Sin permisos de organizador la partida es tuya: fijar el lado A
                   evita ofrecer algo que el servidor va a rechazar. */}
-              <span className="label">Jugador</span>
+              <span className="label">{tr(lng, "x.588eb828")}</span>
               <div className="input justify-start gap-2 bg-surface-2">
                 <Avatar player={A} size="sm" />
                 <span className="truncate font-semibold">{A?.name ?? "Tú"}</span>
@@ -244,13 +248,13 @@ export function MatchForm({
               con el mazo fijado: si se cambia entre juegos, va en cada juego. */}
           {mazoFijo && (
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="deckAId">Su mazo</label>
+              <label className="label" htmlFor="deckAId">{tr(lng, "x.3f62cf84")}</label>
               {/* `key` con el jugador: al cambiar de jugador se vacía, porque los
                   mazos de uno no son los del otro. */}
               <DeckPicker
                 key={`a-${aId}`} id="deckAId" name="deckAId"
                 options={opcionesSerie(aId)} defaultValue={aDeckId}
-                emptyLabel="— sin asignar —" placeholder="Buscar mazo o Pokémon"
+                emptyLabel={tr(lng, "x.b1b5a61d")} placeholder={tr(lng, "x.fb8cc3fa")}
                 searchFrom={1} onChange={setADeckId}
               />
             </div>
@@ -261,23 +265,22 @@ export function MatchForm({
           {external ? (
             <>
               <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="opponentName">Rival</label>
+                <label className="label" htmlFor="opponentName">{tr(lng, "x.dca34e30")}</label>
                 <input
                   className="input" id="opponentName" name="opponentName" required maxLength={60}
-                  defaultValue={match?.opponentName ?? ""} placeholder="Nombre o apodo"
+                  defaultValue={match?.opponentName ?? ""} placeholder={tr(lng, "x.e8b90f28")}
                 />
                 <p className="text-xs text-muted">
-                  No cuenta para el ranking ni para el Elo, pero sí para tus estadísticas de arquetipo
-                  y para la matriz de emparejamientos.
+                  {tr(lng, "x.01ffc556")}
                 </p>
               </div>
               {mazoFijo && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="label" htmlFor="opponentArchetypeId">Qué llevaba</label>
+                  <label className="label" htmlFor="opponentArchetypeId">{tr(lng, "x.6205beb8")}</label>
                   <DeckPicker
                     key="rival-fuera" id="opponentArchetypeId" name="opponentArchetypeId"
                     options={opcionesRivalFuera} defaultValue={oppArch}
-                    emptyLabel="— no lo sé —" placeholder="Buscar arquetipo o Pokémon"
+                    emptyLabel={tr(lng, "x.42ec8535")} placeholder={tr(lng, "x.7cd1828c")}
                     searchFrom={1} onChange={setOppArch}
                   />
                 </div>
@@ -286,7 +289,7 @@ export function MatchForm({
           ) : (
             <>
               <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="pb">Rival</label>
+                <label className="label" htmlFor="pb">{tr(lng, "x.dca34e30")}</label>
                 <select className="input" id="pb" name="playerBId" value={bId} onChange={(e) => { setBId(e.target.value); setBDeckId(""); }}>
                   {active.filter((p) => canPickPlayer || p.id !== aId)
                     .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -294,11 +297,11 @@ export function MatchForm({
               </div>
               {mazoFijo && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="label" htmlFor="deckBId">Su mazo</label>
+                  <label className="label" htmlFor="deckBId">{tr(lng, "x.3f62cf84")}</label>
                   <DeckPicker
                     key={`b-${bId}`} id="deckBId" name="deckBId"
                     options={opcionesSerie(bId)} defaultValue={bDeckId}
-                    emptyLabel="— sin asignar —" placeholder="Buscar mazo o Pokémon"
+                    emptyLabel={tr(lng, "x.b1b5a61d")} placeholder={tr(lng, "x.fb8cc3fa")}
                     searchFrom={1} onChange={setBDeckId}
                   />
                 </div>
@@ -306,14 +309,14 @@ export function MatchForm({
             </>
           )}
 
-          {sameTwice && <p className="text-sm font-medium text-loss">Elige dos jugadores distintos.</p>}
+          {sameTwice && <p className="text-sm font-medium text-loss">{tr(lng, "x.015e83e1")}</p>}
         </div>
       </section>
 
       {/* ----------------------------- resultado ----------------------------- */}
       <section className="card p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold">Resultado</h2>
+          <h2 className="text-lg font-bold">{tr(lng, "x.c7589dbf")}</h2>
           <div className="seg seg-brand">
             {[1, 3, 5].map((n) => (
               <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
@@ -331,14 +334,14 @@ export function MatchForm({
             onClick={() => setMazoFijo((v) => !v)}
             className={`chip ${mazoFijo ? "chip-brand" : ""}`}
           >
-            {mazoFijo ? "✓ Mismo mazo toda la serie" : "Mazo distinto en cada juego"}
+            {mazoFijo ? "✓ Mismo mazo toda la serie" : tr(lng, "x.2860c708")}
           </button>
           <span className="text-xs text-muted">
             {mazoFijo
-              ? "El mazo se elige arriba, junto a cada jugador. Tócalo para cambiar entre juegos."
+              ? tr(lng, "x.2f3564d7")
               : esLiga
-                ? "Cada juego lleva su mazo. Liga: no se repite uno con el que ya ganaste un juego."
-                : "Cada juego lleva su mazo."}
+                ? tr(lng, "x.b9b9a770")
+                : tr(lng, "x.9f47a827")}
           </span>
           <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
         </div>
@@ -371,7 +374,7 @@ export function MatchForm({
                 <div className="seg w-full" role="group" aria-label={`Ganador del juego ${i + 1}`}>
                   {[
                     { v: "a", l: A?.name ?? "A" },
-                    { v: "tie", l: "Empate" },
+                    { v: "tie", l: tr(lng, "x.09d03513") },
                     { v: "b", l: bLabel },
                   ].map((o) => (
                     <button
@@ -387,7 +390,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_winner`} value={games[i].winner} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted">Empezó</span>
+                  <span className="text-xs text-muted">{tr(lng, "x.04e97451")}</span>
                   <div className="seg flex-1" role="group" aria-label={`Quién empezó el juego ${i + 1}`}>
                     {[
                       { v: "", l: "—" },
@@ -408,7 +411,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted w-14">Mulligans</span>
+                  <span className="text-xs text-muted w-14">{tr(lng, "x.0dc0ab48")}</span>
                   <div className="flex flex-1 items-center gap-2">
                     <div className="flex flex-1 items-center gap-1.5">
                       <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
@@ -474,7 +477,7 @@ export function MatchForm({
   defaultValue={games[i][campo]}
   onChange={(val) => setGame(i, { [campo]: val })}
   locked={over}
-  emptyLabel="— selecciona mazo —"
+  emptyLabel={tr(lng, "x.5f9b8c84")}
 />
                       </label>
                     );
@@ -495,50 +498,50 @@ export function MatchForm({
 
       {/* ------------------------------ contexto ------------------------------ */}
       <details className="card p-4" open={Boolean(match?.competitionId || match?.tournamentId || match?.note)}>
-        <summary className="cursor-pointer text-lg font-bold">Contexto y notas</summary>
+        <summary className="cursor-pointer text-lg font-bold">{tr(lng, "x.998fd670")}</summary>
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="competitionId">Competición</label>
+            <label className="label" htmlFor="competitionId">{tr(lng, "x.c28ef3fd")}</label>
             <select className="input" id="competitionId" name="competitionId" value={compId} onChange={(e) => setCompId(e.target.value)}>
               {/* v0.19 — una sola categoría «Amistoso»: sin competición. Las
                   competiciones de tipo «Amistosos» ya no se ofrecen (la
                   migración 0012 las funde aquí). */}
-              <option value="">Amistoso</option>
+              <option value="">{tr(lng, "x.566dd541")}</option>
               {competitions.filter((c) => c.kind !== "casual").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="tournamentId">¿Fue en un torneo?</label>
             <select className="input" id="tournamentId" name="tournamentId" defaultValue={match?.tournamentId ?? ""}>
-              <option value="">No</option>
+              <option value="">{tr(lng, "x.816c52fd")}</option>
               {tournaments.slice(0, 30).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="date">Fecha</label>
+              <label className="label" htmlFor="date">{tr(lng, "x.bcc47609")}</label>
               <input className="input" id="date" name="date" type="date" defaultValue={match?.date ?? todayISO()} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="round">Jornada</label>
+              <label className="label" htmlFor="round">{tr(lng, "x.74d2b97e")}</label>
               <input className="input" id="round" name="round" type="number" min={0} inputMode="numeric" defaultValue={match?.round ?? 0} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="note">Notas</label>
+            <label className="label" htmlFor="note">{tr(lng, "x.73035e47")}</label>
             <textarea className="input" id="note" name="note" rows={2} defaultValue={match?.note ?? ""}
-              placeholder="Mulligans, la jugada que lo decidió, algo que cambiar de la lista…" />
+              placeholder={tr(lng, "x.5fe027b2")} />
           </div>
         </div>
       </details>
 
       <div className="sticky bottom-nav z-20 flex gap-2 md:static">
         <button className="btn btn-brand flex-1 text-base" type="submit" disabled={!canSave}>
-          {match ? "Guardar cambios" : "Guardar partida"}
+          {match ? "Guardar cambios" : tr(lng, "x.46ee46f3")}
         </button>
         {match && (
           <button className="btn btn-danger" type="submit" formAction={deleteMatch} name="id" value={match.id}>
-            Borrar
+            {tr(lng, "x.d7b82b21")}
           </button>
         )}
       </div>

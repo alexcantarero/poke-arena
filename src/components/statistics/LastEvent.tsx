@@ -3,6 +3,8 @@ import { spriteUrl } from "@/lib/pokemon";
 import { pct, wrColor } from "@/lib/format";
 import type { TournamentReport } from "@/lib/sources/limitless";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    El último torneo grande, con el detalle que se mira antes de elegir mazo.
@@ -30,11 +32,13 @@ import { Icon } from "@/components/icons";
    porque lo primero que se quiere saber es contra qué se va a jugar.
    ========================================================================= */
 
-export function LastEvent({ report }: { report: TournamentReport | null }) {
+export async function LastEvent({ report }: { report: TournamentReport | null }) {
+  const lng = await getLang(); // v0.49
+
   if (!report) {
     return (
       <section className="card mb-6 p-4">
-        <h2 className="text-lg font-bold">Último torneo grande</h2>
+        <h2 className="text-lg font-bold">{tr(lng, "x.affaa475")}</h2>
         <p className="mt-1 text-sm text-muted">
           No hay ningún torneo de 64 personas o más en los últimos catorce días, o Limitless no
           ha respondido. Se mira su plataforma de torneos online; si acaba de haber uno, prueba
@@ -56,26 +60,24 @@ export function LastEvent({ report }: { report: TournamentReport | null }) {
     <>
       {/* ------------------------------ cabecera ------------------------------ */}
       <section className="card mb-4 border-brand-line bg-brand-soft p-4">
-        <p className="label mb-1">Último torneo grande · online</p>
+        <p className="label mb-1">{tr(lng, "x.efe273e1")}</p>
         <h2 className="font-display text-xl font-bold leading-tight">{report.name}</h2>
         <p className="mt-1 text-sm text-ink-2">
           {cuando}
           {report.organizer ? ` · ${report.organizer}` : ""}
           {" · "}<b className="tabular">{report.players}</b> jugadores
           {report.swissRounds > 0 && <> · {report.swissRounds} rondas</>}
-          {report.topCut > 0 ? <> · top {report.topCut}</> : <> · sin top cut</>}
+          {report.topCut > 0 ? <> · top {report.topCut}</> : <> {tr(lng, "x.8c711fd7")}</>}
         </p>
         <p className="mt-2 text-xs text-muted">
-          Sale de la plataforma de torneos <b>online</b> de Limitless, que es lo que su API
-          sirve. Los Regionales presenciales están en su web y no hay forma legítima de
-          traerlos automáticamente.
+          {tr(lng, "x.a293bcef")} <b>{tr(lng, "x.2dbc2fd2")}</b> {tr(lng, "x.246e5a79")}
         </p>
         <a
           className="btn btn-sm mt-3"
           href={`https://play.limitlesstcg.com/tournament/${report.id}/standings`}
           target="_blank" rel="noopener noreferrer"
         >
-          <Icon name="share" className="size-3.5" /> Ver el torneo entero
+          <Icon name="share" className="size-3.5" /> {tr(lng, "x.283607f1")}
         </a>
       </section>
 
@@ -84,7 +86,7 @@ export function LastEvent({ report }: { report: TournamentReport | null }) {
         <section className="card mb-4">
           <div className="card-head">
             <h3 className="text-lg font-bold">El top {report.top.length}</h3>
-            <span className="text-xs text-muted">con lo que jugaron</span>
+            <span className="text-xs text-muted">{tr(lng, "x.1563415d")}</span>
           </div>
           <ol className="divide-y divide-line-soft">
             {report.top.map((p) => (
@@ -113,7 +115,7 @@ export function LastEvent({ report }: { report: TournamentReport | null }) {
       <section className="card mb-4">
         <div className="card-head">
           <div className="min-w-0">
-            <h3 className="text-lg font-bold">Qué se jugó y qué funcionó</h3>
+            <h3 className="text-lg font-bold">{tr(lng, "x.66e5f6de")}</h3>
             <p className="text-xs text-muted">
               {report.identified} listas con mazo identificado de {report.players} jugadores
             </p>
@@ -133,9 +135,9 @@ export function LastEvent({ report }: { report: TournamentReport | null }) {
                 </span>
               </span>
               <span className="flex flex-none items-center gap-3 text-right">
-                <Cifra label="Play" value={pct(r.share, 0)} color="var(--source-global)" />
-                <Cifra label="%V" value={pct(r.winRate, 0)} color={wrColor(r.winRate)} />
-                <Cifra label="Cut" value={pct(r.cutRate, 0)} color={wrColor(r.cutRate)} oculta />
+                <Cifra label={tr(lng, "x.5d12bd53")} value={pct(r.share, 0)} color="var(--source-global)" />
+                <Cifra label={tr(lng, "x.39683ef7")} value={pct(r.winRate, 0)} color={wrColor(r.winRate)} />
+                <Cifra label={tr(lng, "x.38d13bda")} value={pct(r.cutRate, 0)} color={wrColor(r.cutRate)} oculta />
               </span>
             </li>
           ))}
@@ -143,12 +145,11 @@ export function LastEvent({ report }: { report: TournamentReport | null }) {
 
         <div className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
           <p>
-            <b>Play</b> es qué parte del torneo llevaba ese mazo — cuánto te lo cruzas.
-            <b> %V</b> es qué parte de sus rondas ganó — si aguanta. <b>Cut</b> es qué parte de
-            sus listas entró en el corte — si cierra. Son tres preguntas distintas.
+            <b>{tr(lng, "x.5d12bd53")}</b> {tr(lng, "x.0cd7b6ad")}
+            <b> {tr(lng, "x.39683ef7")}</b> {tr(lng, "x.115f4995")} <b>{tr(lng, "x.38d13bda")}</b> {tr(lng, "x.5d9ae679")}
           </p>
           {report.topCut === 0 && (
-            <p className="mt-1">Este torneo no tuvo top cut, así que la conversión sale en blanco.</p>
+            <p className="mt-1">{tr(lng, "x.e259ad0e")}</p>
           )}
           {fuera > 0 && <p className="mt-1">Se enseñan los {filas.length} más jugados; quedan {fuera} fuera.</p>}
         </div>

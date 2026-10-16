@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import { saveProfile } from "@/actions";
 import type { Archetype, PublicPlayer } from "@/lib/types";
 import { pokeSlug, prettyPokemon, spriteUrl } from "@/lib/pokemon";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 const COLORS = ["#f0b429", "#4aa8e8", "#63bd5a", "#e987b8", "#b271c9", "#f0803c", "#9aa6b4", "#c8a94a", "#5c9ea8", "#d4675f"];
 
@@ -15,6 +17,8 @@ const SUGGESTED = [
 ];
 
 export function ProfileForm({ player, archetypes }: { player: PublicPlayer; archetypes: Archetype[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [state, action, pending] = useActionState(saveProfile, null);
   const [color, setColor] = useState(player.color);
   const [avatarKind, setAvatarKind] = useState(player.avatarKind);
@@ -27,58 +31,57 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
       <input type="hidden" name="id" value={player.id} />
 
       <section className="card p-4">
-        <h2 className="mb-4 text-lg font-bold">Quién eres</h2>
+        <h2 className="mb-4 text-lg font-bold">{tr(lng, "x.11f1921c")}</h2>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="name">Nombre</label>
+            <label className="label" htmlFor="name">{tr(lng, "x.e68491e9")}</label>
             <input className="input" id="name" name="name" required maxLength={40} defaultValue={player.name} />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="bio">Una frase</label>
+            <label className="label" htmlFor="bio">{tr(lng, "x.76ba03ca")}</label>
             <input
               className="input" id="bio" name="bio" maxLength={140} defaultValue={player.bio}
-              placeholder="El que nunca pierde con Dragapult"
+              placeholder={tr(lng, "x.3937d205")}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="favoriteArchetypeId">Mazo favorito</label>
+            <label className="label" htmlFor="favoriteArchetypeId">{tr(lng, "x.e18c3c91")}</label>
             <select className="input" id="favoriteArchetypeId" name="favoriteArchetypeId" defaultValue={player.favoriteArchetypeId ?? ""}>
-              <option value="">— ninguno —</option>
+              <option value="">{tr(lng, "x.8a4e4db7")}</option>
               {archetypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="playerTag">Nombre en Play! Pokémon</label>
+            <label className="label" htmlFor="playerTag">{tr(lng, "x.44e6c1db")}</label>
             <input
               className="input" id="playerTag" name="playerTag" maxLength={60}
-              defaultValue={player.playerTag ?? ""} placeholder="Como aparece en los standings"
+              defaultValue={player.playerTag ?? ""} placeholder={tr(lng, "x.9b58cdec")}
             />
-            <p className="text-xs text-muted">Opcional. Sirve para localizarte en los resultados oficiales.</p>
+            <p className="text-xs text-muted">{tr(lng, "x.40b86917")}</p>
           </div>
 
           {/* v0.36 — con esto la app puede buscarte en las clasificaciones de
               Limitless y traerse tus torneos online ya rellenos. */}
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="limitlessHandle">Nick en Limitless</label>
+            <label className="label" htmlFor="limitlessHandle">{tr(lng, "x.489518db")}</label>
             <input
               className="input" id="limitlessHandle" name="limitlessHandle" maxLength={60}
-              defaultValue={player.limitlessHandle ?? ""} placeholder="Tu usuario de play.limitlesstcg.com"
+              defaultValue={player.limitlessHandle ?? ""} placeholder={tr(lng, "x.cd862552")}
               autoCapitalize="none" autoCorrect="off" spellCheck={false}
             />
             <p className="text-xs text-muted">
-              Opcional. Con esto, los torneos online que juegues ahí se importan solos con tu
-              puesto, tu récord y tu mazo.
+              {tr(lng, "x.554c3968")}
             </p>
           </div>
         </div>
       </section>
 
       <section className="card p-4">
-        <h2 className="mb-1 text-lg font-bold">Tu icono</h2>
-        <p className="mb-4 text-sm text-muted">Un Pokémon, una imagen tuya, o solo la inicial sobre tu color.</p>
+        <h2 className="mb-1 text-lg font-bold">{tr(lng, "x.5714348c")}</h2>
+        <p className="mb-4 text-sm text-muted">{tr(lng, "x.f5ab68ee")}</p>
 
         <div className="seg mb-4 w-full">
           {([["none", "Inicial"], ["pokemon", "Pokémon"], ["image", "Imagen"]] as const).map(([v, l]) => (
@@ -107,7 +110,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
                 <input
                   className="input" name="avatarValue" value={avatarValue}
                   onChange={(e) => setAvatarValue(e.target.value)}
-                  placeholder="pikachu" list="poke-suggestions" autoCapitalize="none" spellCheck={false}
+                  placeholder={tr(lng, "x.e4409822")} list="poke-suggestions" autoCapitalize="none" spellCheck={false}
                 />
                 <datalist id="poke-suggestions">
                   {SUGGESTED.map((s) => <option key={s} value={s}>{prettyPokemon(s)}</option>)}
@@ -130,20 +133,20 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
               <input
                 className="input" name="avatarValue" type="url" inputMode="url" value={avatarValue}
                 onChange={(e) => setAvatarValue(e.target.value)}
-                placeholder="https://…/mi-foto.jpg"
+                placeholder={tr(lng, "x.a8d81a67")}
               />
             )}
             {avatarKind === "none" && (
               <>
                 <input type="hidden" name="avatarValue" value="" />
-                <p className="text-sm text-muted">Se usa la inicial de tu nombre sobre tu color.</p>
+                <p className="text-sm text-muted">{tr(lng, "x.e44c5008")}</p>
               </>
             )}
           </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-1.5">
-          <label className="label">Tu color</label>
+          <label className="label">{tr(lng, "x.ae82f496")}</label>
           <div className="flex flex-wrap gap-2">
             {COLORS.map((c) => (
               <button
@@ -155,7 +158,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
             ))}
           </div>
           <input type="hidden" name="color" value={color} />
-          <p className="text-xs text-muted">También es el color de tus series en las gráficas.</p>
+          <p className="text-xs text-muted">{tr(lng, "x.404d7cd8")}</p>
         </div>
       </section>
 
@@ -163,7 +166,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
       {state?.ok && <p className="rounded-lg bg-win-soft px-3 py-2 text-sm font-medium text-win">{state.ok}</p>}
 
       <button className="btn btn-brand w-full" type="submit" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar perfil"}
+        {pending ? "Guardando…" : tr(lng, "x.da7f0ab4")}
       </button>
     </form>
   );

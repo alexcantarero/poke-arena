@@ -30,6 +30,8 @@ import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
 import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Estadísticas" };
 
@@ -52,6 +54,8 @@ export const metadata = { title: "Estadísticas" };
 export default async function StatsPage({
   searchParams,
 }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   const snap = await loadSnapshot();
 
@@ -87,10 +91,10 @@ export default async function StatsPage({
     return (
       <>
         <PageHead
-          title="Estadísticas"
+          title={tr(lng, "x.a580d598")}
           sub={fuente === "city"
-            ? "City Leagues de Japón: el top de cada evento, solo puesto y mazo. Su formato va por delante del internacional."
-            : "Regionales, Specials e Internacionales: recuento del Día 2 y top cut. Sin nombres de jugador."}
+            ? tr(lng, "x.b77027d0")
+            : tr(lng, "x.b17c6661")}
         />
         <SourceTabs current={fuente} query="" />
         <MetaIrlTable meta={meta} nuestros={new Set(snap.archetypes.map((a) => norm(a.name)))} />
@@ -101,7 +105,7 @@ export default async function StatsPage({
         }))} />
         <p className="mt-3 text-xs text-muted">
           Se actualiza en Ajustes → «Regionales y City Leagues automáticos». Datos de{" "}
-          <a className="underline" href="https://limitlesstcg.com" target="_blank" rel="noopener noreferrer">Limitless TCG</a>.
+          <a className="underline" href="https://limitlesstcg.com" target="_blank" rel="noopener noreferrer">{tr(lng, "x.af108644")}</a>.
         </p>
       </>
     );
@@ -375,7 +379,7 @@ export default async function StatsPage({
   return (
     <>
       <PageHead
-        title="Estadísticas"
+        title={tr(lng, "x.a580d598")}
         sub={
           isFiltered(filter)
             ? `${rows.length} de ${all.length} partidas · ${resumen}`
@@ -424,10 +428,7 @@ export default async function StatsPage({
 
       {!conLocal && (
         <p className="card mb-4 p-3 text-xs text-ink-2">
-          Estás mirando el <b>metagame online</b>. Las secciones que salen de vuestras
-          partidas —la matriz de emparejamientos, el primer turno, la actividad por mes y el
-          rendimiento por mazo— no existen fuera de vuestra liga, así que no se enseñan. Pasa
-          a <b>Comparar</b> para verlas junto al mundo.
+          {tr(lng, "x.ec96e036")} <b>{tr(lng, "x.f164a10e")}</b>{tr(lng, "x.30f8ab5a")} <b>{tr(lng, "x.a48666d6")}</b> {tr(lng, "x.09a7e130")}
         </p>
       )}
 
@@ -461,16 +462,16 @@ export default async function StatsPage({
       {fuente !== "live" && (
         <>
           <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-            <KpiCard label="Partidas" value={rows.length} sub={`${totalGames} juegos disputados`} color="blue" />
-            <KpiCard label="Arquetipos" value={archs.length} sub={`${external} contra rivales externos`} color="purple" />
+            <KpiCard label={tr(lng, "x.64f94394")} value={rows.length} sub={`${totalGames} juegos disputados`} color="blue" />
+            <KpiCard label={tr(lng, "x.ba25296c")} value={archs.length} sub={`${external} contra rivales externos`} color="purple" />
             <KpiCard
-              label="Primer turno"
+              label={tr(lng, "x.6835d550")}
               value={pct(ft.winRate, 1)}
               sub={`${ft.n} juegos (gana quien empieza)`}
               color={(ft.winRate ?? 0) > 0.55 ? "green" : "blue"}
             />
             <KpiCard
-              label="Formato rey"
+              label={tr(lng, "x.621f8131")}
               value={`Bo3 ${rows.length ? Math.round(((bo[3] ?? 0) / rows.length) * 100) : 0}%`}
               sub={`Bo1: ${bo[1] ?? 0} · Bo3: ${bo[3] ?? 0} · Bo5: ${bo[5] ?? 0}`}
               color="yellow"
@@ -481,17 +482,17 @@ export default async function StatsPage({
             <div className="my-4 grid gap-4 lg:grid-cols-2">
               <TrendLineChartLazy
                 data={prepareDailyTrend(rows, 30)}
-                title="Actividad diaria (30 días)"
-                subtitle="Partidas por día y media móvil de 7 días"
-                valueLabel="Partidas"
+                title={tr(lng, "x.06d3e0cc")}
+                subtitle={tr(lng, "x.f1628585")}
+                valueLabel={tr(lng, "x.64f94394")}
               />
               <div className="min-w-0">
                 <HourlyChartLazy
                   data={prepareHourlyDistribution(rows)}
-                  title="Distribución horaria"
-                  subtitle="Partidas por hora (Europe/Madrid) según registro"
-                  seriesALabel="Liga"
-                  seriesBLabel="Torneos"
+                  title={tr(lng, "x.780200b7")}
+                  subtitle={tr(lng, "x.4b6d66bb")}
+                  seriesALabel={tr(lng, "x.942efd43")}
+                  seriesBLabel={tr(lng, "x.f02a0f3c")}
                 />
               </div>
             </div>
@@ -501,13 +502,13 @@ export default async function StatsPage({
 
       {hayFamilias && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="label">Arquetipos</span>
+          <span className="label">{tr(lng, "x.ba25296c")}</span>
           <div className="seg text-xs">
-            <Link href={agruparHref(false)} data-on={!agrupar}>Vista detallada</Link>
-            <Link href={agruparHref(true)} data-on={agrupar}>Vista agrupada</Link>
+            <Link href={agruparHref(false)} data-on={!agrupar}>{tr(lng, "x.8ff263c4")}</Link>
+            <Link href={agruparHref(true)} data-on={agrupar}>{tr(lng, "x.285c3b48")}</Link>
           </div>
           <span className="text-[11px] text-muted">
-            {agrupar ? "Variantes sumadas por su primer Pokémon (y las familias de Ajustes)." : "Cada variante por separado."}
+            {agrupar ? "Variantes sumadas por su primer Pokémon (y las familias de Ajustes)." : tr(lng, "x.e5a3a605")}
           </span>
         </div>
       )}
@@ -516,8 +517,8 @@ export default async function StatsPage({
         <section className="card">
           <div className="card-head">
             <div>
-              <h2 className="text-lg font-bold">Arquetipos más usados</h2>
-              <p className="text-xs text-muted">Usos · % de victorias registradas</p>
+              <h2 className="text-lg font-bold">{tr(lng, "x.8a9e7584")}</h2>
+              <p className="text-xs text-muted">{tr(lng, "x.6cf45b62")}</p>
             </div>
             <SortToggle dir={orden} href={ordenHref} />
           </div>
@@ -528,15 +529,15 @@ export default async function StatsPage({
                 value: a.played,
                 right: `${a.played} · ${pct(a.winRate, 0)}`,
               }))} />
-            ) : <p className="text-sm text-muted">Sin mazos asignados todavía.</p>}
+            ) : <p className="text-sm text-muted">{tr(lng, "x.06acf61f")}</p>}
           </div>
         </section>
 
         <section className="card">
           <div className="card-head">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold">Rendimiento</h2>
-              <p className="text-xs text-muted">mín. 2 usos</p>
+              <h2 className="text-lg font-bold">{tr(lng, "x.d2c4cbec")}</h2>
+              <p className="text-xs text-muted">{tr(lng, "x.d15c58da")}</p>
             </div>
             <SortToggle dir={orden} href={ordenHref} />
           </div>
@@ -548,7 +549,7 @@ export default async function StatsPage({
                 right: `${pct(a.winRate, 0)} (${a.played})`,
                 color: wrColor(a.winRate),
               }))} />
-            ) : <p className="text-sm text-muted">Hacen falta al menos dos usos por arquetipo.</p>}
+            ) : <p className="text-sm text-muted">{tr(lng, "x.e1f51531")}</p>}
           </div>
         </section>
       </div>
@@ -564,21 +565,21 @@ export default async function StatsPage({
             <div className="card-head">
               <div className="min-w-0">
                 <h2 className="text-lg font-bold">
-                  {vista === "jugadores" ? "Qué jugadores llegan al corte" : "Qué mazos llegan al corte"}
+                  {vista === "jugadores" ? "Qué jugadores llegan al corte" : tr(lng, "x.b8c88fe2")}
                 </h2>
                 <p className="text-xs text-muted">
                   {vista === "jugadores"
-                    ? "De cada vez que vais a un torneo, cuántas entráis al top cut."
-                    : "Esto mira torneos, no partidas: con qué mazo se entra en el top cut."}
+                    ? tr(lng, "x.f359dca7")
+                    : tr(lng, "x.24eb35af")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="seg text-xs">
                   <Link href={vistaHref("mazos")} data-on={vista === "mazos"}>
-                    Mazos
+                    {tr(lng, "x.78f2cee5")}
                   </Link>
                   <Link href={vistaHref("jugadores")} data-on={vista === "jugadores"}>
-                    Jugadores
+                    {tr(lng, "x.b5291b8d")}
                   </Link>
                 </div>
                 <SortToggle dir={orden} href={ordenHref} />
@@ -588,16 +589,16 @@ export default async function StatsPage({
               <ConversionTable
                 rows={sortRows(porJugador, (r) => r.cutRate ?? r.top4Rate, orden)}
                 matchColumns
-                empty="Nadie tiene todavía un puesto apuntado en un torneo de este tipo."
+                empty={tr(lng, "x.cb5d9f0a")}
               />
             ) : (
               <ConversionTable
                 rows={sortRows(porMazo, (r) => r.cutRate ?? r.top8Rate, orden)}
-                empty="Ningún resultado de torneo tiene el mazo apuntado todavía."
+                empty={tr(lng, "x.fab62873")}
               />
             )}
             <p className="border-t border-line-soft px-4 py-3 text-[11px] text-muted">
-              <b>%Cut</b> sale solo de los torneos que tenían top cut, así que un guion quiere
+              <b>{tr(lng, "x.5b766ead")}</b> sale solo de los torneos que tenían top cut, así que un guion quiere
               decir «no había nada que convertir», no un cero.
               {vista === "jugadores" && " %V y V son de partidas de torneo, no de torneos enteros."}{" "}
               Usa los filtros de arriba para recortar por tipo de torneo o por fechas.
@@ -606,10 +607,9 @@ export default async function StatsPage({
 
           {evolucion.length > 1 && (
             <section className="card mt-4 p-4">
-              <h2 className="mb-1 text-lg font-bold">Conversión mes a mes</h2>
+              <h2 className="mb-1 text-lg font-bold">{tr(lng, "x.c7f03180")}</h2>
               <p className="mb-3 text-xs text-muted">
-                Del grupo entero, de cada jugador o de cada mazo. Respeta los filtros de arriba
-                (y la vista agrupada de arquetipos).
+                {tr(lng, "x.094b4221")}
               </p>
               <ConversionEvolucionLazy grupo={convGrupo} jugadores={convJugadores} mazos={convMazos} />
             </section>
@@ -620,16 +620,16 @@ export default async function StatsPage({
       {fuente !== "live" && (
         <section className="card mt-4">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Matriz de emparejamientos</h2>
-            <span className="text-xs text-muted">fila contra columna</span>
+            <h2 className="text-lg font-bold">{tr(lng, "x.f0c24bc6")}</h2>
+            <span className="text-xs text-muted">{tr(lng, "x.41b20a92")}</span>
           </div>
           <div className="p-4">
             <Matrix data={matrix} byId={matrixArchById} />
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />favorable (≥55%)</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />equilibrado</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />desfavorable (≤45%)</span>
-              <span>La intensidad crece con el número de partidas.</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.8acc75fa")}</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.c8d5d524")}</span>
+              <span>{tr(lng, "x.341ee503")}</span>
             </div>
           </div>
         </section>
@@ -638,16 +638,16 @@ export default async function StatsPage({
       {fuente !== "live" && (
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <section className="card">
-            <div className="card-head"><h2 className="text-lg font-bold">Cómo acaban las series</h2></div>
+            <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.96337a0c")}</h2></div>
             <div className="p-4">
               {shapes.length
                 ? <Bars rows={shapes.map((s) => ({ label: <span className="font-mono text-[13px]">{s.key}</span>, value: s.n, right: String(s.n) }))} />
-                : <p className="text-sm text-muted">Aún no hay series a más de un juego.</p>}
+                : <p className="text-sm text-muted">{tr(lng, "x.5c6132c5")}</p>}
             </div>
           </section>
 
           <section className="card">
-            <div className="card-head"><h2 className="text-lg font-bold">Primer turno</h2></div>
+            <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.6835d550")}</h2></div>
             <div className="p-4">
               {ft.n > 0 && ft.winRate != null ? (
                 <>
@@ -671,21 +671,21 @@ export default async function StatsPage({
                 </>
               ) : (
                 <p className="text-sm text-muted">
-                  Anota quién empezó cada juego y aquí sabrás si el primer turno pesa tanto como dice todo el mundo.
+                  {tr(lng, "x.8d67cedb")}
                 </p>
               )}
             </div>
           </section>
 
           <section className="card">
-            <div className="card-head"><h2 className="text-lg font-bold">Actividad</h2></div>
+            <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.399313c0")}</h2></div>
             <div className="p-4">
               {months.length
                 ? <Bars rows={months.map((x) => {
                     const [y, m] = x.key.split("-");
                     return { label: <span className="capitalize">{MONTHS[Number(m) - 1]} {y.slice(2)}</span>, value: x.n, right: String(x.n) };
                   })} />
-                : <p className="text-sm text-muted">Sin partidas.</p>}
+                : <p className="text-sm text-muted">{tr(lng, "x.197d9ce5")}</p>}
             </div>
           </section>
         </div>

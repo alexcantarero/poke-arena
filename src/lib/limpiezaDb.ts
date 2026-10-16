@@ -2,7 +2,7 @@ import "server-only";
 import { inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { matches, tournamentResults, tournaments } from "@/db/schema";
-import { torneosAbandonados } from "./limpieza";
+import { torneosAbandonados, torneosParaCerrar } from "./limpieza";
 
 /**
  * v0.19 — Busca y borra los torneos abandonados (ver `lib/limpieza.ts`).
@@ -26,5 +26,30 @@ export async function borrarTorneosAbandonados(ahora = new Date()): Promise<Arra
   const ids = torneosAbandonados(torneos, con, ahora);
   if (!ids.length) return [];
   await db.delete(tournaments).where(inArray(tournaments.id, ids));
+  return torneos.filter((t) => ids.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
+}
+
+/**
+ * v0.45 — Cierra los torneos en curso con participación cuya fecha pasó hace
+ * más de una semana (ver `torneosParaCerrar` en `lib/limpieza.ts`).
+ *
+ * Hace lo mismo que el botón «Cerrar» de la ficha (`setTournamentStatus`):
+ * cambia el estado y apunta cuándo. Nada más: los CP no cambian al cerrar,
+ * porque se calculan siempre del puesto y la asistencia (`effectiveCp`).
+ */
+export async function cerrarTorneosTerminados(ahora = new Date()): Promise<Array<{ id: string; name: string }>> {
+  const [torneos, conResultado, conRonda] = await Promise.all([
+    db.select({ id: tournaments.id, name: tournaments.name, status: tournaments.status,
+      date: tournaments.date, endDate: tournaments.endDate }).from(tournaments),
+    db.selectDistinct({ id: tournamentResults.tournamentId }).from(tournamentResults),
+    db.selectDistinct({ id: matches.tournamentId }).from(matches).where(isNotNull(matches.tournamentId)),
+  ]);
+  const con = new Set<string>([
+    ...conResultado.map((r) => r.id),
+    ...conRonda.map((r) => r.id).filter((x): x is string => Boolean(x)),
+  ]);
+  const ids = torneosParaCerrar(torneos, con, ahora);
+  if (!ids.length) return [];
+  await db.update(tournaments).set({ status: "closed", closedAt: ahora }).where(inArray(tournaments.id, ids));
   return torneos.filter((t) => ids.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
 }

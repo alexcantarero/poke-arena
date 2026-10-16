@@ -4,7 +4,10 @@ import { canManageLeague, readSession } from "@/lib/auth";
 import { compPlayers, deckOptions, archetypeOptions, leagueDecksOf, leagueDeckSubmitters, loadSnapshot, teamsOf } from "@/lib/data";
 import { deleteTeam, saveTeam } from "@/actions";
 import { MODALIDADES, TAM_EQUIPO, asModalidad, clasificacionEquipos, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
-import { outcome } from "@/lib/stats";
+import {
+  outcome,
+} from "@/lib/stats";
+import { suggestedRounds } from "@/lib/sugerencias";
 import { DeckPicker } from "@/components/DeckPicker";
 import { submitLeagueDeck, unlockLeagueDeck } from "@/actions";
 import { fmtDate } from "@/lib/format";
@@ -14,7 +17,6 @@ import {
   isPlayed,
   pairRound,
   standings,
-  suggestedRounds,
 } from "@/lib/stats";
 import { pct, wrColor } from "@/lib/format";
 import { COMPETITION_KINDS, type CompetitionKind } from "@/lib/types";
@@ -33,6 +35,8 @@ import { createPairings } from "@/actions";
 import { Icon } from "@/components/icons";
 import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export default async function CompetitionPage({
   params,
@@ -41,6 +45,8 @@ export default async function CompetitionPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const { id } = await params;
   const query = await searchParams;
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
@@ -122,7 +128,7 @@ export default async function CompetitionPage({
         sub={`${kind.name} · Bo${comp.bestOf} · ${ids.length} jugadores${comp.kind === "swiss" ? ` · ${comp.rounds || suggestedRounds(ids.length)} rondas` : ""}`}
         actions={
           <Link className="btn btn-ghost btn-sm" href="/competiciones">
-            <Icon name="back" className="size-4" /> Todas
+            <Icon name="back" className="size-4" /> {tr(lng, "x.8a3c3440")}
           </Link>
         }
       />
@@ -138,8 +144,8 @@ export default async function CompetitionPage({
       <section className="card mb-4 overflow-hidden">
         <div className="card-head items-center">
           <div>
-            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">Ranking Liga</h2>
-            <p className="mt-0.5 text-xs text-muted">Resultados, juegos y rendimiento en la competición.</p>
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.759a2fe7")}</h2>
+            <p className="mt-0.5 text-xs text-muted">{tr(lng, "x.43ccd295")}</p>
           </div>
           <span className="flex-none rounded-full bg-surface-2 px-2.5 py-1 font-mono text-[11px] font-semibold tabular text-ink-2">
             {ids.length} jugadores · {played.length} partidas
@@ -148,10 +154,10 @@ export default async function CompetitionPage({
         {table.some((r) => r.played) ? (
           <>
           <div aria-hidden="true" className="hidden grid-cols-[2.5rem_minmax(10rem,1fr)_4rem_3rem_4rem_4rem_4.5rem_4rem_3.5rem] items-center gap-2 border-y border-line-soft bg-surface-2/70 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-muted lg:grid">
-            <span className="text-center">#</span><span>Jugador</span>
-            <span className="text-right">{isLeague ? "V–D" : "V–D–E"}</span><span className="text-right">PJ</span><span className="text-right">%V</span>
-            <span className="text-right">Res.</span><span className="text-right">Juegos</span><span className="text-right">%J</span>
-            <span className="text-right" title="Arquetipos distintos jugados">Arq.</span>
+            <span className="text-center">#</span><span>{tr(lng, "x.588eb828")}</span>
+            <span className="text-right">{isLeague ? "V–D" : tr(lng, "x.e5f65dc6")}</span><span className="text-right">{tr(lng, "x.a87fe3dd")}</span><span className="text-right">{tr(lng, "x.39683ef7")}</span>
+            <span className="text-right">{tr(lng, "x.68d5ae81")}</span><span className="text-right">{tr(lng, "x.81e206f8")}</span><span className="text-right">{tr(lng, "x.795bcbb1")}</span>
+            <span className="text-right" title={tr(lng, "x.2276068c")}>{tr(lng, "x.4afdaaa4")}</span>
           </div>
           <ol className="divide-y divide-line-soft">
             {table.map((r, i) => {
@@ -213,10 +219,10 @@ export default async function CompetitionPage({
                   >
                     {pct(playerWinRate, 0)}
                   </span>
-                  <span className="hidden text-right font-mono text-xs tabular text-muted lg:block" title="Porcentaje de victorias de sus rivales">
+                  <span className="hidden text-right font-mono text-xs tabular text-muted lg:block" title={tr(lng, "x.268ccc58")}>
                     {pct(r.resistance, 0)}
                   </span>
-                  <span className="hidden text-right font-mono text-xs tabular lg:block" title="Juegos ganados–perdidos">
+                  <span className="hidden text-right font-mono text-xs tabular lg:block" title={tr(lng, "x.af8f1fcb")}>
                     <span className="text-win">{r.gameWins}</span>–<span className="text-loss">{r.gameLosses}</span>
                   </span>
                   <span className="hidden text-right font-mono text-xs font-semibold tabular lg:block" style={{ color: wrColor(r.gameWinRate) }}>
@@ -232,14 +238,14 @@ export default async function CompetitionPage({
           </ol>
           </>
         ) : (
-          <Empty title="Sin partidas todavía" />
+          <Empty title={tr(lng, "x.8d421035")} />
         )}
       </section>
 
       {/* v0.23 — modalidad de la liga */}
       <div className="card tile-status mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
         style={{ ["--status" as string]: "var(--brand)" }}>
-        <span className="meta-kv"><b>modalidad</b></span>
+        <span className="meta-kv"><b>{tr(lng, "x.5d1db402")}</b></span>
         <span className="font-bold">{infoModalidad.label}</span>
         <span className="text-xs text-muted">{infoModalidad.hint}</span>
       </div>
@@ -248,7 +254,7 @@ export default async function CompetitionPage({
       <LigaStats
         matches={played}
         playersById={snap.playersById}
-        titulo="Estadísticas de esta liga"
+        titulo={tr(lng, "x.53d35418")}
         archIndex={snap.archIndex}
         archById={snap.archById}
       />
@@ -261,8 +267,8 @@ export default async function CompetitionPage({
         <section className="card mb-4 min-w-0">
           <div className="card-head">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold">Equipos</h2>
-              <p className="text-xs text-muted">Duelo ganado 3 · empatado 1 · perdido 0. Desempate: partidas ganadas.</p>
+              <h2 className="text-lg font-bold">{tr(lng, "x.6cdcea47")}</h2>
+              <p className="text-xs text-muted">{tr(lng, "x.94d11304")}</p>
             </div>
             <span className="flex-none text-xs text-muted tabular">{equiposCompletos.length} completos</span>
           </div>
@@ -284,30 +290,30 @@ export default async function CompetitionPage({
                               {snap.playersById.get(m)?.name ?? "—"}
                             </Link>
                           ))}
-                          {e.members.length < TAM_EQUIPO && <span className="chip chip-dot text-[10px] text-loss">incompleto</span>}
+                          {e.members.length < TAM_EQUIPO && <span className="chip chip-dot text-[10px] text-loss">{tr(lng, "x.4a6bcf02")}</span>}
                         </span>
                       </span>
                     </span>
                     <span className="flex flex-none items-center gap-4 pl-9 text-sm sm:pl-0">
                       <span className="text-center font-mono text-xs tabular">
                         <span className="text-win">{f.ganados}</span>–<span className="text-loss">{f.perdidos}</span>–<span className="text-tie">{f.empatados}</span>
-                        <span className="block text-[10px] text-muted">duelos</span>
+                        <span className="block text-[10px] text-muted">{tr(lng, "x.72227507")}</span>
                       </span>
-                      <span className="text-center font-mono text-xs tabular">{f.victorias}–{f.derrotas}<span className="block text-[10px] text-muted">partidas</span></span>
+                      <span className="text-center font-mono text-xs tabular">{f.victorias}–{f.derrotas}<span className="block text-[10px] text-muted">{tr(lng, "x.18fd2bbc")}</span></span>
                     </span>
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className="px-4 py-4 text-sm text-muted">Todavía no hay equipos. {manager ? "Créalos abajo." : "Los forma el organizador."}</p>
+            <p className="px-4 py-4 text-sm text-muted">Todavía no hay equipos. {manager ? "Créalos abajo." : tr(lng, "x.1dcf983c")}</p>
           )}
 
           {manager && (
             <details className="border-t border-line-soft">
               <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
-                Crear o editar equipos
-                <span className="text-[11px] font-normal text-muted">organizador</span>
+                {tr(lng, "x.d28996ce")}
+                <span className="text-[11px] font-normal text-muted">{tr(lng, "x.4e9effbb")}</span>
               </summary>
               <div className="flex flex-col gap-4 p-4">
                 {[...equipos, null].map((e) => (
@@ -315,7 +321,7 @@ export default async function CompetitionPage({
                     <input type="hidden" name="competitionId" value={comp.id} />
                     {e && <input type="hidden" name="teamId" value={e.id} />}
                     <input className="input" name="name" required maxLength={40}
-                      defaultValue={e?.name ?? ""} placeholder={e ? "Nombre del equipo" : "Nuevo equipo: nombre"} />
+                      defaultValue={e?.name ?? ""} placeholder={e ? "Nombre del equipo" : tr(lng, "x.45e4a32b")} />
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       {[0, 1, 2].map((k) => (
                         <select key={k} className="input" name={`member${k + 1}`} required defaultValue={e?.members[k] ?? ""}
@@ -328,17 +334,17 @@ export default async function CompetitionPage({
                       ))}
                     </div>
                     <div className="flex gap-2">
-                      <button className="btn btn-brand btn-sm" type="submit">{e ? "Guardar equipo" : "Crear equipo"}</button>
+                      <button className="btn btn-brand btn-sm" type="submit">{e ? "Guardar equipo" : tr(lng, "x.9663417d")}</button>
                       {e && (
                         <button className="btn btn-ghost btn-sm text-loss" type="submit" formAction={deleteTeam} formNoValidate>
-                          Borrar
+                          {tr(lng, "x.d7b82b21")}
                         </button>
                       )}
                     </div>
                   </form>
                 ))}
                 <p className="text-xs text-muted">
-                  El orden es el puesto: en cada duelo, el 1 juega contra el 1 del otro equipo, el 2 contra el 2 y el 3 contra el 3.
+                  {tr(lng, "x.3c106a88")}
                 </p>
               </div>
             </details>
@@ -402,7 +408,7 @@ export default async function CompetitionPage({
                         size="sm"
                         className="flex-1"
                       />
-                      <span className="chip chip-brand">descansa</span>
+                      <span className="chip chip-brand">{tr(lng, "x.7399cdb9")}</span>
                     </li>
                   )}
                 </ul>
@@ -425,13 +431,13 @@ export default async function CompetitionPage({
                   </form>
                 ) : (
                   <p className="text-sm text-muted">
-                    Los cruces los genera el organizador.
+                    {tr(lng, "x.b98489c9")}
                   </p>
                 )}
               </>
             ) : (
               <p className="text-sm text-muted">
-                No quedan cruces por generar con estos participantes.
+                {tr(lng, "x.1830409f")}
               </p>
             )}
           </div>
@@ -439,7 +445,7 @@ export default async function CompetitionPage({
 
         <section className="card min-w-0">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Pendientes</h2>
+            <h2 className="text-lg font-bold">{tr(lng, "x.eaf186d9")}</h2>
             <span className="text-xs text-muted">{pending.length}</span>
           </div>
           {pending.length ? (
@@ -459,21 +465,21 @@ export default async function CompetitionPage({
                         : m.opponentName}
                     </span>
                     <span className="btn btn-brand btn-sm flex-none px-3">
-                      Anotar
+                      {tr(lng, "x.793b2e98")}
                     </span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <Empty title="Nada pendiente" />
+            <Empty title={tr(lng, "x.1554e971")} />
           )}
         </section>
       </div>
 
       {played.length > 0 && (
         <>
-          <SectionTitle aside={`${played.length}`}>Partidas</SectionTitle>
+          <SectionTitle aside={`${played.length}`}>{tr(lng, "x.64f94394")}</SectionTitle>
           <div className="card mb-6">
             <MatchList>
               {played
@@ -508,8 +514,8 @@ export default async function CompetitionPage({
       {manager && (
         <details className="mb-6">
           <summary className="card tap mb-3 cursor-pointer justify-between px-4 font-display text-lg font-bold">
-            Editar competición
-            <span className="text-xs font-normal text-muted">organizador</span>
+            {tr(lng, "x.94dcc1c4")}
+            <span className="text-xs font-normal text-muted">{tr(lng, "x.4e9effbb")}</span>
           </summary>
           <CompetitionForm
             competition={comp}

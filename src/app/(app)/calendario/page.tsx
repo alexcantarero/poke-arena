@@ -8,6 +8,8 @@ import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Calendario" };
 
@@ -30,6 +32,8 @@ export const metadata = { title: "Calendario" };
 export default async function CalendarPage({
   searchParams,
 }: { searchParams: Promise<{ y?: string; m?: string; tipo?: string; vista?: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   const now = new Date();
   const year = Number(q.y) || now.getFullYear();
@@ -156,22 +160,22 @@ export default async function CalendarPage({
   return (
     <>
       <PageHead
-        title="Calendario"
-        sub="Vuestras jornadas y fechas límite, los torneos apuntados, los oficiales de Europa y las partidas ya jugadas. Cada tipo, con su color."
+        title={tr(lng, "x.df824e6b")}
+        sub={tr(lng, "x.c765d337")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
           {/* v0.16 — selector de vista */}
-          <div className="seg" role="tablist" aria-label="Vista">
+          <div className="seg" role="tablist" aria-label={tr(lng, "x.462d2dd3")}>
             <Link href={vistaHref("calendario")} data-on={vista === "calendario"} aria-current={vista === "calendario" ? "page" : undefined}>
-              <Icon name="calendar" className="size-4" /> Calendario
+              <Icon name="calendar" className="size-4" /> {tr(lng, "x.df824e6b")}
             </Link>
             <Link href={vistaHref("agenda")} data-on={vista === "agenda"} aria-current={vista === "agenda" ? "page" : undefined}>
-              <Icon name="results" className="size-4" /> Agenda
+              <Icon name="results" className="size-4" /> {tr(lng, "x.891e9d6d")}
             </Link>
           </div>
           {vista === "calendario" && (
           <div className="flex items-center gap-1.5">
-            <Link className="btn btn-sm px-3" href={mesHref(prev.y, prev.m)} aria-label="Mes anterior">
+            <Link className="btn btn-sm px-3" href={mesHref(prev.y, prev.m)} aria-label={tr(lng, "x.7baa92d4")}>
               <Icon name="back" className="size-4" />
             </Link>
             {/* Más estrecho en el móvil: con 320px de ancho, 8rem aquí más los
@@ -179,10 +183,10 @@ export default async function CalendarPage({
             <span className="min-w-24 text-center font-display text-base font-bold capitalize sm:min-w-32 sm:text-lg">
               {MONTHS[month]} {year}
             </span>
-            <Link className="btn btn-sm px-3" href={mesHref(next.y, next.m)} aria-label="Mes siguiente">
+            <Link className="btn btn-sm px-3" href={mesHref(next.y, next.m)} aria-label={tr(lng, "x.b1f6f76f")}>
               <Icon name="back" className="size-4 rotate-180" />
             </Link>
-            <Link className="btn btn-sm" href={tipo ? `/calendario?tipo=${tipo}` : "/calendario"}>Hoy</Link>
+            <Link className="btn btn-sm" href={tipo ? `/calendario?tipo=${tipo}` : "/calendario"}>{tr(lng, "x.565e9824")}</Link>
           </div>
           )}
           </div>
@@ -197,7 +201,7 @@ export default async function CalendarPage({
             aria-current={!tipo ? "page" : undefined}
             className={`chip flex-none ${!tipo ? "chip-brand" : ""}`}
           >
-            Todo
+            {tr(lng, "x.fdebf667")}
           </Link>
           {disponibles.map((k) => (
             <Link
@@ -285,12 +289,12 @@ export default async function CalendarPage({
       {vista === "calendario" && manager && (
           <div className="grid items-start gap-4 lg:grid-cols-3">
             <section className="card">
-              <div className="card-head"><h2 className="text-lg font-bold">Añadir al calendario</h2></div>
+              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.52501db8")}</h2></div>
               <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
             </section>
 
             <section className="card">
-              <div className="card-head"><h2 className="text-lg font-bold">Eventos oficiales de Europa</h2></div>
+              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.4566e25f")}</h2></div>
               <div className="p-4">
                 <p className="mb-3 text-sm text-muted">
                   Mete de una vez los Regionales, Special Events y el Internacional de la
@@ -301,12 +305,11 @@ export default async function CalendarPage({
                 </p>
                 <form action={importEuropeanEvents}>
                   <button className="btn btn-brand w-full" type="submit">
-                    <Icon name="globe" className="size-4" /> Importar eventos de Europa
+                    <Icon name="globe" className="size-4" /> {tr(lng, "x.63d55da9")}
                   </button>
                 </form>
                 <p className="mt-2 text-[11px] text-muted">
-                  Alguna fecha está marcada como «por confirmar» porque las fuentes no
-                  coinciden. Míralas en la web oficial antes de sacar vuelos.
+                  {tr(lng, "x.1169d7b0")}
                 </p>
               </div>
             </section>
@@ -315,12 +318,12 @@ export default async function CalendarPage({
                 No se consulta pokemon.com desde la app: sus condiciones prohíben
                 la extracción automatizada. */}
             <section className="card">
-              <div className="card-head"><h2 className="text-lg font-bold">Challenges y Cups de la zona</h2></div>
+              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.e806562b")}</h2></div>
               <form action={importPastedEvents} className="flex flex-col gap-3 p-4">
                 <p className="text-sm text-muted">
                   Pega aquí la lista copiada del{" "}
                   <a className="underline" href="https://events.pokemon.com/EventLocator/" target="_blank" rel="noopener noreferrer">
-                    buscador de eventos oficial
+                    {tr(lng, "x.1c7dda4e")}
                   </a>{" "}
                   o un mensaje de WhatsApp/chat organizado por meses (ej. OCTUBRE con CHALLENGE, CUP y REGIONAL).
                   Pegar otra vez la misma lista actualiza y no duplica.
@@ -328,7 +331,7 @@ export default async function CalendarPage({
                 <textarea className="input min-h-32 font-mono text-xs" name="texto" required
                   placeholder={"OCTUBRE\nCHALLENGE Sábado 3 - 16:30 Freakshow (Girona)\nCUP Domingo 4 - 10:30 Mythic (Calella)\nREGIONAL NIZA 17-18"} />
                 <button className="btn btn-brand w-full" type="submit">
-                  <Icon name="calendar" className="size-4" /> Añadir al calendario
+                  <Icon name="calendar" className="size-4" /> {tr(lng, "x.52501db8")}
                 </button>
               </form>
             </section>
@@ -357,12 +360,14 @@ type ItemAgenda = {
   kind?: string | null; scope?: string | null;
 };
 
-function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
+async function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
+  const lng = await getLang(); // v0.49
+
   if (!agenda.length) {
     return (
       <div className="card mb-5">
-        <Empty icon="calendar" title={tipo ? "Nada de ese tipo por delante" : "Agenda vacía"}>
-          {tipo ? "Prueba a quitar el filtro." : "Cuando haya torneos o eventos por delante, saldrán aquí."}
+        <Empty icon="calendar" title={tipo ? "Nada de ese tipo por delante" : tr(lng, "x.2944d831")}>
+          {tipo ? "Prueba a quitar el filtro." : tr(lng, "x.969b4a0d")}
         </Empty>
       </div>
     );

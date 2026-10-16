@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   DESEMPATES, TOP_CUT_MAXIMO_TCG, estructuraDe, familiaDe, puntosDe, techoDe, umbralesDe,
-  veredictoDe, victoriasNecesarias, recordLimpio, type Umbral, type Veredicto,
-} from "@/lib/estructura";
+  veredictoDe, victoriasNecesarias, recordLimpio, type Umbral, type Veredicto, formaDe, reglaDePaso, veredictoPaso } from "@/lib/estructura";
 import { Icon } from "./icons";
+import { tr, trf } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    «¿Qué necesito?» — la pantalla que se mira de pie, entre ronda y ronda.
@@ -58,6 +59,12 @@ type Props = {
    */
   rondasTotales?: number | null;
   topCut?: number | null;
+  /** v0.45 — cuántas de las rondas son de una segunda fase propia (online). */
+  rondasFase2?: number | null;
+  /** v0.47 — umbrales de paso de una estructura propia: puntos O top N. */
+  paso2Puntos?: number | null;
+  paso2Top?: number | null;
+  cortePuntos?: number | null;
   /** Clave para recordar si lo dejaste plegado. */
   storageKey?: string;
   /**
@@ -74,9 +81,12 @@ type Props = {
 export type Pestana = "dia1" | "dia2" | "general";
 
 export function CaminoAlCorte({
-  kind, playerCount, rondas, rondasTotales, topCut, storageKey = "camino",
+  kind, playerCount, rondas, rondasTotales, topCut, rondasFase2,
+  paso2Puntos, paso2Top, cortePuntos, storageKey = "camino",
   pestana: pestanaUrl, hrefFase,
 }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [abierto, setAbierto] = useState(true);
   const [pestanaLocal, setPestana] = useState<Pestana>(pestanaUrl ?? "dia1");
   const pestana = pestanaUrl ?? pestanaLocal;
@@ -102,17 +112,32 @@ export function CaminoAlCorte({
 
   const familia = familiaDe(kind);
 
-  // Lo configurado a mano manda sobre la tabla.
-  const total = rondasTotales || e?.total || 0;
-  // Solo la tabla de dos fases parte el suizo en días. En una Cup o un
-  // Challenge la fase uno ES el suizo entero.
-  const fase1 = e && e.fase2 > 0 ? e.fase1 : total;
-  // Un League Challenge no tiene corte (§5.5.6.1, Variante #2), aunque alguien
-  // haya tecleado uno en el torneo.
-  const corteReal = familia === "challenge" ? 0 : (topCut ?? e?.topCut ?? 0);
+  /* v0.45 — fases y corte salen de `formaDe`, la MISMA función que usa la
+     ficha del torneo para filtrar y etiquetar las rondas. Antes este
+     componente hacía su propia cuenta desde la tabla oficial, y un torneo con
+     una estructura propia (8 + 3 rondas y top 8) no se podía describir. Lo
+     tecleado manda sobre la tabla; un Challenge sigue sin corte salvo que
+     tenga estructura propia (§5.5.6.1, Variante #2). */
+  const forma = formaDe({
+    kind, playerCount, rounds: rondasTotales, roundsPhase2: rondasFase2, topCut,
+    phase2Points: paso2Puntos, phase2Top: paso2Top, cutPoints: cortePuntos,
+  });
+  const total = forma.suizo ?? 0;
+  const fase1 = forma.fase1 ?? total;
+  const corteReal = forma.corte;
+  const fase2 = Math.max(0, total - fase1);
+  /* «Día» es el nombre oficial de las fases; un online las llama «Fase». */
+  // v0.49 — solo para ENSEÑAR. Para decidir, `forma.faseManual`: el texto cambia con el idioma.
+  const F1 = forma.faseManual ? tr(lng, "camino.f1") : tr(lng, "camino.d1");
+  const F2 = forma.faseManual ? tr(lng, "camino.f2") : tr(lng, "camino.d2");
   /* Sin asistencia no hay fila de la tabla, pero si se sabe el corte y las
      rondas el mínimo para pelearlo (X-2) sale igual. */
-  const corteUmbral: Umbral | null = u?.corte
+  /* v0.47 — un umbral tecleado manda sobre el oficial y sobre la estimación
+     X-2. Con él, quien llega a los puntos pasa seguro (ver `veredictoPaso`). */
+  const corteUmbral: Umbral | null = (forma.pasoCorte
+    ? { puntos: forma.pasoCorte.puntos, record: recordLimpio(forma.pasoCorte.puntos, total) }
+    : null)
+    ?? u?.corte
     ?? (corteReal > 0 && total > 2
       ? { puntos: (total - 2) * 3, record: recordLimpio((total - 2) * 3, total) }
       : null);
@@ -120,10 +145,9 @@ export function CaminoAlCorte({
   if (!total) {
     return (
       <section className="card mb-5 p-4">
-        <h2 className="text-lg font-bold">{familiaDe(kind) === "challenge" ? "Tu Challenge" : "Camino al corte"}</h2>
+        <h2 className="text-lg font-bold">{familiaDe(kind) === "challenge" ? "Tu Challenge" : tr(lng, "x.167080e8")}</h2>
         <p className="mt-1 text-sm text-muted">
-          Falta saber <b>cuánta gente hay</b> o <b>cuántas rondas se juegan</b>. Se ponen al
-          editar el torneo, y con eso ya se puede calcular todo lo demás.
+          {tr(lng, "x.5f708bc2")} <b>{tr(lng, "x.fc20f49b")}</b> o <b>{tr(lng, "x.f545c172")}</b>{tr(lng, "x.e4e4bf4f")}
         </p>
       </section>
     );
@@ -133,7 +157,7 @@ export function CaminoAlCorte({
      No hay corte que perseguir, así que no se enseña ningún «mínimo» ni el
      «ni ganándolas todas llegas» que salía en rojo: en un Challenge siempre
      se llega a donde se llega, y lo que cuenta es el puesto final. */
-  if (familia === "challenge" || (!corteReal && !(e?.fase2))) {
+  if (!forma.dosFases && (familia === "challenge" || !corteReal)) {
     const w = rondas.filter((r) => r.result === "w").length;
     const t = rondas.filter((r) => r.result === "t").length;
     const l = rondas.length - w - t;
@@ -142,7 +166,7 @@ export function CaminoAlCorte({
       <section className="card mb-5 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold">
-            {familia === "challenge" ? "Tu Challenge" : "Tu suizo"}
+            {familia === "challenge" ? "Tu Challenge" : tr(lng, "x.3899bbda")}
           </h2>
           <span className="text-xs text-muted tabular">
             {rondas.length} de {total} rondas
@@ -156,11 +180,11 @@ export function CaminoAlCorte({
         </div>
         <p className="mt-3 text-sm text-ink-2">
           {quedan === 0
-            ? "Suizo terminado."
+            ? tr(lng, "x.16f80c03")
             : `Quedan ${quedan} ${quedan === 1 ? "ronda" : "rondas"}.`}{" "}
           {familia === "challenge"
-            ? "Los League Challenge son solo suizo y de un día, sin top cut (reglamento, §5.5.6.1 · Variante #2): el puesto final sale de la clasificación del suizo."
-            : "Este torneo no tiene corte configurado."}
+            ? tr(lng, "x.aadfeda6")
+            : tr(lng, "x.57b44931")}
         </p>
       </section>
     );
@@ -179,12 +203,21 @@ export function CaminoAlCorte({
   const pts1 = puntosDe(r1.wins, r1.ties);
   const ptsT = puntosDe(rT.wins, rT.ties);
 
-  const hayDia2 = (e?.fase2 ?? 0) > 0;
-  const vDia1 = u?.diaDos ? (pts1 >= u.diaDos.puntos ? "dentro" : "fuera") as Veredicto : null;
-  const vCorte = veredictoDe(ptsT, corteUmbral);
+  const hayDia2 = forma.dosFases;
+  /* El umbral de la fase 2: el tecleado si lo hay, si no el del reglamento. */
+  const umbralF2: Umbral | null = forma.paso2
+    ? { puntos: forma.paso2.puntos, record: recordLimpio(forma.paso2.puntos, fase1) }
+    : u?.diaDos ?? null;
+  /* v0.47 — con la regla «puntos O top N», no llegar a los puntos NO es estar
+     fuera: si menos de N llegan, pasan los N primeros. Ver `veredictoPaso`.
+     El umbral oficial del Día 2, en cambio, sí es absoluto. */
+  const vDia1 = forma.paso2
+    ? veredictoPaso(pts1, forma.paso2)
+    : u?.diaDos ? (pts1 >= u.diaDos.puntos ? "dentro" : "fuera") as Veredicto : null;
+  const vCorte = forma.pasoCorte ? veredictoPaso(ptsT, forma.pasoCorte) : veredictoDe(ptsT, corteUmbral);
 
   const titular = hayDia2 && rT.jugadas <= fase1
-    ? resumenFase(pts1, r1.jugadas, fase1, u?.diaDos ?? null, "el Día 2")
+    ? resumenFase(pts1, r1.jugadas, fase1, umbralF2, forma.faseManual ? tr(lng, "camino.laF2") : tr(lng, "camino.elD2"))
     : resumenFase(ptsT, rT.jugadas, total, corteUmbral, `el top ${corteReal}`);
 
   return (
@@ -196,7 +229,7 @@ export function CaminoAlCorte({
         className="card-head w-full text-left"
       >
         <span className="min-w-0">
-          <span className="block text-lg font-bold">Camino al corte</span>
+          <span className="block text-lg font-bold">{tr(lng, "x.167080e8")}</span>
           <span className="block text-xs text-muted tabular">{titular}</span>
         </span>
         <Icon name={abierto ? "back" : "more"}
@@ -206,17 +239,25 @@ export function CaminoAlCorte({
       {abierto && (
         <div className="p-4 pt-0">
           <Pestanas actual={pestana} onPick={setPestana} href={hrefFase} hayDia2={hayDia2}
-            fase1={fase1} fase2={e?.fase2 ?? 0} corte={corteReal} />
+            fase1={fase1} fase2={fase2} corte={corteReal} f1={F1} f2={F2} />
+          {/* v0.47 — la regla de paso, dicha tal cual: así se entiende por qué
+              no llegar a los puntos sale como «depende» y no como «fuera». */}
+          {(forma.paso2 || forma.pasoCorte) && (
+            <div className="mb-3 space-y-0.5 text-xs text-muted">
+              {forma.paso2 && <p>{reglaDePaso(forma.paso2, tr(lng, "x.0f4340d9"))}</p>}
+              {forma.pasoCorte && <p>{reglaDePaso(forma.pasoCorte, `el top ${corteReal}`)}</p>}
+            </div>
+          )}
 
           {(pestana === "dia1" || !hayDia2) && (
             <Fase
-              titulo={hayDia2 ? "Resultado del Día 1" : "Resultado del suizo"}
+              titulo={hayDia2 ? tr(lng, forma.faseManual ? "camino.res1f" : "camino.res1d") : tr(lng, "camino.resSuizo")}
               rondas={r1.jugadas} de={fase1}
               record={r1} puntos={pts1}
-              umbral={hayDia2 ? u?.diaDos ?? null : corteUmbral}
+              umbral={hayDia2 ? umbralF2 : corteUmbral}
               veredicto={hayDia2 ? vDia1 : vCorte}
-              etiquetaUmbral={hayDia2 ? "Mínimo para el Día 2" : `Mínimo para pelear el top ${corteReal}`}
-              absoluto={hayDia2}
+              etiquetaUmbral={hayDia2 ? tr(lng, forma.faseManual ? "camino.min2f" : "camino.min2d") : trf(lng, "camino.minTop", { n: corteReal })}
+              absoluto={hayDia2 && !forma.paso2}
               total={hayDia2 ? fase1 : total}
             />
           )}
@@ -224,7 +265,7 @@ export function CaminoAlCorte({
           {pestana === "dia2" && hayDia2 && (
             <>
               <Fase
-                titulo="Resultado del Día 2"
+                titulo={tr(lng, forma.faseManual ? "camino.res2f" : "camino.res2d")}
                 rondas={rT.jugadas} de={total}
                 record={rT} puntos={ptsT}
                 umbral={corteUmbral}
@@ -243,11 +284,11 @@ export function CaminoAlCorte({
                 {/* El Día 2 solo existe en Regionales: en una Cup ni se menciona. */}
                 {hayDia2 && (
                   <Umbralito
-                    etiqueta="Mínimo para el Día 2"
-                    umbral={u?.diaDos ?? null}
+                    etiqueta={tr(lng, "x.c410f12f")}
+                    umbral={umbralF2}
                     veredicto={vDia1}
                     rondas={fase1}
-                    nota="Son puntos publicados: o llegas o no."
+                    nota={tr(lng, "x.f754a671")}
                   />
                 )}
                 <Umbralito
@@ -255,7 +296,7 @@ export function CaminoAlCorte({
                   umbral={corteUmbral}
                   veredicto={vCorte}
                   rondas={total}
-                  nota={corteReal ? "Ahí manda el desempate." : "Este torneo no tiene corte."}
+                  nota={corteReal ? "Ahí manda el desempate." : tr(lng, "x.c5e95c31")}
                 />
               </div>
               <Ficha e={e} total={total} fase1={fase1} corte={corteReal} kind={kind}
@@ -271,17 +312,22 @@ export function CaminoAlCorte({
 /* --------------------------------------------------------------- piezas -- */
 
 function Pestanas({
-  actual, onPick, href, hayDia2, fase1, fase2, corte,
+  actual, onPick, href, hayDia2, fase1, fase2, corte, f1 = "Día 1", f2 = "Día 2",
 }: {
   actual: Pestana; onPick: (p: Pestana) => void; href?: string;
   hayDia2: boolean; fase1: number; fase2: number; corte: number;
+  /** v0.45 — «Día 1/2» oficial o «Fase 1/2» en una estructura propia. */
+  f1?: string; f2?: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const items: Array<{ id: Pestana; label: string; sub: string }> = [
-    { id: "dia1", label: hayDia2 ? "Día 1" : "Suizo", sub: `${fase1} rondas` },
+    { id: "dia1", label: hayDia2 ? f1 : "Suizo", sub: `${fase1} rondas` },
     ...(hayDia2
-      ? [{ id: "dia2" as const, label: "Día 2 y corte", sub: `${fase2} rondas · top ${corte}` }]
+      ? [{ id: "dia2" as const, label: corte ? `${f2} y corte` : f2,
+           sub: corte ? `${fase2} rondas · top ${corte}` : `${fase2} rondas` }]
       : []),
-    { id: "general", label: "General", sub: "todo junto" },
+    { id: "general", label: "General", sub: tr(lng, "x.c722ecd0") },
   ];
 
   return (
@@ -289,7 +335,7 @@ function Pestanas({
     // negativo y dentro de una tarjeta con overflow-hidden recorta la primera
     // y la última pestaña. Es el fallo que ya arreglamos en la v0.11.
     <div className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1"
-      role="tablist" aria-label="Fase del torneo">
+      role="tablist" aria-label={tr(lng, "x.6e341850")}>
       {items.map((it) => {
         const on = actual === it.id;
         const cls = `tap flex-none rounded-lg border px-3 py-1.5 text-left transition-colors
@@ -336,6 +382,8 @@ function Fase({
   absoluto: boolean;
   total: number;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const quedan = Math.max(0, de - rondas);
   const faltan = umbral ? victoriasNecesarias(puntos, rondas, total, umbral) : null;
   const techo = techoDe(puntos, rondas, total);
@@ -361,16 +409,16 @@ function Fase({
         <Umbralito
           etiqueta={etiquetaUmbral} umbral={umbral} veredicto={veredicto} rondas={total}
           nota={absoluto
-            ? "Son puntos publicados: o llegas o no, no depende de nadie."
-            : "Ahí manda el desempate."}
+            ? tr(lng, "x.705a39d8")
+            : tr(lng, "x.241cbece")}
         />
       )}
 
       <p className="mt-3 text-sm">
         {quedan === 0
-          ? <span className="text-muted">Fase terminada.</span>
+          ? <span className="text-muted">{tr(lng, "x.5435589f")}</span>
           : faltan === 0
-            ? <b className="text-win">Ya llegas al mínimo pase lo que pase.</b>
+            ? <b className="text-win">{tr(lng, "x.25146465")}</b>
             : !umbral
               ? <span className="text-muted">Quedan {quedan}.</span>
             : faltan != null
@@ -423,12 +471,14 @@ function Umbralito({
 
 /** Lo que hay que saber del corte asimétrico, una vez y en pequeño. */
 function NotaCorte({ corte, asimetrico }: { corte: number; asimetrico: boolean }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (!corte) return null;
   return (
     <p className="mt-3 border-t border-line-soft pt-3 text-[11px] text-muted">
       {asimetrico && (
         <>
-          El top {corte} es <b>asimétrico</b>: entran todos los que empaten a puntos con el
+          El top {corte} es <b>{tr(lng, "x.a09994df")}</b>: entran todos los que empaten a puntos con el
           último, hasta un máximo de <b className="tabular">{TOP_CUT_MAXIMO_TCG}</b> en TCG.{" "}
         </>
       )}
@@ -445,11 +495,13 @@ function Ficha({
   e: ReturnType<typeof estructuraDe>; total: number; fase1: number; corte: number;
   kind: string; playerCount: number | null;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (!e) return null;
   const discrepa = e.total !== total;
   return (
     <div className="mt-4 border-t border-line-soft pt-3">
-      <p className="label mb-1.5">Estructura</p>
+      <p className="label mb-1.5">{tr(lng, "x.de5df3ac")}</p>
       <p className="text-sm text-ink-2 tabular">
         {playerCount?.toLocaleString("es")} jugadores · {fase1}
         {e.fase2 > 0 ? `+${e.fase2}` : ""} rondas
@@ -458,7 +510,7 @@ function Ficha({
       <p className="mt-1 text-[11px] text-muted">
         Tramo {e.min.toLocaleString("es")}–{Number.isFinite(e.max) ? e.max.toLocaleString("es") : "∞"} del
         reglamento de 2026 para {kind === "league_challenge" ? "League Challenge"
-          : kind === "league_cup" ? "League Cup" : "eventos del circuito"}.
+          : kind === "league_cup" ? "League Cup" : tr(lng, "x.3b62af14")}.
         Las rondas pueden repartirse entre días de otra forma: manda el horario del organizador.
       </p>
       {discrepa && (

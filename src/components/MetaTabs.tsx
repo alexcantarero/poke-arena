@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    Las pestañas de la zona de metagame: Online · Presencial · Mazos.
@@ -14,7 +16,9 @@ import { Icon } from "@/components/icons";
 
 export type MetaTab = "online" | "presencial" | "mazos";
 
-export function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: string }) {
+export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: string }) {
+  const lng = await getLang(); // v0.49
+
   const q = query ? `q=${encodeURIComponent(query)}` : "";
 
   const base =
@@ -22,7 +26,7 @@ export function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: stri
   const apagada = "border-line bg-surface text-muted hover:text-ink";
 
   return (
-    <nav className="scroll-x scroll-fade mb-4 flex gap-2" aria-label="Metagame y mazos">
+    <nav className="scroll-x scroll-fade mb-4 flex gap-2" aria-label={tr(lng, "x.3a2db4f1")}>
       <Link
         href={`/topdecks${q ? `?${q}` : ""}`}
         aria-current={actual === "online" ? "page" : undefined}
@@ -40,7 +44,7 @@ export function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: stri
           ? "border-brand-line bg-brand-soft text-brand" : apagada}`}
       >
         <Icon name="trophy" className="size-4" />
-        Presencial
+        {tr(lng, "x.4bb0ddec")}
       </Link>
 
       {/* `<nav>` con `aria-current` y no `tablist` con `role="tab"`: las
@@ -54,7 +58,7 @@ export function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: stri
           ? "border-series-1 bg-surface-2 text-ink" : apagada}`}
       >
         <Icon name="deck" className="size-4" />
-        Mazos
+        {tr(lng, "x.78f2cee5")}
       </Link>
     </nav>
   );

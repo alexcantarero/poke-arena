@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
 import { num } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.15 — Ranking de torneos: torneos jugados, V–D–E, conversión al top cut,
@@ -49,6 +51,8 @@ const COLS: Array<{ key: Key; label: string; short: string }> = [
 const ASC_ES_MEJOR: Partial<Record<Key, true>> = { avgPlacement: true };
 
 export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[]; cpLabel: string }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 }>({ key: "cp", dir: -1 });
 
   const val = (r: TourRankRow, k: Key): number => {
@@ -72,7 +76,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
   if (!rows.length) {
     return (
       <p className="card px-4 py-8 text-center text-sm text-muted">
-        Nadie tiene torneos con este filtro.
+        {tr(lng, "x.89a3c73f")}
       </p>
     );
   }
@@ -81,10 +85,10 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
     switch (sort.key) {
       case "cp": return { v: r.cp, l: cpLabel };
       case "torneos": return { v: r.torneos, l: "torneos" };
-      case "wins": return { v: r.wins, l: "rondas ganadas" };
+      case "wins": return { v: r.wins, l: tr(lng, "x.bd9480f2") };
       case "winRate": return { v: pct(r.winRate, 0), l: "%V" };
-      case "cutRate": return { v: corte(r), l: r.conCorte ? `corte ${r.cortes}/${r.conCorte}` : "sin corte" };
-      case "avgPlacement": return { v: media(r.avgPlacement), l: "puesto medio" };
+      case "cutRate": return { v: corte(r), l: r.conCorte ? `corte ${r.cortes}/${r.conCorte}` : tr(lng, "x.ebc2ebf2") };
+      case "avgPlacement": return { v: media(r.avgPlacement), l: tr(lng, "x.faf6cb86") };
       default: return { v: r.cp, l: cpLabel };
     }
   };
@@ -153,8 +157,8 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
           <thead>
             <tr>
               <th className="w-10 text-center">#</th>
-              <th>Jugador</th>
-              <th>V–D–E</th>
+              <th>{tr(lng, "x.588eb828")}</th>
+              <th>{tr(lng, "x.e5f65dc6")}</th>
               {COLS.filter((c) => c.key !== "wins").map((c) => (
                 <th key={c.key} className="text-right">
                   <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={c.label}>
@@ -162,7 +166,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
                   </button>
                 </th>
               ))}
-              <th className="text-right">Mejor</th>
+              <th className="text-right">{tr(lng, "x.fa3a0d02")}</th>
             </tr>
           </thead>
           <tbody>

@@ -11,7 +11,8 @@ import { subtituloLiga } from "@/lib/marca";
 import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
-import { getLang } from "@/lib/lang";
+import { LangProvider } from "@/components/LangProvider";
+import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
@@ -32,10 +33,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // pequeñas. Una pantalla que de verdad necesite el snapshot lo sigue pidiendo
   // por su cuenta, y `cache()` evita repetir la fila de ajustes.
   const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
+  // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
+  const conIngles = inglesDisponible();
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   if (!me) redirect("/entrar");
 
   return (
+    // v0.49 — el idioma, para que cualquier componente de cliente lo pida con
+    // `useLang()` en vez de recibirlo por props de componente en componente.
+    <LangProvider lang={lang}>
     <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
       {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
       <SeasonFx estacion={estacion} />
@@ -73,7 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
             <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.27.0"}</span>
-              <LangToggle lang={lang} />
+              {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>
                 <button className="btn btn-ghost btn-sm px-2 text-muted hover:text-loss" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
@@ -106,7 +112,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             <span aria-hidden="true">{estacion.emblema}</span>
           </SeasonPokemonTrigger>
-          <LangToggle lang={lang} />
+          {conIngles && <LangToggle lang={lang} />}
           <ThemeToggle />
           <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label={tr(lang, "nav.moreSections")}>
             <Icon name="more" className="size-5" />
@@ -138,5 +144,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <FilterMemory />
       </Suspense>
     </div>
+    </LangProvider>
   );
 }

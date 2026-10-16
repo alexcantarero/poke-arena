@@ -59,6 +59,8 @@ export default async function ProfilePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ambito?: string }>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const [{ id }, q] = await Promise.all([params, searchParams]);
   const [snap, session, lang] = await Promise.all([loadSnapshot(), readSession(), getLang()]);
   const posiciones = posicionesDe(snap, id);
@@ -153,15 +155,15 @@ export default async function ProfilePage({
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-extrabold leading-none">{player.name}</h1>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
-            {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : "Admin"}</span>}
-            {isMe && <span className="chip chip-info">eres tú</span>}
+            {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : tr(lng, "x.4e7afebc")}</span>}
+            {isMe && <span className="chip chip-info">{tr(lng, "x.4dc2088e")}</span>}
             {player.ladderElo != null && <RankBadge elo={player.ladderElo} size="sm" />}
             <span>Desde {fmtDateLong(player.joined)}</span>
           </p>
           {player.bio && <p className="mt-2 max-w-prose text-sm text-ink-2">{player.bio}</p>}
           {favArch && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-sm">
-              <span className="text-muted">Mazo favorito:</span>
+              <span className="text-muted">{tr(lng, "x.72bd1d74")}</span>
               <Sprites archetype={favArch} size="sm" />
               <span className="font-semibold">{favArch.name}</span>
             </p>
@@ -169,7 +171,7 @@ export default async function ProfilePage({
         </div>
         {isMe ? (
           <Link className="btn btn-sm" href="/perfil/editar">
-            <Icon name="cog" className="size-4" /> Editar perfil
+            <Icon name="cog" className="size-4" /> {tr(lng, "x.673d7538")}
           </Link>
         ) : session ? (
           <FavStar playerId={player.id} on={sigo} back={`/perfil/${player.id}`} lang={lang} withLabel />
@@ -178,18 +180,18 @@ export default async function ProfilePage({
 
       {/* ------------------------------ balance ------------------------------ */}
       <ScopeTabs
-        basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel="Todo"
+        basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel={tr(lng, "x.fdebf667")}
         options={Object.entries(SCOPES).map(([value, s]) => ({ value, label: s.label }))}
       />
 
       <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {/* v0.25: sus partidas sobre el total de la liga. */}
-        <Kpi label="Partidas"
+        <Kpi label={tr(lng, "x.64f94394")}
           value={<>{rec.played}<span className="text-base font-semibold text-muted"> / {posiciones.partidasTotales}</span></>}
           note={`juegos ${rec.gameWins}–${rec.gameLosses}`} />
-        <Kpi label="Victorias" value={rec.wins} />
-        <Kpi label="Derrotas" value={rec.losses} />
-        <Kpi label="Empates" value={rec.ties} />
+        <Kpi label={tr(lng, "x.dce1e265")} value={rec.wins} />
+        <Kpi label={tr(lng, "x.a80f28ed")} value={rec.losses} />
+        <Kpi label={tr(lng, "x.4975fb9f")} value={rec.ties} />
         {/* v0.25: la tarjeta dorada es el puesto en la liga, con el de Elo a la derecha. */}
         <Kpi
           highlight
@@ -206,7 +208,7 @@ export default async function ProfilePage({
         <Kpi label="Elo" value={elo}
           note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
         <Kpi label={`CP ${cp.season}`} value={cp.total}
-          note={cpTable.confirmed ? `${myTours.length} torneos` : "cifras provisionales"} />
+          note={cpTable.confirmed ? `${myTours.length} torneos` : tr(lng, "x.b200b9ed")} />
         {/* v0.17 — puesto en los leaderboards oficiales, junto a los CP. */}
         <Kpi label={`Top ${tr(lang, "zone.spain")}`}
           value={player.rankSpain != null ? `${player.rankSpain}.º` : "—"}
@@ -260,8 +262,7 @@ export default async function ProfilePage({
           por ámbito no querría decir nada, y callárselo dejaría a alguien
           pensando que el filtro no funciona. */}
       <p className="mt-2 mb-5 text-xs text-muted">
-        El Elo y los Championship Points no cambian con este filtro: el primero es de toda
-        la liga y los segundos, de toda la temporada.
+        {tr(lng, "x.dba1ee64")}
       </p>
 
       {/* Evolución del Elo, mazos, enfrentamientos directos y emparejamientos
@@ -273,10 +274,10 @@ export default async function ProfilePage({
         {/* v0.25: sin gráfica de Elo en el perfil (queda en el Ranking). */}
         <section className="card">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Sus mazos</h2>
+            <h2 className="text-lg font-bold">{tr(lng, "x.3817d8b2")}</h2>
             <div className="flex flex-none items-center gap-2">
-              {scope !== "all" && <span className="text-xs text-muted">todas las partidas</span>}
-              {isMe && <Link className="btn btn-sm" href="/mazos/nuevo">+ Mazo</Link>}
+              {scope !== "all" && <span className="text-xs text-muted">{tr(lng, "x.98a3565f")}</span>}
+              {isMe && <Link className="btn btn-sm" href="/mazos/nuevo">{tr(lng, "x.736289b0")}</Link>}
             </div>
           </div>
           {archs.length ? (
@@ -292,8 +293,8 @@ export default async function ProfilePage({
               ))}
             </ul>
           ) : (
-            <Empty title="Sin partidas con mazo asignado">
-              {decks.length ? "Asigna el mazo al registrar la partida y aparecerá aquí." : "Aún no ha registrado ningún mazo."}
+            <Empty title={tr(lng, "x.c65889c6")}>
+              {decks.length ? "Asigna el mazo al registrar la partida y aparecerá aquí." : tr(lng, "x.a7cc628e")}
             </Empty>
           )}
         </section>
@@ -301,7 +302,7 @@ export default async function ProfilePage({
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <SeccionPlegable
-          titulo="Enfrentamientos directos"
+          titulo={tr(lng, "x.55125239")}
           clave="perfil-h2h"
           nota={scope !== "all" ? "todas las partidas" : undefined}
         >
@@ -318,11 +319,11 @@ export default async function ProfilePage({
                 </li>
               ))}
             </ul>
-          ) : <Empty title="Sin partidas registradas" />}
+          ) : <Empty title={tr(lng, "x.4c15a42e")} />}
         </SeccionPlegable>
 
         <SeccionPlegable
-          titulo="Emparejamientos"
+          titulo={tr(lng, "x.ab10f5e6")}
           clave="perfil-emparejamientos"
           nota={`mín. ${MIN_CRUCES} partidas${scope !== "all" ? " · todas las partidas" : ""}`}
         >
@@ -344,8 +345,8 @@ export default async function ProfilePage({
               ))}
             </ul>
           ) : (
-            <Empty title="Todavía no hay cruces repetidos">
-              Cuando el mismo cruce de arquetipos se repita cinco veces, aparecerá aquí.
+            <Empty title={tr(lng, "x.287f41db")}>
+              {tr(lng, "x.78df36ea")}
             </Empty>
           )}
         </SeccionPlegable>
@@ -360,7 +361,7 @@ export default async function ProfilePage({
           nameOf={(k) => cpTable.events[k]?.label ?? k}
           archOf={(a) => (a ? snap.archById.get(a) : undefined)}
           tournamentOf={(d, k) =>
-            myTours.find((t) => t.date === d && t.kind === k)?.name ?? "Torneo"}
+            myTours.find((t) => t.date === d && t.kind === k)?.name ?? tr(lng, "x.250eff11")}
           hrefOf={(d, k) => {
             const t = myTours.find((x) => x.date === d && x.kind === k);
             return t ? `/torneos/${t.id}` : undefined;
@@ -375,7 +376,7 @@ export default async function ProfilePage({
 
       {myTours.length > 0 && (
         <>
-          <SectionTitle aside={`${myTours.length}`}>Torneos</SectionTitle>
+          <SectionTitle aside={`${myTours.length}`}>{tr(lng, "x.f02a0f3c")}</SectionTitle>
           <div className="card mb-5 divide-y divide-line-soft">
             {myTours.map((t) => {
               const r = t.results.find((x) => x.playerId === id)!;
@@ -409,7 +410,7 @@ export default async function ProfilePage({
           son los números que la app calcula sola, y esto es un número que se
           pone a mano. Mezclarlos invitaba a confundir el Elo de la liga con el
           rango, que es el primer malentendido que iba a haber. */}
-      <SectionTitle aside="lo pones tú">Rango del ladder</SectionTitle>
+      <SectionTitle aside={tr(lng, "x.e51af110")}>{tr(lng, "x.65c72323")}</SectionTitle>
       <div className="card mb-6 p-4">
         {canEditLadder ? (
           <div className="flex flex-col gap-4">
@@ -468,15 +469,15 @@ export default async function ProfilePage({
             href={`/resultados?jugador=${player.id}${
               scope === "liga" ? "&ambito=league" : scope === "torneos" ? "&ambito=tournament" : scope === "amistosos" ? "&ambito=casual" : ""}`}
           >
-            Ver todas en Resultados, con filtros de torneo, fecha y mazo
+            {tr(lng, "x.b2765508")}
           </Link>
           </>
         ) : scope === "all" ? (
-          <Empty title="Sin partidas" />
+          <Empty title={tr(lng, "x.4c9f3d8f")} />
         ) : (
           <Empty
             title={`Ninguna partida de ${SCOPES[scope].label.toLowerCase()}`}
-            action={<Link className="btn btn-sm" href={`/perfil/${player.id}`}>Ver todas</Link>}
+            action={<Link className="btn btn-sm" href={`/perfil/${player.id}`}>{tr(lng, "x.3efc403a")}</Link>}
           >
             {mine.length} partidas suyas hay registradas, pero ninguna de este ámbito.
           </Empty>

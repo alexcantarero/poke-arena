@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Buscar una carta mientras se escribe la lista.
@@ -41,6 +43,8 @@ function lineFor(c: Card) {
 }
 
 export function CardSearch() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [q, setQ] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
   const [estado, setEstado] = useState<"quieto" | "buscando" | "vacio" | "caida">("quieto");
@@ -104,10 +108,10 @@ export function CardSearch() {
         <input
           type="search"
           className="input pl-9"
-          placeholder="Nombre de la carta: dragapult, iono, gardevoir…"
+          placeholder={tr(lng, "x.6056fb28")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          aria-label="Buscar una carta por nombre"
+          aria-label={tr(lng, "x.20692cec")}
         />
         {estado === "buscando" && (
           <span className="absolute inset-y-0 right-3 grid place-items-center">
@@ -118,15 +122,13 @@ export function CardSearch() {
 
       {estado === "vacio" && (
         <p className="text-sm text-muted">
-          Ninguna carta se llama así. Prueba con menos letras: la búsqueda es por nombre exacto
-          y en inglés.
+          {tr(lng, "x.c9aa4e9e")}
         </p>
       )}
 
       {estado === "caida" && (
         <p className="text-sm text-muted">
-          El catálogo de cartas no responde ahora mismo. Puedes seguir escribiendo la lista a
-          mano: esto solo es una ayuda para no tener que buscar el set y el número fuera.
+          {tr(lng, "x.0fef27ec")}
         </p>
       )}
 
@@ -148,7 +150,7 @@ export function CardSearch() {
                   />
                 ) : (
                   <span className="mb-2 grid aspect-[63/88] w-full place-items-center rounded-md bg-surface-2 text-xs text-muted">
-                    sin imagen
+                    {tr(lng, "x.be8e5ec6")}
                   </span>
                 )}
                 <span className="block truncate text-[13px] font-semibold">{c.name}</span>
@@ -162,7 +164,7 @@ export function CardSearch() {
                   }`}
                 >
                   <Icon name={copiada === c.id ? "check" : "share"} className="size-3" />
-                  {copiada === c.id ? "copiada" : "copiar línea"}
+                  {copiada === c.id ? "copiada" : tr(lng, "x.9d3175f8")}
                 </span>
               </button>
             </li>
@@ -171,8 +173,7 @@ export function CardSearch() {
       )}
 
       <p className="text-[11px] text-muted">
-        Los datos salen de TCGdex, que es gratis, abierta y sin clave. Para no abusar de ella la
-        búsqueda espera a que dejes de escribir. Copia la línea y pégala en la lista de arriba.
+        {tr(lng, "x.8e5b3d8a")}
       </p>
     </div>
   );

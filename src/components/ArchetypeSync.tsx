@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { syncArchetypes } from "@/actions";
 import type { FormState } from "@/lib/types";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Traer del metagame los mazos que falten, sin salir de la web.
@@ -20,29 +22,29 @@ import { Icon } from "./icons";
    ========================================================================= */
 
 export function ArchetypeSync({ total }: { total: number }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [state, action] = useActionState<FormState, FormData>(syncArchetypes, null);
 
   return (
     <form action={action} className="card mb-6 flex flex-col gap-3 p-4">
       <div>
-        <h3 className="font-bold">Catálogo de mazos</h3>
+        <h3 className="font-bold">{tr(lng, "x.ab58585e")}</h3>
         <p className="mt-0.5 text-sm text-ink-2">
-          Ahora mismo tenéis <b className="tabular">{total}</b> arquetipos. Esto mira los torneos
-          recientes de Limitless, añade los que falten y pone el color a los que estén en
-          incoloro. Nunca renombra lo que ya tenéis.
+          {tr(lng, "x.938cab5f")} <b className="tabular">{total}</b> {tr(lng, "x.55f073e9")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="sync-tournaments">Torneos a mirar</label>
+          <label className="label" htmlFor="sync-tournaments">{tr(lng, "x.f21ae80f")}</label>
           <input
             className="input tabular" id="sync-tournaments" name="tournaments"
             type="number" min={5} max={60} defaultValue={25} inputMode="numeric"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="sync-min">Mínimo de gente</label>
+          <label className="label" htmlFor="sync-min">{tr(lng, "x.776df7e6")}</label>
           <input
             className="input tabular" id="sync-min" name="minPlayers"
             type="number" min={0} max={5000} defaultValue={16} inputMode="numeric"
@@ -50,8 +52,7 @@ export function ArchetypeSync({ total }: { total: number }) {
         </div>
       </div>
       <p className="text-xs text-muted">
-        Más torneos, más cola del metagame —también más rarezas—. El mínimo de gente quita el
-        ruido de los torneos de cuatro personas.
+        {tr(lng, "x.a55d1c50")}
       </p>
 
       <SyncButton />
@@ -63,11 +64,13 @@ export function ArchetypeSync({ total }: { total: number }) {
 }
 
 function SyncButton() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const { pending } = useFormStatus();
   return (
     <button className="btn btn-brand w-full" type="submit" disabled={pending}>
       <Icon name="refresh" className="size-4" />
-      {pending ? "Preguntando a Limitless…" : "Actualizar catálogo"}
+      {pending ? "Preguntando a Limitless…" : tr(lng, "x.ae1eebf4")}
     </button>
   );
 }

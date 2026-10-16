@@ -1,6 +1,8 @@
 "use client";
 
 import { setPersonalRegional } from "@/actions";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export function RegionalPicker({
   regionales,
@@ -9,6 +11,8 @@ export function RegionalPicker({
   regionales: Array<{ id: string; name: string }>;
   currentId?: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   return (
     <form action={setPersonalRegional} className="inline-block relative">
       <select
@@ -29,7 +33,7 @@ export function RegionalPicker({
         </svg>
       </div>
       <noscript>
-        <button className="btn btn-sm ml-2" type="submit">Cambiar</button>
+        <button className="btn btn-sm ml-2" type="submit">{tr(lng, "x.82d4e43d")}</button>
       </noscript>
     </form>
   );

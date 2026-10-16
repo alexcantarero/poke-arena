@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FLASH_PARAM, parseFlash } from "@/lib/flash";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Snackbar de feedback: "torneo creado correctamente", "no se ha podido
@@ -23,6 +25,8 @@ import { Icon } from "./icons";
    ========================================================================= */
 
 export function Snackbar() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -70,7 +74,7 @@ export function Snackbar() {
       <p className="min-w-0 flex-1 text-sm font-medium text-ink">{flash.message}</p>
       <button
         type="button"
-        aria-label="Cerrar aviso"
+        aria-label={tr(lng, "x.93a0afec")}
         className="flex-none text-muted hover:text-ink"
         onClick={() => setVisible(false)}
       >

@@ -1078,3 +1078,32 @@ html[data-motion="off"] .pkmn-asoma-abajo,
 html[data-motion="off"] .pkmn-boom { animation: none !important; opacity: 1; }
 html[data-motion="off"] .pkmn-chispa,
 html[data-motion="off"] .pkmn-destello { display: none; }
+
+/* =========================================================================
+   v0.46 — La pantalla de carga con la Ball (ver CargandoBall.tsx).
+
+   Todas las animaciones acaban en un fotograma VISIBLE a propósito: la
+   regla global de «movimiento apagado» deja cada animación en el último, y
+   así con las animaciones apagadas se ve la Ball quieta, no nada.
+   ========================================================================= */
+
+/* Aparece con 150 ms de retraso: si el servidor contesta antes, no se ve
+   ningún parpadeo. */
+.cargando-ball { animation: cargando-aparece 200ms ease-out 150ms both; }
+@keyframes cargando-aparece {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* El arco blanco, girando. */
+.cargando-arco { animation: cargando-gira 0.9s linear infinite; }
+@keyframes cargando-gira { to { transform: rotate(360deg); } }
+
+/* La Ball se mueve como cuando intenta escaparse: dos sacudidas y una pausa. */
+.cargando-sprite { animation: cargando-sacude 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
+@keyframes cargando-sacude {
+  0%, 40%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(-14deg); }
+  20% { transform: rotate(12deg); }
+  30% { transform: rotate(-6deg); }
+}

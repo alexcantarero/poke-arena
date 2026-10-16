@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import type { Card, ParsedDeck } from "@/lib/decklist";
 import { parseDeckList } from "@/lib/decklist";
 import { cardImageUrl, cardLine } from "@/lib/cards";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Ver una lista de mazo, como texto o con las imágenes de las cartas.
@@ -35,6 +37,8 @@ export function DeckList({
   listJson?: unknown;
   defaultView?: "text" | "cards";
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [view, setView] = useState<"text" | "cards">(defaultView);
 
   const parsed = useMemo<ParsedDeck>(() => {
@@ -46,7 +50,7 @@ export function DeckList({
   const withImages = SECTIONS.flatMap((s) => parsed[s.key]).filter((c) => cardImageUrl(c)).length;
   const total = SECTIONS.reduce((a, s) => a + parsed[s.key].length, 0);
 
-  if (!list.trim()) return <p className="text-sm text-muted">Esta lista está vacía.</p>;
+  if (!list.trim()) return <p className="text-sm text-muted">{tr(lng, "x.bc6da1fc")}</p>;
 
   return (
     <div className="flex flex-col gap-3">
@@ -58,8 +62,8 @@ export function DeckList({
           )}
         </p>
         <div className="seg flex-none">
-          <button type="button" data-on={view === "text"} onClick={() => setView("text")}>Texto</button>
-          <button type="button" data-on={view === "cards"} onClick={() => setView("cards")}>Cartas</button>
+          <button type="button" data-on={view === "text"} onClick={() => setView("text")}>{tr(lng, "x.6eeba656")}</button>
+          <button type="button" data-on={view === "cards"} onClick={() => setView("cards")}>{tr(lng, "x.7dc5800b")}</button>
         </div>
       </div>
 

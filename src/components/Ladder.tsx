@@ -8,6 +8,8 @@ import {
 } from "@/lib/rank";
 import type { PublicPlayer } from "@/lib/types";
 import { Avatar } from "./ui";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    El ladder manual: el rango que cada uno se pone a mano para picarse.
@@ -21,9 +23,11 @@ import { Avatar } from "./ui";
 export function RankBadge({
   elo, size = "md", showElo = true,
 }: { elo: number | null; size?: "sm" | "md" | "lg"; showElo?: boolean }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (elo == null) {
     return (
-      <span className="chip border-dashed text-muted" data-size={size}>Sin rango</span>
+      <span className="chip border-dashed text-muted" data-size={size}>{tr(lng, "x.2aefa185")}</span>
     );
   }
   const rank = rankOf(elo);
@@ -42,6 +46,8 @@ export function RankBadge({
 
 /** Barrita de progreso dentro del tier. Va en el perfil. */
 export function RankProgress({ elo }: { elo: number | null }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (elo == null) return null;
   const rank = rankOf(elo);
   return (
@@ -54,7 +60,7 @@ export function RankProgress({ elo }: { elo: number | null }) {
           ? rank.tier.id === "novato"
             ? `${rank.toNext} para el salto a la Liga Arceus (${ARCEUS_JUMP})`
             : `${rank.toNext} puntos para ${rank.nextLabel}`
-          : "Techo del ladder"}
+          : tr(lng, "x.d5362f0a")}
       </p>
     </div>
   );
@@ -68,6 +74,8 @@ export function RankProgress({ elo }: { elo: number | null }) {
 export function LadderEditor({
   playerId, currentElo, currentNote,
 }: { playerId: string; currentElo: number | null; currentNote: string }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   /* v0.18 — lo que se escribe y lo que se guardaría. Sin deslizador: con el
      hueco del salto Arceus (551–1349) un deslizador continuo mentía. */
   const [raw, setRaw] = useState<string>(currentElo != null ? String(currentElo) : String(ARCEUS_JUMP));
@@ -83,14 +91,14 @@ export function LadderEditor({
       <div className="flex items-center justify-between gap-3">
         <RankBadge elo={elo} size="lg" />
         <span className="text-xs text-muted">
-          {rank.toNext !== null ? `${rank.toNext} para ${rank.nextLabel}` : "Techo del ladder"}
+          {rank.toNext !== null ? `${rank.toNext} para ${rank.nextLabel}` : tr(lng, "x.d5362f0a")}
         </span>
       </div>
 
       <RankProgress elo={elo} />
 
       {/* Atajos a cada tier: un toque y queda en su suelo. */}
-      <div className="flex flex-wrap gap-1.5" aria-label="Ir al suelo de un tier">
+      <div className="flex flex-wrap gap-1.5" aria-label={tr(lng, "x.d43029d6")}>
         {TIERS.map((t) => (
           <button key={t.id} type="button" data-tier={t.id}
             className="tier rounded-full border px-2 py-0.5 text-[11px] font-semibold"
@@ -102,7 +110,7 @@ export function LadderEditor({
 
       <div className="grid grid-cols-[7rem_1fr] gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="ladderElo">Exacto</label>
+          <label className="label" htmlFor="ladderElo">{tr(lng, "x.4836dcef")}</label>
           <input
             className="input px-2 text-center" id="ladderElo" name="ladderElo"
             type="number" min={LADDER_MIN} max={LADDER_MAX} inputMode="numeric" required
@@ -110,10 +118,10 @@ export function LadderEditor({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="ladderNote">Nota</label>
+          <label className="label" htmlFor="ladderNote">{tr(lng, "x.1a6b7be7")}</label>
           <input
             className="input" id="ladderNote" name="ladderNote" maxLength={200}
-            defaultValue={currentNote} placeholder="Pico de temporada, cuenta de Live…"
+            defaultValue={currentNote} placeholder={tr(lng, "x.c80b4989")}
           />
         </div>
       </div>
@@ -138,7 +146,7 @@ export function LadderEditor({
 
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-brand min-w-40 flex-1" type="submit" disabled={guardado == null}>
-          Guardar rango
+          {tr(lng, "x.699c9efa")}
         </button>
       </div>
     </form>
@@ -147,10 +155,12 @@ export function LadderEditor({
 
 /** Se saca del formulario de arriba: un <form> no puede anidarse en otro. */
 export function LadderClear({ playerId }: { playerId: string }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   return (
     <form action={clearLadderElo}>
       <input type="hidden" name="playerId" value={playerId} />
-      <button className="btn btn-ghost btn-sm btn-danger" type="submit">Quitar mi rango</button>
+      <button className="btn btn-ghost btn-sm btn-danger" type="submit">{tr(lng, "x.1c3dc14b")}</button>
     </form>
   );
 }
@@ -162,10 +172,12 @@ export function LadderTable({
   rows: Array<{ player: PublicPlayer; rank: Rank; position: number }>;
   meId?: string;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   if (!rows.length) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted">
-        Nadie ha puesto su rango todavía. Se pone en tu perfil, en «Rango del ladder».
+        {tr(lng, "x.5281d545")}
       </p>
     );
   }

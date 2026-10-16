@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    v0.24 — Conversión mes a mes, por GRUPO, por JUGADOR o por MAZO.
@@ -37,6 +39,8 @@ const EJE = { fontSize: 11, fill: "var(--muted)" } as const;
 export function ConversionEvolucion({
   grupo, jugadores, mazos,
 }: { grupo: SerieConv[]; jugadores: SerieConv[]; mazos: SerieConv[] }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [vista, setVista] = useState<"grupo" | "jugadores" | "mazos">("grupo");
   const [metrica, setMetrica] = useState<Metrica>("cutRate");
   const series = vista === "grupo" ? grupo : vista === "jugadores" ? jugadores : mazos;
@@ -59,14 +63,14 @@ export function ConversionEvolucion({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="seg text-xs" role="tablist" aria-label="Ver por">
+        <div className="seg text-xs" role="tablist" aria-label={tr(lng, "x.8fdb824b")}>
           {(["grupo", "jugadores", "mazos"] as const).map((v) => (
             <button key={v} type="button" data-on={vista === v} onClick={() => { setVista(v); setOcultos(new Set()); }}>
-              {v === "grupo" ? "Grupo" : v === "jugadores" ? "Jugadores" : "Mazos"}
+              {v === "grupo" ? "Grupo" : v === "jugadores" ? "Jugadores" : tr(lng, "x.78f2cee5")}
             </button>
           ))}
         </div>
-        <div className="seg text-xs" role="tablist" aria-label="Métrica">
+        <div className="seg text-xs" role="tablist" aria-label={tr(lng, "x.200c7042")}>
           {METRICAS.map((m) => (
             <button key={m.v} type="button" data-on={metrica === m.v} onClick={() => setMetrica(m.v)}>{m.label}</button>
           ))}
@@ -89,7 +93,7 @@ export function ConversionEvolucion({
       )}
 
       {datos.length < 2 ? (
-        <p className="grid h-48 place-items-center text-sm text-muted">Hace falta más de un mes con torneos para ver la evolución.</p>
+        <p className="grid h-48 place-items-center text-sm text-muted">{tr(lng, "x.52988e4d")}</p>
       ) : (
         <div className="h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">

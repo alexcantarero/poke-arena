@@ -10,6 +10,8 @@ import { Empty, PageHead, SectionTitle, Sprites } from "@/components/ui";
 import { MetaTabs } from "@/components/MetaTabs";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Mazos" };
 
@@ -39,6 +41,8 @@ const isView = (v: string | undefined): v is View =>
 export default async function DecksPage({
   searchParams,
 }: { searchParams: Promise<{ ver?: string; q?: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const [sp, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const manager = me ? canManageLeague(me.role) : false;
@@ -114,9 +118,9 @@ export default async function DecksPage({
   return (
     <>
       <PageHead
-        title="Mazos"
-        sub="La biblioteca de la liga. Un mazo sin dueño lo puede usar cualquiera."
-        actions={<Link className="btn btn-brand" href="/mazos/nuevo"><Icon name="plus" className="size-4" /> Mazo</Link>}
+        title={tr(lng, "x.78f2cee5")}
+        sub={tr(lng, "x.4a9ecc66")}
+        actions={<Link className="btn btn-brand" href="/mazos/nuevo"><Icon name="plus" className="size-4" /> {tr(lng, "x.6606a664")}</Link>}
       />
 
       {/* v0.40 — las mismas tres pestañas que en Top Decks, para poder volver
@@ -140,16 +144,16 @@ export default async function DecksPage({
         {view !== "all" && <input type="hidden" name="ver" value={view} />}
         <input
           className="input min-w-0 flex-1" type="search" name="q" defaultValue={query}
-          placeholder="Buscar mazo, arquetipo o Pokémon…" aria-label="Buscar mazo"
+          placeholder={tr(lng, "x.439eee65")} aria-label={tr(lng, "x.07cebc85")}
           autoComplete="off" autoCapitalize="none" spellCheck={false}
         />
-        <button className="btn flex-none px-4" type="submit">Buscar</button>
+        <button className="btn flex-none px-4" type="submit">{tr(lng, "x.a62405e2")}</button>
       </form>
 
       {query && (
         <p className="mt-2 flex items-center gap-2 text-xs text-muted">
           {decks.length} resultado{decks.length === 1 ? "" : "s"} para «{query}»
-          <Link className="underline hover:text-ink" href={clearHref}>quitar la búsqueda</Link>
+          <Link className="underline hover:text-ink" href={clearHref}>{tr(lng, "x.047e42b3")}</Link>
         </p>
       )}
 
@@ -186,14 +190,14 @@ export default async function DecksPage({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold leading-tight">{d.name}</span>
                   <span className="block truncate text-xs text-muted">
-                    {arch?.name ?? "sin arquetipo"} · creado {fmtDate(d.created)}
+                    {arch?.name ?? tr(lng, "x.64e13a07")} · creado {fmtDate(d.created)}
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
                     {d.playerId == null
-                      ? <span className="chip chip-info text-[10px]">de la liga</span>
+                      ? <span className="chip chip-info text-[10px]">{tr(lng, "x.2dfa04f2")}</span>
                       : (
                         <span className={`chip text-[10px] ${owner && owner.id === me?.id ? "chip-brand" : ""}`}>
-                          {owner ? (owner.id === me?.id ? "tuyo" : owner.name) : "sin dueño"}
+                          {owner ? (owner.id === me?.id ? "tuyo" : owner.name) : tr(lng, "x.e61dade2")}
                         </span>
                       )}
                     {total > 0 && (
@@ -201,7 +205,7 @@ export default async function DecksPage({
                         lista {total}
                       </span>
                     )}
-                    {d.retired && <span className="chip text-[10px]">retirado</span>}
+                    {d.retired && <span className="chip text-[10px]">{tr(lng, "x.f9102854")}</span>}
                     <span className="chip text-[10px] tabular">{uses.get(d.id) ?? 0} usos</span>
                   </span>
                 </span>
@@ -217,7 +221,7 @@ export default async function DecksPage({
                     className={`btn btn-ghost px-2 ${isFav ? "text-brand" : ""}`}
                     type="submit"
                     aria-pressed={isFav}
-                    title={isFav ? "Quitar de favoritos" : "Marcar como favorito"}
+                    title={isFav ? "Quitar de favoritos" : tr(lng, "x.6799bb32")}
                     aria-label={isFav ? `Quitar ${d.name} de favoritos` : `Marcar ${d.name} como favorito`}
                   >
                     <Star on={isFav} />
@@ -235,18 +239,18 @@ export default async function DecksPage({
             title={query ? "Nada con esa búsqueda" : EMPTY_TITLE[view]}
             action={
               query
-                ? <Link className="btn" href={clearHref}>Quitar la búsqueda</Link>
-                : <Link className="btn btn-brand" href="/mazos/nuevo">Crear un mazo</Link>
+                ? <Link className="btn" href={clearHref}>{tr(lng, "x.3050cff7")}</Link>
+                : <Link className="btn btn-brand" href="/mazos/nuevo">{tr(lng, "x.0db1cbe4")}</Link>
             }
           >
             {query
-              ? <>Prueba con el nombre del Pokémon principal, que es lo que casi siempre se recuerda.</>
+              ? <>{tr(lng, "x.1fc7ceff")}</>
               : EMPTY_HINT[view]}
           </Empty>
         </div>
       )}
 
-      <SectionTitle aside={`${snap.archetypes.length}`}>Arquetipos del grupo</SectionTitle>
+      <SectionTitle aside={`${snap.archetypes.length}`}>{tr(lng, "x.30cd045b")}</SectionTitle>
       <div className="card divide-y divide-line-soft">
         {filteredArchetypes
           .slice()
@@ -269,7 +273,7 @@ export default async function DecksPage({
                     </span>
                     <span className="block text-[11px] text-muted">{s.played} usos</span>
                   </span>
-                ) : <span className="text-xs text-muted">sin usar</span>}
+                ) : <span className="text-xs text-muted">{tr(lng, "x.29cc2730")}</span>}
               </Link>
             );
           })}

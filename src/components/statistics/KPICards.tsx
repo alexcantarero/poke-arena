@@ -1,4 +1,9 @@
+"use client";
+
+// v0.49 — de cliente: solo lo usa GlobalMeta, que ya lo es, y así puede pedir el idioma.
 import { Kpi } from "@/components/primitives";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 import type { StatsPayload } from "@/lib/types";
 import type { ChartRow } from "./Charts";
 import { pct } from "@/lib/format";
@@ -30,6 +35,8 @@ type Props = {
 };
 
 export function KPICards({ mode, data, rows }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const top = data.archetypes[0];
 
   /* La media de victorias del mundo, ponderada por cuántas listas hay de cada
@@ -52,7 +59,7 @@ export function KPICards({ mode, data, rows }: Props) {
       <Kpi
         tone="global"
         icon="globe"
-        label="Torneos mirados"
+        label={tr(lng, "x.c98b3c29")}
         value={data.tournaments}
         note={`${data.entries.toLocaleString("es")} listas · ${data.days} días`}
       />
@@ -60,7 +67,7 @@ export function KPICards({ mode, data, rows }: Props) {
       <Kpi
         tone="global"
         icon="trophy"
-        label="Más jugado"
+        label={tr(lng, "x.ab2a0aaa")}
         value={top ? `${Math.round(top.share * 100)}%` : "—"}
         note={top?.name ?? "sin datos"}
       />
@@ -68,7 +75,7 @@ export function KPICards({ mode, data, rows }: Props) {
       <Kpi
         tone="global"
         icon="stats"
-        label="Victorias (media)"
+        label={tr(lng, "x.3b999b2f")}
         value={pct(medio)}
         note="ponderada por nº de listas"
       />
@@ -77,7 +84,7 @@ export function KPICards({ mode, data, rows }: Props) {
         <Kpi
           tone="diff"
           icon="compare"
-          label="Mayor desvío"
+          label={tr(lng, "x.da22bddb")}
           value={mayor ? mayor.name : "—"}
           delta={mayor ? mayor.diff * 100 : null}
           note={mayor
@@ -88,7 +95,7 @@ export function KPICards({ mode, data, rows }: Props) {
         <Kpi
           tone="global"
           icon="clock"
-          label="Actualizado"
+          label={tr(lng, "x.4fbb38d5")}
           value={new Date(data.fetchedAt).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
           note={data.failed > 0 ? `${data.failed} torneo(s) sin respuesta` : "al día"}
         />

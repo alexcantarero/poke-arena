@@ -7,6 +7,8 @@ import type { DeckOption, Tournament, TournamentResult } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
 import { DeckPicker } from "./DeckPicker";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Cerrar el torneo: qué puesto hiciste, con qué, y qué te llevaste.
@@ -49,6 +51,8 @@ type Props = {
 export function TournamentResultForm({
   season, tournament, result, deckOptions, archetypeOptions, roundRecord, playerId, organizador = false,
 }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const hasRounds = Boolean(roundRecord && roundRecord.wins + roundRecord.losses + roundRecord.ties > 0);
 
   const [recordMode, setRecordMode] = useState<"rounds" | "manual">(hasRounds ? "rounds" : "manual");
@@ -75,7 +79,7 @@ export function TournamentResultForm({
       {/* ------------------------------- puesto ------------------------------- */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="placement">Puesto</label>
+          <label className="label" htmlFor="placement">{tr(lng, "x.7f57e400")}</label>
           <input
             className="input text-center font-display text-xl font-extrabold tabular"
             id="placement" name="placement" type="number" min={1} inputMode="numeric"
@@ -84,19 +88,19 @@ export function TournamentResultForm({
           {tournament.playerCount ? (
             <p className="text-xs text-muted">de {tournament.playerCount} participantes</p>
           ) : (
-            <p className="text-xs text-muted">Falta la asistencia: sin ella no hay CP.</p>
+            <p className="text-xs text-muted">{tr(lng, "x.d76d6080")}</p>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="label">Récord</label>
+          <label className="label">{tr(lng, "x.ae88bb6d")}</label>
           {hasRounds && (
             <div className="seg w-full text-[13px]">
               <button type="button" data-on={recordMode === "rounds"} onClick={() => setRecordMode("rounds")}>
-                De mis rondas
+                {tr(lng, "x.f2f4d948")}
               </button>
               <button type="button" data-on={recordMode === "manual"} onClick={() => setRecordMode("manual")}>
-                A mano
+                {tr(lng, "x.616b585f")}
               </button>
             </div>
           )}
@@ -111,7 +115,7 @@ export function TournamentResultForm({
                 <input
                   key={f} className="input px-2 text-center tabular" name={f}
                   type="number" min={0} max={50} inputMode="numeric"
-                  aria-label={["Victorias", "Derrotas", "Empates"][i]}
+                  aria-label={["Victorias", tr(lng, "x.a80f28ed"), tr(lng, "x.4975fb9f")][i]}
                   placeholder={["V", "D", "E"][i]}
                   defaultValue={result ? result[f] : ""}
                 />
@@ -120,27 +124,26 @@ export function TournamentResultForm({
           )}
           <p className="text-xs text-muted">
             {recordMode === "rounds" && hasRounds
-              ? "Se recalcula solo cada vez que apuntas o corriges una ronda."
+              ? tr(lng, "x.a0733085")
               : hasRounds
-                ? "Lo que escribas aquí se perderá la próxima vez que toques una ronda."
-                : "Victorias, derrotas y empates."}
+                ? tr(lng, "x.1e661e1e")
+                : tr(lng, "x.4a3d7329")}
           </p>
         </div>
       </div>
 
       {/* -------------------------------- mazo -------------------------------- */}
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="deckId">Mazo que llevaste</label>
+        <label className="label" htmlFor="deckId">{tr(lng, "x.3593f10e")}</label>
         <DeckPicker
           id="deckId" name="deckId"
           options={deckOptions}
           defaultValue={result?.deckId ?? ""}
-          emptyLabel="— no lo tengo registrado —"
-          placeholder="Elegir mazo"
+          emptyLabel={tr(lng, "x.2d5769ca")}
+          placeholder={tr(lng, "x.ccec50e5")}
         />
         <p className="text-xs text-muted">
-          Es el mazo de todo el torneo: las rondas que apuntes lo cogen de aquí y no lo
-          preguntan otra vez.
+          {tr(lng, "x.5c6b83ea")}
         </p>
       </div>
 
@@ -151,16 +154,16 @@ export function TournamentResultForm({
       <details className="rounded-lg border border-line-soft" open={organizador || undefined}>
         <summary className="tap cursor-pointer justify-start px-3 text-sm font-semibold text-muted">
           {organizador
-            ? "Corregir el arquetipo (manda sobre el del mazo)"
-            : "¿No tienes el mazo registrado? Elige solo el arquetipo"}
+            ? tr(lng, "x.5a3bbc62")
+            : tr(lng, "x.d3ca770b")}
         </summary>
         <div className="border-t border-line-soft p-3">
           <DeckPicker
             name="archetypeId"
             options={archetypeOptions}
             defaultValue={archetypeValue(result?.archetypeId)}
-            emptyLabel="— ninguno —"
-            placeholder="Buscar arquetipo"
+            emptyLabel={tr(lng, "x.8a4e4db7")}
+            placeholder={tr(lng, "x.ea31e365")}
           />
         </div>
       </details>
@@ -168,14 +171,14 @@ export function TournamentResultForm({
       {/* ------------------------- Championship Points ------------------------ */}
       <div className="rounded-lg border border-line-soft bg-ground p-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="label">Championship Points</span>
+          <span className="label">{tr(lng, "x.a6f9ffb9")}</span>
           {givesCp && (
             <label className="inline-flex items-center gap-2 text-sm">
               <input
                 type="checkbox" name="cpManual" className="size-4"
                 checked={cpManual} onChange={(e) => setCpManual(e.target.checked)}
               />
-              A mano
+              {tr(lng, "x.616b585f")}
             </label>
           )}
         </div>
@@ -183,8 +186,8 @@ export function TournamentResultForm({
         {!givesCp ? (
           <p className="mt-2 text-sm text-muted">
             {tournament.scope === "online"
-              ? "Los torneos online no reparten Championship Points. Cuenta igual para tus estadísticas."
-              : "Este tipo de torneo no reparte CP. Cuenta igual para tus estadísticas."}
+              ? tr(lng, "x.0ef847ef")
+              : tr(lng, "x.8afaf81d")}
           </p>
         ) : cpManual ? (
           <input
@@ -200,7 +203,7 @@ export function TournamentResultForm({
             {tier?.invite && (
               <p className="mt-2 flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2 text-sm font-semibold text-brand">
                 <Icon name="check" className="mt-0.5 size-4 flex-none" />
-                Ese puesto da invitación directa al Campeonato Mundial.
+                {tr(lng, "x.794f291e")}
               </p>
             )}
 
@@ -217,7 +220,7 @@ export function TournamentResultForm({
               </p>
             )}
             {!placement && (
-              <p className="mt-1.5 text-xs text-muted">Pon el puesto y se calculan solos.</p>
+              <p className="mt-1.5 text-xs text-muted">{tr(lng, "x.688ec0a9")}</p>
             )}
           </>
         )}
@@ -225,20 +228,20 @@ export function TournamentResultForm({
 
       {/* ------------------------------ premios ------------------------------- */}
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="prizes">Premios</label>
+        <label className="label" htmlFor="prizes">{tr(lng, "x.83d224e9")}</label>
         <input
           className="input" id="prizes" name="prizes" maxLength={300}
           defaultValue={result?.prizes ?? ""}
-          placeholder="3 sobres y un playmat"
+          placeholder={tr(lng, "x.6df39916")}
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor="resultNotes">Comentarios</label>
+        <label className="label" htmlFor="resultNotes">{tr(lng, "x.054de504")}</label>
         <textarea
           className="input" id="resultNotes" name="resultNotes" rows={3} maxLength={1000}
           defaultValue={result?.notes ?? ""}
-          placeholder="Qué tal fue, qué cambiarías de la lista, contra qué te cruzaste…"
+          placeholder={tr(lng, "x.59c6d8cf")}
         />
       </div>
 
@@ -248,13 +251,13 @@ export function TournamentResultForm({
       <input type="hidden" name="dropped" value={result?.dropped ? "on" : ""} />
       {result?.dropped && (
         <p className="flex items-center gap-2 text-xs text-muted">
-          <span className="chip chip-drop">DROP</span> Te retiraste de este torneo.
+          <span className="chip chip-drop">{tr(lng, "x.39514a7a")}</span> {tr(lng, "x.837500bb")}
         </p>
       )}
 
       <button className="btn btn-brand w-full" type="submit">
         <Icon name="check" className="size-4" />
-        {result ? "Guardar el resultado" : "Poner mi resultado"}
+        {result ? "Guardar el resultado" : tr(lng, "x.16e685ff")}
       </button>
     </form>
   );

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    Ordenar un gráfico de mayor a menor, o al revés.
@@ -29,16 +31,18 @@ export function sortRows<T>(rows: T[], valor: (r: T) => number | null | undefine
   });
 }
 
-export function SortToggle({ dir, href }: { dir: SortDir; href: (d: SortDir) => string }) {
+export async function SortToggle({ dir, href }: { dir: SortDir; href: (d: SortDir) => string }) {
+  const lng = await getLang(); // v0.49
+
   return (
-    <span className="seg flex-none text-[11px]" role="group" aria-label="Orden">
+    <span className="seg flex-none text-[11px]" role="group" aria-label={tr(lng, "x.3f355835")}>
       {(["desc", "asc"] as const).map((d) => (
         <Link
           key={d}
           href={href(d)}
           data-on={dir === d ? "true" : "false"}
-          aria-label={d === "desc" ? "De mayor a menor" : "De menor a mayor"}
-          title={d === "desc" ? "De mayor a menor" : "De menor a mayor"}
+          aria-label={d === "desc" ? "De mayor a menor" : tr(lng, "x.49944657")}
+          title={d === "desc" ? "De mayor a menor" : tr(lng, "x.49944657")}
           className="min-h-8 px-2"
         >
           <Icon name="back" className={`size-3.5 ${d === "desc" ? "-rotate-90" : "rotate-90"}`} />

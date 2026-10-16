@@ -11,6 +11,8 @@ import {
   CartesianGrid,
   ReferenceArea,
 } from "recharts";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export interface HourlyPoint {
   hour: number; // 0 a 23
@@ -45,6 +47,8 @@ export function HourlyChart({
   peakLabel = "Hora pico",
   height = 280,
 }: HourlyChartProps) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   // Si no se especifica franja pico, la deducimos de la suma máxima de ambas series
   const detectedPeak = useMemo(() => {
     if (peakHourStart !== undefined && peakHourEnd !== undefined) {

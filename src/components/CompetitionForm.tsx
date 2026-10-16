@@ -4,8 +4,11 @@ import { useState } from "react";
 import { MODALIDADES, asModalidad, type Modalidad } from "@/lib/modalidades";
 import { deleteCompetition, saveCompetition } from "@/actions";
 import { COMPETITION_KINDS, type Competition, type CompetitionKind, type PublicPlayer } from "@/lib/types";
-import { suggestedRounds } from "@/lib/stats";
+// v0.47 — de su módulo y no de `lib/stats`, para no llevarse stats entero al navegador.
+import { suggestedRounds } from "@/lib/sugerencias";
 import { todayISO } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export function CompetitionForm({
   competition, players, selectedPlayerIds, canDelete,
@@ -15,6 +18,8 @@ export function CompetitionForm({
   selectedPlayerIds?: string[];
   canDelete?: boolean;
 }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [kind, setKind] = useState<CompetitionKind>((competition?.kind as CompetitionKind) ?? "league");
   const [bestOf, setBestOf] = useState(competition?.bestOf ?? 3);
   const [chosen, setChosen] = useState<string[]>(
@@ -33,14 +38,14 @@ export function CompetitionForm({
 
       <section className="card flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="c-name">Nombre</label>
+          <label className="label" htmlFor="c-name">{tr(lng, "x.e68491e9")}</label>
           <input className="input" id="c-name" name="name" required maxLength={80}
-            defaultValue={competition?.name ?? ""} placeholder="Liga Regular 2026" />
+            defaultValue={competition?.name ?? ""} placeholder={tr(lng, "x.34041a6e")} />
         </div>
 
         {/* v0.23 — modalidad de la liga */}
         <div className="flex flex-col gap-1.5">
-          <span className="label">Modalidad</span>
+          <span className="label">{tr(lng, "x.112cd028")}</span>
           <div className="grid gap-2 sm:grid-cols-3">
             {(Object.keys(MODALIDADES) as Modalidad[]).map((m) => (
               <button key={m} type="button" onClick={() => setModalidad(m)} aria-pressed={modalidad === m}
@@ -53,13 +58,13 @@ export function CompetitionForm({
           </div>
           {modalidad === "equipos" && (
             <p className="text-xs text-muted">
-              Los equipos se forman después, en la ficha de la liga (tres personas por equipo).
+              {tr(lng, "x.3788fd30")}
             </p>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="label">Formato</label>
+          <label className="label">{tr(lng, "x.c25b742e")}</label>
           <div className="grid grid-cols-2 gap-2">
             {/* v0.19 — «Amistosos» ya no es un tipo de competición: un amistoso es
                 una partida sin competición. */}
@@ -77,7 +82,7 @@ export function CompetitionForm({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="label">Serie por defecto</label>
+          <label className="label">{tr(lng, "x.a18a4d82")}</label>
           <div className="seg seg-brand w-full">
             {[1, 3, 5].map((n) => (
               <button key={n} type="button" data-on={(modalidad === "tres_mazos" ? 3 : bestOf) === n}
@@ -89,11 +94,11 @@ export function CompetitionForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="c-start">Inicio</label>
+            <label className="label" htmlFor="c-start">{tr(lng, "x.4f70d8c3")}</label>
             <input className="input" id="c-start" name="start" type="date" defaultValue={competition?.start ?? todayISO()} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label" htmlFor="c-end">Fin</label>
+            <label className="label" htmlFor="c-end">{tr(lng, "x.4251065f")}</label>
             <input className="input" id="c-end" name="end" type="date" defaultValue={competition?.end ?? ""} />
           </div>
         </div>
@@ -101,28 +106,28 @@ export function CompetitionForm({
         {kind === "swiss" && (
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="c-rounds">Rondas</label>
+              <label className="label" htmlFor="c-rounds">{tr(lng, "x.72fc97c5")}</label>
               <input className="input" id="c-rounds" name="rounds" type="number" min={0} inputMode="numeric"
                 defaultValue={competition?.rounds ?? suggestedRounds(chosen.length)} />
               <p className="text-xs text-muted">Con {chosen.length} jugadores, lo normal son {suggestedRounds(chosen.length)}.</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="label" htmlFor="c-cut">Top cut</label>
+              <label className="label" htmlFor="c-cut">{tr(lng, "x.2ec4eeea")}</label>
               <select className="input" id="c-cut" name="topCut" defaultValue={String(competition?.topCut ?? 0)}>
-                <option value="0">Sin top cut</option>
-                <option value="2">Final</option>
-                <option value="4">Top 4</option>
-                <option value="8">Top 8</option>
+                <option value="0">{tr(lng, "x.b89f084b")}</option>
+                <option value="2">{tr(lng, "x.672b22cc")}</option>
+                <option value="4">{tr(lng, "x.045b64f6")}</option>
+                <option value="8">{tr(lng, "x.55d0b1f1")}</option>
               </select>
             </div>
           </div>
         )}
 
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="c-status">Estado</label>
+          <label className="label" htmlFor="c-status">{tr(lng, "x.87cf2a84")}</label>
           <select className="input" id="c-status" name="status" defaultValue={competition?.status ?? "live"}>
-            <option value="live">En curso</option>
-            <option value="done">Cerrada</option>
+            <option value="live">{tr(lng, "x.f9ade367")}</option>
+            <option value="done">{tr(lng, "x.0d2f454d")}</option>
           </select>
         </div>
 
@@ -147,11 +152,11 @@ export function CompetitionForm({
 
       <div className="flex gap-2">
         <button className="btn btn-brand flex-1" type="submit">
-          {competition ? "Guardar cambios" : "Crear competición"}
+          {competition ? "Guardar cambios" : tr(lng, "x.19690c4a")}
         </button>
         {competition && canDelete && (
           <button className="btn btn-danger" type="submit" formAction={deleteCompetition}>
-            Borrar
+            {tr(lng, "x.d7b82b21")}
           </button>
         )}
       </div>

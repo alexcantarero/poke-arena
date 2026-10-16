@@ -20,7 +20,7 @@ import { CaminoAlCorte } from "@/components/CaminoAlCorte";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { RondasDelGrupo } from "@/components/RondasDelGrupo";
-import { RoundForm } from "@/components/TournamentRounds";
+import { RoundForm } from "@/components/RoundForm";
 import { etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
 import type { Pestana } from "@/components/CaminoAlCorte";
 import { deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
@@ -54,6 +54,8 @@ export default async function TournamentPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ fase?: string; anadir?: string }>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const { id } = await params;
   const q = await searchParams;
   const [snap, me, lang] = await Promise.all([loadSnapshot(), currentPlayer(), getLang()]);
@@ -129,11 +131,12 @@ export default async function TournamentPage({
     kind: t.kind,
     playerCount: t.playerCount,
     rounds: t.rounds,
+    roundsPhase2: t.roundsPhase2, // v0.45 — segunda fase propia
     topCut: t.topCut,
   };
   const familia = familiaDe(t.kind);
   const maxRonda = maxRondasDe(forma);
-  const { fase1: rondasFase1, suizo: rondasSuizo } = formaDe(forma);
+  const { fase1: rondasFase1, suizo: rondasSuizo, dosFases, faseManual } = formaDe(forma);
 
   /* v0.14 — la pestaña de fase (Día 1 / Día 2 / General, o Suizo / General)
      va por URL y filtra TAMBIÉN las rondas de cada jugador de abajo. Antes
@@ -142,7 +145,8 @@ export default async function TournamentPage({
      Sin `?fase=`, se abre en la fase en la que vas: en el Día 2 si ya has
      apuntado rondas de Día 2, en General si el torneo está cerrado. */
   const misRondasMax = myRounds.length ? Math.max(...myRounds.map((r) => r.round)) : 0;
-  const hayDia2 = familia === "dosFases" && rondasFase1 != null && rondasSuizo != null && rondasSuizo > rondasFase1;
+  // v0.45 — de `formaDe`: hay segunda fase por la tabla oficial O porque se tecleó.
+  const hayDia2 = dosFases;
   const faseUrl: Pestana | null =
     q.fase === "dia1" || q.fase === "general" || (q.fase === "dia2" && hayDia2) ? q.fase : null;
   const fase: Pestana = faseUrl
@@ -190,7 +194,7 @@ export default async function TournamentPage({
     res: (typeof t.results)[number] | undefined,
     rondasHechas: number[],
   ) => {
-    const nombre = snap.playersById.get(pid)?.name ?? "esta persona";
+    const nombre = snap.playersById.get(pid)?.name ?? tr(lng, "x.7d7b0705");
     const hechas = new Set(rondasHechas);
     let siguiente = 1;
     while (hechas.has(siguiente)) siguiente++;
@@ -202,16 +206,16 @@ export default async function TournamentPage({
           <span className="flex items-center gap-2">
             <Icon name="edit" className="size-4 text-info" /> Gestionar a {nombre}
           </span>
-          <span className="text-[11px] font-normal text-muted">organizador</span>
+          <span className="text-[11px] font-normal text-muted">{tr(lng, "x.4e9effbb")}</span>
         </summary>
         <div className="flex flex-col gap-4 border-t border-line-soft p-3">
           {res?.dropped ? (
             <p className="text-xs text-muted">
-              <span className="chip chip-drop mr-1">DROP</span>
-              Está retirado: no se apuntan rondas nuevas.
+              <span className="chip chip-drop mr-1">{tr(lng, "x.39514a7a")}</span>
+              {tr(lng, "x.8b6837f4")}
             </p>
           ) : tope ? (
-            <p className="text-xs text-muted">Tiene todas las rondas apuntadas.</p>
+            <p className="text-xs text-muted">{tr(lng, "x.7c7b437e")}</p>
           ) : (
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -235,7 +239,7 @@ export default async function TournamentPage({
           )}
           <div>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              Su resultado final
+              {tr(lng, "x.0d3ba4bb")}
             </h4>
             <TournamentResultForm
               season={season}
@@ -322,9 +326,9 @@ export default async function TournamentPage({
           <input type="hidden" name="id" value={theirResult.id} />
           {/* v0.16 — borra resultado Y rondas: ver `deleteTournamentResult`. */}
           <ConfirmButton
-            message={`¿Borrar la participación de ${pid === me?.id ? "ti" : (p?.name ?? "esta persona")} en este torneo? Se borran el resultado y las ${pRounds.length} ronda(s) apuntadas.`}
+            message={`¿Borrar la participación de ${pid === me?.id ? "ti" : (p?.name ?? tr(lng, "x.7d7b0705"))} en este torneo? Se borran el resultado y las ${pRounds.length} ronda(s) apuntadas.`}
           >
-            {pid === me?.id ? "Borrar mi participación" : "Borrar su participación"} (resultado y rondas)
+            {pid === me?.id ? "Borrar mi participación" : tr(lng, "x.45f687c6")} (resultado y rondas)
           </ConfirmButton>
         </form>
       ) : undefined,
@@ -369,7 +373,7 @@ export default async function TournamentPage({
         return {
           round: r.round,
           rival: (r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)?.name)
-            || r.match.opponentName || "Rival sin nombre",
+            || r.match.opponentName || tr(lng, "x.5f01529e"),
           rivalHref: r.match.opponentPlayerId && snap.playersById.get(r.match.opponentPlayerId)
             ? `/perfil/${r.match.opponentPlayerId}`
             : undefined,
@@ -390,9 +394,9 @@ export default async function TournamentPage({
               <Link
                 href={`/partidas/${r.match.id}`}
                 className="btn btn-ghost btn-sm text-xs"
-                title="Editar ronda"
+                title={tr(lng, "x.6cb43ad4")}
               >
-                Editar
+                {tr(lng, "x.2b5f2343")}
               </Link>
               {/* v0.16 — borrar la ronda desde aquí mismo. */}
               <form action={deleteTournamentRound}>
@@ -400,9 +404,9 @@ export default async function TournamentPage({
                 <ConfirmButton
                   message={`¿Eliminar la ronda ${r.round}? No se puede deshacer.`}
                   className="btn btn-ghost btn-sm text-xs text-loss"
-                  title="Eliminar ronda"
+                  title={tr(lng, "x.250e4fa6")}
                 >
-                  Eliminar
+                  {tr(lng, "x.54e140f9")}
                 </ConfirmButton>
               </form>
             </span>
@@ -432,7 +436,7 @@ export default async function TournamentPage({
     </p>
   ) : topeAlcanzado ? (
     <p className="text-xs text-muted">
-      Tienes todas las rondas apuntadas, suizo y top cut incluidos.
+      {tr(lng, "x.f3055cad")}
     </p>
   ) : t.topCut === 0 ? (
     /* v0.21: el torneo se marcó «Sin top cut» al crearlo o editarlo. */
@@ -454,14 +458,14 @@ export default async function TournamentPage({
   const yoDrop = Boolean(myResult?.dropped);
   const avisoDrop = me ? (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-loss/40 bg-loss-soft px-3 py-2 text-xs text-ink-2">
-      <span className="chip chip-drop flex-none">DROP</span>
+      <span className="chip chip-drop flex-none">{tr(lng, "x.39514a7a")}</span>
       <span className="min-w-0 flex-1">
-        Te retiraste del torneo: ya no se apuntan más rondas. Las que tienes se pueden corregir.
+        {tr(lng, "x.bc94e87e")}
       </span>
       <form action={undoDrop}>
         <input type="hidden" name="tournamentId" value={t.id} />
         <input type="hidden" name="playerId" value={me.id} />
-        <button type="submit" className="btn btn-ghost btn-sm">Deshacer</button>
+        <button type="submit" className="btn btn-ghost btn-sm">{tr(lng, "x.26060e2b")}</button>
       </form>
     </div>
   ) : null;
@@ -497,27 +501,27 @@ export default async function TournamentPage({
      cerrado al que le falte la asistencia sigue teniendo los CP mal. */
   const steps = [
     {
-      label: "Falta la asistencia",
+      label: tr(lng, "x.9efa2de5"),
       done: t.playerCount != null && t.playerCount > 0,
       hint: awardsCp(season, cpKind)
-        ? "Sin ella no se pueden calcular los Championship Points."
-        : "Cuánta gente hubo.",
+        ? tr(lng, "x.68d79574")
+        : tr(lng, "x.cebab08a"),
       href: `/torneos/${t.id}/editar`,
     },
     {
-      label: "No has apuntado ninguna ronda",
+      label: tr(lng, "x.ef7b43bd"),
       done: myRounds.length > 0 || !me,
-      hint: "Rival, mazo y resultado de cada ronda. Alimenta la matriz de emparejamientos.",
+      hint: tr(lng, "x.eded955f"),
     },
     {
-      label: "Falta tu mazo",
+      label: tr(lng, "x.d3ccdee5"),
       done: Boolean(myResult?.deckId || myResult?.archetypeId) || !me,
-      hint: "Con qué jugaste el torneo.",
+      hint: tr(lng, "x.8aa605ca"),
     },
     {
-      label: "Falta tu puesto final",
+      label: tr(lng, "x.6f00a543"),
       done: myResult?.placement != null || !me,
-      hint: "Es lo que decide los CP.",
+      hint: tr(lng, "x.803681b3"),
     },
   ];
 
@@ -526,7 +530,7 @@ export default async function TournamentPage({
       <PageHead
         title={t.name}
         icon={<TournamentEmblem kind={t.kind} scope={t.scope} size="lg" />}
-        back={{ href: "/torneos", label: "Torneos" }}
+        back={{ href: "/torneos", label: tr(lng, "x.f02a0f3c") }}
         sub={
           <>
             {table.events[t.kind]?.label ?? t.kind} · {fmtDateLong(t.date)}
@@ -544,7 +548,7 @@ export default async function TournamentPage({
           /* En el móvil el «‹ Torneos» va encima del título (`back`); este
              botón ocupaba una fila entera debajo de la cabecera. */
           <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
-            <Icon name="back" className="size-4" /> Torneos
+            <Icon name="back" className="size-4" /> {tr(lng, "x.f02a0f3c")}
           </Link>
         }
       />
@@ -561,30 +565,30 @@ export default async function TournamentPage({
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi
-          label="Asistencia"
+          label={tr(lng, "x.b6398c21")}
           value={t.playerCount ?? "—"}
-          note={t.rounds ? `${t.rounds} rondas` : "sin dato"}
+          note={t.rounds ? `${t.rounds} rondas` : tr(lng, "x.185e750e")}
         />
-        <Kpi label="Del grupo" value={t.results.length} note="participaron" />
+        <Kpi label={tr(lng, "x.76aec241")} value={t.results.length} note={tr(lng, "x.e02eef48")} />
         <Kpi
-          label="CP repartidos"
+          label={tr(lng, "x.8ee6cbd0")}
           value={totalCp}
           note={
             awardsCp(season, cpKind)
               ? `temporada ${season}`
-              : "este tipo no da CP"
+              : tr(lng, "x.a804cac4")
           }
           highlight={totalCp > 0}
         />
         <Kpi
-          label="Mejor puesto"
+          label={tr(lng, "x.d0c411d8")}
           value={ordered[0]?.placement ?? "—"}
           note={
             ordered[0] ? (
               <Link href={`/perfil/${ordered[0].playerId}`} className="hover:text-info hover:underline">
                 {snap.playersById.get(ordered[0].playerId)?.name ?? ""}
               </Link>
-            ) : "sin resultados"
+            ) : tr(lng, "x.645f84d2")
           }
         />
       </div>
@@ -592,8 +596,7 @@ export default async function TournamentPage({
       {myTier?.invite && (
         <p className="card mb-5 flex items-start gap-2.5 border-brand-line bg-brand-soft p-4 text-sm font-semibold text-brand">
           <Icon name="trophy" className="mt-0.5 size-5 flex-none" />
-          Ese puesto da invitación directa al Campeonato Mundial, al margen de
-          los puntos.
+          {tr(lng, "x.6588914d")}
         </p>
       )}
 
@@ -622,6 +625,10 @@ export default async function TournamentPage({
           playerCount={t.playerCount}
           rondasTotales={t.rounds} // lo configurado a mano manda sobre la tabla
           topCut={t.topCut}
+          rondasFase2={t.roundsPhase2}
+          paso2Puntos={t.phase2Points}
+          paso2Top={t.phase2Top}
+          cortePuntos={t.cutPoints}
           storageKey={`torneo-${t.id}`} // para que recuerde el plegado por torneo
           pestana={fase}
           hrefFase={`/torneos/${t.id}?fase=`}
@@ -640,7 +647,7 @@ export default async function TournamentPage({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Icon name="share" className="size-4" /> Ver el torneo en su web
+          <Icon name="share" className="size-4" /> {tr(lng, "x.dd558e00")}
         </a>
       )}
 
@@ -648,9 +655,8 @@ export default async function TournamentPage({
       {status === "draft" ? (
         me && (
           <div className="card mb-6">
-            <Empty title="El torneo todavía no ha empezado">
-              Cuando llegue el día, dale a «Empezar el torneo» ahí arriba y
-              podrás ir apuntando las rondas.
+            <Empty title={tr(lng, "x.108152c7")}>
+              {tr(lng, "x.2ba8211b")}
             </Empty>
           </div>
         )
@@ -662,8 +668,8 @@ export default async function TournamentPage({
             asistencia={t.playerCount}
             filtro={
               fase === "general" ? null
-                : fase === "dia1" ? (hayDia2 ? "Solo rondas del Día 1" : "Solo rondas del suizo")
-                : "Solo rondas del Día 2 y el top cut"
+                : fase === "dia1" ? (hayDia2 ? (faseManual ? "Solo rondas de la Fase 1" : tr(lng, "x.ff913ce3")) : tr(lng, "x.2d077b23"))
+                : faseManual ? "Solo rondas de la Fase 2 y el top cut" : tr(lng, "x.ea902280")
             }
             jugadores={participantes}
             formulario={roundFormNode}
@@ -706,7 +712,7 @@ export default async function TournamentPage({
 
           {firstTurn.total >= 2 && (
             <p className="mt-2 px-1 text-xs text-muted">
-              Tus rondas con el turno apuntado: saliendo <b className="text-ink-2">1.º</b>{" "}
+              {tr(lng, "x.5957e91d")} <b className="text-ink-2">1.º</b>{" "}
               ganaste {textoLado(firstTurn.primero)} · saliendo{" "}
               <b className="text-ink-2">2.º</b> ganaste {textoLado(firstTurn.segundo)}.
             </p>
@@ -719,10 +725,10 @@ export default async function TournamentPage({
         <details className="card mb-6" open={!myResult?.placement}>
           <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
             {myResult?.placement
-              ? "Editar tu resultado final"
-              : "Poner tu resultado final"}
+              ? tr(lng, "x.3c551519")
+              : tr(lng, "x.25d39c04")}
             <span className="text-xs font-normal text-muted">
-              puesto, mazo, CP y premios
+              {tr(lng, "x.cf972c9b")}
             </span>
           </summary>
           <div className="border-t border-line-soft p-4">
@@ -740,7 +746,7 @@ export default async function TournamentPage({
 
       {t.notes && (
         <div className="card mb-6 p-4">
-          <h3 className="mb-1 font-bold">Notas del torneo</h3>
+          <h3 className="mb-1 font-bold">{tr(lng, "x.aa399cbf")}</h3>
           <p className="text-sm text-ink-2">{t.notes}</p>
         </div>
       )}
@@ -748,7 +754,7 @@ export default async function TournamentPage({
       {manager && (
         <details className="card border-loss/40">
           <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold text-loss">
-            Borrar este torneo
+            {tr(lng, "x.a2f3ded3")}
           </summary>
           <form
             action={deleteTournament}

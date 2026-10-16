@@ -2,6 +2,8 @@ import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { MatchForm } from "@/components/MatchForm";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Registrar partida" };
 
@@ -10,6 +12,8 @@ export default async function NewMatchPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
   
@@ -27,7 +31,7 @@ export default async function NewMatchPage({
   }
   return (
     <>
-      <PageHead title="Registrar partida" sub="Se guarda en cuanto alguien llega al número de juegos necesario." back={{ href: "/resultados", label: "Resultados" }} />
+      <PageHead title={tr(lng, "x.84699856")} sub={tr(lng, "x.cc942d93")} back={{ href: "/resultados", label: tr(lng, "x.b164a1ab") }} />
       <MatchForm
         players={snap.players}
         decks={snap.decks}

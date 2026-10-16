@@ -4,6 +4,8 @@ import type { ConvStats, PlacementRow } from "@/lib/tournamentStats";
 import { pct } from "@/lib/format";
 import { Sprites } from "./ui";
 import { Icon } from "./icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    Los mejores resultados, como en el stream.
@@ -43,22 +45,24 @@ function colorDePuesto(p: number): string {
   return "var(--muted)";
 }
 
-export function BestFinishes({ rows, stats, season, nameOf, archOf, tournamentOf, hrefOf }: Props) {
+export async function BestFinishes({ rows, stats, season, nameOf, archOf, tournamentOf, hrefOf }: Props) {
+  const lng = await getLang(); // v0.49
+
   return (
     <section className="card mb-6">
       <div className="card-head">
-        <h2 className="text-lg font-bold">Mejores resultados</h2>
+        <h2 className="text-lg font-bold">{tr(lng, "x.76709475")}</h2>
         <span className="text-xs text-muted">temporada {season}</span>
       </div>
 
       {/* Las cuatro cifras. `cutRate` puede ser null aunque haya torneos: si
           ninguno tuvo top cut, no hay nada que convertir y un 0% mentiría. */}
       <div className="grid grid-cols-2 gap-px border-b border-line-soft bg-line-soft sm:grid-cols-4">
-        <Cifra label="Torneos" value={String(stats.entries)} nota={`${stats.wins} ganado${stats.wins === 1 ? "" : "s"}`} />
-        <Cifra label="Conversión a cut" value={pct(stats.cutRate, 0)}
-          nota={stats.cutEligible ? `${stats.cut} de ${stats.cutEligible}` : "ninguno con corte"} />
-        <Cifra label="Top 8" value={pct(stats.top8Rate, 0)} nota={`${stats.top8} veces`} />
-        <Cifra label="Top 4" value={pct(stats.top4Rate, 0)} nota={`${stats.top4} veces`} />
+        <Cifra label={tr(lng, "x.f02a0f3c")} value={String(stats.entries)} nota={`${stats.wins} ganado${stats.wins === 1 ? "" : "s"}`} />
+        <Cifra label={tr(lng, "x.0bd49b4c")} value={pct(stats.cutRate, 0)}
+          nota={stats.cutEligible ? `${stats.cut} de ${stats.cutEligible}` : tr(lng, "x.6bff9331")} />
+        <Cifra label={tr(lng, "x.55d0b1f1")} value={pct(stats.top8Rate, 0)} nota={`${stats.top8} veces`} />
+        <Cifra label={tr(lng, "x.045b64f6")} value={pct(stats.top4Rate, 0)} nota={`${stats.top4} veces`} />
       </div>
 
       {rows.length ? (
@@ -105,8 +109,7 @@ export function BestFinishes({ rows, stats, season, nameOf, archOf, tournamentOf
         </ol>
       ) : (
         <p className="px-4 py-6 text-center text-sm text-muted">
-          Todavía no hay ningún torneo con el puesto apuntado. En la ficha de cada torneo se
-          rellena en dos toques.
+          {tr(lng, "x.6cdbe272")}
         </p>
       )}
     </section>

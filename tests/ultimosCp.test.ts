@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fechaCorta, puestoTexto, ultimosConCp, type EntradaCp } from "../src/lib/ultimosCp.ts";
+import { puestoTexto, ultimosConCp, type EntradaCp } from "../src/lib/ultimosCp.ts";
 
 const e = (over: Partial<EntradaCp>): EntradaCp => ({
   id: "r1", torneoId: "t1", torneo: "Regional de Niza", fecha: "2026-10-18",
@@ -57,12 +57,6 @@ test("puestoTexto: nulo y cero no son un puesto", () => {
   // Se pueden meter CP a mano sin puesto; «0.º» sería inventárselo.
   assert.equal(puestoTexto(null), "—");
   assert.equal(puestoTexto(0), "—");
-});
-
-test("fechaCorta", () => {
-  assert.equal(fechaCorta("2026-10-18"), "18 oct");
-  assert.equal(fechaCorta("2026-01-05"), "5 ene");
-  assert.equal(fechaCorta("vaya"), "vaya");
 });
 
 /* --------------------------------------------------------- v0.41: mayores */

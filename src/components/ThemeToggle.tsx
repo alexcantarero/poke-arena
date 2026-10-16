@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { spriteUrl } from "@/lib/pokemon";
 import { pokemonDelTema, registrarClic } from "@/lib/rafaga";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /**
  * Interruptor de tema. El valor inicial lo pone el script del layout antes de
@@ -49,6 +51,8 @@ const HUECO = SPRITE + 24;
 const DURACION = { tema: 1300, boom: 1700 } as const;
 
 export function ThemeToggle() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const [dark, setDark] = useState<boolean | null>(null);
   const [aparicion, setAparicion] = useState<Aparicion | null>(null);
   const historial = useRef<number[]>([]);
@@ -100,8 +104,8 @@ export function ThemeToggle() {
       <button
         ref={boton} type="button" onClick={toggle}
         className="btn btn-ghost btn-sm px-2"
-        aria-label={dark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-        title={dark ? "Tema claro" : "Tema oscuro"}
+        aria-label={dark ? "Cambiar a tema claro" : tr(lng, "x.e726125c")}
+        title={dark ? "Tema claro" : tr(lng, "x.f0260635")}
       >
         <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
           {dark ? (

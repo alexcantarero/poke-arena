@@ -5,6 +5,8 @@ import {
 } from "@/lib/cp";
 import { medallaDe, usaEscalaRegional } from "@/lib/rangos";
 import { fmtDate } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    Championship Points, explicados.
@@ -64,7 +66,9 @@ function listAnd(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
-export function CpBreakdown({ cp }: { cp: CpTotals }) {
+export async function CpBreakdown({ cp }: { cp: CpTotals }) {
+  const lng = await getLang(); // v0.49
+
   const table = getSeason(cp.season);
 
   const views: BucketView[] = [];
@@ -141,7 +145,7 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
             {cp.confirmed ? "" : " · las cifras de esta temporada aún no son oficiales"}
           </p>
         </div>
-        <Link className="btn btn-ghost btn-sm" href="/torneos">Torneos</Link>
+        <Link className="btn btn-ghost btn-sm" href="/torneos">{tr(lng, "x.f02a0f3c")}</Link>
       </div>
 
       {/* La invitación va la primera porque es lo más importante que le puede
@@ -151,10 +155,10 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
         <div className="border-b border-line-soft p-4">
           <div className="rounded-xl border border-brand-line bg-brand-soft p-3.5">
             <h3 className="font-display text-xl font-extrabold text-brand">
-              Invitación directa al Mundial
+              {tr(lng, "x.cf966175")}
             </h3>
             <p className="mt-1 text-sm text-ink-2">
-              Este puesto da plaza al margen de los puntos:
+              {tr(lng, "x.fd72d10d")}
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {invites.map(({ row }) => (
@@ -180,16 +184,16 @@ export function CpBreakdown({ cp }: { cp: CpTotals }) {
       <div className="flex flex-col gap-2 border-t border-line-soft p-4 text-xs text-muted">
         {table.note && <p>{table.note}</p>}
         <p>
-          Esta pantalla no puede decirte cuántos CP hacen falta para ir al Mundial, y no
-          se lo inventa: desde 2025 la invitación es por Top N del ranking de tu zona, y
-          ese corte solo se conoce cuando termina la temporada.
+          {tr(lng, "x.2fe15ad0")}
         </p>
       </div>
     </section>
   );
 }
 
-function Bucket({ view }: { view: BucketView }) {
+async function Bucket({ view }: { view: BucketView }) {
+  const lng = await getLang(); // v0.49
+
   const shared = view.mainKinds.length > 1;
   // Los huecos ocupados: solo lo que suma y no está fuera por el límite.
   const slots = view.rows
@@ -209,12 +213,12 @@ function Bucket({ view }: { view: BucketView }) {
       <p className="mt-1 text-xs text-muted">
         {view.bfl > 0 ? (
           <>
-            Cuentan los <b className="text-ink-2">{view.bfl} mejores</b> ·{" "}
+            {tr(lng, "x.d1af88d5")} <b className="text-ink-2">{view.bfl} mejores</b> ·{" "}
             {view.counting} {view.counting === 1 ? "ocupado" : "ocupados"} ·{" "}
             <b className="text-ink-2">{view.spare} {view.spare === 1 ? "libre" : "libres"}</b>
           </>
         ) : (
-          <>Sin Best Finish Limit: cuentan todos los resultados.</>
+          <>{tr(lng, "x.8ccfcebb")}</>
         )}
       </p>
 
@@ -227,8 +231,8 @@ function Bucket({ view }: { view: BucketView }) {
             const slot = slots[i];
             if (!slot) {
               return (
-                <span key={i} className="cp-ball cp-ball-empty" title="Hueco libre">
-                  <span className="sr-only">Hueco libre</span>
+                <span key={i} className="cp-ball cp-ball-empty" title={tr(lng, "x.309deef7")}>
+                  <span className="sr-only">{tr(lng, "x.309deef7")}</span>
                 </span>
               );
             }
@@ -284,13 +288,13 @@ function Bucket({ view }: { view: BucketView }) {
                 {(invite || row.excluded || needed > 0 || row.cpManual || maxed
                   || (usaEscalaRegional(row.kind) && row.counted > 0)) && (
                   <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    {invite && <span className="chip chip-brand">invitación al Mundial</span>}
-                    {maxed && <span className="chip chip-brand">★ maxeado</span>}
+                    {invite && <span className="chip chip-brand">{tr(lng, "x.02030db1")}</span>}
+                    {maxed && <span className="chip chip-brand">{tr(lng, "x.27ba66e6")}</span>}
                     {usaEscalaRegional(row.kind) && !row.excluded && row.counted > 0 && (
                       <span className="chip">{medallaDe(row.kind, row.placement, tierIndex).nombre}</span>
                     )}
                     {row.excluded && (
-                      <span className="chip chip-tie">no suma · fuera por Best Finish Limit</span>
+                      <span className="chip chip-tie">{tr(lng, "x.abd7dcb7")}</span>
                     )}
                     {/* v0.15 — antes: «ese tramo necesitaba 25 jugadores para
                         pagar», sin decir qué tramo ni cuánto valía. Ahora dice
@@ -301,7 +305,7 @@ function Bucket({ view }: { view: BucketView }) {
                         {row.playerCount ? ` y hubo ${row.playerCount}` : ""}. No ocupa hueco.
                       </span>
                     )}
-                    {row.cpManual && <span className="chip">CP a mano</span>}
+                    {row.cpManual && <span className="chip">{tr(lng, "x.1efee72a")}</span>}
                   </span>
                 )}
               </span>

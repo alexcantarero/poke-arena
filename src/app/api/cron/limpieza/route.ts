@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
-import { borrarTorneosAbandonados } from "@/lib/limpiezaDb";
+import { borrarTorneosAbandonados, cerrarTorneosTerminados } from "@/lib/limpiezaDb";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 
 /* =========================================================================
@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "no autorizado" }, { status: 401 });
   }
   const borrados = await borrarTorneosAbandonados();
+  // v0.45 — y los que se quedaron abiertos más de una semana con datos dentro.
+  const cerrados = await cerrarTorneosTerminados();
 
   /* v0.44 — y de paso, los torneos online semanales previstos. Va en el mismo
      cron para no gastar otro (el plan Hobby de Vercel los limita). Si falla,
@@ -27,6 +29,10 @@ export async function GET(req: NextRequest) {
   let series = null;
   try { series = await sincronizarSeriesOnline(); } catch { /* se reintenta mañana */ }
 
-  if (borrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
-  return NextResponse.json({ borrados: borrados.length, torneos: borrados.map((t) => t.name), series });
+  if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
+  return NextResponse.json({
+    borrados: borrados.length, torneos: borrados.map((t) => t.name),
+    cerrados: cerrados.length, torneosCerrados: cerrados.map((t) => t.name),
+    series,
+  });
 }

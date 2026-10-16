@@ -8,6 +8,8 @@ import { pct, wrColor } from "@/lib/format";
 import { MetaTabs } from "@/components/MetaTabs";
 import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Top Decks" };
 
@@ -63,6 +65,8 @@ const VENTANAS = [
 export default async function TopDecksPage({
   searchParams,
 }: { searchParams: Promise<{ formato?: string; dias?: string; fuente?: string; q?: string }> }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   const formato = FORMATOS.some((f) => f.value === q.formato) ? q.formato! : "STANDARD";
   const dias = VENTANAS.some((v) => v.value === q.dias) ? Number(q.dias) : 30;
@@ -109,8 +113,8 @@ export default async function TopDecksPage({
       <>
         <PageHead
           title="Top Decks"
-          sub="Lo que cortó en los Regionales: traído de Limitless TCG desde Ajustes, o pegado a mano."
-          back={{ href: "/mas", label: "Más" }}
+          sub={tr(lng, "x.8283eb44")}
+          back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }}
         />
         {pestanas}
         <form action="/topdecks" method="get" className="mb-4 flex gap-2">
@@ -119,10 +123,10 @@ export default async function TopDecksPage({
           {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
           <input
             className="input min-w-0 flex-1" type="search" name="q" defaultValue={query}
-            placeholder="Buscar arquetipo o Pokémon..." aria-label="Buscar arquetipo"
+            placeholder={tr(lng, "x.2a9aa536")} aria-label={tr(lng, "x.ea31e365")}
             autoComplete="off" autoCapitalize="none" spellCheck={false}
           />
-          <button className="btn shrink-0" type="submit" aria-label="Buscar">
+          <button className="btn shrink-0" type="submit" aria-label={tr(lng, "x.a62405e2")}>
             <Icon name="search" className="size-4" />
           </button>
         </form>
@@ -149,7 +153,7 @@ export default async function TopDecksPage({
       apiKey: process.env.LIMITLESS_API_KEY,
     });
   } catch (e) {
-    error = e instanceof Error ? e.message : "error de red";
+    error = e instanceof Error ? e.message : tr(lng, "x.e95fcee8");
   }
 
   const href = (cambios: Record<string, string>) => {
@@ -167,8 +171,8 @@ export default async function TopDecksPage({
     <>
       <PageHead
         title="Top Decks"
-        sub="Lo que se está jugando en los torneos online de Limitless. Para decidir con qué ir al próximo."
-        back={{ href: "/mas", label: "Más" }}
+        sub={tr(lng, "x.1efb782b")}
+        back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }}
       />
 
       {pestanas}
@@ -178,10 +182,10 @@ export default async function TopDecksPage({
           {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
           <input
             className="input min-w-0 flex-1" type="search" name="q" defaultValue={query}
-            placeholder="Buscar arquetipo o Pokémon..." aria-label="Buscar arquetipo"
+            placeholder={tr(lng, "x.2a9aa536")} aria-label={tr(lng, "x.ea31e365")}
             autoComplete="off" autoCapitalize="none" spellCheck={false}
           />
-          <button className="btn shrink-0" type="submit" aria-label="Buscar">
+          <button className="btn shrink-0" type="submit" aria-label={tr(lng, "x.a62405e2")}>
             <Icon name="search" className="size-4" />
           </button>
         </form>
@@ -192,10 +196,10 @@ export default async function TopDecksPage({
           y sacarlos de ahí sería hacer scraping. Llamar «meta mundial» a esto
           sin más sería vender otra cosa. */}
       <p className="mb-4 rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-ink-2">
-        <b>Son torneos online.</b> La API de Limitless cubre su plataforma de torneos por
+        <b>{tr(lng, "x.455863bd")}</b> La API de Limitless cubre su plataforma de torneos por
         internet, no los Regionales presenciales. Como metagame sirve —son miles de listas a la
         semana y se mueve antes que el presencial—, pero no es lo mismo.{" "}
-        <Link className="underline" href={`/topdecks?fuente=presencial${query ? "&q=" + query : ""}`}>El metagame presencial</Link>{" "}
+        <Link className="underline" href={`/topdecks?fuente=presencial${query ? "&q=" + query : ""}`}>{tr(lng, "x.12dcba0c")}</Link>{" "}
         está en la otra pestaña, y entra pegando la clasificación a mano: no hay forma legítima
         de traerlo solo.
       </p>
@@ -221,34 +225,32 @@ export default async function TopDecksPage({
       {error || !meta ? (
         <section className="card p-4">
           <p className="text-sm font-semibold text-loss">
-            No se ha podido leer el metagame: {error ?? "sin datos"}.
+            No se ha podido leer el metagame: {error ?? tr(lng, "x.e0919c92")}.
           </p>
           <p className="mt-1 text-xs text-muted">
-            Limitless es gratis y va bien casi siempre, pero cuando no responde aquí no hay nada
-            que enseñar. El resto de la app no depende de esto.
+            {tr(lng, "x.e8cfa447")}
           </p>
         </section>
       ) : !filas.length ? (
         <section className="card">
-          <Empty icon="globe" title="No hay torneos en esta ventana">
-            Prueba con más días, o con el otro formato. Se miran solo torneos de 16 personas
-            para arriba: por debajo, los resultados son ruido.
+          <Empty icon="globe" title={tr(lng, "x.2a570e3a")}>
+            {tr(lng, "x.b55c86ca")}
           </Empty>
         </section>
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-            <Kpi tone="global" icon="globe" label="Torneos" value={meta.tournaments}
+            <Kpi tone="global" icon="globe" label={tr(lng, "x.f02a0f3c")} value={meta.tournaments}
               note={`${meta.entries.toLocaleString("es")} listas`} />
-            <Kpi tone="global" icon="trophy" label="Más jugado"
+            <Kpi tone="global" icon="trophy" label={tr(lng, "x.ab2a0aaa")}
               value={filas[0] ? `${Math.round(filas[0].share * 100)}%` : "—"}
               note={filas[0]?.name ?? ""} />
-            <Kpi tone="global" icon="star" label="Mejor en top 4"
+            <Kpi tone="global" icon="star" label={tr(lng, "x.94fa659c")}
               value={campeon?.name ?? "—"}
               note={campeon ? `${pct(top4Rate(campeon), 0)} de sus listas` : ""} />
-            <Kpi tone="diff" icon="deck" label="En vuestro catálogo"
+            <Kpi tone="diff" icon="deck" label={tr(lng, "x.36ac3172")}
               value={`${filas.filter((r) => nuestros.has(norm(r.name))).length} de ${filas.length}`}
-              note="los demás no los tenéis dados de alta" />
+              note={tr(lng, "x.baa743b3")} />
           </div>
 
           <section className="card">
@@ -283,7 +285,7 @@ export default async function TopDecksPage({
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{r.name}</span>
                       {nuestros.has(norm(r.name)) && (
-                        <span className="chip chip-diff flex-none text-[10px]">lo tenéis</span>
+                        <span className="chip chip-diff flex-none text-[10px]">{tr(lng, "x.84ef7ea0")}</span>
                       )}
                     </span>
                     <span className="block text-[11px] text-muted tabular">
@@ -299,20 +301,20 @@ export default async function TopDecksPage({
                         style={{ color: "var(--source-global)" }}>
                         {Math.round(r.share * 100)}%
                       </span>
-                      <span className="block text-[10px] text-muted">cuota</span>
+                      <span className="block text-[10px] text-muted">{tr(lng, "x.cdd02ce6")}</span>
                     </span>
                     <span className="w-12">
                       <span className="block font-display text-base font-extrabold tabular"
                         style={{ color: wrColor(r.winRate) }}>
                         {pct(r.winRate, 0)}
                       </span>
-                      <span className="block text-[10px] text-muted">%V</span>
+                      <span className="block text-[10px] text-muted">{tr(lng, "x.39683ef7")}</span>
                     </span>
                     <span className="hidden w-12 sm:block">
                       <span className="block font-display text-base font-extrabold tabular">
                         {pct(top4Rate(r), 0)}
                       </span>
-                      <span className="block text-[10px] text-muted">top 4</span>
+                      <span className="block text-[10px] text-muted">{tr(lng, "x.26c8e96f")}</span>
                     </span>
                   </span>
                 </li>
@@ -321,10 +323,7 @@ export default async function TopDecksPage({
 
             <div className="border-t border-line-soft px-4 py-3 text-xs text-muted">
               <p>
-                <b>Cuota</b> es qué parte de todas las listas es ese mazo. <b>%V</b> son las
-                rondas que gana, contando el empate como media. <b>Top 4</b> es cuántas de sus
-                listas llegaron a semifinales: es lo que distingue un mazo que gana rondas de
-                uno que cierra torneos.
+                <b>{tr(lng, "x.d344b5b2")}</b> {tr(lng, "x.8fa3f853")} <b>{tr(lng, "x.39683ef7")}</b> {tr(lng, "x.55396024")} <b>{tr(lng, "x.045b64f6")}</b> {tr(lng, "x.3d3af019")}
               </p>
               {meta.failed > 0 && (
                 <p className="mt-1.5">
@@ -340,7 +339,7 @@ export default async function TopDecksPage({
 
           <Link className="btn mt-4 w-full sm:w-auto" href="/estadisticas?fuente=both">
             <Icon name="compare" className="size-4" />
-            Comparar esto con vuestra liga
+            {tr(lng, "x.93569ced")}
           </Link>
         </>
       )}

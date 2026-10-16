@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { Icon } from "@/components/icons";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Cuando una pantalla revienta.
@@ -28,6 +30,8 @@ import { Icon } from "@/components/icons";
 export default function Error({
   error, reset,
 }: { error: Error & { digest?: string }; reset: () => void }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   useEffect(() => {
     // Al menos queda en la consola del navegador y en los registros del
     // servidor. No se manda a ningún sitio: la liga no tiene servicio de
@@ -41,17 +45,16 @@ export default function Error({
         <Icon name="alert" className="size-7" />
       </span>
 
-      <h1 className="text-2xl font-extrabold">Algo se ha roto por aquí</h1>
+      <h1 className="text-2xl font-extrabold">{tr(lng, "x.142581f0")}</h1>
       <p className="text-sm text-muted">
-        Esta pantalla no ha podido cargarse. Casi siempre es la base de datos despertándose
-        después de un rato parada, así que lo normal es que a la segunda vaya.
+        {tr(lng, "x.2fab2257")}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         <button className="btn btn-brand" type="button" onClick={reset}>
-          <Icon name="refresh" className="size-4" /> Reintentar
+          <Icon name="refresh" className="size-4" /> {tr(lng, "x.adec7b4f")}
         </button>
-        <Link className="btn" href="/">Ir al inicio</Link>
+        <Link className="btn" href="/">{tr(lng, "x.099af5f0")}</Link>
       </div>
 
       {error.digest && (

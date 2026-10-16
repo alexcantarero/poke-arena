@@ -1,7 +1,7 @@
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
 import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
-import { loadSnapshot, playerCp } from "@/lib/data";
+import { loadTorneosPantalla, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
@@ -14,6 +14,8 @@ import { importLocalTournaments } from "@/actions";
 import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { AutoSubmitForm } from "@/components/AutoSubmitForm";
 import { toneOf } from "@/lib/calendar";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Torneos" };
 
@@ -24,7 +26,12 @@ export default async function TournamentsPage({
 }: {
   searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string }>;
 }) {
-  const [snap, session, sp] = await Promise.all([loadSnapshot(), readSession(), searchParams]);
+  const lng = await getLang(); // v0.49
+
+  /* v0.47 — Fase B: `snap` NO es el snapshot entero. Son torneos, resultados,
+     jugadores y solo las rondas de torneo (`loadTorneosPantalla`), sin las
+     jornadas de liga ni los amistosos, que aquí no se enseñan. */
+  const [snap, session, sp] = await Promise.all([loadTorneosPantalla(), readSession(), searchParams]);
   const season = snap.config.cpSeason;
   const table = getSeason(season);
   const me = session ? snap.playersById.get(session.playerId) : undefined;
@@ -101,11 +108,11 @@ export default async function TournamentsPage({
   return (
     <>
       <PageHead
-        title="Torneos"
-        sub="Los torneos de fuera a los que vais: oficiales, de tienda y online. Con el mazo que llevaste, el puesto, los CP y los premios."
+        title={tr(lng, "x.f02a0f3c")}
+        sub={tr(lng, "x.9a0b7d24")}
         actions={
           <Link className="btn btn-brand" href="/torneos/nuevo">
-            <Icon name="plus" className="size-4" /> Nuevo torneo
+            <Icon name="plus" className="size-4" /> {tr(lng, "x.fca27f06")}
           </Link>
         }
       />
@@ -114,26 +121,26 @@ export default async function TournamentsPage({
         <p className="mb-4 rounded-lg border border-brand-line bg-brand-soft px-3 py-2 text-sm text-ink-2">
           <b>Las cifras de CP de la temporada {season} son provisionales.</b>{" "}
           Play! Pokémon anunció que cambian pero aún no las ha publicado en un sitio consultable.
-          Están en <code className="font-mono text-xs">src/lib/cp.ts</code>, listas para corregir a mano.
+          Están en <code className="font-mono text-xs">src/lib/cp.ts</code>{tr(lng, "x.c849f3b9")}
         </p>
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Kpi label="Torneos" value={snap.tournaments.length} note={`${mine.length} tuyos`} />
-        <Kpi label="Tus CP" value={myCp?.total ?? 0} note={`temporada ${season}`} highlight />
-        <Kpi label="CP del grupo" value={cpTotalGroup} note="sumando a todos" />
+        <Kpi label={tr(lng, "x.f02a0f3c")} value={snap.tournaments.length} note={`${mine.length} tuyos`} />
+        <Kpi label={tr(lng, "x.75c2f3d0")} value={myCp?.total ?? 0} note={`temporada ${season}`} highlight />
+        <Kpi label={tr(lng, "x.6296c540")} value={cpTotalGroup} note={tr(lng, "x.bb13ec73")} />
         <Kpi
-          label="Con CP"
+          label={tr(lng, "x.af459507")}
           value={snap.tournaments.filter((t) => awardsCp(season, cpKindOf(t))).length}
-          note="dan puntos oficiales"
+          note={tr(lng, "x.cacdbb19")}
         />
       </div>
 
       {myCp && myCp.buckets.length > 0 && (
         <section className="card mb-5">
           <div className="card-head">
-            <h2 className="text-lg font-bold">Tus huecos de Best Finish Limit</h2>
-            <Link className="btn btn-ghost btn-sm" href={`/perfil/${me!.id}`}>Ver detalle</Link>
+            <h2 className="text-lg font-bold">{tr(lng, "x.d3ce56ba")}</h2>
+            <Link className="btn btn-ghost btn-sm" href={`/perfil/${me!.id}`}>{tr(lng, "x.3c5d7a3a")}</Link>
           </div>
           <ul className="divide-y divide-line-soft">
             {myCp.buckets.map((b) => (
@@ -143,7 +150,7 @@ export default async function TournamentsPage({
                   <span className="block text-xs text-muted">
                     {b.bfl > 0
                       ? `${b.counting} de ${b.bfl} huecos usados${b.spare ? ` · te quedan ${b.spare}` : " · lleno"}`
-                      : "sin límite: cuentan todos"}
+                      : tr(lng, "x.c82bbe0b")}
                   </span>
                 </span>
                 <span className="font-display text-xl font-extrabold tabular">{b.total}</span>
@@ -157,7 +164,7 @@ export default async function TournamentsPage({
         <section className="card mb-5">
           <div className="card-head">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold">Torneos de la zona · octubre y noviembre</h2>
+              <h2 className="text-lg font-bold">{tr(lng, "x.0b260139")}</h2>
               <p className="text-xs text-muted">
                 {zonaPendientes.length} por añadir: Challenges y Cups de Catalunya, y los Regionales
                 de Niza y Gdansk. Entran como borrador; los que ya estén se saltan.
@@ -177,7 +184,7 @@ export default async function TournamentsPage({
           ? `${proximos} por delante · ${filtered.length} de ${snap.tournaments.length}`
           : `${filtered.length} de ${snap.tournaments.length}`}
       >
-        {filterPlayer ? `Torneos de ${filterPlayer.name}` : "Todos los torneos"}
+        {filterPlayer ? `Torneos de ${filterPlayer.name}` : tr(lng, "x.5f64bc1d")}
       </SectionTitle>
 
       {/* v0.16 — filtros: persona, tipo, estado y fechas.
@@ -195,11 +202,11 @@ export default async function TournamentsPage({
               componente ya enseña su propio botón de aplicar. */}
       <div className="card mb-4 flex flex-col gap-3 p-3 sm:p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <span className="label w-14 flex-none">Estado</span>
+          <span className="label w-14 flex-none">{tr(lng, "x.87cf2a84")}</span>
           <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
-            {[["", "Todos"], ...Object.entries(TOURNAMENT_STATUS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
+            {[["", tr(lng, "x.a4114a83")], ...Object.entries(TOURNAMENT_STATUS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
               <Link
-                key={k || "todos"}
+                key={k || tr(lng, "x.a9010807")}
                 href={urlFiltro({ estado: k })}
                 scroll={false}
                 aria-current={fEstado === k ? "true" : undefined}
@@ -213,14 +220,14 @@ export default async function TournamentsPage({
 
         {tiposPresentes.length > 1 && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <span className="label w-14 flex-none">Tipo</span>
+            <span className="label w-14 flex-none">{tr(lng, "x.6cc6198d")}</span>
             <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
               <Link
                 href={urlFiltro({ tipo: "" })} scroll={false}
                 aria-current={!fTipo ? "true" : undefined}
                 className={`chip flex-none ${!fTipo ? "chip-brand" : ""}`}
               >
-                Todos
+                {tr(lng, "x.a4114a83")}
               </Link>
               {tiposPresentes.map((k) => (
                 <Link
@@ -243,25 +250,25 @@ export default async function TournamentsPage({
           {fEstado && <input type="hidden" name="estado" value={fEstado} />}
           {fTipo && <input type="hidden" name="tipo" value={fTipo} />}
           <label className="flex min-w-0 flex-col gap-1">
-            <span className="label">Persona</span>
+            <span className="label">{tr(lng, "x.05568bf8")}</span>
             <select className="input" name="jugador" defaultValue={filterId === "all" ? "" : filterId}>
-              <option value="">Todas</option>
+              <option value="">{tr(lng, "x.8a3c3440")}</option>
               {playerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
           <label className="flex min-w-0 flex-col gap-1">
-            <span className="label">Desde</span>
+            <span className="label">{tr(lng, "x.966c7c4c")}</span>
             <input className="input" type="date" name="desde" defaultValue={fDesde} />
           </label>
           <label className="flex min-w-0 flex-col gap-1">
-            <span className="label">Hasta</span>
+            <span className="label">{tr(lng, "x.ccdaad85")}</span>
             <input className="input" type="date" name="hasta" defaultValue={fHasta} />
           </label>
         </AutoSubmitForm>
 
         {conFiltros && (
           <Link href="/torneos" scroll={false} className="w-fit text-xs text-muted underline-offset-2 hover:underline">
-            Quitar todos los filtros
+            {tr(lng, "x.22d52f4a")}
           </Link>
         )}
       </div>
@@ -269,9 +276,9 @@ export default async function TournamentsPage({
       {ordenados.length ? (
         <div className="flex flex-col gap-5">
           {([
-            ["Hoy", "Sucediendo ahora", grupos.hoy],
-            ["Próximos", "Del más cercano al más lejano", grupos.proximos],
-            ["Pasados", "Del más reciente al más antiguo", grupos.pasados],
+            ["Hoy", tr(lng, "x.30315f64"), grupos.hoy],
+            ["Próximos", tr(lng, "x.de4aba3d"), grupos.proximos],
+            ["Pasados", tr(lng, "x.2764a725"), grupos.pasados],
           ] as const).filter(([, , lista]) => lista.length > 0).map(([titulo, nota, lista]) => (
           <section key={titulo}>
             <h3 className="mb-2 flex items-baseline justify-between gap-2 px-1">
@@ -358,7 +365,7 @@ export default async function TournamentsPage({
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     {own?.placement && (
                       <span className="chip">
-                        Puesto <b className="tabular">{own.placement}</b>
+                        {tr(lng, "x.7f57e400")} <b className="tabular">{own.placement}</b>
                         {t.playerCount ? <span className="text-muted">/{t.playerCount}</span> : null}
                       </span>
                     )}
@@ -378,7 +385,7 @@ export default async function TournamentsPage({
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     {best?.placement && (
                       <span className="chip">
-                        Mejor puesto: <b className="tabular">{best.placement}</b>
+                        {tr(lng, "x.a9247dfc")} <b className="tabular">{best.placement}</b>
                         {t.playerCount ? <span className="text-muted">/{t.playerCount}</span> : null}
                       </span>
                     )}
@@ -395,24 +402,23 @@ export default async function TournamentsPage({
         </div>
       ) : conFiltros ? (
         <div className="card">
-          <Empty title="Ningún torneo con estos filtros">
-            <Link className="underline" href="/torneos">Quítalos</Link> y vuelve a mirar.
+          <Empty title={tr(lng, "x.fcaaef23")}>
+            <Link className="underline" href="/torneos">{tr(lng, "x.b605ff08")}</Link> {tr(lng, "x.b2639653")}
           </Empty>
         </div>
       ) : filterPlayer ? (
         <div className="card">
           <Empty title={`${filterPlayer.name} no ha ido a ningún torneo todavía`}>
-            En cuanto apunte uno aparecerá aquí.
+            {tr(lng, "x.f64e4290")}
           </Empty>
         </div>
       ) : (
         <div className="card">
           <Empty
-            title="Aún no hay torneos"
-            action={<Link className="btn btn-brand" href="/torneos/nuevo">Apuntar el primero</Link>}
+            title={tr(lng, "x.743546c5")}
+            action={<Link className="btn btn-brand" href="/torneos/nuevo">{tr(lng, "x.b0630859")}</Link>}
           >
-            Apunta cualquier torneo al que vayáis: una League Cup, uno de tienda o uno online.
-            Los CP se calculan solos con el puesto y la asistencia.
+            {tr(lng, "x.1afe85b3")}
           </Empty>
         </div>
       )}

@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ConvStats } from "@/lib/tournamentStats";
 import { pct, wrColor } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    La tabla de conversión.
@@ -42,7 +44,7 @@ const COLS: Col[] = [
 
 const esTasa = (k: keyof ConvRow) => String(k).endsWith("Rate");
 
-export function ConversionTable({
+export async function ConversionTable({
   rows, empty, matchColumns = false,
 }: {
   rows: ConvRow[];
@@ -50,6 +52,8 @@ export function ConversionTable({
   /** Añade %V y victorias de partidas, que solo tienen sentido para personas. */
   matchColumns?: boolean;
 }) {
+  const lng = await getLang(); // v0.49
+
   if (!rows.length) return <div className="px-4 py-8 text-center text-sm text-muted">{empty}</div>;
 
   return (
@@ -60,9 +64,9 @@ export function ConversionTable({
           <li key={r.id} className="px-4 py-3">
             <Cabecera row={r} />
             <div className="mt-2 grid grid-cols-2 gap-2 text-center xs:grid-cols-4">
-              <Mini label="%Cut" value={pct(r.cutRate, 0)} tone={r.cutRate} />
-              <Mini label="Top 8" value={pct(r.top8Rate, 0)} tone={r.top8Rate} />
-              <Mini label="Top 4" value={pct(r.top4Rate, 0)} tone={r.top4Rate} />
+              <Mini label={tr(lng, "x.5b766ead")} value={pct(r.cutRate, 0)} tone={r.cutRate} />
+              <Mini label={tr(lng, "x.55d0b1f1")} value={pct(r.top8Rate, 0)} tone={r.top8Rate} />
+              <Mini label={tr(lng, "x.045b64f6")} value={pct(r.top4Rate, 0)} tone={r.top4Rate} />
               <Mini label="1.º" value={pct(r.winRate, 0)} tone={r.winRate} />
             </div>
             {matchColumns && (
@@ -82,14 +86,14 @@ export function ConversionTable({
         <table className="tbl">
           <thead>
             <tr>
-              <th>{matchColumns ? "Jugador" : "Mazo"}</th>
+              <th>{matchColumns ? "Jugador" : tr(lng, "x.6606a664")}</th>
               {COLS.map((c) => (
                 <th key={String(c.key)} className="text-right" title={c.label}>{c.short}</th>
               ))}
               {matchColumns && (
                 <>
-                  <th className="text-right" title="Porcentaje de partidas ganadas">%V</th>
-                  <th className="text-right" title="Partidas ganadas">V</th>
+                  <th className="text-right" title={tr(lng, "x.fe938de3")}>{tr(lng, "x.39683ef7")}</th>
+                  <th className="text-right" title={tr(lng, "x.a8c59de9")}>V</th>
                 </>
               )}
             </tr>

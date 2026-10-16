@@ -5,6 +5,8 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { spriteUrl } from "@/lib/pokemon";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Las gráficas de la pantalla de estadísticas, con Recharts.
@@ -252,6 +254,8 @@ export function ArchetypeChart({
 
 /** Cuota de uso: qué parte del metagame es cada mazo. */
 export function ShareChart({ rows, limit = 10 }: { rows: ChartRow[]; limit?: number }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const data = rows.slice(0, limit).map((r, i) => ({
     ...r,
     color: `var(--series-${(i % 7) + 1})`,
@@ -273,7 +277,7 @@ export function ShareChart({ rows, limit = 10 }: { rows: ChartRow[]; limit?: num
             tick={(props) => <TickSpriteY {...props} rows={porId} />}
           />
           <Tooltip content={<Caja names={nombres} />} cursor={{ fill: "var(--surface-2)" }} />
-          <Bar dataKey="share" name="Cuota" radius={[0, 3, 3, 0]}>
+          <Bar dataKey="share" name={tr(lng, "x.d344b5b2")} radius={[0, 3, 3, 0]}>
             {data.map((d) => <Cell key={d.id} fill={d.color} />)}
           </Bar>
         </BarChart>
@@ -283,9 +287,11 @@ export function ShareChart({ rows, limit = 10 }: { rows: ChartRow[]; limit?: num
 }
 
 function Vacio() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   return (
     <p className="grid h-40 place-items-center text-center text-sm text-muted">
-      Aún no hay datos con estos filtros.
+      {tr(lng, "x.05463aa5")}
     </p>
   );
 }

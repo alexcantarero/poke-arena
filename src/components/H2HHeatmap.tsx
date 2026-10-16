@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { MatrizH2H } from "@/lib/h2h";
+import { tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 
 /* =========================================================================
    v0.15 — Mapa de calor de enfrentamientos directos.
@@ -21,22 +23,22 @@ import type { MatrizH2H } from "@/lib/h2h";
 
 export type JugadorH2H = { id: string; name: string; avatar: ReactNode };
 
-export function H2HHeatmap({
+export async function H2HHeatmap({
   matriz, jugadores, colorMode = "volume",
 }: {
   matriz: MatrizH2H;
   jugadores: JugadorH2H[];
   colorMode?: "volume" | "winRate";
 }) {
+  const lng = await getLang(); // v0.49
+
   const byId = new Map(jugadores.map((j) => [j.id, j]));
   const ids = matriz.ids.filter((id) => byId.has(id));
 
   if (ids.length < 2) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted">
-        Todavía no hay enfrentamientos entre gente del grupo con este filtro. Se llenan con las
-        partidas de liga y amistosos, y con las rondas de torneo en las que eliges al rival del
-        grupo.
+        {tr(lng, "x.497141c9")}
       </p>
     );
   }
@@ -51,7 +53,7 @@ export function H2HHeatmap({
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-surface px-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted">
-                contra →
+                {tr(lng, "x.37226785")}
               </th>
               {ids.map((id) => (
                 <th key={id} scope="col" className="px-0.5 align-bottom">
@@ -77,7 +79,7 @@ export function H2HHeatmap({
                 {ids.map((col) => {
                   if (fila === col) {
                     return (
-                      <td key={col} className="size-13 rounded-lg bg-surface-2 text-xs text-muted" aria-label="Uno mismo">
+                      <td key={col} className="size-13 rounded-lg bg-surface-2 text-xs text-muted" aria-label={tr(lng, "x.61a470c5")}>
                         —
                       </td>
                     );
@@ -87,7 +89,7 @@ export function H2HHeatmap({
                   const decididas = c.gana + c.pierde;
                   const winRate = decididas ? c.gana / decididas : null;
                   const tono = winRate == null ? "var(--series-1)" : winRate >= 0.55 ? "var(--win)" : winRate <= 0.45 ? "var(--loss)" : "var(--series-1)";
-                  const titulo = `${byId.get(fila)!.name} contra ${byId.get(col)!.name}: ${c.gana} victorias, ${c.pierde} derrotas${c.empata ? ` y ${c.empata} empates` : ""} en ${c.partidas} ${c.partidas === 1 ? "partida" : "partidas"}${colorMode === "winRate" && winRate != null ? ` · ${Math.round(winRate * 100)}% de victorias` : ""}`;
+                  const titulo = `${byId.get(fila)!.name} contra ${byId.get(col)!.name}: ${c.gana} victorias, ${c.pierde} derrotas${c.empata ? ` y ${c.empata} empates` : ""} en ${c.partidas} ${c.partidas === 1 ? "partida" : tr(lng, "x.18fd2bbc")}${colorMode === "winRate" && winRate != null ? ` · ${Math.round(winRate * 100)}% de victorias` : ""}`;
                   return (
                     <td
                       key={col}

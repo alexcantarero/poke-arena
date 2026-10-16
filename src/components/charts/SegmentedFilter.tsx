@@ -1,4 +1,6 @@
 "use client";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 export type FilterScope = "all" | "league" | "tournament";
 
@@ -25,10 +27,12 @@ export function SegmentedFilter({
   options = DEFAULT_OPTIONS,
   className = "",
 }: SegmentedFilterProps) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   return (
     <nav
       className={`seg seg-brand inline-flex text-xs ${className}`}
-      aria-label="Filtrar alcance de partidas"
+      aria-label={tr(lng, "x.447234f8")}
     >
       {options.map((opt) => (
         <button

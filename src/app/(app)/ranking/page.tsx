@@ -72,6 +72,8 @@ export default async function RankingPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const lng = await getLang(); // v0.49
+
   const q = await searchParams;
   /* v0.19 — todos los filtros en un sitio (`lib/rankingFiltro.ts`). */
   const filtro = parseFiltroRanking(q);
@@ -199,7 +201,7 @@ export default async function RankingPage({
       <>
         <TournamentRankingTable rows={filas} cpLabel={`CP ${cpSeason}`} />
         {donde === "online" && (
-          <p className="mt-2 text-xs text-muted">Los torneos online no reparten Championship Points.</p>
+          <p className="mt-2 text-xs text-muted">{tr(lng, "x.6ae18d5c")}</p>
         )}
       </>
     );
@@ -294,11 +296,10 @@ export default async function RankingPage({
   return (
     <>
       <PageHead
-        title="Ranking"
+        title={tr(lng, "x.3937bb62")}
         sub={
           <>
-            {snap.config.ptsWin} puntos por victoria y {snap.config.ptsTie} por empate. El <b>Elo</b> solo
-            se alimenta de la liga y de los torneos, con más peso cuanto más importante es el evento.
+            {snap.config.ptsWin} puntos por victoria y {snap.config.ptsTie} por empate. El <b>Elo</b> {tr(lng, "x.1c36bc40")}
           </>
         }
       />
@@ -306,9 +307,9 @@ export default async function RankingPage({
       <section className="mb-4 overflow-hidden rounded-2xl border border-brand/25 bg-[linear-gradient(120deg,color-mix(in_oklab,var(--brand-soft)_70%,var(--surface)),var(--surface)_65%)] shadow-sm">
         <div className="grid grid-cols-3 divide-x divide-brand/15">
           {[
-            { label: "Partidas", value: scoped.length, accent: "text-info", bar: "bg-info" },
-            { label: "Jugadores", value: nJugadoresRanking, accent: "text-brand", bar: "bg-brand" },
-            { label: "Torneos", value: nTorneos, accent: "text-win", bar: "bg-win" },
+            { label: tr(lng, "x.64f94394"), value: scoped.length, accent: "text-info", bar: "bg-info" },
+            { label: tr(lng, "x.b5291b8d"), value: nJugadoresRanking, accent: "text-brand", bar: "bg-brand" },
+            { label: tr(lng, "x.f02a0f3c"), value: nTorneos, accent: "text-win", bar: "bg-win" },
           ].map((item) => (
             <div key={item.label} className="relative min-w-0 px-4 py-3.5 sm:px-5">
               <span className={`block font-display text-2xl font-black leading-none tabular ${item.accent}`}>{item.value}</span>
@@ -324,18 +325,18 @@ export default async function RankingPage({
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-3.5 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-info [&::-webkit-details-marker]:hidden">
           <span className="grid size-9 flex-none place-items-center rounded-xl bg-brand-soft font-display text-lg font-black text-brand" aria-hidden="true">≡</span>
           <span className="min-w-0 flex-1">
-            <span className="block font-display font-bold text-ink">Filtros</span>
+            <span className="block font-display font-bold text-ink">{tr(lng, "x.dbcf4f73")}</span>
             <span className="block text-xs text-muted">
-              {filtrosActivos ? `${filtrosActivos} ${filtrosActivos === 1 ? "filtro activo" : "filtros activos"}` : "Sin filtros adicionales"}
+              {filtrosActivos ? `${filtrosActivos} ${filtrosActivos === 1 ? "filtro activo" : tr(lng, "x.a1bcd9b1")}` : tr(lng, "x.3595284c")}
             </span>
           </span>
-          <span className="chip flex-none">{filtrosActivos ? filtrosActivos : "Abrir"}</span>
+          <span className="chip flex-none">{filtrosActivos ? filtrosActivos : tr(lng, "x.bf763df7")}</span>
           <span className="flex-none text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true">⌄</span>
         </summary>
       <AutoSubmitForm action="/ranking" className="flex flex-col gap-3 border-t border-line-soft p-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="label">Partidas</span>
+            <span className="label">{tr(lng, "x.64f94394")}</span>
             <select className="input" name="ambito" defaultValue={vista === "all" ? "" : vista}>
               {VISTAS.map((x) => <option key={x.v} value={x.v === "all" ? "" : x.v}>{x.label}</option>)}
             </select>
@@ -343,9 +344,9 @@ export default async function RankingPage({
 
           {vista === "league" ? (
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="label">Competición</span>
+              <span className="label">{tr(lng, "x.c28ef3fd")}</span>
               <select className="input" name="comp" defaultValue={competition?.id ?? ""}>
-                <option value="">Todas</option>
+                <option value="">{tr(lng, "x.8a3c3440")}</option>
                 {snap.competitions.filter((c) => c.kind !== "casual").map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -353,9 +354,9 @@ export default async function RankingPage({
             </label>
           ) : vista !== "casual" ? (
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="label">Tipo de torneo</span>
+              <span className="label">{tr(lng, "x.bd5fd7b1")}</span>
               <select className="input" name="tipo" defaultValue={tipo}>
-                <option value="">Todos los tipos</option>
+                <option value="">{tr(lng, "x.71577ee2")}</option>
                 {tiposPresentes.map((k) => <option key={k} value={k}>{CALENDAR_KINDS[k].label}</option>)}
               </select>
             </label>
@@ -363,17 +364,17 @@ export default async function RankingPage({
 
           {(vista === "all" || vista === "tournament") && (
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="label">Dónde</span>
+              <span className="label">{tr(lng, "x.7c72f46c")}</span>
               <select className="input" name="donde" defaultValue={donde === "both" ? "" : donde}>
-                <option value="">Presencial y online</option>
-                <option value="onsite">Presencial</option>
+                <option value="">{tr(lng, "x.3a820563")}</option>
+                <option value="onsite">{tr(lng, "x.4bb0ddec")}</option>
                 <option value="online">Online</option>
               </select>
             </label>
           )}
 
           <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="label">Fechas</span>
+            <span className="label">{tr(lng, "x.3c0af1b3")}</span>
             <select className="input" name="fecha" defaultValue={filtro.fecha}>
               {FECHAS_RANKING.map((x) => (
                 <option key={x.v} value={x.v}>{x.v === "temporada" ? `Temporada ${cpSeason}` : x.label}</option>
@@ -384,11 +385,11 @@ export default async function RankingPage({
           {filtro.fecha === "rango" && (
             <>
               <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="label">Desde</span>
+                <span className="label">{tr(lng, "x.966c7c4c")}</span>
                 <input className="input" type="date" name="desde" defaultValue={filtro.desde} />
               </label>
               <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="label">Hasta</span>
+                <span className="label">{tr(lng, "x.ccdaad85")}</span>
                 <input className="input" type="date" name="hasta" defaultValue={filtro.hasta} />
               </label>
             </>
@@ -413,15 +414,15 @@ export default async function RankingPage({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3 text-xs text-ink-2">
           <p>
             {scoped.length === 0 && !nTorneos
-              ? "Con este filtro no queda nada, así que la tabla sale a cero."
-              : <>Cuentan <b className="tabular">{scoped.length}</b> partida{scoped.length === 1 ? "" : "s"}
+              ? tr(lng, "x.18204bb1")
+              : <>{tr(lng, "x.6fad1090")} <b className="tabular">{scoped.length}</b> partida{scoped.length === 1 ? "" : "s"}
                 {vista === "all" || vista === "tournament" ? <> y <b className="tabular">{nTorneos}</b> torneo{nTorneos === 1 ? "" : "s"}</> : null}
-                {competition ? <> de <b>{competition.name}</b></> : null}
+                {competition ? <> {tr(lng, "x.600ccd1b")} <b>{competition.name}</b></> : null}
                 {tipo ? <> · <b>{CALENDAR_KINDS[tipo]?.label ?? tipo}</b></> : null}
                 {filtro.fecha ? <> · {filtro.fecha === "temporada" ? `temporada ${cpSeason}` : fechaLabel.toLowerCase()}</> : null}.</>}
           </p>
           {filtroAQuery(filtro).toString() && (
-            <Link href="/ranking?limpiar=1" className="font-semibold text-info hover:underline">Quitar filtros</Link>
+            <Link href="/ranking?limpiar=1" className="font-semibold text-info hover:underline">{tr(lng, "x.632d4ca5")}</Link>
           )}
         </div>
       </AutoSubmitForm>
@@ -434,13 +435,13 @@ export default async function RankingPage({
         <section className="card mt-5">
           <div className="card-head">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold">Evolución del Elo</h2>
-              <p className="text-xs text-muted">Todos en la misma gráfica, en el tiempo. Elige a quién ver.</p>
+              <h2 className="text-lg font-bold">{tr(lng, "x.f035a26a")}</h2>
+              <p className="text-xs text-muted">{tr(lng, "x.bd86d330")}</p>
             </div>
           </div>
           <LadderChartLazy series={eloGrafica.series} resets={eloGrafica.resets} fechas={eloGrafica.fechas}
             destacados={meId ? [meId] : []} inicial={5}
-            pie="Un punto por cada partida que mueve el Elo." etiquetaReset="Corte del Elo" />
+            pie={tr(lng, "x.c0ca7bef")} etiquetaReset={tr(lng, "x.37bf1535")} />
         </section>
       )}
 
@@ -514,8 +515,8 @@ export default async function RankingPage({
       <section className="card mt-5 min-w-0 overflow-hidden">
         <div className="card-head">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold">Enfrentamientos directos</h2>
-            <p className="text-xs text-muted">Cuántas veces os habéis cruzado, con el filtro de arriba.</p>
+            <h2 className="text-lg font-bold">{tr(lng, "x.55125239")}</h2>
+            <p className="text-xs text-muted">{tr(lng, "x.acd50f5b")}</p>
           </div>
         </div>
         <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
@@ -528,8 +529,8 @@ export default async function RankingPage({
       <section className="card mt-4">
         <div className="card-head">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold">Ladder</h2>
-            <p className="text-xs text-muted">El rango que cada uno se pone a mano. No sale de las partidas.</p>
+            <h2 className="text-lg font-bold">{tr(lng, "x.0bf3d1de")}</h2>
+            <p className="text-xs text-muted">{tr(lng, "x.532c27d1")}</p>
           </div>
           <span className="text-xs text-muted">{ladder.length} con rango</span>
         </div>
@@ -538,17 +539,17 @@ export default async function RankingPage({
             <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
               {lider ? (
                 <>
-                  <span className="label">Líder</span>
+                  <span className="label">{tr(lng, "x.75af883d")}</span>
                   <PlayerTag player={lider} size="sm" />
                   <RankBadge elo={lider.ladderElo} size="sm" />
                 </>
               ) : (
-                <span className="label">Evolución del ladder</span>
+                <span className="label">{tr(lng, "x.d3c90408")}</span>
               )}
               <span className="ml-auto text-[11px] text-muted">
                 {resetsGrafica.length
                   ? `${resetsGrafica.length} reset${resetsGrafica.length === 1 ? "" : "s"} de temporada`
-                  : "toda la historia"}
+                  : tr(lng, "x.29305ade")}
               </span>
             </div>
             <LadderChartLazy series={seriesGrafica} resets={resetsGrafica} />

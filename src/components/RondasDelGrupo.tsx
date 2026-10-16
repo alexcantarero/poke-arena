@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { spriteUrl } from "@/lib/pokemon";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Las rondas de todo el grupo en un torneo, una debajo de otra.
@@ -146,6 +148,8 @@ export function RondasDelGrupo({
   abrir,
   textos = { verPerfil: "Ver perfil", pendiente: "Todavía no está guardado." },
 }: Props) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   /* Tú primero; el resto por puesto final si lo hay —es lo que ordenaba la
      lista de resultados que esto sustituye— y, sin puesto, por puntos. */
   const orden = [...jugadores].sort(
@@ -172,7 +176,7 @@ export function RondasDelGrupo({
   if (!orden.length) {
     return (
       <p className="px-4 py-6 text-center text-sm text-muted">
-        Nadie del grupo tiene rondas apuntadas en este torneo todavía.
+        {tr(lng, "x.e61d0e0c")}
       </p>
     );
   }
@@ -183,7 +187,7 @@ export function RondasDelGrupo({
         {/* v0.14: el bloque se llama como la lista que sustituye. Cada
             desplegable es el resultado de una persona, con sus rondas dentro. */}
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-bold">Resultados del grupo</h2>
+          <h2 className="font-display text-lg font-bold">{tr(lng, "x.eb422396")}</h2>
           <p className="text-xs text-muted tabular">
             {orden.length} {orden.length === 1 ? "jugador" : "jugadores"} ·{" "}
             {orden.reduce((a, j) => a + (j.apuntadas ?? j.rondas.length), 0)} rondas apuntadas
@@ -199,7 +203,7 @@ export function RondasDelGrupo({
             )
           }
         >
-          {todosAbiertos ? "Plegar todo" : "Abrir todo"}
+          {todosAbiertos ? "Plegar todo" : tr(lng, "x.ad4d96aa")}
         </button>
       </div>
 
@@ -225,7 +229,7 @@ export function RondasDelGrupo({
                   type="button"
                   onClick={() => alternar(j.id)}
                   aria-expanded={abierto}
-                  aria-label={`${abierto ? "Plegar" : "Abrir"} las rondas de ${j.name}`}
+                  aria-label={`${abierto ? "Plegar" : tr(lng, "x.bf763df7")} las rondas de ${j.name}`}
                   className="absolute inset-0 cursor-pointer"
                 />
                 <Icon
@@ -263,18 +267,18 @@ export function RondasDelGrupo({
                     )}
                     {yo && (
                       <span className="chip chip-brand flex-none text-[10px]">
-                        tú
+                        {tr(lng, "x.044e993f")}
                       </span>
                     )}
                     {/* v0.15: el drop se ve sin abrir el bloque. */}
                     {j.retirado && (
-                      <span className="chip chip-drop flex-none text-[10px]" title="No acabó el torneo">
-                        DROP
+                      <span className="chip chip-drop flex-none text-[10px]" title={tr(lng, "x.7514193c")}>
+                        {tr(lng, "x.39514a7a")}
                       </span>
                     )}
                   </span>
                   <span className="block truncate text-[11px] text-muted">
-                    {j.mazo || "Mazo sin anotar"}
+                    {j.mazo || tr(lng, "x.15fe509b")}
                   </span>
                   {j.comentario && (
                     <span className="mt-0.5 block truncate text-[11px] italic text-ink-2">
@@ -288,14 +292,14 @@ export function RondasDelGrupo({
                 {j.placement != null && (
                   /* v0.17: centrado en una columna de ancho fijo, para que
                      «119.º» y «1.º» queden alineados de un bloque al otro. */
-                  <span className="flex w-14 flex-none flex-col items-center border-r border-line-soft pr-2 text-center xs:w-16 xs:pr-3" title="Puesto final">
+                  <span className="flex w-14 flex-none flex-col items-center border-r border-line-soft pr-2 text-center xs:w-16 xs:pr-3" title={tr(lng, "x.a1b3e530")}>
                     <span className="block font-display text-xl font-extrabold tabular leading-none">
                       {j.placement}.º
                     </span>
                     {asistencia ? (
                       <span className="block text-[10px] text-muted tabular">de {asistencia}</span>
                     ) : (
-                      <span className="block text-[10px] text-muted">puesto</span>
+                      <span className="block text-[10px] text-muted">{tr(lng, "x.165bf550")}</span>
                     )}
                   </span>
                 )}
@@ -345,8 +349,8 @@ export function RondasDelGrupo({
                       )}
                       {(j.retirado || j.invitacion) && (
                         <div className="flex flex-wrap items-center gap-2 text-xs">
-                          {j.invitacion && <span className="chip chip-brand">Invitación al Mundial</span>}
-                          {j.retirado && <span className="chip chip-drop">DROP · no acabó el torneo</span>}
+                          {j.invitacion && <span className="chip chip-brand">{tr(lng, "x.4c70a75b")}</span>}
+                          {j.retirado && <span className="chip chip-drop">{tr(lng, "x.b66df5fc")}</span>}
                         </div>
                       )}
                       {j.acciones}
@@ -355,8 +359,8 @@ export function RondasDelGrupo({
                   {j.rondas.length === 0 ? (
                     <p className="px-3 py-4 text-center text-xs text-muted">
                       {filtro && (j.apuntadas ?? 0) > 0
-                        ? "Ninguna ronda en esta fase."
-                        : "Sin rondas apuntadas."}
+                        ? tr(lng, "x.b14f6ed3")
+                        : tr(lng, "x.af02d93d")}
                     </p>
                   ) : (
                     <ul className="divide-y divide-line-soft">
@@ -376,7 +380,7 @@ export function RondasDelGrupo({
                     <div className="border-t border-line-soft bg-surface-2 p-3">
                       {faltan > 0 && (
                         <p className="mb-2 text-xs text-muted">
-                          Te faltan <b className="tabular">{faltan}</b> ronda
+                          {tr(lng, "x.fb16fb8e")} <b className="tabular">{faltan}</b> ronda
                           {faltan === 1 ? "" : "s"} por apuntar de las {total}.
                         </p>
                       )}
@@ -395,6 +399,8 @@ export function RondasDelGrupo({
 
 /** Una ronda. El resultado a la derecha y en grande, que es lo que se busca. */
 function Ronda({ r }: { r: RondaDetalle }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const gano = r.ganados > r.perdidos;
   const empate = r.ganados === r.perdidos;
 
@@ -450,7 +456,7 @@ function Ronda({ r }: { r: RondaDetalle }) {
           )}
         </span>
         <span className="block truncate text-[11px] text-muted">
-          {r.mazoRival || "Mazo sin anotar"}
+          {r.mazoRival || tr(lng, "x.15fe509b")}
         </span>
         {r.nota && (
           <span className="mt-0.5 block text-[11px] text-ink-2">{r.nota}</span>

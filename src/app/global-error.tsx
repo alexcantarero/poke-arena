@@ -1,4 +1,6 @@
 "use client";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    El error de último recurso: el que se lleva por delante el layout raíz.
@@ -17,6 +19,8 @@
 export default function GlobalError({
   error, reset,
 }: { error: Error & { digest?: string }; reset: () => void }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   return (
     <html lang="es">
       <body
@@ -34,10 +38,10 @@ export default function GlobalError({
       >
         <div style={{ maxWidth: "26rem" }}>
           <p style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#5f6d8a" }}>
-            Arena
+            {tr(lng, "x.1a4ba822")}
           </p>
           <h1 style={{ fontSize: "1.6rem", margin: "0.5rem 0 0.75rem" }}>
-            La aplicación no ha podido arrancar
+            {tr(lng, "x.8dd26ca9")}
           </h1>
           <p style={{ fontSize: "0.9rem", lineHeight: 1.6, color: "#36445e", margin: 0 }}>
             Ha fallado algo por debajo de todas las pantallas. Recarga; si sigue igual, es un
@@ -59,7 +63,7 @@ export default function GlobalError({
               cursor: "pointer",
             }}
           >
-            Recargar
+            {tr(lng, "x.9d2c9d80")}
           </button>
           {error.digest && (
             <p style={{ marginTop: "1rem", fontSize: "0.7rem", color: "#5f6d8a", fontFamily: "ui-monospace, monospace" }}>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tr, trf, type Lang } from "@/lib/i18n";
 import type { ReactNode } from "react";
 import { spriteUrl } from "@/lib/pokemon";
 import {
@@ -68,6 +69,8 @@ export type TorneoReciente = {
 };
 
 type Props = {
+  /** v0.48 — el idioma de la pantalla. Español si no llega. */
+  lang?: Lang;
   vista: Vista;
   hrefs: Record<Vista, string>;
   evento: CabeceraEvento | null;
@@ -87,18 +90,19 @@ type Props = {
 };
 
 export function UltimoRegional(p: Props) {
+  const L: Lang = p.lang ?? "es";
   const ins = p.campo ? insigniasDe(p.filas, p.campo) : null;
   const enCorte = arquetiposEnCorte(p.filas);
 
   return (
     <section id="ultimo-regional" className="mb-4 scroll-mt-20">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-<h2 className="font-display text-xl font-extrabold">El último Regional</h2>
-        <nav className="seg seg-brand" aria-label="Qué datos enseñar">
+<h2 className="font-display text-xl font-extrabold">{tr(L, "ur.title")}</h2>
+        <nav className="seg seg-brand" aria-label={tr(L, "ur.whichData")}>
           <Link href={p.hrefs.global} scroll={false} data-on={p.vista === "global"}
-            aria-current={p.vista === "global" ? "page" : undefined}>Global</Link>
+            aria-current={p.vista === "global" ? "page" : undefined}>{tr(L, "ur.global")}</Link>
           <Link href={p.hrefs.grupo} scroll={false} data-on={p.vista === "grupo"}
-            aria-current={p.vista === "grupo" ? "page" : undefined}>Vuestro grupo</Link>
+            aria-current={p.vista === "grupo" ? "page" : undefined}>{tr(L, "ur.group")}</Link>
         </nav>
       </div>
 
@@ -122,10 +126,10 @@ export function UltimoRegional(p: Props) {
                 {[
                   p.evento.date,
                   p.evento.location,
-                  p.evento.playerCount ? `${p.evento.playerCount.toLocaleString("es")} jugadores` : null,
+                  p.evento.playerCount ? trf(L, "home.players", { n: num(p.evento.playerCount) }) : null,
                   p.evento.muestra,
                   enCorte.distintos > 0 && p.corteTamano > 0
-                    ? `${enCorte.distintos} de ${p.corteTamano} arquetipos en el corte`
+                    ? trf(L, "ur.archetypesInCut", { a: enCorte.distintos, b: p.corteTamano })
                     : null,
                 ].filter(Boolean).join(" · ")}
               </p>
@@ -133,32 +137,32 @@ export function UltimoRegional(p: Props) {
 
             <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
               <TarjetaInsignia
-                titulo="Espejo del corte" tono="brand" ins={ins?.espejo ?? null}
-                grande={(i) => `${i.valor} de ${p.corteTamano}`}
-                pequeno="plazas del top cut"
+                titulo={tr(L, "ur.mirror")} tono="brand" ins={ins?.espejo ?? null}
+                grande={(i) => trf(L, "ur.outOf", { a: i.valor, b: p.corteTamano })}
+                pequeno={tr(L, "ur.mirrorSmall")}
                 pie={() => null}
-                vacia="Ningún mazo repite en el corte."
+                vacia={tr(L, "ur.mirrorEmpty")}
               />
               <TarjetaInsignia
-                titulo="Rindió" tono="win" ins={ins?.top ?? null}
+                titulo={tr(L, "ur.performed")} tono="win" ins={ins?.top ?? null}
                 grande={(i) => pctTxt(i.valor)} pequeno={p.etiquetaConversion}
-                pie={(i) => `${i.fila.day2} de ${i.fila.field} listas${i.fila.bestFinish ? ` · mejor #${i.fila.bestFinish}` : ""}`}
-                vacia="Hace falta un mazo con 5+ listas por encima de la media."
+                pie={(i) => `${trf(L, "ur.listsOf", { a: i.fila.day2 ?? "—", b: i.fila.field ?? "—" })}${i.fila.bestFinish ? ` · ${trf(L, "ur.best", { n: i.fila.bestFinish })}` : ""}`}
+                vacia={tr(L, "ur.performedEmpty")}
               />
               <TarjetaInsignia
-                titulo="Decepcionó" tono="loss" ins={ins?.decepcion ?? null}
+                titulo={tr(L, "ur.disappointed")} tono="loss" ins={ins?.decepcion ?? null}
                 grande={(i) => pctTxt(i.valor)} pequeno={p.etiquetaConversion}
-                pie={(i) => `${i.fila.day2} de ${i.fila.field} listas · media ${pctTxt(ins?.tasaCampo ?? null)}`}
-                vacia="Para llamar «decepción» a algo hacen falta 15+ listas."
+                pie={(i) => `${trf(L, "ur.listsOf", { a: i.fila.day2 ?? "—", b: i.fila.field ?? "—" })} · ${trf(L, "ur.average", { pct: pctTxt(ins?.tasaCampo ?? null) })}`}
+                vacia={tr(L, "ur.disappointedEmpty")}
               />
               <TarjetaInsignia
-                titulo="Sobrejugado" tono="info" ins={ins?.sobrejugado ?? null}
+                titulo={tr(L, "ur.overplayed")} tono="info" ins={ins?.sobrejugado ?? null}
                 grande={(i) => `+${num(i.valor, 1)} pp`}
-                pequeno="frente al meta online"
+                pequeno={tr(L, "ur.overplayedSmall")}
                 pie={(i) => p.campo
-                  ? `${pctTxt(i.fila.field / p.campo.decks)} aquí · ${pctTxt(i.fila.onlineShare)} online`
+                  ? trf(L, "ur.hereOnline", { here: pctTxt(i.fila.field / p.campo.decks), online: pctTxt(i.fila.onlineShare) })
                   : ""}
-                vacia="Sin datos del meta online para comparar."
+                vacia={tr(L, "ur.overplayedEmpty")}
               />
             </div>
 
@@ -216,7 +220,7 @@ export function UltimoRegional(p: Props) {
       {/* ------------------------------------------------ 2. top arquetipos -- */}
       <div className="card mb-4">
         <div className="card-head">
-          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Top arquetipos</h3>
+          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(L, "ur.topArchetypes")}</h3>
           <span className="text-xs text-muted font-mono">{p.topNota}</span>
         </div>
         {p.top.length ? (
@@ -235,14 +239,14 @@ export function UltimoRegional(p: Props) {
             ))}
           </ul>
         ) : (
-          <p className="p-5 text-sm text-muted">Todavía no hay mazos que contar en esta vista.</p>
+          <p className="p-5 text-sm text-muted">{tr(L, "ur.noDecks")}</p>
         )}
       </div>
 
       {/* ------------------------------------------- 3. torneos recientes -- */}
       <div className="card">
         <div className="card-head">
-          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">Torneos pasados</h3>
+          <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(L, "ur.pastTournaments")}</h3>
         </div>
         {p.recientes.length ? (
           <ul className="divide-y divide-line-soft">
@@ -265,7 +269,7 @@ export function UltimoRegional(p: Props) {
             })}
           </ul>
         ) : (
-          <p className="p-5 text-sm text-muted">Nada todavía.</p>
+          <p className="p-5 text-sm text-muted">{tr(L, "ur.nothingYet")}</p>
         )}
       </div>
     </section>

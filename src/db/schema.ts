@@ -498,7 +498,23 @@ export const tournaments = pgTable("tournaments", {
   /** Cuánta gente hubo. Determina qué tramos de CP se reparten. */
   playerCount: integer("player_count"),
   rounds: integer("rounds"),
+  /**
+   * v0.45 — cuántas de las `rounds` son de una SEGUNDA fase suiza, cuando el
+   * torneo la tiene y no sale de la tabla oficial (p. ej. un online de 8 + 3
+   * rondas y top 8). `rounds` sigue siendo el TOTAL de rondas suizas, como
+   * siempre: así el resto de la app no cambia. Nulo = sin segunda fase propia.
+   */
+  roundsPhase2: integer("rounds_phase2"),
   topCut: integer("top_cut"),
+  /**
+   * v0.47 — cómo se pasa de fase en una estructura propia: con estos puntos
+   * o más, o el top N, lo que dé MÁS gente. Nulo = no se dijo. Solo se usan
+   * con `rounds_phase2`: en un torneo oficial los pone el reglamento.
+   */
+  phase2Points: integer("phase2_points"),
+  phase2Top: integer("phase2_top"),
+  /** v0.47 — puntos para el top cut (o el top `top_cut`, lo que dé más). */
+  cutPoints: integer("cut_points"),
   /** Temporada de Play! Pokémon a la que cuenta. */
   season: integer("season"),
   division: text("division").notNull().default("masters"),

@@ -8,6 +8,8 @@ import {
 } from "@/lib/mulligan";
 import { cardImageUrl, cardLine } from "@/lib/cards";
 import { num, pct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Probar el mazo sin sacarlo de la funda.
@@ -33,6 +35,8 @@ import { num, pct } from "@/lib/format";
 const TIRADAS = [100, 1000, 10000];
 
 export function MulliganSim({ list, listJson }: { list: string; listJson?: unknown }) {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+
   const deck = useMemo<ParsedDeck>(() => {
     const j = listJson as ParsedDeck | null | undefined;
     if (j && Array.isArray(j.pokemon)) return j;
@@ -98,8 +102,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
   if (!list.trim()) {
     return (
       <p className="text-sm text-muted">
-        Este mazo no tiene la lista guardada, así que no hay nada que simular. Pega las 60
-        cartas al editarlo y vuelve.
+        {tr(lng, "x.8f19fb70")}
       </p>
     );
   }
@@ -109,7 +112,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
       {/* ---------------------------- el número ---------------------------- */}
       <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
         <div className="rounded-xl border border-line-soft bg-ground p-4 text-center">
-          <p className="label">Mulligan</p>
+          <p className="label">{tr(lng, "x.56ff2b2c")}</p>
           <p className="font-display text-4xl font-extrabold tabular leading-none">
             {pct(exacto)}
           </p>
@@ -121,7 +124,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="basics">Pokémon Básicos del mazo</label>
+          <label className="label" htmlFor="basics">{tr(lng, "x.60917e7a")}</label>
           <div className="flex items-center gap-2">
             <input
               id="basics" type="range" min={0} max={Math.min(30, size)} step={1}
@@ -132,12 +135,12 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
               type="number" min={0} max={size} inputMode="numeric"
               className="input w-20 flex-none px-2 text-center tabular"
               value={basics} onChange={(e) => setBasics(Math.max(0, Math.min(size, Number(e.target.value) || 0)))}
-              aria-label="Número de básicos"
+              aria-label={tr(lng, "x.aa1da216")}
             />
           </div>
           <p className="text-xs text-muted">
             Estimados {estimado} de {size} cartas. La lista no dice qué Pokémon son básicos,
-            así que es una suposición: <b>ajústala</b>, que el porcentaje depende solo de esto.
+            así que es una suposición: <b>{tr(lng, "x.99751834")}</b>{tr(lng, "x.0b4f34ae")}
           </p>
         </div>
       </div>
@@ -148,7 +151,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
         <select
           id="carta" className="input" value={carta} onChange={(e) => setCarta(e.target.value)}
         >
-          <option value="">— elige una carta —</option>
+          <option value="">{tr(lng, "x.d1694b0a")}</option>
           {todas.map((c) => (
             <option key={cardKey(c)} value={cardKey(c)}>{c.n}× {c.name}</option>
           ))}
@@ -156,8 +159,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
         {elegida && pApertura != null && (
           <p className="text-sm text-ink-2">
             Con {elegida.n} copia{elegida.n === 1 ? "" : "s"} en {size} cartas, la abres en el{" "}
-            <b className="font-display text-lg tabular">{pct(pApertura)}</b> de
-            las manos.
+            <b className="font-display text-lg tabular">{pct(pApertura)}</b> {tr(lng, "x.ccedf25a")}
           </p>
         )}
       </div>
@@ -165,7 +167,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
       {/* ------------------------------ tiradas ---------------------------- */}
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="label flex-none">Robar manos</span>
+          <span className="label flex-none">{tr(lng, "x.218cca21")}</span>
           {TIRADAS.map((n) => (
             <button
               key={n} type="button" className="btn btn-sm" disabled={corriendo}
@@ -174,13 +176,13 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
               {n.toLocaleString("es")}
             </button>
           ))}
-          {corriendo && <span className="text-xs text-muted">calculando…</span>}
+          {corriendo && <span className="text-xs text-muted">{tr(lng, "x.bbaf37d0")}</span>}
         </div>
 
         {sim && (
           <div className="mt-3 rounded-xl border border-line-soft bg-ground p-3">
             <p className="text-sm">
-              De <b className="tabular">{sim.hands.toLocaleString("es")}</b> manos,{" "}
+              {tr(lng, "x.6b98c9b5")} <b className="tabular">{sim.hands.toLocaleString("es")}</b> manos,{" "}
               <b className="tabular">{sim.mulligans.toLocaleString("es")}</b> mulligans —{" "}
               <b className="tabular">{pct(sim.mulliganRate)}</b>.
               <span className="text-muted"> La fórmula dice {pct(sim.exactRate)}.</span>
@@ -191,7 +193,7 @@ export function MulliganSim({ list, listJson }: { list: string; listJson?: unkno
               número de básicos de arriba no cuadra con lo que has marcado.
             </p>
 
-            <p className="label mt-3 mb-1.5">La última mano</p>
+            <p className="label mt-3 mb-1.5">{tr(lng, "x.5839dd71")}</p>
             <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
               {sim.lastHand.map((c, i) => <Mini key={`${cardKey(c)}-${i}`} card={c} />)}
             </ul>

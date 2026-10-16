@@ -42,3 +42,22 @@ test("num: nulo o no finito es un guion", () => {
   assert.equal(num(null), "—");
   assert.equal(num(Number.NaN), "—");
 });
+
+/* ----------------------------------------------- v0.47: fecha corta ---- */
+
+import { fechaCorta } from "../src/lib/format.ts";
+
+test("fechaCorta: la única, en español", () => {
+  assert.equal(fechaCorta("2026-10-18"), "18 oct");
+  assert.equal(fechaCorta("2026-01-05"), "5 ene");
+  // «sept» y no «sep»: la copia escrita a mano ponía «sep» y la de Inicio «sept».
+  assert.equal(fechaCorta("2026-09-19"), "19 sept");
+});
+
+test("fechaCorta: acepta fecha con hora, y no la mueve de día", () => {
+  assert.equal(fechaCorta("2026-10-18T23:30:00Z"), "18 oct");
+});
+
+test("fechaCorta: lo que no es una fecha se devuelve tal cual, nunca «Invalid Date»", () => {
+  assert.equal(fechaCorta("vaya"), "vaya");
+});
