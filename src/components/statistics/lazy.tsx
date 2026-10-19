@@ -66,3 +66,9 @@ export const HourlyChartLazy = dynamic(
   () => import("@/components/charts/HourlyChart").then((m) => m.HourlyChart),
   { ssr: false, loading: () => <Hueco alto="h-56" /> },
 );
+
+/* v0.50 — el seguimiento de jugadores: Recharts no entra hasta que se ve. */
+export const SeguimientoJugadoresLazy = dynamic(
+  () => import("@/components/charts/SeguimientoJugadores").then((m) => m.SeguimientoJugadores),
+  { ssr: false, loading: () => <Hueco alto="h-96" /> },
+);

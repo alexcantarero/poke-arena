@@ -112,7 +112,7 @@ export async function H2HHeatmap({
                               el color del texto de la celda y se separa con
                               opacidad, que mantiene el contraste sea cual sea
                               el tinte, y sube a 11 px. */}
-                          <span className={`block text-[11px] font-semibold tabular ${colorMode === "volume" && intensidadCelda > 55 ? "text-white/90" : "opacity-80"}`}>
+                          <span className={`block whitespace-nowrap text-[11px] font-semibold tabular tracking-tighter ${colorMode === "volume" && intensidadCelda > 55 ? "text-white/90" : "opacity-80"}`}>
                             {colorMode === "winRate" ? `${c.gana}–${c.pierde} · ${c.partidas}` : `${c.gana}–${c.pierde}${c.empata ? `–${c.empata}` : ""}`}
                           </span>
                         </>

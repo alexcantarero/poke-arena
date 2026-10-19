@@ -1,6 +1,7 @@
 import type { MatchFull } from "./types";
 import type { TrendPoint } from "@/components/charts/TrendLineChart";
 import type { HourlyPoint } from "@/components/charts/HourlyChart";
+import type { TipoPartida } from "./tiposPartida";
 
 /**
  * Agrupa partidas por fecha (YYYY-MM-DD) y calcula la media móvil de 7 días.
@@ -44,36 +45,33 @@ export function prepareDailyTrend(matches: MatchFull[], daysBack = 30): TrendPoi
  * Serie A: Partidas de liga (competitionId != null)
  * Serie B: Partidas de torneo (tournamentId != null o externas)
  */
-export function prepareHourlyDistribution(matches: MatchFull[]): HourlyPoint[] {
+/**
+ * Partidas por hora del día (Europe/Madrid), por tipo.
+ *
+ * v0.50 — cuatro tipos (liga, presencial, online, amistoso) en vez de dos: antes
+ * «Torneos» se llevaba también los amistosos. La función que clasifica entra por
+ * parámetro (`tipoDe`), para no importar nada en este módulo.
+ *
+ * OJO, la hora es la de REGISTRO (`createdAt`), no la de juego: la app no
+ * guarda a qué hora se jugó. Por eso el subtítulo de la gráfica lo dice.
+ */
+export function prepareHourlyDistribution(
+  matches: MatchFull[],
+  tipoDe: (m: MatchFull) => TipoPartida,
+): HourlyPoint[] {
   const distribution: HourlyPoint[] = Array.from({ length: 24 }, (_, h) => ({
-    hour: h,
-    seriesA: 0,
-    seriesB: 0,
+    hour: h, liga: 0, presencial: 0, online: 0, amistoso: 0,
   }));
-
-  const hourFormatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    hour12: false,
-    timeZone: "Europe/Madrid",
+  const hourFormatter = new Intl.DateTimeFormat("en-GB", {
+    hour: "numeric", hourCycle: "h23", timeZone: "Europe/Madrid",
   });
-
   for (const m of matches) {
     if (!m.createdAt) continue;
-    try {
-      const hStr = hourFormatter.format(new Date(m.createdAt));
-      const h = Number(hStr) % 24;
-      if (!Number.isNaN(h) && h >= 0 && h < 24) {
-        if (m.competitionId) {
-          distribution[h].seriesA++;
-        } else {
-          distribution[h].seriesB++;
-        }
-      }
-    } catch {
-      // Si la fecha es inválida, se ignora
-    }
+    const t = new Date(m.createdAt);
+    if (Number.isNaN(t.getTime())) continue;
+    const h = Number(hourFormatter.format(t)) % 24;
+    if (h >= 0 && h < 24) distribution[h][tipoDe(m)]++;
   }
-
   return distribution;
 }
 

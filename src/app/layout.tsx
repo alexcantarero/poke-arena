@@ -25,6 +25,17 @@ export const metadata: Metadata = {
   description: "Liga privada de Pokémon TCG: ranking, resultados, torneos y estadísticas.",
   applicationName: "PokeArena TCG",
   manifest: "/manifest.webmanifest",
+  /* v0.50 — el logo de la app en la pestaña del navegador y en el iPhone. El SVG
+     para los navegadores que lo aceptan; el PNG de 32 px para los que no; y el
+     de 180 px para «Añadir a pantalla de inicio», porque iOS ignora los SVG ahí.
+     Los tres salen de `public/icon.svg`, el mismo dibujo de la cabecera. */
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "PokeArena" },
   formatDetection: { telephone: false },
   robots: { index: false, follow: false },

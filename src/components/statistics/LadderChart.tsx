@@ -75,6 +75,25 @@ export function LadderChart({
   const tiempos = todos.map((p) => p.t);
   const elos = todos.map((p) => p.elo).filter((v): v is number => v != null);
 
+  /* v0.51 — en el modo «por partida» (el Elo), el eje es el número de partida y
+     varias partidas del mismo día comparten fecha: Recharts repartía las marcas
+     por posición y salían «26 sept, 26 sept». Ahora se marca solo la PRIMERA
+     partida de cada día, y como mucho cinco, repartidas. Sin hooks a propósito:
+     es un cálculo, y así no hay orden de hooks que romper. */
+  let ticksOrden: number[] | undefined;
+  if (porOrden) {
+    const vistos = new Set<string>();
+    const primeros: number[] = [];
+    for (const t of [...new Set(tiempos)].sort((a, b) => a - b)) {
+      const f = fechaDe.get(Math.round(t));
+      if (f && !vistos.has(f)) { vistos.add(f); primeros.push(t); }
+    }
+    const MAX = 5;
+    ticksOrden = primeros.length <= MAX
+      ? primeros
+      : Array.from({ length: MAX }, (_, i) => primeros[Math.round((i * (primeros.length - 1)) / (MAX - 1))]);
+  }
+
   if (!series.length) {
     return <p className="px-4 py-6 text-center text-sm text-muted">{tr(lng, "x.a09d71cd")}</p>;
   }
@@ -114,7 +133,8 @@ export function LadderChart({
               <XAxis
                 dataKey="t" type="number" scale={porOrden ? "linear" : "time"}
                 domain={porOrden ? ["dataMin", "dataMax"] : [tMin, tMax]}
-                tickFormatter={etiquetaX} tick={EJE} minTickGap={28} allowDuplicatedCategory={false}
+                tickFormatter={etiquetaX} tick={EJE} minTickGap={porOrden ? 4 : 28} allowDuplicatedCategory={false}
+                ticks={ticksOrden}
               />
               <YAxis dataKey="elo" domain={[yMin, yMax]} tick={EJE} width={48} allowDecimals={false} />
               <Tooltip
@@ -146,7 +166,7 @@ export function LadderChart({
                   label={{ value: etiquetaReset, position: "insideTopRight", fill: "var(--loss)", fontSize: 10 }} />
               ))}
               {visibles.map((s) => (
-                <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "monotone"}
+                <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "stepAfter"} /* v0.51: un rango se mantiene hasta que se cambia; la curva suavizada se inventaba una caída gradual */
                   stroke={s.color} strokeWidth={2.25} dot={{ r: 3 }} activeDot={{ r: 5 }}
                   connectNulls={false} isAnimationActive={false} />
               ))}

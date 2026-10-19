@@ -206,6 +206,7 @@ export default async function HomePage({
       etiquetaConversion: tr(lang, "home.toTopCut"),
       corte: p.corte.map((c) => ({ placement: c.placement, titulo: c.name, main: c.main, secondary: c.secondary })),
       corteTitulo: tr(lang, "home.topCut"), corteTamano: p.campo.topCut,
+      corteEnlace: ev.sourceUrl, // v0.51 — cada puesto lleva a la lista en Limitless
       top: top.rows.slice(0, 10).map((r) => ({
         key: r.key, name: r.name, main: r.main || undefined, secondary: r.secondary || undefined,
         share: r.share, decks: r.entries,

@@ -1,6 +1,6 @@
 {
   "name": "poke-arena",
-  "version": "0.49.0",
+  "version": "0.51.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,6 +14,7 @@
     "invite": "tsx scripts/create-invite.ts",
     "verificar:fase-a": "node --conditions=react-server --import=tsx scripts/verificar-fase-a.ts",
     "verificar:codificacion": "node scripts/verificar-codificacion.mjs",
+    "db:migrar": "node scripts/migrar.mjs",
     "verificar:acciones": "node scripts/verificar-acciones.mjs",
     "verificar:i18n": "node scripts/verificar-i18n.mjs",
     "verificar": "node scripts/verificar-codificacion.mjs && node scripts/verificar-acciones.mjs && node scripts/verificar-i18n.mjs --estricto && npm test && tsc --noEmit",

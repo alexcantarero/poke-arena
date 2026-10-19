@@ -2,6 +2,77 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.51.0] — 2026-10-19
+
+Listas de Top Decks con sus cartas, top cut enlazado a Limitless y los ejes de Elo y Ladder.
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Top Decks → tocar un arquetipo**: sus mejores listas en los torneos online, con las cartas
+  (imagen y texto), el puesto, el récord, el torneo y su tamaño. Página `/topdecks/[mazo]`,
+  conservando los días y el formato que se miraban.
+  - **Sale de la API oficial de Limitless** (`/tournaments/{id}/standings`), comprobado en su
+    documentación: el campo `decklist` existe. Su formato está marcado como «específico de cada
+    juego» y **no está documentado para Pokémon**, así que no se supone: `normalizarLista` lee la
+    forma esperada y, si llega otra, la pantalla dice «lista no disponible» sin romperse.
+  - **Sin nombres de jugador**: la API los trae y no se leen. Hay una prueba que lo verifica.
+  - Imágenes del CDN de cartas de Limitless, que es un patrón de terceros sin contrato: si una no
+    carga, se queda la línea de texto.
+  - `src/lib/listasLimitless.ts` (puro), con 7 pruebas.
+- **El top cut de «El último Regional» enlaza a Limitless**: toda la fila lleva a la página del
+  torneo, donde está la lista de cada puesto. A la página del torneo y no a la del jugador: para
+  eso habría que guardar su nombre. Solo si la fuente es de verdad Limitless.
+
+### Corregido
+
+- **El eje del Elo repetía fechas** («26 sept, 26 sept»): el eje es el número de partida y varias
+  partidas comparten día. Ahora se marca la primera partida de cada día, como mucho cinco.
+- **El Ladder se dibujaba como una curva suavizada**, que convertía un reinicio de rango en una
+  caída gradual de una semana. Ahora va en escalones: un rango se mantiene hasta que se cambia.
+
+### Verificado
+
+- `npm run verificar`: codificación, «use server», i18n estricto, **539 de 539** y `tsc`.
+- `npm run build`: pendiente.
+
+## [0.50.0] — 2026-10-19
+
+Seguimiento de jugadores, tipos de partida con color, el logo en la pestaña y la versión de
+verdad. **Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Seguimiento de jugadores** (Estadísticas): una línea por jugador con partidas jugadas o %
+  de victorias, por día, semana o mes. Filtros de jugadores (con el color de su perfil; por
+  defecto los cinco más activos), tipos de partida y arquetipo. Al tocar un punto: partidas,
+  récord, % y con qué arquetipos jugó cada uno en ese periodo. Debajo, una tabla con el total de
+  cada uno, que en el móvil se lee mejor que la gráfica.
+  - **Eje de tiempo real y continuo**: los periodos sin partidas existen. Con «% victorias», un
+    periodo sin partidas es un hueco, no un 0 %: no jugar no es perder.
+  - `src/lib/seguimiento.ts` (puro), con 8 pruebas.
+- **Cuatro tipos de partida con su color** en todas las gráficas que los usen: liga azul,
+  presencial marrón, online verde y amistosos gris (`src/lib/tiposPartida.ts`, 3 pruebas).
+- **El logo en la pestaña del navegador y en el iPhone.** Ya existía (`public/icon.svg`) pero no
+  estaba declarado. Más un PNG de 180 px para «Añadir a pantalla de inicio», porque iOS ignora
+  los SVG ahí, y uno de 32 px para los navegadores que no aceptan SVG.
+
+### Corregido
+
+- **La versión que enseñaba la app no era fiable.** Salía de `npm_package_version`, que solo
+  existe mientras corre npm: en el servidor de Vercel podía faltar, y entonces enseñaba un
+  «0.27.0» escrito a mano. Ahora se fija en el build, y la etiqueta lleva el **commit**; en las
+  vistas previas, también la **rama**, en ámbar. Al tocarla, todo: versión, entorno, rama y commit.
+- **Distribución horaria**: barras apiladas por tipo en vez de una curva suavizada que se
+  inventaba valores entre horas, y **los amistosos ya no cuentan como torneos**.
+- Móvil: los récords de «Enfrentamientos directos» ya no se parten en dos líneas, ni «Vuestro
+  grupo» en el selector de «El último Regional».
+
+### Verificado
+
+- `npm run verificar`: codificación, «use server», i18n estricto, **532 de 532** y `tsc`.
+- `npm run build`: pendiente.
+
 ## [0.49.0] — 2026-10-16
 
 **La app en inglés.** Sin migración ni dependencias nuevas.

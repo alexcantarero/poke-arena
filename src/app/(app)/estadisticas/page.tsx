@@ -25,7 +25,9 @@ import { LastEvent } from "@/components/statistics/LastEvent";
 import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
-import { ConversionEvolucionLazy, HourlyChartLazy, TrendLineChartLazy } from "@/components/statistics/lazy";
+import { tipoDePartida } from "@/lib/tiposPartida";
+import { ConversionEvolucionLazy, HourlyChartLazy, SeguimientoJugadoresLazy, TrendLineChartLazy } from "@/components/statistics/lazy";
+import type { FilaSeguimiento } from "@/lib/seguimiento";
 import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
 import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
@@ -58,6 +60,8 @@ export default async function StatsPage({
 
   const q = await searchParams;
   const snap = await loadSnapshot();
+  // v0.50 — qué torneos son online, para separar online de presencial en las gráficas.
+  const torneosOnline = new Set(snap.tournaments.filter((t) => t.kind === "online").map((t) => t.id));
 
   const fuenteRaw = Array.isArray(q.fuente) ? q.fuente[0] : q.fuente;
   const fuente: Fuente =
@@ -136,6 +140,23 @@ export default async function StatsPage({
 
   const all = snap.matches.filter(isPlayed);
   const rows = applyMatchFilter(all, filter, index);
+
+  /* v0.50 — una fila por jugador y partida, para el seguimiento: cada lado de
+     una partida es una fila, con su resultado y su arquetipo. Respeta los
+     filtros de la página porque sale de `rows`. Solo jugadores del grupo:
+     el rival de fuera no tiene línea propia. */
+  const filasSeguimiento: FilaSeguimiento[] = rows.flatMap((m) => {
+    const o = outcome(m);
+    const arq = archetypesOfMatch(m, snap.archIndex, snap.archById);
+    const t = tipoDePartida(m, torneosOnline);
+    const r = (lado: "a" | "b") => (o.winner === "tie" ? "t" : o.winner === lado ? "w" : "l") as "w" | "l" | "t";
+    const out: FilaSeguimiento[] = [{ d: m.date, p: m.playerAId, t, r: r("a"), a: arq.a?.name ?? null }];
+    if (m.playerBId) out.push({ d: m.date, p: m.playerBId, t, r: r("b"), a: arq.b?.name ?? null });
+    return out;
+  });
+  const jugadoresSeguimiento = snap.players
+    .filter((p) => filasSeguimiento.some((f) => f.p === p.id))
+    .map((p) => ({ id: p.id, name: p.name, color: p.color }));
 
   /* v0.21 — «Vista agrupada»: las variantes cuentan bajo su arquetipo
      principal (`archetypes.parent_id`). Usos, %V y conversión se recalculan
@@ -480,6 +501,10 @@ export default async function StatsPage({
 
           {rows.length > 0 && (
             <div className="my-4 grid gap-4 lg:grid-cols-2">
+              {/* v0.50 — seguimiento de jugadores, a todo el ancho. */}
+              <div className="lg:col-span-2">
+                <SeguimientoJugadoresLazy filas={filasSeguimiento} jugadores={jugadoresSeguimiento} />
+              </div>
               <TrendLineChartLazy
                 data={prepareDailyTrend(rows, 30)}
                 title={tr(lng, "x.06d3e0cc")}
@@ -487,12 +512,9 @@ export default async function StatsPage({
                 valueLabel={tr(lng, "x.64f94394")}
               />
               <div className="min-w-0">
+                {/* v0.50 — cuatro tipos con su color; ver lib/tiposPartida. */}
                 <HourlyChartLazy
-                  data={prepareHourlyDistribution(rows)}
-                  title={tr(lng, "x.780200b7")}
-                  subtitle={tr(lng, "x.4b6d66bb")}
-                  seriesALabel={tr(lng, "x.942efd43")}
-                  seriesBLabel={tr(lng, "x.f02a0f3c")}
+                  data={prepareHourlyDistribution(rows, (m) => tipoDePartida(m, torneosOnline))}
                 />
               </div>
             </div>

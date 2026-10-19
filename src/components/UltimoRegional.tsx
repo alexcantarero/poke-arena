@@ -82,6 +82,8 @@ type Props = {
   corte: PuestoCorte[];
   /** «Top cut» en global; «Vuestros resultados» en el grupo. */
   corteTitulo: string;
+  /** v0.51 — la página del torneo en Limitless, donde se ve la lista de cada puesto. */
+  corteEnlace?: string;
   corteTamano: number;
   top: TopArquetipo[];
   topNota: string;
@@ -91,6 +93,7 @@ type Props = {
 
 export function UltimoRegional(p: Props) {
   const L: Lang = p.lang ?? "es";
+  const enlaceCorte = p.corteEnlace && /^https:\/\/(play\.)?limitlesstcg\.com\//.test(p.corteEnlace) ? p.corteEnlace : null;
   const ins = p.campo ? insigniasDe(p.filas, p.campo) : null;
   const enCorte = arquetiposEnCorte(p.filas);
 
@@ -98,7 +101,7 @@ export function UltimoRegional(p: Props) {
     <section id="ultimo-regional" className="mb-4 scroll-mt-20">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
 <h2 className="font-display text-xl font-extrabold">{tr(L, "ur.title")}</h2>
-        <nav className="seg seg-brand" aria-label={tr(L, "ur.whichData")}>
+        <nav className="seg seg-brand flex-none whitespace-nowrap" aria-label={tr(L, "ur.whichData")}>
           <Link href={p.hrefs.global} scroll={false} data-on={p.vista === "global"}
             aria-current={p.vista === "global" ? "page" : undefined}>{tr(L, "ur.global")}</Link>
           <Link href={p.hrefs.grupo} scroll={false} data-on={p.vista === "grupo"}
@@ -183,7 +186,7 @@ export function UltimoRegional(p: Props) {
                       : "border-l-[3px] border-l-transparent hover:bg-surface-2/60";
 
                     return (
-                      <li key={`${c.placement}-${c.titulo}`} className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${itemBg}`}>
+                      <li key={`${c.placement}-${c.titulo}`} className={`relative flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${itemBg} ${enlaceCorte ? "hover:ring-1 hover:ring-info/50" : ""}`}>
                         {is1st ? (
                           <span className="flex size-6 flex-none items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs">
                             #1
@@ -207,6 +210,15 @@ export function UltimoRegional(p: Props) {
                           {c.sub && <span className="block truncate font-mono text-[11px] font-semibold text-brand">{c.sub}</span>}
                         </span>
                         {c.extra}
+                        {/* v0.51 — toda la fila lleva a la página del torneo en Limitless, donde
+                            está la lista de cada puesto. A la página del torneo y no a la
+                            lista del jugador: para eso habría que guardar su nombre, y por
+                            privacidad no se guarda. */}
+                        {enlaceCorte && (
+                          <a href={enlaceCorte} target="_blank" rel="noopener noreferrer"
+                            className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-info"
+                            aria-label={trf(L, "ur.verLista", { n: c.placement })} />
+                        )}
                       </li>
                     );
                   })}

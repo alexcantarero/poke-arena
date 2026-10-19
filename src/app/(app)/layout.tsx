@@ -78,7 +78,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             </div>
             <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
-              <span className="mr-auto pl-1 text-[10px] font-mono text-muted">v{process.env.npm_package_version || "0.27.0"}</span>
+              {/* v0.50 — versión, rama y commit de ESTE despliegue. En producción, la
+                  versión y el commit; en una vista previa, también la rama, en ámbar,
+                  para que no se confunda con producción. Toca para ver todo. */}
+              <span
+                className={`mr-auto pl-1 text-[10px] font-mono ${process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" ? "text-brand" : "text-muted"}`}
+                title={`v${process.env.NEXT_PUBLIC_APP_VERSION} · ${process.env.NEXT_PUBLIC_DEPLOY_ENV}${process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}${process.env.NEXT_PUBLIC_GIT_SHA ? ` @ ${process.env.NEXT_PUBLIC_GIT_SHA}` : ""}`}
+              >
+                v{process.env.NEXT_PUBLIC_APP_VERSION}
+                {process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" && process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}
+                {process.env.NEXT_PUBLIC_GIT_SHA ? ` @${process.env.NEXT_PUBLIC_GIT_SHA}` : ""}
+              </span>
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>

@@ -8,7 +8,7 @@ import { pct, wrColor } from "@/lib/format";
 import { MetaTabs } from "@/components/MetaTabs";
 import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Top Decks" };
@@ -263,7 +263,7 @@ export default async function TopDecksPage({
                 seis columnas de números, una tabla a 375px no se lee. */}
             <ul className="divide-y divide-line-soft">
               {filas.map((r, i) => (
-                <li key={r.identifier} className="flex items-center gap-3 px-4 py-3">
+                <li key={r.identifier} className="relative flex items-center gap-3 px-4 py-3 hover:bg-surface-2/60">
                   <span className="w-5 flex-none text-right font-mono text-xs text-muted tabular">
                     {i + 1}
                   </span>
@@ -317,6 +317,13 @@ export default async function TopDecksPage({
                       <span className="block text-[10px] text-muted">{tr(lng, "x.26c8e96f")}</span>
                     </span>
                   </span>
+                  {/* v0.51 — toda la fila lleva a las mejores listas de ese arquetipo, con
+                      sus cartas, conservando los días y el formato que se están mirando. */}
+                  <Link
+                    href={`/topdecks/${encodeURIComponent(r.identifier)}?n=${encodeURIComponent(r.name)}&m=${encodeURIComponent(r.main ?? "")}&s=${encodeURIComponent(r.secondary ?? "")}&dias=${dias}&formato=${formato}`}
+                    className="absolute inset-0 focus-visible:outline-2 focus-visible:outline-info"
+                    aria-label={trf(lng, "td.verMejores", { n: r.name })}
+                  />
                 </li>
               ))}
             </ul>

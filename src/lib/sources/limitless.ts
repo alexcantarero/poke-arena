@@ -32,6 +32,7 @@
    ========================================================================= */
 
 import "server-only";
+import { mejoresListas, type ResultadoConLista } from "@/lib/listasLimitless";
 
 const API = "https://play.limitlesstcg.com/api";
 
@@ -59,6 +60,8 @@ export type LimitlessStanding = {
   placing?: number;
   deck?: LimitlessDeckRef | null;
   record?: { wins: number; losses: number; ties: number };
+  /** v0.51 — la lista, si el torneo las pedía. Formato sin documentar para Pokémon: ver `lib/listasLimitless`. */
+  decklist?: unknown;
 };
 
 /** Un arquetipo deducido del metagame, listo para meter en `archetypes`. */
@@ -651,4 +654,42 @@ export async function fetchLastBigTournament(opts: {
   } catch {
     return null;
   }
+}
+
+/**
+ * v0.51 — las mejores listas de un arquetipo en los torneos online recientes.
+ *
+ * Mira los mismos torneos que la portada de Top Decks (misma ventana, mismo
+ * mínimo de jugadores), así que las clasificaciones ya suelen estar en la
+ * caché de `fetch` y no se repiten llamadas. Se piden en tandas de cinco, por
+ * la misma razón que en `fetchMetaSnapshot`: ni en serie ni de golpe.
+ */
+export async function fetchMejoresListas(
+  deckId: string,
+  opts: MetaOptions & { n?: number } = {},
+): Promise<{ resultados: ResultadoConLista[]; torneos: number; fallidos: number }> {
+  const { days = 30, limit = 20, minPlayers = 16, format = "STANDARD", apiKey, n = 10 } = opts;
+  const desde = Date.now() - days * 86400000;
+  const lista = (await fetchTournaments({ limit, format, apiKey }))
+    .filter((t) => (t.players ?? 0) >= minPlayers)
+    .filter((t) => { const d = Date.parse(t.date); return Number.isFinite(d) ? d >= desde : true; });
+
+  const porTorneo: Array<{ torneo: LimitlessTournament; clasificacion: LimitlessStanding[] }> = [];
+  let fallidos = 0;
+  for (let i = 0; i < lista.length; i += 5) {
+    const tanda = lista.slice(i, i + 5);
+    const res = await Promise.allSettled(tanda.map((t) => fetchStandings(t.id, apiKey)));
+    res.forEach((r, k) => {
+      if (r.status === "fulfilled") porTorneo.push({ torneo: tanda[k], clasificacion: r.value });
+      else fallidos++;
+    });
+  }
+  return {
+    resultados: mejoresListas(
+      porTorneo.map((x) => ({ torneo: { ...x.torneo, players: x.torneo.players ?? 0 }, clasificacion: x.clasificacion })),
+      deckId, n,
+    ),
+    torneos: porTorneo.length,
+    fallidos,
+  };
 }

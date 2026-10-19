@@ -1,174 +1,100 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ReferenceArea,
-} from "recharts";
-import { tr } from "@/lib/i18n";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { CLAVE_TIPO, COLOR_TIPO, TIPOS_PARTIDA, type TipoPartida } from "@/lib/tiposPartida";
 
-export interface HourlyPoint {
-  hour: number; // 0 a 23
-  seriesA: number; // p. ej. Liga
-  seriesB: number; // p. ej. Torneos
-}
+/* =========================================================================
+   Partidas por hora del día, por tipo.
 
-interface HourlyChartProps {
-  data: HourlyPoint[];
-  seriesALabel?: string;
-  seriesBLabel?: string;
-  seriesAColor?: string;
-  seriesBColor?: string;
-  title?: string;
-  subtitle?: string;
-  peakHourStart?: number;
-  peakHourEnd?: number;
-  peakLabel?: string;
-  height?: number;
-}
+   v0.50 — rehecha:
+     · BARRAS APILADAS en vez de una curva suavizada. Son recuentos por hora:
+       una curva se inventa valores entre una hora y la siguiente, y en la
+       versión anterior se veían «montañas» donde no había partidas.
+     · CUATRO tipos con su color —liga azul, presencial marrón, online verde,
+       amistosos gris— en vez de dos. Antes «Torneos» incluía los amistosos.
+     · Los tipos sin ninguna partida no salen en la leyenda: menos ruido.
+   ========================================================================= */
 
-export function HourlyChart({
-  data,
-  seriesALabel = "Liga",
-  seriesBLabel = "Torneos",
-  seriesAColor = "var(--info)",
-  seriesBColor = "var(--brand, #8a5c0a)",
-  title = "Distribución horaria",
-  subtitle = "Partidas por hora del día (Europe/Madrid)",
-  peakHourStart,
-  peakHourEnd,
-  peakLabel = "Hora pico",
-  height = 280,
-}: HourlyChartProps) {
+export type HourlyPoint = { hour: number } & Record<TipoPartida, number>;
+
+export function HourlyChart({ data }: { data: HourlyPoint[] }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
-  // Si no se especifica franja pico, la deducimos de la suma máxima de ambas series
-  const detectedPeak = useMemo(() => {
-    if (peakHourStart !== undefined && peakHourEnd !== undefined) {
-      return { start: peakHourStart, end: peakHourEnd };
-    }
-    if (!data.length) return null;
-    let maxTotal = -1;
-    let peakH = 18;
+  const presentes = useMemo(
+    () => TIPOS_PARTIDA.filter((t) => data.some((d) => d[t] > 0)),
+    [data],
+  );
+  const pico = useMemo(() => {
+    let mejor = -1, max = 0;
     for (const d of data) {
-      const tot = d.seriesA + d.seriesB;
-      if (tot > maxTotal) {
-        maxTotal = tot;
-        peakH = d.hour;
-      }
+      const tot = TIPOS_PARTIDA.reduce((s, t) => s + d[t], 0);
+      if (tot > max) { max = tot; mejor = d.hour; }
     }
-    if (maxTotal <= 0) return null;
-    return { start: Math.max(0, peakH - 1), end: Math.min(23, peakH + 1) };
-  }, [data, peakHourStart, peakHourEnd]);
+    return mejor >= 0 ? { hora: mejor, total: max } : null;
+  }, [data]);
 
   return (
     <div className="card min-w-0 overflow-hidden p-4">
-      {/* v0.44 — `min-w-0`: dentro de una rejilla, sin esto la tarjeta no se
-          encoge por debajo del ancho de su contenido y el contenedor responsivo
-          de Recharts la empujaba fuera del cuadro. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-        <div>
-          <h3 className="text-base font-bold text-ink">{title}</h3>
-          {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="font-display text-base font-bold">{tr(lng, "hora.titulo")}</h3>
+          <p className="text-xs text-muted">{tr(lng, "hora.sub")}</p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full" style={{ background: seriesAColor }} />
-            <span className="text-muted">{seriesALabel}</span>
+        {pico && (
+          <span className="chip text-[11px] tabular">
+            {trf(lng, "hora.pico", { h: `${pico.hora}:00`, n: pico.total })}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full" style={{ background: seriesBColor }} />
-            <span className="text-muted">{seriesBLabel}</span>
-          </span>
-        </div>
+        )}
       </div>
 
-      {detectedPeak && (
-        <div className="mb-2 flex w-full justify-end overflow-hidden">
-          <span className="inline-flex max-w-full items-center rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
-            {peakLabel}
+      <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        {presentes.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm" style={{ background: COLOR_TIPO[t] }} aria-hidden="true" />
+            <span className="text-muted">{tr(lng, CLAVE_TIPO[t])}</span>
           </span>
-        </div>
-      )}
+        ))}
+      </div>
 
-      <div className="w-full min-w-0 overflow-hidden" style={{ height }}>
+      <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" vertical={false} />
+          <BarChart data={data} margin={{ top: 6, right: 4, left: -24, bottom: 0 }} barCategoryGap={1}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line-soft)" />
             <XAxis
-              dataKey="hour"
-              tickFormatter={(h: number) => `${h}:00`}
-              tick={{ fontSize: 11, fill: "var(--muted)" }}
-              stroke="var(--line)"
-              ticks={[0, 4, 8, 12, 16, 20, 23]}
+              dataKey="hour" tick={{ fontSize: 11, fill: "var(--muted)" }} tickLine={false}
+              interval={0} tickFormatter={(h: number) => (h % 4 === 0 ? `${h}h` : "")}
             />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 11, fill: "var(--muted)" }}
-              stroke="var(--line)"
-            />
-
-            {detectedPeak && (
-              <ReferenceArea
-                x1={detectedPeak.start}
-                x2={detectedPeak.end}
-                fill="var(--series-1)"
-                fillOpacity={0.12}
-                stroke="var(--series-1)"
-                strokeOpacity={0.25}
-                strokeDasharray="2 2"
-              />
-            )}
-
+            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted)" }} tickLine={false} axisLine={false} />
             <Tooltip
+              cursor={{ fill: "var(--surface-2)" }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
-                const h = Number(label);
+                const p = payload[0].payload as HourlyPoint;
+                const total = TIPOS_PARTIDA.reduce((s, t) => s + p[t], 0);
                 return (
-                  <div className="rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-lg">
-                    <p className="font-bold text-ink mb-1">
-                      {h.toString().padStart(2, "0")}:00 – {(h + 1).toString().padStart(2, "0")}:00
-                    </p>
-                    <div className="space-y-1 text-ink-2">
-                      {payload.map((p, idx) => (
-                        <p key={String(p.dataKey ?? idx)} className="flex items-center gap-2">
-                          <span className="size-2 rounded-full" style={{ background: p.color }} />
-                          <span>{p.name}:</span>
-                          <b className="tabular font-mono ml-auto">{p.value}</b>
-                        </p>
-                      ))}
-                    </div>
+                  <div className="rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-[var(--shadow-2)]">
+                    <div className="mb-1 font-bold tabular">{`${label}:00 – ${label}:59`} · {total}</div>
+                    {TIPOS_PARTIDA.filter((t) => p[t] > 0).map((t) => (
+                      <div key={t} className="flex items-center gap-2">
+                        <span className="size-2 rounded-sm" style={{ background: COLOR_TIPO[t] }} />
+                        <span className="text-muted">{tr(lng, CLAVE_TIPO[t])}</span>
+                        <b className="ml-auto tabular">{p[t]}</b>
+                      </div>
+                    ))}
                   </div>
                 );
               }}
             />
-
-            <Line
-              type="monotone"
-              dataKey="seriesA"
-              name={seriesALabel}
-              stroke={seriesAColor}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="seriesB"
-              name={seriesBLabel}
-              stroke={seriesBColor}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          </LineChart>
+            {presentes.map((t, i) => (
+              <Bar
+                key={t} dataKey={t} stackId="h" fill={COLOR_TIPO[t]} isAnimationActive={false}
+                radius={i === presentes.length - 1 ? [3, 3, 0, 0] : 0}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
