@@ -55,6 +55,9 @@ export function LadderChart({
     [series, inicial, destacados],
   );
   const [elegidos, setElegidos] = useState<Set<string>>(porDefecto);
+  /* v0.56 — el periodo: con meses de datos, los puntos se amontonaban. Por
+     defecto, los últimos tres meses; «Todo» sigue a un toque. */
+  const [periodo, setPeriodo] = useState<30 | 90 | 0>(90);
   const alternar = (id: string) =>
     setElegidos((prev) => {
       const n = new Set(prev);
@@ -62,10 +65,42 @@ export function LadderChart({
       return n;
     });
 
-  const visibles = series.filter((s) => elegidos.has(s.id));
+  const visiblesBase = series.filter((s) => elegidos.has(s.id));
   // Eje por orden de partida: la etiqueta es la fecha de esa partida.
   const fechaDe = useMemo(() => new Map(fechas ?? []), [fechas]);
   const porOrden = Boolean(fechas);
+
+  /* v0.56 — la fecha de un punto: en la vista por partida, la de esa partida; en
+     la de tiempo, la del propio eje. */
+  const fechaPunto = (t: number): string | null =>
+    porOrden ? fechaDe.get(Math.round(t)) ?? null : new Date(t).toISOString().slice(0, 10);
+  // El periodo se cuenta desde el ÚLTIMO dato, no desde hoy: si la liga lleva
+  // unas semanas parada, la gráfica no se queda vacía.
+  const ultimoDato = visiblesBase.flatMap((s) => s.puntos.map((p) => fechaPunto(p.t) ?? "")).sort().at(-1) || null;
+  const corte = periodo && ultimoDato
+    ? new Date(Date.parse(`${ultimoDato}T00:00:00Z`) - periodo * 86400000).toISOString().slice(0, 10)
+    : null;
+  /** Días sin jugar a partir de los cuales la línea se corta en vez de unir los puntos. */
+  const HUECO_DIAS = 14;
+  const visibles = visiblesBase.map((s) => {
+    const pts = s.puntos.filter((p) => !corte || (fechaPunto(p.t) ?? "") >= corte);
+    if (!porOrden) return { ...s, puntos: pts };
+    /* En la vista por partida, si alguien pasa más de dos semanas sin jugar, la
+       línea se CORTA: unir esos puntos dibujaba una raya larga que parecía una
+       evolución y no lo era. En la de Ladder no: ahí un hueco es que el rango se
+       mantuvo. */
+    const out: typeof pts = [];
+    pts.forEach((p, i) => {
+      if (i > 0) {
+        const a = fechaPunto(pts[i - 1].t), b = fechaPunto(p.t);
+        if (a && b && (Date.parse(b) - Date.parse(a)) / 86400000 > HUECO_DIAS) {
+          out.push({ t: (pts[i - 1].t + p.t) / 2, elo: null });
+        }
+      }
+      out.push(p);
+    });
+    return { ...s, puntos: out };
+  });
   const etiquetaX = (t: number) => {
     if (!porOrden) return fecha(t);
     const iso = fechaDe.get(Math.round(t));
@@ -123,6 +158,13 @@ export function LadderChart({
           onClick={() => setElegidos(new Set())}>{tr(lng, "x.f3c24118")}</button>
       </div>
 
+      {/* v0.56 — periodo: menos puntos, menos amontonados. */}
+      <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr(lng, "elo.periodo")}>
+        {([[30, "elo.mes"], [90, "elo.tresMeses"], [0, "elo.todo"]] as const).map(([d, k]) => (
+          <button key={d} type="button" aria-pressed={periodo === d} onClick={() => setPeriodo(d)}
+            className={`chip ${periodo === d ? "chip-brand" : ""}`}>{tr(lng, k)}</button>
+        ))}
+      </div>
       {visibles.length === 0 ? (
         <p className="grid h-48 place-items-center text-sm text-muted">{tr(lng, "x.923fbcf6")}</p>
       ) : (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { resultadoRapido } from "@/actions";
+import { Bienvenida } from "@/components/Bienvenida";
 import { marcadoresDe } from "@/lib/marcador";
 import {
   archetypeStats, isInternal, isPlayed, standings,
@@ -65,6 +66,9 @@ export default async function HomePage({
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
   const played = snap.matches.filter(isPlayed);
+  // v0.56 — ¿jugador nuevo? Alta en los últimos 30 días: le sale la bienvenida.
+  const yo = session ? snap.playersById.get(session.playerId) : undefined;
+  const esNuevo = Boolean(yo?.joined && Date.parse(`${yo.joined}T00:00:00Z`) > Date.now() - 30 * 86400000);
   // v0.54 — mis partidas pendientes, lo PRIMERO que se ve: es lo único que corre prisa.
   const misPendientes = session ? snap.matches.filter((m) => m.status === "pending"
     && (m.playerAId === session.playerId || m.playerBId === session.playerId)).slice(0, 6) : [];
@@ -298,6 +302,9 @@ export default async function HomePage({
         title={snap.config.name}
         sub={trf(lang, "home.sub", { season: snap.config.season, players: snap.activePlayerIds.length, matches: played.length })}
       />
+
+      {/* v0.56 — bienvenida para quien se dio de alta hace menos de 30 días. */}
+      <Bienvenida nuevo={esNuevo} />
 
       {/* v0.54 — tus partidas pendientes, con el resultado a un toque. */}
       {misPendientes.length > 0 && (

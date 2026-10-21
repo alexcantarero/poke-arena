@@ -2,6 +2,38 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.56.0] — 2026-10-20
+
+Pulido: barra lateral plegable, contenido más ancho, gráfica del Elo, contraste, glosario y
+bienvenida. **Sin migración nueva.**
+
+### Añadido
+
+- **Barra lateral plegable a solo iconos** (botón arriba de la barra). La preferencia va en una
+  cookie que lee el servidor: la página llega ya como la dejaste, sin parpadeo. Plegada, cada
+  icono enseña su nombre al pasar el ratón.
+- **Contenido más ancho en pantallas grandes**: hasta `6xl` y `7xl` (antes, `5xl` siempre).
+- **Bienvenida en tres pasos** para quien se dio de alta hace menos de 30 días: perfil, mazo
+  habitual y cómo se apunta una partida (con el modo rápido en pequeño). Una sola vez.
+- **Glosario** (`/glosario`): CP, Best Finish Limit, Elo, resistencia, top cut, espejo y bye.
+  `<Termino>`: subrayado de puntos, definición al pasar el ratón y, con un toque, su entrada.
+  Enlazado desde Reglas, Ajustes y el meta online.
+
+### Cambiado
+
+- **Gráfica del Elo**: selector de periodo (último mes · 3 meses · todo; por defecto 3 meses,
+  contado desde el último dato para que no se quede vacía si la liga para). Y en la vista por
+  partida, **la línea se corta** cuando alguien pasa más de 14 días sin jugar, en vez de unir los
+  puntos con una raya larga que parecía una evolución. En la de Ladder no: ahí un hueco es que
+  el rango se mantuvo.
+- **Contraste en «Enfrentamientos directos»**: el tinte de cada casilla tiene tope (40 %) y un
+  borde del mismo color; el número y el récord van siempre en el color de máximo contraste,
+  sin transparencias. Antes, sobre los tintes fuertes, el récord casi no se leía.
+
+### Verificado
+
+- `npm run verificar`: **549 de 549**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.55.0] — 2026-10-20
 
 Estructura: Ajustes ordenado, Reglas y puntuación, y plantillas de torneo. **Sin migración nueva.**

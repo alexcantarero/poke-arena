@@ -95,13 +95,18 @@ export async function H2HHeatmap({
                       key={col}
                       title={titulo}
                       className="size-13 rounded-lg border border-line-soft align-middle"
+                      /* v0.56 — contraste: el tinte llevaba TOPE y el texto se perdía
+                         sobre los colores fuertes. Ahora el relleno no pasa del 40 %
+                         (el texto siempre gana) y un borde del mismo color marca la
+                         casilla sin depender del relleno. */
                       style={intensidadCelda ? {
-                        background: `color-mix(in oklab, ${colorMode === "winRate" ? tono : "var(--series-1)"} ${intensidadCelda}%, transparent)`,
+                        background: `color-mix(in oklab, ${colorMode === "winRate" ? tono : "var(--series-1)"} ${Math.min(40, Math.max(12, intensidadCelda))}%, transparent)`,
+                        borderColor: `color-mix(in oklab, ${colorMode === "winRate" ? tono : "var(--series-1)"} 55%, transparent)`,
                       } : undefined}
                     >
                       {c.partidas ? (
                         <>
-                          <span className={`block font-display text-lg font-extrabold tabular leading-none ${colorMode === "volume" && intensidadCelda > 55 ? "text-white" : ""}`}>
+                          <span className="block font-display text-lg font-extrabold tabular leading-none text-ink">
                             {colorMode === "winRate" ? (winRate == null ? "—" : `${Math.round(winRate * 100)}%`) : c.partidas}
                           </span>
                           {/* v0.38 — el récord de debajo del % no se leía.
@@ -112,7 +117,7 @@ export async function H2HHeatmap({
                               el color del texto de la celda y se separa con
                               opacidad, que mantiene el contraste sea cual sea
                               el tinte, y sube a 11 px. */}
-                          <span className={`block whitespace-nowrap text-[11px] font-semibold tabular tracking-tighter ${colorMode === "volume" && intensidadCelda > 55 ? "text-white/90" : "opacity-80"}`}>
+                          <span className="block whitespace-nowrap text-[11px] font-semibold tabular tracking-tighter text-ink-2">
                             {colorMode === "winRate" ? `${c.gana}–${c.pierde} · ${c.partidas}` : `${c.gana}–${c.pierde}${c.empata ? `–${c.empata}` : ""}`}
                           </span>
                         </>

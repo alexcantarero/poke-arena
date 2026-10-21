@@ -652,6 +652,7 @@ function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean
         <span className="label hidden lg:mb-1 lg:block">{tr(lng, "aj.bloqueCuenta")}</span>
         {cuenta.map(enlace)}
         <a href="/reglas" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "reg.titulo")}</a>
+        <a href="/glosario" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "glo.enlace")}</a>
         {organizar.length > 0 && <span className="label hidden lg:mb-1 lg:mt-4 lg:block">{tr(lng, "aj.bloqueOrganizar")}</span>}
         {organizar.map(enlace)}
       </div>

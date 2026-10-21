@@ -1107,3 +1107,18 @@ html[data-motion="off"] .pkmn-destello { display: none; }
   20% { transform: rotate(12deg); }
   30% { transform: rotate(-6deg); }
 }
+
+/* =========================================================================
+   v0.56 — Barra lateral plegada (solo iconos), para dar sitio al contenido.
+   Fuera de cualquier @layer a propósito: así gana a las utilidades de
+   Tailwind (px-3, grid-cols…) sin `!important`.
+   ========================================================================= */
+@media (min-width: 768px) {
+  .app-shell[data-barra="mini"] { grid-template-columns: 4.5rem minmax(0, 1fr); }
+  .app-shell[data-barra="mini"] .barra-texto { display: none; }
+  .app-shell[data-barra="mini"] aside { padding-inline: 0.5rem; }
+  .app-shell[data-barra="mini"] .nav-side { justify-content: center; padding-inline: 0; }
+  .app-shell[data-barra="mini"] .barra-fila { flex-direction: column; }
+  .app-shell[data-barra="mini"] .barra-flecha { transform: rotate(180deg); }
+}
+@media (max-width: 767.98px) { .barra-toggle { display: none; } }

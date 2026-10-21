@@ -32,7 +32,7 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
     <nav aria-label={tr(lang, "nav.sections")} className="flex flex-col gap-3">
       {groups.map((g) => (
         <div key={g.title} className="flex flex-col gap-0.5">
-          <span className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+          <span className="barra-texto px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             {tr(lang, g.key)}
           </span>
           {g.items.map((it) => (
@@ -41,13 +41,14 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
               href={it.href}
               aria-current={isActive(it.href) ? "page" : undefined}
               data-on={isActive(it.href) ? "true" : "false"}
+              title={labelOf(lang, it)}
               className={`nav-side tap relative justify-start rounded-lg px-3 text-sm font-medium transition-colors
                 ${isActive(it.href)
                   ? "bg-surface-3 font-semibold text-ink"
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
             >
               <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
-              {labelOf(lang, it)}
+              <span className="barra-texto">{labelOf(lang, it)}</span>
               {/* v0.54 — tus partidas sin resultado, sobre «Liga». */}
               {it.href === "/competiciones" && pendientes > 0 && (
                 <span className="ml-auto rounded-full bg-brand px-1.5 text-[11px] font-bold tabular text-on-brand" aria-label={`${pendientes}`}>{pendientes}</span>

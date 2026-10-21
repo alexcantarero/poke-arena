@@ -4,6 +4,7 @@ import { num, pct } from "@/lib/format";
 import { spriteUrl } from "@/lib/pokemon";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { celdaDe, pctDe, type FilaMeta } from "@/lib/emparejamientosOnline";
+import { Termino } from "@/components/Termino";
 
 /* =========================================================================
    Meta online: % de victorias y matriz de emparejamientos, con partidas
@@ -57,6 +58,7 @@ export async function MetaOnline({ dias = 30, formato = "STANDARD" }: { dias?: n
       {/* 1. % de victorias por arquetipo, de mejor a peor */}
       <div className="border-b border-line-soft p-4">
         <h3 className="label mb-3">{tr(lng, "mo.pctTitulo")}</h3>
+        <p className="-mt-2 mb-3 text-xs text-muted"><Termino id="espejo">{tr(lng, "glo.esp")}</Termino> · <Termino id="bye">{tr(lng, "glo.bye")}</Termino></p>
         <ol className="flex flex-col gap-1.5">
           {porPct.map((f) => (
             <li key={f.id} className="flex items-center gap-2 text-sm">

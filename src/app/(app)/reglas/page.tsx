@@ -44,7 +44,10 @@ export default async function Reglas() {
         </div>
       </section>
 
-      <Link href="/ranking" className="w-fit text-sm text-info underline underline-offset-2">← {tr(lng, "reg.volverRanking")}</Link>
+      <div className="flex flex-wrap gap-4">
+        <Link href="/ranking" className="text-sm text-info underline underline-offset-2">← {tr(lng, "reg.volverRanking")}</Link>
+        <Link href="/glosario" className="text-sm text-info underline underline-offset-2">{tr(lng, "glo.enlace")} →</Link>
+      </div>
     </div>
   );
 }

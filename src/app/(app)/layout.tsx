@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { FilterMemory } from "@/components/FilterMemory";
 import { SeasonFx } from "@/components/SeasonFx";
@@ -12,6 +13,7 @@ import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
 import { LangProvider } from "@/components/LangProvider";
+import { BarraToggle } from "@/components/BarraToggle";
 import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
@@ -35,6 +37,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
+  // v0.56 — la barra lateral plegada o no: la cookie se lee aquí para que la página llegue ya bien, sin parpadeo.
+  const barraMini = (await cookies()).get("arena-barra")?.value === "mini";
   // v0.54 — mis partidas sin resultado: el número del menú.
   const misPendientes = me ? await cargarPendientesDe(me.id) : [];
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
@@ -44,14 +48,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // v0.49 — el idioma, para que cualquier componente de cliente lo pida con
     // `useLang()` en vez de recibirlo por props de componente en componente.
     <LangProvider lang={lang}>
-    <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]" data-barra={barraMini ? "mini" : undefined}>
       {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
       <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
       <aside className="shell-dark sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex">
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
-        <div className="px-2 pb-4 pt-2">
+        <BarraToggle mini={barraMini} />
+        <div className="barra-texto px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
           {/* v0.19: debajo solo la temporada («SEASON 1»), sin repetir la marca. */}
           <Wordmark name={tr(lang, "app.name")} season={subtituloLiga(cfg.name, cfg.season)} compact />
@@ -67,24 +72,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="mt-auto flex flex-col gap-2 pt-4">
           <Link className="btn btn-brand w-full" href="/partidas/nueva">
-            <Icon name="plus" className="size-4" /> {tr(lang, "shell.newMatch")}
+            <Icon name="plus" className="size-4" /> <span className="barra-texto">{tr(lang, "shell.newMatch")}</span>
           </Link>
                     <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-2">
             <div className="flex items-center gap-2">
               <Avatar player={me} size="sm" />
-              <span className="min-w-0 flex-1">
+              <span className="barra-texto min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
                 <span className="block truncate text-[11px] text-muted">
                   {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
                 </span>
               </span>
             </div>
-            <div className="flex items-center justify-end gap-1 border-t border-line-soft pt-2">
+            <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               {/* v0.50 — versión, rama y commit de ESTE despliegue. En producción, la
                   versión y el commit; en una vista previa, también la rama, en ámbar,
                   para que no se confunda con producción. Toca para ver todo. */}
               <span
-                className={`mr-auto pl-1 text-[10px] font-mono ${process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" ? "text-brand" : "text-muted"}`}
+                className={`barra-texto mr-auto pl-1 text-[10px] font-mono ${process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" ? "text-brand" : "text-muted"}`}
                 title={`v${process.env.NEXT_PUBLIC_APP_VERSION} · ${process.env.NEXT_PUBLIC_DEPLOY_ENV}${process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}${process.env.NEXT_PUBLIC_GIT_SHA ? ` @ ${process.env.NEXT_PUBLIC_GIT_SHA}` : ""}`}
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
@@ -133,7 +138,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
             móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
-        <main className="mx-auto w-full max-w-5xl px-3 pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
+        <main className="mx-auto w-full max-w-5xl px-3 xl:max-w-6xl 2xl:max-w-7xl pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>
       </div>
