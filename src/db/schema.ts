@@ -388,6 +388,9 @@ export const matches = pgTable("matches", {
   note: text("note").notNull().default(""),
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** v0.54 — el rastro de correcciones: quién cambió el resultado por última vez, y cuándo. Nulo = nunca se corrigió. */
+  updatedBy: text("updated_by").references(() => players.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 }, (t) => [
   index("matches_comp_idx").on(t.competitionId),
   index("matches_tour_idx").on(t.tournamentId),

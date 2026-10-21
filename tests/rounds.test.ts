@@ -19,7 +19,7 @@ const m = (over: Partial<MatchFull> = {}): MatchFull => ({
   playerAId: "p1", playerBId: null, opponentPlayerId: null, opponentName: "Sara",
   deckAId: null, deckBId: null, opponentArchetypeId: null, archetypeAId: null,
   bestOf: 3, status: "done", seriesResult: null, firstTurn: "",
-  note: "", createdBy: null, createdAt: new Date(), games: [],
+  note: "", createdBy: null, updatedBy: null, updatedAt: null, createdAt: new Date(), games: [],
   ...over,
 });
 

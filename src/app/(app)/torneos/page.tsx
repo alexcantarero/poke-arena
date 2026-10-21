@@ -127,7 +127,7 @@ export default async function TournamentsPage({
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label={tr(lng, "x.f02a0f3c")} value={snap.tournaments.length} note={`${mine.length} tuyos`} />
-        <Kpi label={tr(lng, "x.75c2f3d0")} value={myCp?.total ?? 0} note={`temporada ${season}`} highlight />
+        <Kpi label={tr(lng, "x.75c2f3d0")} value={myCp?.total ?? 0} note={snap.config.season} highlight />
         <Kpi label={tr(lng, "x.6296c540")} value={cpTotalGroup} note={tr(lng, "x.bb13ec73")} />
         <Kpi
           label={tr(lng, "x.af459507")}

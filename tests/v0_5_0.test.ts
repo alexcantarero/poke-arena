@@ -35,7 +35,7 @@ const match = (over: Partial<MatchFull> = {}): MatchFull => ({
   seriesResult: null,
   firstTurn: "",
   note: "",
-  createdBy: null,
+  createdBy: null, updatedBy: null, updatedAt: null,
   createdAt: new Date(),
   games: [],
   ...over,

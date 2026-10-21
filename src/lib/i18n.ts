@@ -1295,6 +1295,15 @@ const ES = {
   "zone.ultima": "Último dato: {f}",
   "aj.atajoOffline": "Si la app no se actualiza",
   "aj.invitaAside": "un uso y 14 días por enlace, anulables",
+  // v0.54 — resultado rápido y rastro.
+  "rr.noExiste": "Esa partida ya no existe.",
+  "rr.sinPermiso": "Solo los dos jugadores o un organizador pueden apuntar este resultado.",
+  "rr.guardado": "Resultado guardado.",
+  "rr.corregido": "Resultado corregido. Queda constancia de quién y cuándo.",
+  "rr.apuntar": "Resultado",
+  "rr.formulario": "Más detalle",
+  "rr.corregidoPor": "Corregido por {n} el {f}",
+  "home.pendientes": "Tus partidas pendientes",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2564,6 +2573,15 @@ const EN: Record<I18nKey, string> = {
   "zone.ultima": "Latest update: {f}",
   "aj.atajoOffline": "If the app doesn't update",
   "aj.invitaAside": "one use and 14 days per link, revocable",
+  // v0.54 — resultado rápido y rastro.
+  "rr.noExiste": "That match no longer exists.",
+  "rr.sinPermiso": "Only the two players or an organiser can record this result.",
+  "rr.guardado": "Result saved.",
+  "rr.corregido": "Result corrected. Who and when is recorded.",
+  "rr.apuntar": "Result",
+  "rr.formulario": "More detail",
+  "rr.corregidoPor": "Corrected by {n} on {f}",
+  "home.pendientes": "Your pending matches",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

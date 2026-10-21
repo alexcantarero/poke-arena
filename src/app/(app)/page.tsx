@@ -4,6 +4,8 @@ import { posicionesDe } from "@/lib/data";
 import Link from "next/link";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
+import { resultadoRapido } from "@/actions";
+import { marcadoresDe } from "@/lib/marcador";
 import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
@@ -63,6 +65,9 @@ export default async function HomePage({
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
   const played = snap.matches.filter(isPlayed);
+  // v0.54 — mis partidas pendientes, lo PRIMERO que se ve: es lo único que corre prisa.
+  const misPendientes = session ? snap.matches.filter((m) => m.status === "pending"
+    && (m.playerAId === session.playerId || m.playerBId === session.playerId)).slice(0, 6) : [];
 
   const mainComp =
     snap.competitions.find((c) => c.status === "live" && c.kind === "league") ??
@@ -294,6 +299,57 @@ export default async function HomePage({
         sub={trf(lang, "home.sub", { season: snap.config.season, players: snap.activePlayerIds.length, matches: played.length })}
       />
 
+      {/* v0.54 — tus partidas pendientes, con el resultado a un toque. */}
+      {misPendientes.length > 0 && (
+        <section className="card mb-4 border-brand/40" aria-labelledby="pendientes-titulo">
+          <div className="card-head">
+            <h2 id="pendientes-titulo" className="text-lg font-bold">{tr(lang, "home.pendientes")}</h2>
+            <span className="chip chip-brand tabular">{misPendientes.length}</span>
+          </div>
+          <ul className="divide-y divide-line-soft">
+            {misPendientes.map((m) => {
+              const nA = snap.playersById.get(m.playerAId)?.name ?? "A";
+              const nB = m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "B" : m.opponentName ?? "?";
+              const comp = m.competitionId ? snap.compsById.get(m.competitionId) : null;
+              return (
+                <li key={m.id} className="px-3 py-2 xs:px-4">
+                  <details>
+                    <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 xs:gap-3">
+                      <span className="chip flex-none">J{m.round}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">{nA} <span className="text-muted">vs</span> {nB}</span>
+                        {comp && <span className="block truncate text-[11px] text-muted">{comp.name} · Bo{m.bestOf}</span>}
+                      </span>
+                      <span className="btn btn-brand btn-sm flex-none px-3">{tr(lang, "rr.apuntar")}</span>
+                    </summary>
+                    <form action={resultadoRapido} className="mt-2 flex flex-col gap-2 pb-1">
+                      <input type="hidden" name="id" value={m.id} />
+                      <input type="hidden" name="volver" value="/" />
+                      <div className="grid grid-cols-2 gap-2 xs:grid-cols-4">
+                        {marcadoresDe(m.bestOf).map(([a, b]) => (
+                          <button key={`${a}-${b}`} type="submit" name="marcador" value={`${a}-${b}`}
+                            className={`flex min-h-12 flex-col items-center justify-center rounded-xl border-2 border-line-soft bg-surface-2 px-2 py-1.5 ${a > b ? "hover:border-win" : "hover:border-loss"}`}>
+                            <span className={`font-display text-xl font-extrabold tabular ${a > b ? "text-win" : "text-loss"}`}>{a}–{b}</span>
+                            <span className="max-w-full truncate text-[11px] text-muted">{a > b ? nA : nB}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="submit" name="marcador" value="empate"
+                          className="flex-1 rounded-xl border-2 border-line-soft bg-surface-2 px-3 py-2 text-sm font-semibold text-muted hover:border-tie">
+                          {tr(lang, "rr.empateTiempo")}
+                        </button>
+                        <Link href={`/partidas/${m.id}`} className="btn btn-sm flex-none self-center">{tr(lang, "rr.formulario")}</Link>
+                      </div>
+                    </form>
+                  </details>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         {/* v0.25 — tus partidas sobre el total de la liga, y en la tarjeta dorada
             tu puesto en la liga con tu puesto de Elo a la derecha. Sin sesión
@@ -348,7 +404,10 @@ export default async function HomePage({
           tone="diff"
           label={tr(lang, "home.yourCp")}
           value={myCp ? myCp.total : "—"}
-          note={myCp ? `${trf(lang, "home.cpSeason", { season: myCp.season })}${myCp.confirmed ? "" : ` · ${tr(lang, "home.provisional")}`}` : tr(lang, "home.noTournaments")}
+          /* v0.54 — un solo nombre de temporada en toda la app: el de la liga
+                 («Temporada 1»). Por dentro, los CP siguen contándose por la temporada
+                 oficial de Play! Pokémon (2027), que es la de sus tablas. */
+              note={myCp ? `${snap.config.season}${myCp.confirmed ? "" : ` · ${tr(lang, "home.provisional")}`}` : tr(lang, "home.noTournaments")}
         />
       </div>
 

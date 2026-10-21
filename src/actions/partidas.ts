@@ -16,6 +16,7 @@ import {
   str, int, maybeInt, isoDate, bool, pick, refresh, requireActor, BEST_OF,
   msj,
 } from "./_comun";
+import { leerMarcador, secuenciaDe } from "@/lib/marcador";
 
 export async function saveMatch(fd: FormData) {
   const actor = await requireActor();
@@ -172,7 +173,8 @@ export async function saveMatch(fd: FormData) {
 
   const id = editing || newId("m");
   if (editing) {
-    await db.update(matches).set(values).where(eq(matches.id, id));
+    // v0.54 — corregir un resultado deja rastro: quién y cuándo.
+    await db.update(matches).set({ ...values, createdBy: current?.createdBy ?? values.createdBy, updatedBy: actor.id, updatedAt: new Date() }).where(eq(matches.id, id));
     await db.delete(games).where(eq(games.matchId, id));
   } else {
     await db.insert(matches).values({ id, ...values });
@@ -193,4 +195,40 @@ export async function deleteMatch(fd: FormData) {
   await db.delete(matches).where(eq(matches.id, id));
   refresh();
   redirect(withFlash("/resultados", "ok", await msj("x.42c45bb9")));
+}
+
+/**
+ * v0.54 — Resultado rápido desde una lista de pendientes: un toque y guardado.
+ *
+ * Misma regla de permisos que `saveMatch` (los dos jugadores, quien la creó o un
+ * organizador). Solo valen los marcadores del formato de ESA partida. Si la
+ * partida ya tenía resultado, queda rastro de quién lo cambió y cuándo.
+ */
+export async function resultadoRapido(fd: FormData) {
+  const actor = await requireActor();
+  const id = str(fd, "id");
+  const volver = str(fd, "volver").startsWith("/") ? str(fd, "volver") : "/resultados";
+  const m = (await db.select().from(matches).where(eq(matches.id, id)))[0];
+  if (!m) redirect(withFlash(volver, "error", await msj("rr.noExiste")));
+  const suya = m.playerAId === actor.id || m.playerBId === actor.id || m.createdBy === actor.id;
+  if (!suya && !canManageLeague(actor.role)) redirect(withFlash(volver, "error", await msj("rr.sinPermiso")));
+  const r = leerMarcador(str(fd, "marcador"), m.bestOf);
+  if (!r) redirect(withFlash(volver, "error", await msj("rr.faltaResultado")));
+
+  const correccion = m.status === "done";
+  await db.delete(games).where(eq(games.matchId, id));
+  if (r !== "empate") {
+    await db.insert(games).values(secuenciaDe(r.a, r.b).map((winner, i) => ({
+      matchId: id, number: i + 1, winner, first: "", note: "",
+      prizesA: null, prizesB: null, penaltyA: false, penaltyB: false,
+      archetypeAId: null, archetypeBId: null, mulligansA: 0, mulligansB: 0,
+    })));
+  }
+  await db.update(matches).set({
+    status: "done",
+    seriesResult: r === "empate" ? "tie" : null,
+    ...(correccion ? { updatedBy: actor.id, updatedAt: new Date() } : {}),
+  }).where(eq(matches.id, id));
+  refresh();
+  redirect(withFlash(volver, "ok", await msj(correccion ? "rr.corregido" : "rr.guardado")));
 }

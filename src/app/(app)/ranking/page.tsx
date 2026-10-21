@@ -383,7 +383,7 @@ export default async function RankingPage({
             <span className="label">{tr(lng, "x.3c0af1b3")}</span>
             <select className="input" name="fecha" defaultValue={filtro.fecha}>
               {FECHAS_RANKING.map((x) => (
-                <option key={x.v} value={x.v}>{x.v === "temporada" ? `Temporada ${cpSeason}` : x.label}</option>
+                <option key={x.v} value={x.v}>{x.v === "temporada" ? snap.config.season : x.label}</option>
               ))}
             </select>
           </label>
@@ -425,7 +425,7 @@ export default async function RankingPage({
                 {vista === "all" || vista === "tournament" ? <> y <b className="tabular">{nTorneos}</b> torneo{nTorneos === 1 ? "" : "s"}</> : null}
                 {competition ? <> {tr(lng, "x.600ccd1b")} <b>{competition.name}</b></> : null}
                 {tipo ? <> · <b>{CALENDAR_KINDS[tipo]?.label ?? tipo}</b></> : null}
-                {filtro.fecha ? <> · {filtro.fecha === "temporada" ? `temporada ${cpSeason}` : fechaLabel.toLowerCase()}</> : null}.</>}
+                {filtro.fecha ? <> · {filtro.fecha === "temporada" ? snap.config.season : fechaLabel.toLowerCase()}</> : null}.</>}
           </p>
           {filtroAQuery(filtro).toString() && (
             <Link href="/ranking?limpiar=1" className="font-semibold text-info hover:underline">{tr(lng, "x.632d4ca5")}</Link>

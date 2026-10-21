@@ -797,3 +797,18 @@ export const loadTorneosPantalla = cache(async () => {
     toursById: new Map(tournaments.map((t) => [t.id, t])),
   };
 });
+
+/**
+ * v0.54 — mis partidas pendientes de resultado (jornadas de liga creadas y sin
+ * jugar). Es la única «notificación» de la app: un número en el menú y la lista
+ * arriba de Inicio. Consulta pequeña e indexable; nada del snapshot.
+ */
+export const cargarPendientesDe = cache(async (playerId: string) => {
+  return db.select({
+    id: matches.id, round: matches.round, bestOf: matches.bestOf, competitionId: matches.competitionId,
+    playerAId: matches.playerAId, playerBId: matches.playerBId, opponentName: matches.opponentName,
+  }).from(matches)
+    .where(sql`${matches.status} = 'pending' AND (${matches.playerAId} = ${playerId} OR ${matches.playerBId} = ${playerId})`)
+    .orderBy(asc(matches.round))
+    .limit(20);
+});

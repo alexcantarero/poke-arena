@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageLeague, readSession } from "@/lib/auth";
 import { compPlayers, deckOptions, archetypeOptions, leagueDecksOf, leagueDeckSubmitters, loadSnapshot, teamsOf } from "@/lib/data";
-import { deleteTeam, saveTeam } from "@/actions";
+import { deleteTeam, saveTeam, resultadoRapido } from "@/actions";
 import { MODALIDADES, TAM_EQUIPO, asModalidad, clasificacionEquipos, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
 import {
   outcome,
 } from "@/lib/stats";
 import { suggestedRounds } from "@/lib/sugerencias";
+import { marcadoresDe } from "@/lib/marcador";
 import { DeckPicker } from "@/components/DeckPicker";
 import { submitLeagueDeck, unlockLeagueDeck } from "@/actions";
 import { fmtDate } from "@/lib/format";
@@ -450,26 +451,46 @@ export default async function CompetitionPage({
           </div>
           {pending.length ? (
             <ul className="divide-y divide-line-soft">
-              {pending.map((m) => (
-                <li key={m.id}>
-                  <Link
-                    href={`/partidas/${m.id}`}
-                    className="flex min-h-14 items-center gap-2 px-3 hover:bg-surface-2 xs:gap-3 xs:px-4"
-                  >
-                    <span className="chip flex-none">J{m.round}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {snap.playersById.get(m.playerAId)?.name}{" "}
-                      <span className="text-muted">vs</span>{" "}
-                      {m.playerBId
-                        ? snap.playersById.get(m.playerBId)?.name
-                        : m.opponentName}
-                    </span>
-                    <span className="btn btn-brand btn-sm flex-none px-3">
-                      {tr(lng, "x.793b2e98")}
-                    </span>
-                  </Link>
+              {pending.map((m) => {
+                const nA = snap.playersById.get(m.playerAId)?.name ?? "A";
+                const nB = m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "B" : m.opponentName ?? "?";
+                return (
+                <li key={m.id} className="px-3 py-2 xs:px-4">
+                  {/* v0.54 — resultado RÁPIDO desde la lista: un toque y guardado, sin
+                      abrir el formulario. Son formularios normales: funcionan sin
+                      JavaScript. El formulario completo sigue a un toque, «Más detalle». */}
+                  <details className="group">
+                    <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 xs:gap-3">
+                      <span className="chip flex-none">J{m.round}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {nA} <span className="text-muted">vs</span> {nB}
+                      </span>
+                      <span className="btn btn-brand btn-sm flex-none px-3">{tr(lng, "rr.apuntar")}</span>
+                    </summary>
+                    <form action={resultadoRapido} className="mt-2 flex flex-col gap-2 pb-1">
+                      <input type="hidden" name="id" value={m.id} />
+                      <input type="hidden" name="volver" value={`/competiciones/${comp.id}`} />
+                      <div className="grid grid-cols-2 gap-2 xs:grid-cols-4">
+                        {marcadoresDe(m.bestOf).map(([a, b]) => (
+                          <button key={`${a}-${b}`} type="submit" name="marcador" value={`${a}-${b}`}
+                            className={`flex min-h-12 flex-col items-center justify-center rounded-xl border-2 border-line-soft bg-surface-2 px-2 py-1.5 ${a > b ? "hover:border-win" : "hover:border-loss"}`}>
+                            <span className={`font-display text-xl font-extrabold tabular ${a > b ? "text-win" : "text-loss"}`}>{a}–{b}</span>
+                            <span className="max-w-full truncate text-[11px] text-muted">{a > b ? nA : nB}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="submit" name="marcador" value="empate"
+                          className="flex-1 rounded-xl border-2 border-line-soft bg-surface-2 px-3 py-2 text-sm font-semibold text-muted hover:border-tie">
+                          {tr(lng, "rr.empateTiempo")}
+                        </button>
+                        <Link href={`/partidas/${m.id}`} className="btn btn-sm flex-none self-center">{tr(lng, "rr.formulario")}</Link>
+                      </div>
+                    </form>
+                  </details>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           ) : (
             <Empty title={tr(lng, "x.1554e971")} />

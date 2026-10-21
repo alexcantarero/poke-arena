@@ -22,7 +22,7 @@ function useActive() {
 }
 
 /** Barra lateral: solo en pantallas anchas. Agrupada (v0.16, ver `lib/nav.ts`). */
-export function Sidebar({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
+export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; lang?: Lang; pendientes?: number }) {
   const isActive = useActive();
   const groups = NAV_GROUPS_VISIBLES.map((g) =>
     g.key === "nav.group.account"
@@ -48,6 +48,10 @@ export function Sidebar({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
             >
               <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
               {labelOf(lang, it)}
+              {/* v0.54 — tus partidas sin resultado, sobre «Liga». */}
+              {it.href === "/competiciones" && pendientes > 0 && (
+                <span className="ml-auto rounded-full bg-brand px-1.5 text-[11px] font-bold tabular text-on-brand" aria-label={`${pendientes}`}>{pendientes}</span>
+              )}
             </Link>
           ))}
         </div>
@@ -60,7 +64,7 @@ export function Sidebar({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
  * Barra inferior en móvil. Cuatro destinos y un botón central grande para lo
  * que más se hace: registrar una partida durante el torneo.
  */
-export function BottomNav({ meId, lang = "es" }: { meId: string; lang?: Lang }) {
+export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string; lang?: Lang; pendientes?: number }) {
   const isActive = useActive();
   // En el orden de MOBILE_HREFS, no en el de la barra lateral: Estadísticas
   // ocupa el hueco que tenía Ranking, a la izquierda del «+».
@@ -75,7 +79,7 @@ export function BottomNav({ meId, lang = "es" }: { meId: string; lang?: Lang }) 
                  pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="mx-auto grid max-w-lg grid-cols-5 items-end px-1 pt-1">
-        {items.slice(0, 2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} />)}
+        {items.slice(0, 2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} badge={it.href === "/" ? pendientes : 0} />)}
 
         <div className="flex justify-center">
           <Link
@@ -106,15 +110,19 @@ export function BottomNav({ meId, lang = "es" }: { meId: string; lang?: Lang }) 
  * La pastilla, el hundido al tocar y el color están en `.nav-tab`
  * (globals.css), para que se toquen en un sitio y no en cuatro.
  */
-function Tab({ item, active }: { item: Item; active: boolean }) {
+function Tab({ item, active, badge = 0 }: { item: Item; active: boolean; badge?: number }) {
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
       data-on={active ? "true" : "false"}
-      className="nav-tab"
+      className="nav-tab relative"
     >
       <Icon name={item.icon} className="size-6" />
+      {/* v0.54 — el número de partidas tuyas sin resultado. */}
+      {badge > 0 && (
+        <span className="absolute right-[calc(50%-1.1rem)] top-1 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-bold leading-4 tabular text-on-brand">{badge}</span>
+      )}
       <span className="leading-none">{item.label}</span>
     </Link>
   );

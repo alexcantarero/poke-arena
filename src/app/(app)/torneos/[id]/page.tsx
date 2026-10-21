@@ -575,7 +575,7 @@ export default async function TournamentPage({
           value={totalCp}
           note={
             awardsCp(season, cpKind)
-              ? `temporada ${season}`
+              ? snap.config.season
               : tr(lng, "x.a804cac4")
           }
           highlight={totalCp > 0}

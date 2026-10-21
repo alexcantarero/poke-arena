@@ -17,7 +17,7 @@ import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
-import { currentPlayer, loadConfig } from "@/lib/data";
+import { cargarPendientesDe, currentPlayer, loadConfig } from "@/lib/data";
 import { logout } from "@/actions";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
+  // v0.54 — mis partidas sin resultado: el número del menú.
+  const misPendientes = me ? await cargarPendientesDe(me.id) : [];
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   if (!me) redirect("/entrar");
 
@@ -61,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </SeasonPokemonTrigger>
         </div>
 
-        <Sidebar meId={me.id} lang={lang} />
+        <Sidebar meId={me.id} lang={lang} pendientes={misPendientes.length} />
 
         <div className="mt-auto flex flex-col gap-2 pt-4">
           <Link className="btn btn-brand w-full" href="/partidas/nueva">
@@ -136,7 +138,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
 
-      <BottomNav meId={me.id} lang={lang} />
+      <BottomNav meId={me.id} lang={lang} pendientes={misPendientes.length} />
 
       {/* El aviso de «guardado correctamente» / «no se ha podido guardar».
           Va aquí, en el layout, y no en cada pantalla: el mensaje lo deja una

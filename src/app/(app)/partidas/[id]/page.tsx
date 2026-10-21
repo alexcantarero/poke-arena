@@ -7,12 +7,12 @@ import { archetypeValue } from "@/lib/types";
 import { maxRondasDe } from "@/lib/estructura";
 import { margenDe } from "@/lib/premios";
 import { RoundForm } from "@/components/RoundForm";
-import { fmtDateLong } from "@/lib/format";
+import { fechaCorta, fmtDateLong } from "@/lib/format";
 import { Avatar, PageHead, Sprites } from "@/components/ui";
 import { MatchForm } from "@/components/MatchForm";
 import { DeckList } from "@/components/DeckList";
 import { Icon } from "@/components/icons";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
@@ -103,6 +103,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             ? <Link className="btn btn-ghost btn-sm" href={`/competiciones/${match.competitionId}`}><Icon name="back" className="size-4" /> {tr(lng, "x.0582c003")}</Link>
             : <Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> {tr(lng, "x.b164a1ab")}</Link>}
       />
+      {/* v0.54 — el rastro: si alguien corrigió el resultado, quién y cuándo. */}
+      {match.updatedAt && (
+        <p className="-mt-2 mb-3 text-xs text-muted">
+          {trf(lng, "rr.corregidoPor", {
+            n: (match.updatedBy && snap.playersById.get(match.updatedBy)?.name) || "—",
+            f: fechaCorta(new Date(match.updatedAt).toISOString(), lng === "en" ? "en-GB" : "es-ES"),
+          })}
+        </p>
+      )}
 
       {!pending && (
         <section className="card mb-6 p-4">

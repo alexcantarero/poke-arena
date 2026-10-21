@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.54.0] — 2026-10-20
+
+Resultados a un toque desde las listas, tus pendientes primero y rastro de correcciones.
+**Lleva migración:** `drizzle/0020_v0_54_0.sql` (la lanza `npm run db:migrar`).
+
+### Añadido
+
+- **Resultado rápido desde la lista de pendientes de la liga**: «Resultado» despliega los
+  marcadores del formato de esa partida (y el empate por tiempo); un toque y guardado, sin abrir
+  el formulario. Son formularios normales: funcionan sin JavaScript. El formulario completo sigue
+  a un toque, «Más detalle». Misma regla de permisos que el guardado normal.
+- **Tus partidas pendientes, lo primero de Inicio**, con el mismo resultado rápido.
+- **Notificaciones, las justas**: un número en el menú con tus partidas sin resultado (sobre
+  «Liga» en la barra lateral y sobre «Inicio» en el móvil). Nada de avisos al teléfono.
+- **Rastro de correcciones**: columnas `matches.updated_by` y `updated_at`. Corregir un resultado
+  deja quién y cuándo, y la ficha de la partida lo enseña.
+- `src/lib/marcador.ts` (puro): marcadores por formato y reparto de juegos, 3 pruebas.
+
+### Cambiado
+
+- **Un solo nombre de temporada en pantalla, «Temporada 1»**, en Inicio, Ranking y Torneos. Por
+  dentro, los CP siguen contándose por la temporada oficial de Play! Pokémon (2027), que es la de
+  sus tablas. La frase para confirmar el borrado de una temporada sigue llevando el año: es lo
+  que identifica qué se borra.
+
+### Verificado
+
+- `npm run verificar`: **549 de 549**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.53.0] — 2026-10-20
 
 Registrar resultado en el móvil, con un toque. **Sin migración.**
