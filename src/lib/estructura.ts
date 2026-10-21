@@ -556,3 +556,31 @@ export function maxRondasDe(t: TorneoForma): number | null {
   const corte = f.asimetrico ? Math.max(f.corte, TOP_CUT_MAXIMO_TCG) : f.corte;
   return f.suizo + rondasDeCorte(corte);
 }
+
+/* =========================================================================
+   v0.57 — El formato (Bo1 / Bo3 / Bo5) de cada ronda, según su fase.
+
+   El suizo y el top cut pueden jugarse a distinto número de juegos (lo típico
+   en online: suizo a Bo1, corte a Bo3). La frontera es la misma que usa todo
+   lo demás: `formaDe(t).suizo` es el total del suizo —el oficial por asistencia
+   o el tecleado—, y una ronda con número mayor es del top cut. Sin suizo
+   conocido, todo es suizo.
+   ========================================================================= */
+
+export type FaseRonda = "suizo" | "corte";
+
+export function faseDeRonda(t: TorneoForma, round: number): FaseRonda {
+  const f = formaDe(t);
+  return f.suizo && round > f.suizo ? "corte" : "suizo";
+}
+
+const formatoValido = (n?: number | null) => (n === 1 || n === 3 || n === 5 ? n : null);
+
+/** Bo de una ronda: el del corte si es del corte y está puesto; si no, el del torneo. */
+export function bestOfDeRonda(
+  t: TorneoForma & { bestOf?: number | null; bestOfTop?: number | null },
+  round: number,
+): number {
+  const suizo = formatoValido(t.bestOf) ?? 3;
+  return faseDeRonda(t, round) === "corte" ? formatoValido(t.bestOfTop) ?? suizo : suizo;
+}

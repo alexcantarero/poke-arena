@@ -1362,6 +1362,9 @@ const ES = {
   "bv.siguiente": "Siguiente",
   "bv.listo": "Listo",
   "bv.saltar": "Saltar",
+  // v0.57 — formato por fase.
+  "tf.boCorte": "Formato del top cut",
+  "tf.igual": "Igual",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2698,6 +2701,9 @@ const EN: Record<I18nKey, string> = {
   "bv.siguiente": "Next",
   "bv.listo": "Done",
   "bv.saltar": "Skip",
+  // v0.57 — formato por fase.
+  "tf.boCorte": "Top cut format",
+  "tf.igual": "Same",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

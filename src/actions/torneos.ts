@@ -17,7 +17,7 @@ import { cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { importarTorneos, type FilaClasificacion, type TorneoRemoto } from "@/lib/limitlessImport";
 import { fetchStandings, fetchTournaments } from "@/lib/sources/limitless";
-import { familiaDe, maxRondasDe } from "@/lib/estructura";
+import { bestOfDeRonda, familiaDe, maxRondasDe } from "@/lib/estructura";
 import { currentPlayer } from "@/lib/data";
 import { TOURNAMENT_STATUSES } from "@/lib/types";
 import {
@@ -46,6 +46,8 @@ export async function saveTournament(fd: FormData) {
     scope: str(fd, "scope") === "online" ? "online" : "onsite",
     format: str(fd, "format") || "standard",
     bestOf: int(fd, "bestOf", 3, 1, 5),
+    // v0.57 — el formato del top cut; 0 o cualquier otra cosa = igual que el suizo.
+    bestOfTop: ((v) => (v === 1 || v === 3 || v === 5 ? v : null))(int(fd, "bestOfTop", 0, 0, 5)) as number | null,
     date,
     endDate: isoDate(fd, "endDate", null),
     startTime: timeOfDay(fd, "startTime"),
@@ -399,7 +401,8 @@ export async function saveTournamentRound(fd: FormData) {
         : `Este torneo admite como mucho ${tope} rondas (suizo + top cut).`));
   }
 
-  const bestOf = [1, 3, 5].includes(tour.bestOf) ? tour.bestOf : 3;
+  // v0.57 — el formato de ESTA ronda: el del top cut si es del corte, el del suizo si no.
+  const bestOf = bestOfDeRonda(tour, round);
 
   /* v0.15 — el rival puede ser alguien del grupo. Se comprueba que exista y
      que no seas tú; si llega algo raro, se ignora y la ronda se guarda con el

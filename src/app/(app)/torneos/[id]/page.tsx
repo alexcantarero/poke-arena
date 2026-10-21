@@ -21,12 +21,14 @@ import { TournamentLifecycle } from "@/components/TournamentLifecycle";
 import { TournamentResultForm } from "@/components/TournamentResultForm";
 import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/RoundForm";
-import { etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
+import { bestOfDeRonda, etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
 import type { Pestana } from "@/components/CaminoAlCorte";
 import { deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Icon } from "@/components/icons";
 import { num } from "@/lib/format";
+import { marcadoresDe } from "@/lib/marcador";
+import { resultadoRapido } from "@/actions/partidas";
 
 /* =========================================================================
    La ficha del torneo, que es donde se hace el trabajo.
@@ -225,7 +227,7 @@ export default async function TournamentPage({
                 tournamentId={t.id}
                 playerId={pid}
                 round={siguiente}
-                bestOf={t.bestOf}
+                bestOf={bestOfDeRonda(t, siguiente) /* v0.57: según su fase */}
                 rivalDecks={deckOptions(snap, pid)}
                 archetypeOptions={archOptions}
                 myDecks={susDecks}
@@ -389,6 +391,25 @@ export default async function TournamentPage({
           nota: r.match.note || undefined,
           etapa: etiquetaEtapa,
           corte: etapa.tipo === "corte",
+          /* v0.57 — ronda ABIERTA (apuntada antes de jugar, sin resultado): el
+             resultado rápido en la propia fila, con los marcadores del formato de
+             esa ronda. Misma acción y mismos permisos que en la liga. */
+          resultadoRapido: canEditPlayerRounds && r.match.games.length === 0 && r.match.seriesResult == null ? (
+            <form action={resultadoRapido} className="flex flex-wrap items-center gap-1.5">
+              <input type="hidden" name="id" value={r.match.id} />
+              <input type="hidden" name="volver" value={`/torneos/${t.id}`} />
+              {marcadoresDe(r.match.bestOf).map(([a, b]) => (
+                <button key={`${a}-${b}`} type="submit" name="marcador" value={`${a}-${b}`}
+                  className={`min-h-10 min-w-12 rounded-lg border-2 border-line-soft bg-surface-2 px-2 font-display text-base font-extrabold tabular ${a > b ? "text-win hover:border-win" : "text-loss hover:border-loss"}`}>
+                  {a}–{b}
+                </button>
+              ))}
+              <button type="submit" name="marcador" value="empate"
+                className="min-h-10 rounded-lg border-2 border-line-soft bg-surface-2 px-2 text-xs font-semibold text-muted hover:border-tie">
+                {tr(lng, "rr.empateTiempo")}
+              </button>
+            </form>
+          ) : undefined,
           editar: canEditPlayerRounds ? (
             <span className="flex items-center gap-0.5">
               <Link
@@ -480,7 +501,7 @@ export default async function TournamentPage({
           tournamentId={t.id}
           playerId={me.id}
           round={nextRound}
-          bestOf={t.bestOf}
+          bestOf={bestOfDeRonda(t, nextRound) /* v0.57: según su fase */}
           rivalDecks={rivalDecks}
           archetypeOptions={archOptions}
           myDecks={myDecks}

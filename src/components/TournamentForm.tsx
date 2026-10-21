@@ -55,6 +55,7 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
     base?.bestOf
       ?? (base?.kind === "league_challenge" || base?.kind === "pokemon_challenge" ? 1 : 3),
   );
+  const [bestOfTop, setBestOfTop] = useState<number>(base?.bestOfTop ?? 0); // v0.57
   const [status, setStatus] = useState(base?.status ?? "open");
 
   const [playerCount, setPlayerCount] = useState<string>(
@@ -178,6 +179,20 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
               ))}
             </div>
             <input type="hidden" name="bestOf" value={bestOf} />
+          </div>
+
+          {/* v0.57 — el top cut puede jugarse a otro formato (en online, lo
+              típico es suizo a Bo1 y corte a Bo3). «Igual» = como el suizo. */}
+          <div className="flex flex-col gap-1.5">
+            <label className="label">{tr(lng, "tf.boCorte")}</label>
+            <div className="seg seg-brand w-full">
+              {[0, 1, 3, 5].map((n) => (
+                <button key={n} type="button" data-on={bestOfTop === n} onClick={() => setBestOfTop(n)}>
+                  {n === 0 ? tr(lng, "tf.igual") : `Bo${n}`}
+                </button>
+              ))}
+            </div>
+            <input type="hidden" name="bestOfTop" value={bestOfTop} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -15,6 +15,7 @@ import { withFlash } from "@/lib/flash";
 import {
   str, int, maybeInt, isoDate, bool, pick, refresh, requireActor, BEST_OF,
   msj,
+  syncTournamentRecord,
 } from "./_comun";
 import { leerMarcador, secuenciaDe } from "@/lib/marcador";
 
@@ -229,6 +230,11 @@ export async function resultadoRapido(fd: FormData) {
     seriesResult: r === "empate" ? "tie" : null,
     ...(correccion ? { updatedBy: actor.id, updatedAt: new Date() } : {}),
   }).where(eq(matches.id, id));
+  /* v0.57 — si es una ronda de torneo, el récord guardado del jugador en ese
+     torneo se pone al día, igual que al guardar la ronda por el formulario. Sin
+     esto, la ficha del torneo enseñaba el récord de antes hasta la siguiente
+     ronda. Sin mazo que fijar: eso solo pasa al elegirlo en el formulario. */
+  if (m.tournamentId) await syncTournamentRecord(m.tournamentId, m.playerAId);
   refresh();
   redirect(withFlash(volver, "ok", await msj(correccion ? "rr.corregido" : "rr.guardado")));
 }

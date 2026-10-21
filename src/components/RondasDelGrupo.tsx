@@ -69,6 +69,8 @@ export type RondaDetalle = {
   nota?: string;
   /** Enlace o acción para corregir la ronda. */
   editar?: ReactNode;
+  /** v0.57 — resultado rápido para una ronda ABIERTA: lo pinta quien llama, a todo el ancho bajo la fila. */
+  resultadoRapido?: ReactNode;
   /** v0.15.1 — avatar del rival cuando es alguien del grupo. */
   rivalAvatar?: ReactNode;
   /**
@@ -405,7 +407,7 @@ function Ronda({ r }: { r: RondaDetalle }) {
   const empate = r.ganados === r.perdidos;
 
   return (
-    <li className="flex items-start gap-3 px-3 py-2.5">
+    <li className="flex flex-wrap items-start gap-3 px-3 py-2.5">
       <span className="w-10 flex-none text-center">
         <span
           className={`block rounded px-1 py-0.5 font-mono text-[11px] font-bold
@@ -480,6 +482,7 @@ function Ronda({ r }: { r: RondaDetalle }) {
       {r.editar && (
         <span className="ml-1 flex-none self-center">{r.editar}</span>
       )}
+      {r.resultadoRapido && <div className="basis-full pt-2">{r.resultadoRapido}</div>}
     </li>
   );
 }

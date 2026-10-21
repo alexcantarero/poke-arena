@@ -485,6 +485,8 @@ export const tournaments = pgTable("tournaments", {
   format: text("format").notNull().default("standard"),
   /** Formato de serie del torneo: 1, 3 o 5. */
   bestOf: integer("best_of").notNull().default(3),
+  /** v0.57 — formato del TOP CUT, si es distinto del suizo (lo típico en online: suizo Bo1, corte Bo3). Nulo = igual que el suizo. */
+  bestOfTop: integer("best_of_top"),
   date: date("date").notNull(),
   endDate: date("end_date"),
   /** "HH:MM" en 24h, hora local del evento. Nulo si no se sabe. */

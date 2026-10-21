@@ -2,6 +2,29 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.57.0] — 2026-10-20
+
+Torneos: formato por fase y resultado rápido en la vista de rondas.
+**Lleva migración:** `drizzle/0021_v0_57_0.sql` (la lanza `npm run db:migrar`).
+
+### Añadido
+
+- **Formato del top cut, aparte del suizo** (`tournaments.best_of_top`): en el formulario del
+  torneo, «Formato del top cut»: Igual · Bo1 · Bo3 · Bo5. Lo típico en online: suizo a Bo1 y
+  corte a Bo3. «Igual» (nulo) es lo de siempre.
+  - `faseDeRonda()` y `bestOfDeRonda()` en `lib/estructura.ts` (puras, 4 pruebas). La frontera
+    es la de siempre: `formaDe(t).suizo` (el oficial por asistencia o el tecleado); una ronda
+    mayor es del corte. Un Regional de 3.342: 14 de suizo, y la 15 ya es corte.
+  - El formulario de la ronda y el servidor usan el formato de SU fase. El servidor no se fía
+    del formulario: lo recalcula.
+- **Resultado rápido en las rondas abiertas** (las apuntadas antes de jugar): los marcadores del
+  formato de esa ronda en la propia fila, un toque y guardado. Misma acción y permisos que en la
+  liga, y **pone al día el récord guardado** del jugador en el torneo, como el formulario normal.
+
+### Verificado
+
+- `npm run verificar`: **553 de 553**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.56.0] — 2026-10-20
 
 Pulido: barra lateral plegable, contenido más ancho, gráfica del Elo, contraste, glosario y
