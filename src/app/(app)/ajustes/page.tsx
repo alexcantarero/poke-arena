@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { fmtDate } from "@/lib/format";
@@ -64,7 +65,9 @@ export default async function SettingsPage() {
     { href: "#invitaciones", label: tr(lng, "x.4b1f6ef2") },
     { href: "#liga", label: tr(lng, "x.942efd43") },
     { href: "#metagame", label: "Metagame" },
-    { href: "#sin-conexion", label: tr(lng, "x.33b7e702") },
+    // v0.53 — «Sin conexión» no se entendía: es la salida de emergencia del modo
+    // sin conexión (v0.35), y ahora el atajo lo dice.
+    { href: "#sin-conexion", label: tr(lng, "aj.atajoOffline") },
   ];
 
   return (
@@ -119,7 +122,10 @@ export default async function SettingsPage() {
             </div>
           </section>
 
-          <Grupo id="invitaciones" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "x.efa1da23")}>
+          {/* v0.53 — el texto de antes («cualquiera con el enlace puede darse de alta»)
+              asustaba con razón y no era verdad: cada enlace es de UN uso por defecto,
+              caduca a los 14 días y se puede anular. Ahora lo dice. */}
+          <Grupo id="invitaciones" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
           <InviteManager invites={invites} />
 
           </Grupo>
@@ -284,6 +290,12 @@ export default async function SettingsPage() {
               </button>
             </form>
           </div>
+
+          {/* --- v0.52: diagnóstico de Ciphermaniac --- */}
+          <Link href="/ajustes/ciphermaniac" className="card mb-4 block p-4 hover:ring-1 hover:ring-info/50">
+            <p className="label mb-1">{tr(lng, "cm.enlace")}</p>
+            <p className="text-sm text-muted">{tr(lng, "cm.enlaceSub")}</p>
+          </Link>
 
           {/* --- v0.44: torneos online semanales previstos en el calendario --- */}
           <div className="card mb-4 p-4">

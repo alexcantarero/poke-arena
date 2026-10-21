@@ -33,6 +33,7 @@
 
 import "server-only";
 import { mejoresListas, type ResultadoConLista } from "@/lib/listasLimitless";
+import { acumular, nuevoAcumulado, resumen, type Clasif, type Emparejamiento } from "@/lib/emparejamientosOnline";
 
 const API = "https://play.limitlesstcg.com/api";
 
@@ -692,4 +693,37 @@ export async function fetchMejoresListas(
     torneos: porTorneo.length,
     fallidos,
   };
+}
+
+/** v0.52 — los emparejamientos de un torneo: quién jugó contra quién y quién ganó. */
+export async function fetchPairings(id: string, apiKey?: string): Promise<Emparejamiento[]> {
+  const rows = await get<Emparejamiento[]>(`/tournaments/${encodeURIComponent(id)}/pairings`, apiKey);
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * v0.52 — la matriz de emparejamientos del meta online, con partidas reales.
+ *
+ * Mismos torneos que Top Decks (misma ventana y mínimo de jugadores), así que
+ * las clasificaciones suelen estar ya en la caché. En tandas de cinco torneos,
+ * dos llamadas por torneo. Un torneo que no responde se cuenta y no tumba nada.
+ */
+export async function fetchMatrizMeta(opts: MetaOptions & { top?: number; minPartidas?: number } = {}) {
+  const { days = 30, limit = 20, minPlayers = 16, format = "STANDARD", apiKey, top = 12, minPartidas = 30 } = opts;
+  const desde = Date.now() - days * 86400000;
+  const lista = (await fetchTournaments({ limit, format, apiKey }))
+    .filter((t) => (t.players ?? 0) >= minPlayers)
+    .filter((t) => { const d = Date.parse(t.date); return Number.isFinite(d) ? d >= desde : true; });
+
+  const acc = nuevoAcumulado();
+  let torneos = 0, fallidos = 0;
+  for (let i = 0; i < lista.length; i += 5) {
+    const tanda = lista.slice(i, i + 5);
+    const res = await Promise.allSettled(tanda.map((t) => Promise.all([fetchStandings(t.id, apiKey), fetchPairings(t.id, apiKey)])));
+    for (const r of res) {
+      if (r.status === "fulfilled") { acumular(acc, r.value[0] as Clasif[], r.value[1]); torneos++; }
+      else fallidos++;
+    }
+  }
+  return { acc, filas: resumen(acc, { top, minPartidas }), torneos, fallidos };
 }

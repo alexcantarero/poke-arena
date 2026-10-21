@@ -26,6 +26,8 @@ import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { tipoDePartida } from "@/lib/tiposPartida";
+import { Suspense } from "react";
+import { MetaOnline } from "@/components/statistics/MetaOnline";
 import { ConversionEvolucionLazy, HourlyChartLazy, SeguimientoJugadoresLazy, TrendLineChartLazy } from "@/components/statistics/lazy";
 import type { FilaSeguimiento } from "@/lib/seguimiento";
 import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
@@ -480,8 +482,17 @@ export default async function StatsPage({
           puesto era lo que hacía pensar que el filtro no funcionaba. */}
       {conLocal && (
       <>
+      {/* v0.52 — los bloques, en orden: meta, vuestro metagame, torneos, jugadores,
+          partidas y actividad. Antes la matriz iba a mitad y «cómo acaban las series»
+          al final, separada de la actividad que iba arriba. */}
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.meta")}</h2>
       {fuente !== "live" && (
-        <>
+        <Suspense fallback={<div className="card h-96 animate-pulse" aria-hidden="true" />}>
+          <MetaOnline />
+        </Suspense>
+      )}
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
+      {fuente !== "live" && (
           <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <KpiCard label={tr(lng, "x.64f94394")} value={rows.length} sub={`${totalGames} juegos disputados`} color="blue" />
             <KpiCard label={tr(lng, "x.ba25296c")} value={archs.length} sub={`${external} contra rivales externos`} color="purple" />
@@ -498,30 +509,7 @@ export default async function StatsPage({
               color="yellow"
             />
           </div>
-
-          {rows.length > 0 && (
-            <div className="my-4 grid gap-4 lg:grid-cols-2">
-              {/* v0.50 — seguimiento de jugadores, a todo el ancho. */}
-              <div className="lg:col-span-2">
-                <SeguimientoJugadoresLazy filas={filasSeguimiento} jugadores={jugadoresSeguimiento} />
-              </div>
-              <TrendLineChartLazy
-                data={prepareDailyTrend(rows, 30)}
-                title={tr(lng, "x.06d3e0cc")}
-                subtitle={tr(lng, "x.f1628585")}
-                valueLabel={tr(lng, "x.64f94394")}
-              />
-              <div className="min-w-0">
-                {/* v0.50 — cuatro tipos con su color; ver lib/tiposPartida. */}
-                <HourlyChartLazy
-                  data={prepareHourlyDistribution(rows, (m) => tipoDePartida(m, torneosOnline))}
-                />
-              </div>
-            </div>
-          )}
-        </>
       )}
-
       {hayFamilias && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="label">{tr(lng, "x.ba25296c")}</span>
@@ -576,10 +564,24 @@ export default async function StatsPage({
         </section>
       </div>
 
-      {/* v0.20 — fuera la gráfica «Victorias por arquetipo»: enseñaba exactamente
-          lo mismo que las barras de «Rendimiento» de arriba (mismos mazos, mismo
-          %V, mismo mínimo de 2 usos) y obligaba a cargar Recharts entero. */}
-
+      {fuente !== "live" && (
+        <section className="card mt-4">
+          <div className="card-head">
+            <h2 className="text-lg font-bold">{tr(lng, "x.f0c24bc6")}</h2>
+            <span className="text-xs text-muted">{tr(lng, "x.41b20a92")}</span>
+          </div>
+          <div className="p-4">
+            <Matrix data={matrix} byId={matrixArchById} />
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.8acc75fa")}</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.c8d5d524")}</span>
+              <span>{tr(lng, "x.341ee503")}</span>
+            </div>
+          </div>
+        </section>
+      )}
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.torneos")}</h2>
       {/* -------------------- rendimiento en torneos ------------------- */}
       {fuente !== "live" && placements.length > 0 && (
         <>
@@ -638,25 +640,13 @@ export default async function StatsPage({
           )}
         </>
       )}
-
-      {fuente !== "live" && (
-        <section className="card mt-4">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">{tr(lng, "x.f0c24bc6")}</h2>
-            <span className="text-xs text-muted">{tr(lng, "x.41b20a92")}</span>
-          </div>
-          <div className="p-4">
-            <Matrix data={matrix} byId={matrixArchById} />
-            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.8acc75fa")}</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.c8d5d524")}</span>
-              <span>{tr(lng, "x.341ee503")}</span>
-            </div>
-          </div>
-        </section>
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.jugadores")}</h2>
+      {fuente !== "live" && rows.length > 0 && (
+        <div>
+                <SeguimientoJugadoresLazy filas={filasSeguimiento} jugadores={jugadoresSeguimiento} />
+        </div>
       )}
-
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.partidas")}</h2>
       {fuente !== "live" && (
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <section className="card">
@@ -710,6 +700,22 @@ export default async function StatsPage({
                 : <p className="text-sm text-muted">{tr(lng, "x.197d9ce5")}</p>}
             </div>
           </section>
+        </div>
+      )}
+      {fuente !== "live" && rows.length > 0 && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <TrendLineChartLazy
+                data={prepareDailyTrend(rows, 30)}
+                title={tr(lng, "x.06d3e0cc")}
+                subtitle={tr(lng, "x.f1628585")}
+                valueLabel={tr(lng, "x.64f94394")}
+              />
+              <div className="min-w-0">
+                {/* v0.50 — cuatro tipos con su color; ver lib/tiposPartida. */}
+                <HourlyChartLazy
+                  data={prepareHourlyDistribution(rows, (m) => tipoDePartida(m, torneosOnline))}
+                />
+              </div>
         </div>
       )}
       </>

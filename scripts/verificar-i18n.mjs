@@ -154,7 +154,7 @@ const TXT = />\s*([^<>{}]*[A-Za-zÁÉÍÓÚáéíóúñÑ¿¡][^<>{}]*?)\s*</g;
 // Ojo: código es «t.date», con una letra DETRÁS del punto. «Sin partidas.» lo
 // lleva al final y es una frase: v0.49, antes se descartaban las frases.
 const ES_CODIGO = /^\(?[A-Za-z_]\w*\.[A-Za-z_]/;
-const RASGOS_DE_CODIGO = /\) :|\? \(|=>|&&|\|\||;|\bconst |className|\bnull\b|^\)|^:|\?$/;
+const RASGOS_DE_CODIGO = /\) :|\? \(|=>|===|!==|&&|\|\||;|\bconst |className|\bnull\b|^\)|^:|\?$/;
 const ATR = /\b(?:placeholder|title|aria-label|label|sub|emptyLabel|texto|alt)="([^"]*[A-Za-zñáéíóú][^"]*)"/g;
 
 const raiz = process.cwd();

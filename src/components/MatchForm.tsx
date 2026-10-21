@@ -9,7 +9,7 @@ import { Avatar } from "./ui";
 import { PrizePicker } from "@/components/PrizePicker";
 import { DeckPicker } from "./DeckPicker";
 import type { DeckOption } from "@/lib/types";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
 /** Un juego mientras se edita en el formulario. */
@@ -173,6 +173,35 @@ export function MatchForm({
   const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
+
+  /* v0.53 — MODO RÁPIDO por defecto. El resultado se mete con un toque
+     (2-0, 2-1, 1-2, 0-2, o empate por tiempo); el juego a juego, con premios,
+     quién empezó y mulligans, solo si se pide con «Detallar juegos». Al editar
+     una partida que ya tiene detalle apuntado, se abre en detalle para no
+     esconderlo. */
+  const [modo, setModo] = useState<"rapido" | "detalle">(() =>
+    games.some((g) => g.first || g.archA || g.archB || g.premiosA != null || g.premiosB != null || g.penalizadoA || g.penalizadoB)
+      ? "detalle" : "rapido");
+  /* El empate por tiempo es un estado de la PARTIDA (se guarda como
+     `seriesResult = "tie"`), no «1-1 y un juego empatado». */
+  const [empateTiempo, setEmpateTiempo] = useState<boolean>(match?.seriesResult === "tie" && !(match?.games.length));
+
+  /* Los marcadores posibles para el formato: del que más gana el de la
+     izquierda al que más pierde. */
+  const marcadores: Array<[number, number]> = [];
+  for (let l = 0; l < need; l++) marcadores.push([need, l]);
+  for (let w = need - 1; w >= 0; w--) marcadores.push([w, need]);
+
+  /** Rellena los juegos para un marcador. El orden real no se apunta en modo
+      rápido: se alternan y el último lo gana quien gana la serie. */
+  const elegirMarcador = (a: number, b: number) => {
+    const gana = a > b ? "a" : "b", pierde = a > b ? "b" : "a";
+    const seq: string[] = [];
+    for (let k = 0; k < Math.min(a, b); k++) seq.push(gana, pierde);
+    for (let ganados = Math.min(a, b); ganados < Math.max(a, b); ganados++) seq.push(gana);
+    setEmpateTiempo(false);
+    setGames((gs) => gs.map((g, i) => ({ ...g, winner: seq[i] ?? "" })));
+  };
   const A = players.find((p) => p.id === aId);
   const B = external ? undefined : players.find((p) => p.id === bId);
   const bLabel = external ? "Rival" : B?.name ?? "B";
@@ -188,7 +217,7 @@ export function MatchForm({
   // Una serie vale cuando alguien llega a la mayoría, o cuando se han jugado
   // todos los juegos: un Bo3 que acaba 1-1 con el tercero empatado por tiempo
   // es un resultado normal y tiene que poder guardarse.
-  const decided = score.a >= need || score.b >= need || played === bestOf;
+  const decided = empateTiempo || score.a >= need || score.b >= need || played === bestOf;
   const sameTwice = !external && aId === bId;
   const canSave = !sameTwice && aId && decided;
 
@@ -360,7 +389,52 @@ export function MatchForm({
             <span className="max-w-20 truncate text-xs text-muted">{bLabel}</span>
           </div>
         </div>
+        {/* v0.53 — el resultado dicho, antes de guardar */}
+        {decided && (
+          <p className={`-mt-2 mb-4 text-center text-sm font-semibold ${empateTiempo || score.a === score.b ? "text-tie" : score.a > score.b ? "text-win" : "text-loss"}`}>
+            {empateTiempo ? tr(lng, "rr.resEmpateTiempo")
+              : score.a === score.b ? tr(lng, "rr.resEmpate")
+              : trf(lng, "rr.resGana", { n: score.a > score.b ? (A?.name ?? "A") : bLabel })}
+          </p>
+        )}
 
+        {/* v0.53 — modo rápido / detallar juegos */}
+        <div className="mb-3 flex gap-1.5" role="group" aria-label={tr(lng, "rr.modo")}>
+          <button type="button" aria-pressed={modo === "rapido"} onClick={() => setModo("rapido")}
+            className={`chip ${modo === "rapido" ? "chip-brand" : ""}`}>{tr(lng, "rr.rapido")}</button>
+          <button type="button" aria-pressed={modo === "detalle"} onClick={() => setModo("detalle")}
+            className={`chip ${modo === "detalle" ? "chip-brand" : ""}`}>{tr(lng, "rr.detallar")}</button>
+        </div>
+
+        {modo === "rapido" ? (
+          <>
+            <div className="grid grid-cols-2 gap-2 xs:grid-cols-4">
+              {marcadores.map(([a, b]) => {
+                const activo = !empateTiempo && score.a === a && score.b === b;
+                const gana = a > b;
+                return (
+                  <button key={`${a}-${b}`} type="button" aria-pressed={activo} onClick={() => elegirMarcador(a, b)}
+                    className={`flex min-h-14 flex-col items-center justify-center rounded-xl border-2 px-2 py-2 transition-colors
+                      ${activo ? (gana ? "border-win bg-win/15" : "border-loss bg-loss/15") : "border-line-soft bg-surface-2"}`}>
+                    <span className={`font-display text-2xl font-extrabold tabular ${gana ? "text-win" : "text-loss"}`}>{a}–{b}</span>
+                    <span className="max-w-full truncate text-[11px] text-muted">{gana ? A?.name : bLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" aria-pressed={empateTiempo} onClick={() => setEmpateTiempo((v) => !v)}
+              className={`mt-2 w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold
+                ${empateTiempo ? "border-tie bg-tie/15 text-ink" : "border-line-soft bg-surface-2 text-muted"}`}>
+              {tr(lng, "rr.empateTiempo")}
+            </button>
+            {/* Lo que viaja: los juegos del marcador elegido, sin más detalle. */}
+            {!empateTiempo && games.slice(0, bestOf).map((g, i) => g.winner && (
+              <input key={i} type="hidden" name={`g${i}_winner`} value={g.winner} />
+            ))}
+            <p className="mt-2 text-xs text-muted">{tr(lng, "rr.notaRapido")}</p>
+          </>
+        ) : (
+          <>
         <div className="flex flex-col gap-3">
           {Array.from({ length: bestOf }, (_, i) => {
             const over = isOver(i);
@@ -488,6 +562,14 @@ export function MatchForm({
             );
           })}
         </div>
+            <button type="button" aria-pressed={empateTiempo} onClick={() => setEmpateTiempo((v) => !v)}
+              className={`mt-3 w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold
+                ${empateTiempo ? "border-tie bg-tie/15 text-ink" : "border-line-soft bg-surface-2 text-muted"}`}>
+              {tr(lng, "rr.empateTiempo")}
+            </button>
+          </>
+        )}
+        <input type="hidden" name="empate_tiempo" value={empateTiempo ? "1" : ""} />
 
         {!decided && (
           <p className="mt-3 text-sm text-muted">
@@ -535,8 +617,14 @@ export function MatchForm({
         </div>
       </details>
 
-      <div className="sticky bottom-nav z-20 flex gap-2 md:static">
-        <button className="btn btn-brand flex-1 text-base" type="submit" disabled={!canSave}>
+      {/* v0.53 — barra OPACA: antes el botón desactivado era translúcido y el
+          Juego 2 se veía a través, como si estuviera roto. Y dice qué falta. */}
+      <div className="sticky bottom-nav z-20 -mx-3 flex flex-col gap-1.5 border-t border-line bg-ground px-3 pb-2 pt-2 md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+        {!canSave && (
+          <p className="text-center text-xs text-muted">{!aId ? tr(lng, "rr.faltaJugador") : sameTwice ? tr(lng, "rr.mismoJugador") : tr(lng, "rr.faltaResultadoCorto")}</p>
+        )}
+        <div className="flex gap-2">
+        <button className="btn btn-brand flex-1 text-base disabled:opacity-100 disabled:bg-surface-2 disabled:text-muted" type="submit" disabled={!canSave}>
           {match ? "Guardar cambios" : tr(lng, "x.46ee46f3")}
         </button>
         {match && (
@@ -544,6 +632,7 @@ export function MatchForm({
             {tr(lng, "x.d7b82b21")}
           </button>
         )}
+        </div>
       </div>
     </form>
   );

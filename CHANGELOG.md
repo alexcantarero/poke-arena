@@ -2,6 +2,76 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.53.0] — 2026-10-20
+
+Registrar resultado en el móvil, con un toque. **Sin migración.**
+
+### Cambiado — registrar partida
+
+- **Modo rápido por defecto**: el resultado se mete con un toque —2-0, 2-1, 1-2, 0-2 en Bo3; 1-0,
+  0-1 en Bo1; y los de Bo5—, en verde si gana el de la izquierda y en rojo si pierde. El juego a
+  juego (quién empezó, mulligans, premios y penalización) queda detrás de **«Detallar juegos»**.
+  Al editar una partida que ya tiene detalle apuntado, se abre en detalle para no esconderlo.
+- **Empate por tiempo**, como estado de la PARTIDA (`seriesResult = "tie"`), no «1-1 y un juego
+  empatado»: no se inventan juegos que no se jugaron. En los dos modos.
+- **El resultado dicho antes de guardar** («Gana Ibai», «Empate por tiempo»).
+- **El botón de guardar, en una barra opaca** que dice qué falta. Antes, desactivado, era
+  translúcido y el Juego 2 se veía a través, como si la pantalla estuviera rota.
+
+### Corregido
+
+- **Una partida sin juegos no se guardaba y no avisaba**: la acción salía sin decir nada. Ahora,
+  sin juegos solo vale el empate por tiempo, y si falta el resultado lo dice.
+
+### Añadido
+
+- **Camino al Mundial: cuándo se actualizó cada puesto**, bajo el nombre, y el dato más reciente
+  en la cabecera. El dato ya se guardaba (`rankZoneUpdatedAt`); no se enseñaba.
+
+### Ajustes
+
+- El atajo «Sin conexión» no se entendía: ahora dice «Si la app no se actualiza», que es para lo
+  que sirve (la salida de emergencia del modo sin conexión de la v0.35).
+- Invitaciones: el texto «cualquiera con el enlace puede darse de alta» asustaba y no era verdad.
+  Cada enlace es de un uso por defecto, caduca a los 14 días y se puede anular; ahora lo dice.
+
+### Verificado
+
+- `npm run verificar`: **546 de 546**, `tsc` sin errores. `npm run build`: pendiente.
+
+## [0.52.0] — 2026-10-19
+
+Meta online con partidas reales, Estadísticas reordenada y Ciphermaniac. **Sin migración.**
+
+### Añadido
+
+- **Meta online: cómo rinde cada mazo** (primer bloque de Estadísticas). Cruza dos endpoints
+  oficiales de Limitless, `/standings` (el mazo de cada jugador) y `/pairings` (quién jugó contra
+  quién y quién ganó): es el uso que su propia documentación pone de ejemplo. Antes el % de un
+  arquetipo salía del récord final de cada jugador; ahora sale de cada partida.
+  - **% de victorias por arquetipo**, en barras con la línea del 50 %.
+  - **Matriz de emparejamientos** fila contra columna: verde gana, rojo pierde, con las partidas.
+    Por debajo de 5 partidas no da %; por debajo de 30, el arquetipo no entra.
+  - **Fuera del cálculo, y se dice cuántos**: byes, dobles derrotas, partidas con un mazo
+    desconocido y **espejos**, que siempre dan 50 % y no dicen nada del mazo.
+  - Componente de servidor, sin Recharts, dentro de un `<Suspense>`: la página no espera.
+  - `src/lib/emparejamientosOnline.ts` (puro), 7 pruebas, una de privacidad.
+- **Ciphermaniac**: cliente (`src/lib/sources/ciphermaniac.ts`) según su documentación —se
+  identifica, cachea 6 h, entra por `reports/tournaments.json`, no adivina rutas— y **página de
+  diagnóstico** en Ajustes. Su documentación no da los nombres de los campos, así que el lector es
+  defensivo y el diagnóstico enseña qué responde de verdad cada fichero. No pide los que traen
+  nombres de jugadores (`decks.json`, `players.json`).
+
+### Cambiado
+
+- **Estadísticas, en cinco bloques con título y en orden**: Meta · Vuestro metagame (cifras,
+  arquetipos, rendimiento, matriz) · Torneos · Jugadores · Partidas y actividad. Antes la matriz
+  iba a mitad, y «cómo acaban las series» al final, separada de la actividad, que iba arriba.
+
+### Verificado
+
+- `npm run verificar`: **546 de 546**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.51.0] — 2026-10-19
 
 Listas de Top Decks con sus cartas, top cut enlazado a Limitless y los ejes de Elo y Ladder.

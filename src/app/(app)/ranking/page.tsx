@@ -13,9 +13,9 @@ import { estadoMundial, porPuestoZona } from "@/lib/mundial";
 import { FECHAS_RANKING, dentroDeRango, filtroAQuery, parseFiltroRanking, rangoDeFechas } from "@/lib/rankingFiltro";
 import { AutoSubmitForm } from "@/components/AutoSubmitForm";
 import { CALENDAR_KINDS } from "@/lib/calendar";
-import { todayISO } from "@/lib/format";
+import { fechaCorta, todayISO } from "@/lib/format";
 import { getLang } from "@/lib/lang";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { FavStar } from "@/components/FavStar";
 import { rankingTorneos, type EntradaTorneo } from "@/lib/rankingTorneos";
 import { claveRonda, matrizH2H, type Encuentro } from "@/lib/h2h";
@@ -253,6 +253,12 @@ export default async function RankingPage({
     .filter((p) => p.active && visible(p.id))
     .sort(porPuestoZona);
   const conPuesto = zona.filter((p) => p.rankEurope != null).length;
+  // v0.53 — la actualización más reciente de un puesto, para la cabecera.
+  const ultimaZona = zona.reduce<string | null>((max, p) => {
+    if (!p.rankZoneUpdatedAt) return max;
+    const iso = new Date(p.rankZoneUpdatedAt).toISOString();
+    return !max || iso > max ? iso : max;
+  }, null);
 
   const ladder = ladderStandings(snap.players.filter((p) => p.active));
   /* v0.18 — el líder del ladder y su evolución desde el último reset. */
@@ -451,6 +457,10 @@ export default async function RankingPage({
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{tr(lang, "zone.title")} · {tr(lang, "zone.europe")}</h2>
             <p className="text-xs text-muted">{tr(lang, "zone.sub")}</p>
+            {/* v0.53 — el dato más reciente de todos, para saber si la tabla está al día. */}
+            {ultimaZona && (
+              <p className="text-xs text-muted tabular">{trf(lang, "zone.ultima", { f: fechaCorta(ultimaZona, lang === "en" ? "en-GB" : "es-ES") })}</p>
+            )}
           </div>
           {plazas != null && (
             <span className="chip chip-brand flex-none tabular" title={tr(lang, "zone.slots")}>Top {plazas}</span>
@@ -475,7 +485,16 @@ export default async function RankingPage({
                     </div>
                   )}
                   <div className={`flex items-center gap-2 px-3 py-2.5 xs:gap-3 xs:px-4 ${p.id === meId ? "bg-surface-2" : ""}`}>
-                    <PlayerTag player={p} size="sm" className="min-w-0 flex-1" />
+                    {/* v0.53 — bajo el nombre, cuándo actualizó su puesto: un 140.º de
+                        ayer no vale lo mismo que uno de hace un mes. */}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <PlayerTag player={p} size="sm" className="min-w-0" />
+                      {p.rankZoneUpdatedAt && (p.rankEurope != null || p.rankSpain != null) && (
+                        <span className="pl-9 text-[10px] text-muted tabular">
+                          {trf(lang, "zone.actualizado", { f: fechaCorta(new Date(p.rankZoneUpdatedAt).toISOString(), lang === "en" ? "en-GB" : "es-ES") })}
+                        </span>
+                      )}
+                    </span>
                     <span className="flex w-14 flex-none flex-col items-center text-center xs:w-16">
                       <span className="font-display text-lg font-extrabold leading-none tabular">
                         {p.rankEurope != null ? `${p.rankEurope}.º` : "—"}

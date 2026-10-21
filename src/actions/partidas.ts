@@ -68,6 +68,11 @@ export async function saveMatch(fd: FormData) {
       ? (str(fd, "deckBId").startsWith("arch:") ? str(fd, "deckBId").slice(5) || null : null)
       : (str(fd, "opponentArchetypeId") || null),
     bestOf,
+    /* v0.53 — el resultado de la SERIE cuando no se apuntan juegos: hoy, solo el
+       empate por tiempo. Un Bo3 que acaba por tiempo es un estado de la partida,
+       no «1-1 y un juego empatado»: no se inventan juegos que no se jugaron.
+       `outcome()` ya sabe leer una partida sin juegos con `seriesResult`. */
+    seriesResult: (str(fd, "empate_tiempo") === "1" ? "tie" : null) as string | null,
     status: "done" as const,
     note: str(fd, "note").slice(0, 500),
     createdBy: actor.id,
@@ -122,7 +127,11 @@ export async function saveMatch(fd: FormData) {
       archetypeBId: str(fd, `g${i}_archB`) || null,
     });
   }
-  if (!rows.length) return;
+  // v0.53 — sin juegos solo vale un empate por tiempo. Antes, sin juegos, la
+  // acción salía SIN GUARDAR y sin decir nada.
+  if (!rows.length && values.seriesResult !== "tie") {
+    redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error", await msj("rr.faltaResultado")));
+  }
 
   // v0.25 — regla de liga: no se repite un arquetipo con el que ya ganaste un
   // juego de esta serie. Los ids tienen que existir (no se fía del formulario).
@@ -168,7 +177,7 @@ export async function saveMatch(fd: FormData) {
   } else {
     await db.insert(matches).values({ id, ...values });
   }
-  await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
+  if (rows.length) await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
   refresh();
   redirect(withFlash("/resultados", "ok", editing ? "Partida guardada." : "Partida registrada."));
 }
