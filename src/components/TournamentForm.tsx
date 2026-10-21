@@ -33,42 +33,48 @@ import { useLang } from "@/components/LangProvider";
 type Props = {
   season: number;
   tournament?: Tournament;
+  /** v0.55 — otro torneo del que copiar la estructura. Solo rellena valores por defecto: nunca su id, así que siempre CREA uno nuevo. */
+  plantilla?: Tournament;
   /** A dónde volver si se cancela. */
   back?: string;
 };
 
-export function TournamentForm({ season, tournament, back = "/torneos" }: Props) {
+export function TournamentForm({ season, tournament, back = "/torneos", plantilla}: Props) {
+  /* v0.55 — de dónde salen los valores por defecto: el torneo que se edita o, si
+     se crea uno nuevo, la plantilla. Lo que decide «editar» sigue siendo SOLO
+     `tournament` (el id oculto, el botón), así que una plantilla nunca edita. */
+  const base = tournament ?? plantilla;
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const kinds = useMemo(() => eventKinds(season), [season]);
   const labelOf = (k: string) => kinds.find((x) => x.value === k)?.label ?? k;
 
-  const [kind, setKind] = useState(tournament?.kind ?? "store");
-  const [scope, setScope] = useState(tournament?.scope ?? "onsite");
+  const [kind, setKind] = useState(base?.kind ?? "store");
+  const [scope, setScope] = useState(base?.scope ?? "onsite");
   const [bestOf, setBestOf] = useState(
-    tournament?.bestOf
-      ?? (tournament?.kind === "league_challenge" || tournament?.kind === "pokemon_challenge" ? 1 : 3),
+    base?.bestOf
+      ?? (base?.kind === "league_challenge" || base?.kind === "pokemon_challenge" ? 1 : 3),
   );
-  const [status, setStatus] = useState(tournament?.status ?? "open");
+  const [status, setStatus] = useState(base?.status ?? "open");
 
   const [playerCount, setPlayerCount] = useState<string>(
-    tournament?.playerCount != null ? String(tournament.playerCount) : "",
+    base?.playerCount != null ? String(base!.playerCount) : "",
   );
   /* v0.45 — la estructura, en tres piezas: rondas de la fase 1, una segunda
      fase suiza opcional y el tamaño del corte. `rounds` en la base sigue
      siendo el TOTAL de rondas suizas (fase 1 + fase 2), así que al editar se
      reparte de vuelta. */
-  const f2Guardada = tournament?.roundsPhase2 ?? null;
+  const f2Guardada = base?.roundsPhase2 ?? null;
   const [conFase2, setConFase2] = useState<boolean>(f2Guardada != null && f2Guardada > 0);
   const [rondasF2, setRondasF2] = useState<number>(f2Guardada && f2Guardada > 0 ? f2Guardada : 3);
   const [rounds, setRounds] = useState<string>(
-    tournament?.rounds != null
-      ? String(Math.max(1, tournament.rounds - (f2Guardada && f2Guardada < tournament.rounds ? f2Guardada : 0)))
+    base?.rounds != null
+      ? String(Math.max(1, base!.rounds - (f2Guardada && f2Guardada < base!.rounds ? f2Guardada : 0)))
       : "",
   );
-  const [corte, setCorte] = useState<number>(tournament?.topCut ?? 0);
+  const [corte, setCorte] = useState<number>(base?.topCut ?? 0);
   const [corteOtro, setCorteOtro] = useState<boolean>(
-    tournament?.topCut != null && tournament.topCut > 0 && ![4, 8, 16, 32].includes(tournament.topCut),
+    base?.topCut != null && base!.topCut > 0 && ![4, 8, 16, 32].includes(base!.topCut),
   );
 
   // v0.15: los torneos online no reparten CP aunque se llamen Challenge.
@@ -96,6 +102,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
       {tournament && <input type="hidden" name="id" value={tournament.id} />}
       {/* Campos que este formulario no pinta pero la acción reescribe: si no
           viajan, editar la sede borraba la temporada y el país. */}
+      {/* v0.55 — solo al EDITAR: un torneo nuevo, venga de plantilla o no, saca la temporada de su fecha. */}
       {tournament?.season != null && (
         <input type="hidden" name="season" value={tournament.season} />
       )}
@@ -107,7 +114,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             <label className="label" htmlFor="name">{tr(lng, "x.e68491e9")}</label>
             <input
               className="input" id="name" name="name" required maxLength={120}
-              defaultValue={tournament?.name ?? ""}
+              defaultValue={base?.name ?? ""}
               placeholder={tr(lng, "x.02760be0")}
             />
           </div>
@@ -155,7 +162,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
 
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="format">{tr(lng, "x.c25b742e")}</label>
-              <select className="input" id="format" name="format" defaultValue={tournament?.format ?? "standard"}>
+              <select className="input" id="format" name="format" defaultValue={base?.format ?? "standard"}>
                 {Object.entries(TOURNAMENT_FORMATS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -176,13 +183,13 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="date">{tr(lng, "x.bcc47609")}</label>
-              <input className="input" id="date" name="date" type="date" defaultValue={tournament?.date ?? todayISO()} />
+              <input className="input" id="date" name="date" type="date" defaultValue={base?.date ?? todayISO()} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="startTime">{tr(lng, "x.2c247b90")}</label>
               <input
                 className="input" id="startTime" name="startTime" type="time"
-                defaultValue={tournament?.startTime ?? ""}
+                defaultValue={base?.startTime ?? ""}
               />
             </div>
           </div>
@@ -203,7 +210,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
                   className="w-full bg-transparent outline-none" id="entryFee" name="entryFee"
                   type="number" min={0} step="0.01" inputMode="decimal"
                   defaultValue={
-                    tournament?.entryFeeCents != null ? (tournament.entryFeeCents / 100).toString() : ""
+                    base?.entryFeeCents != null ? (base!.entryFeeCents / 100).toString() : ""
                   }
                   placeholder="5"
                 />
@@ -278,11 +285,11 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <input className="input w-20 text-center tabular" type="number" inputMode="numeric"
                           name="phase2Points" min={1} max={150} aria-label={tr(lng, "x.963956af")}
-                          defaultValue={tournament?.phase2Points ?? ""} placeholder="16" />
+                          defaultValue={base?.phase2Points ?? ""} placeholder="16" />
                         <span className="text-muted">{tr(lng, "x.ca55bc5b")}</span>
                         <input className="input w-20 text-center tabular" type="number" inputMode="numeric"
                           name="phase2Top" min={2} max={512} aria-label={tr(lng, "x.7d78bca4")}
-                          defaultValue={tournament?.phase2Top ?? ""} placeholder="8" />
+                          defaultValue={base?.phase2Top ?? ""} placeholder="8" />
                       </div>
                       <p className="text-xs text-muted">{tr(lng, "x.193e6013")}</p>
                     </div>
@@ -292,7 +299,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
                         <div className="flex flex-wrap items-center gap-2 text-sm">
                           <input className="input w-20 text-center tabular" type="number" inputMode="numeric"
                             name="cutPoints" min={1} max={150} aria-label={tr(lng, "x.1d9afab1")}
-                            defaultValue={tournament?.cutPoints ?? ""} placeholder="24" />
+                            defaultValue={base?.cutPoints ?? ""} placeholder="24" />
                           <span className="text-muted">puntos, o el top {corte}</span>
                         </div>
                       </div>
@@ -358,13 +365,13 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="venue">{scope === "online" ? "Plataforma" : tr(lng, "x.34efdbdc")}</label>
               <input
-                className="input" id="venue" name="venue" defaultValue={tournament?.venue ?? ""}
+                className="input" id="venue" name="venue" defaultValue={base?.venue ?? ""}
                 placeholder={scope === "online" ? "PTCG Live" : tr(lng, "x.79e6fa20")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="city">{tr(lng, "x.c6fbe2dc")}</label>
-              <input className="input" id="city" name="city" defaultValue={tournament?.city ?? ""} placeholder={tr(lng, "x.55e20c99")} />
+              <input className="input" id="city" name="city" defaultValue={base?.city ?? ""} placeholder={tr(lng, "x.55e20c99")} />
             </div>
           </div>
 
@@ -398,7 +405,7 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="division">{tr(lng, "x.e65ae57c")}</label>
-                  <select className="input" id="division" name="division" defaultValue={tournament?.division ?? "masters"}>
+                  <select className="input" id="division" name="division" defaultValue={base?.division ?? "masters"}>
                     {Object.entries(DIVISIONS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
@@ -406,21 +413,21 @@ export function TournamentForm({ season, tournament, back = "/torneos" }: Props)
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="organizer">{tr(lng, "x.d6bf2c62")}</label>
-                  <input className="input" id="organizer" name="organizer" defaultValue={tournament?.organizer ?? ""} />
+                  <input className="input" id="organizer" name="organizer" defaultValue={base?.organizer ?? ""} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="endDate">{tr(lng, "x.8b739d03")}</label>
-                  <input className="input" id="endDate" name="endDate" type="date" defaultValue={tournament?.endDate ?? ""} />
+                  <input className="input" id="endDate" name="endDate" type="date" defaultValue={base?.endDate ?? ""} />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="label" htmlFor="url">{tr(lng, "x.4b0eaf1e")}</label>
                 <input className="input" id="url" name="url" type="url" inputMode="url"
-                  defaultValue={tournament?.url ?? ""} placeholder={tr(lng, "x.1f01350b")} />
+                  defaultValue={base?.url ?? ""} placeholder={tr(lng, "x.1f01350b")} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="label" htmlFor="notes">{tr(lng, "x.aa399cbf")}</label>
-                <textarea className="input" id="notes" name="notes" rows={2} defaultValue={tournament?.notes ?? ""} />
+                <textarea className="input" id="notes" name="notes" rows={2} defaultValue={base?.notes ?? ""} />
               </div>
             </div>
           </details>

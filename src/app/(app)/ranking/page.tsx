@@ -308,6 +308,8 @@ export default async function RankingPage({
             {snap.config.ptsWin} puntos por victoria y {snap.config.ptsTie} por empate. El <b>Elo</b> {tr(lng, "x.1c36bc40")}
           </>
         }
+        // v0.55 — las reglas, donde surge la duda.
+        actions={<Link className="btn btn-ghost btn-sm" href="/reglas">{tr(lng, "reg.enlaceRanking")}</Link>}
       />
 
       <section className="mb-4 overflow-hidden rounded-2xl border border-brand/25 bg-[linear-gradient(120deg,color-mix(in_oklab,var(--brand-soft)_70%,var(--surface)),var(--surface)_65%)] shadow-sm">

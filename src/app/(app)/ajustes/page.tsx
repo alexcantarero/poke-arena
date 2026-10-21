@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AbrirAncla } from "@/components/AbrirAncla";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { fmtDate } from "@/lib/format";
@@ -21,7 +22,7 @@ import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { MotionToggle } from "@/components/MotionToggle";
 import { ServiceWorkerOff } from "@/components/ServiceWorkerOff";
-import { tr } from "@/lib/i18n";
+import { type Lang, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Ajustes" };
@@ -79,6 +80,30 @@ export default async function SettingsPage() {
           : tr(lng, "x.d030dc04")}
       />
 
+      <AbrirAncla />
+      {/* v0.55 — menú de secciones a la izquierda (en el móvil, una tira arriba)
+          y paneles a la derecha. Lo de cada uno primero; lo de organizar, después. */}
+      <div className="lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-6">
+      <AjustesMenu manager={manager} owner={owner} lng={lng} />
+      <div className="min-w-0">
+      <h2 className="mb-3 font-display text-base font-bold">{tr(lng, "aj.bloqueCuenta")}</h2>
+      {/* v0.22: preferencia de animaciones, de cada uno (vive en el navegador). */}
+      <Grupo id="apariencia" titulo={tr(lng, "x.4b819e3f")}>
+      <div className="card mb-6 p-4">
+        <MotionToggle />
+      </div>
+
+      </Grupo>
+      <Grupo id="cuenta" titulo={tr(lng, "x.e92a19d9")}>
+      <PasswordForm />
+
+      </Grupo>
+      <Link href="/reglas" className="card mb-3 flex w-full items-center justify-between px-4 py-3 hover:ring-1 hover:ring-info/50">
+        <span className="font-display text-lg font-bold">{tr(lng, "reg.titulo")}</span>
+        <span className="text-xs text-muted">{tr(lng, "reg.enlaceSub")} →</span>
+      </Link>
+
+      {manager && <h2 className="mb-3 mt-8 font-display text-base font-bold">{tr(lng, "aj.bloqueOrganizar")}</h2>}
       {manager && (
         <>
           <section className="card mb-4 overflow-hidden">
@@ -357,7 +382,7 @@ export default async function SettingsPage() {
           </details>
 
           </Grupo>
-          <Grupo titulo={tr(lng, "x.75e1dc9e")} aside={tr(lng, "x.afee2f84")}>
+          <Grupo id="metagame" titulo={tr(lng, "x.75e1dc9e")} aside={tr(lng, "x.afee2f84")}>
           <ArchetypeSync total={snap.archetypes.length} />
 
           {/* --- v0.21: familias de arquetipos --- */}
@@ -417,7 +442,7 @@ export default async function SettingsPage() {
           {/* v0.14 — Regionales y City Leagues sin pegar nada. Solo mazos: ni
               los parsers leen nombres ni la tabla tiene dónde guardarlos. */}
           </Grupo>
-          <Grupo titulo={tr(lng, "x.b96df8a7")} aside="limitlesstcg.com">
+          <Grupo id="regionales" titulo={tr(lng, "x.b96df8a7")} aside="limitlesstcg.com">
           <div className="card mb-3 p-4 text-sm">
             <p className="text-ink-2">
               {tr(lng, "x.b17e0e52")} <b>{tr(lng, "x.af108644")}</b> {tr(lng, "x.066545c8")} <b>{tr(lng, "x.80a3a865")}</b> {tr(lng, "x.42da5c0b")}
@@ -436,7 +461,7 @@ export default async function SettingsPage() {
           </div>
 
           </Grupo>
-          <Grupo titulo={tr(lng, "x.657602e8")} aside={`${metaEventos.length} eventos`}>
+          <Grupo id="eventos" titulo={tr(lng, "x.657602e8")} aside={`${metaEventos.length} eventos`}>
             {metaEventos.length === 0 ? (
               <p className="card p-4 text-sm text-muted">{tr(lng, "x.b28a220d")}</p>
             ) : (
@@ -467,7 +492,7 @@ export default async function SettingsPage() {
               </div>
             )}
           </Grupo>
-          <Grupo titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
+          <Grupo id="jugadores" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
           <PlayerAdmin
             players={snap.players} counts={counts} emails={emails}
             meId={me.id} meRole={me.role}
@@ -476,17 +501,6 @@ export default async function SettingsPage() {
         </>
       )}
 
-      {/* v0.22: preferencia de animaciones, de cada uno (vive en el navegador). */}
-      <Grupo titulo={tr(lng, "x.4b819e3f")}>
-      <div className="card mb-6 p-4">
-        <MotionToggle />
-      </div>
-
-      </Grupo>
-      <Grupo titulo={tr(lng, "x.e92a19d9")}>
-      <PasswordForm />
-
-      </Grupo>
       {/* ---------------------------------------------------------------
           Zona de riesgo.
 
@@ -500,7 +514,7 @@ export default async function SettingsPage() {
           --------------------------------------------------------------- */}
       {owner && (
         <>
-          <Grupo titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
+          <Grupo id="riesgo" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
           <div className="flex flex-col gap-3">
 
             {seasonsWithTournaments.length > 0 && (
@@ -596,18 +610,8 @@ export default async function SettingsPage() {
         </>
       )}
 
-      <section className="card mt-6 p-4">
-        <h2 className="mb-2 text-lg font-bold">{tr(lng, "x.63e756e7")}</h2>
-        <div className="flex flex-col gap-2 text-sm text-ink-2">
-          <p><b>{tr(lng, "x.eae20e39")}</b> {tr(lng, "x.6bfeb8d9")}</p>
-          <p><b>{tr(lng, "x.56cd9fa0")}</b> {tr(lng, "x.c9464cf3")}</p>
-          <p><b>{tr(lng, "x.96c49ed4")}</b> {tr(lng, "x.ef2d792d")}</p>
-          <p><b>{tr(lng, "x.0f13be28")}</b> {tr(lng, "x.e1a501fe")} <i>{tr(lng, "x.b86482a4")}</i> {tr(lng, "x.2d3a90ec")}</p>
-          <p><b>{tr(lng, "x.e2512704")}</b> {tr(lng, "x.a65d97ec")} <b>{tr(lng, "x.7b1651eb")}</b>{tr(lng, "x.01dea602")} <code className="rounded bg-surface-2 px-1 font-mono text-xs">src/lib/cp.ts</code>.</p>
-          <p><b>{tr(lng, "x.4ef9dc50")}</b> {tr(lng, "x.965abe45")}</p>
-          <p><b>{tr(lng, "x.e9da2f4c")}</b> <i>{tr(lng, "x.588eb828")}</i> {tr(lng, "x.b8be999f")} <i>{tr(lng, "x.4e7afebc")}</i> {tr(lng, "x.ed60392e")} <i>{tr(lng, "x.0961a6d8")}</i> {tr(lng, "x.1979d8b3")}</p>
-        </div>
-      </section>
+      </div>
+      </div>
     </>
   );
 }
@@ -619,7 +623,7 @@ export default async function SettingsPage() {
 function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; aside?: string; children: ReactNode }) {
   return (
     <details id={id} className="group mb-3">
-      <summary className="card tap cursor-pointer list-none justify-between gap-3 px-4">
+      <summary className="card tap flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4">
         <span className="font-display text-lg font-bold">{titulo}</span>
         <span className="flex min-w-0 items-center gap-2 text-xs text-muted">
           {aside && <span className="hidden truncate sm:inline">{aside}</span>}
@@ -628,5 +632,29 @@ function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; a
       </summary>
       <div className="mt-3">{children}</div>
     </details>
+  );
+}
+
+/** v0.55 — el menú de secciones de Ajustes: a la izquierda en el PC, una tira de chips en el móvil. */
+function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean; lng: Lang }) {
+  const cuenta: Array<[string, string]> = [["apariencia", "x.4b819e3f"], ["cuenta", "x.e92a19d9"]];
+  const organizar: Array<[string, string]> = manager ? [
+    ["invitaciones", "x.4b1f6ef2"], ["liga", "x.cdaf0f8a"], ["metagame", "x.75e1dc9e"],
+    ["regionales", "x.b96df8a7"], ["eventos", "x.657602e8"], ["jugadores", "x.b5291b8d"],
+    ...(owner ? [["riesgo", "x.085b70dc"] as [string, string]] : []),
+  ] : [];
+  const enlace = ([id, k]: [string, string]) => (
+    <a key={id} href={`#${id}`} className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, k)}</a>
+  );
+  return (
+    <nav aria-label={tr(lng, "aj.secciones")} className="mb-4 lg:sticky lg:top-4 lg:mb-0 lg:self-start">
+      <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
+        <span className="label hidden lg:mb-1 lg:block">{tr(lng, "aj.bloqueCuenta")}</span>
+        {cuenta.map(enlace)}
+        <a href="/reglas" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "reg.titulo")}</a>
+        {organizar.length > 0 && <span className="label hidden lg:mb-1 lg:mt-4 lg:block">{tr(lng, "aj.bloqueOrganizar")}</span>}
+        {organizar.map(enlace)}
+      </div>
+    </nav>
   );
 }

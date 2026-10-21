@@ -1304,6 +1304,24 @@ const ES = {
   "rr.formulario": "Más detalle",
   "rr.corregidoPor": "Corregido por {n} el {f}",
   "home.pendientes": "Tus partidas pendientes",
+  // v0.55 — Ajustes ordenado y Reglas.
+  "reg.titulo": "Reglas y puntuación",
+  "reg.sub": "Cómo se calculan los puntos, el Elo, la resistencia y los CP.",
+  "reg.ahora": "La puntuación de la liga, ahora",
+  "reg.victoria": "victoria",
+  "reg.empate": "empate",
+  "reg.derrota": "derrota",
+  "reg.elo": "Todo el mundo empieza con {n} de Elo. Cuenta la serie, no los juegos: ganar 2-0 o 2-1 vale lo mismo.",
+  "reg.volverRanking": "Ranking",
+  "reg.enlaceSub": "cómo se calcula todo",
+  "reg.enlaceRanking": "Cómo se calcula",
+  "aj.bloqueCuenta": "Lo tuyo",
+  "aj.bloqueOrganizar": "Organizar la liga",
+  "aj.secciones": "Secciones de ajustes",
+  // v0.55 — plantillas de torneo.
+  "tp.copiar": "Copiar la estructura de",
+  "tp.vacio": "Empezar en blanco",
+  "tp.nota": "Copiados el tipo, el formato, las rondas, las fases y el corte. Revisa el nombre: la fecha es la de hoy.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2582,6 +2600,24 @@ const EN: Record<I18nKey, string> = {
   "rr.formulario": "More detail",
   "rr.corregidoPor": "Corrected by {n} on {f}",
   "home.pendientes": "Your pending matches",
+  // v0.55 — Ajustes ordenado y Reglas.
+  "reg.titulo": "Rules and scoring",
+  "reg.sub": "How points, Elo, resistance and CP are calculated.",
+  "reg.ahora": "League scoring, right now",
+  "reg.victoria": "win",
+  "reg.empate": "draw",
+  "reg.derrota": "loss",
+  "reg.elo": "Everyone starts at {n} Elo. The series counts, not the games: winning 2-0 or 2-1 is worth the same.",
+  "reg.volverRanking": "Ranking",
+  "reg.enlaceSub": "how everything is calculated",
+  "reg.enlaceRanking": "How it's calculated",
+  "aj.bloqueCuenta": "Yours",
+  "aj.bloqueOrganizar": "Running the league",
+  "aj.secciones": "Settings sections",
+  // v0.55 — plantillas de torneo.
+  "tp.copiar": "Copy the structure of",
+  "tp.vacio": "Start blank",
+  "tp.nota": "Type, format, rounds, phases and cut copied. Check the name: the date is today.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

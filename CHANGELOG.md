@@ -2,6 +2,31 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.55.0] — 2026-10-20
+
+Estructura: Ajustes ordenado, Reglas y puntuación, y plantillas de torneo. **Sin migración nueva.**
+
+### Cambiado — Ajustes
+
+- **Menú de secciones** a la izquierda en el PC y como tira de chips en el móvil, con los paneles
+  a la derecha. Al tocar una sección, se abre sola (`AbrirAncla`).
+- **Lo de cada uno primero** («Lo tuyo»: Apariencia, Tu cuenta, Reglas) y **lo de organizar
+  después** («Organizar la liga»): un jugador ya no ve un muro de herramientas que no son suyas.
+- Todos los grupos del mismo ancho: antes cada desplegable medía lo que su título.
+
+### Añadido
+
+- **Reglas y puntuación** (`/reglas`): lo que era «Cómo se calcula todo» al final de Ajustes, en su
+  página, con la puntuación ACTUAL de la liga arriba. Enlazada desde el Ranking y desde Ajustes.
+- **Plantillas de torneo**: al crear uno, «Copiar la estructura de» los cuatro últimos. Se copian
+  tipo, formato, rondas, fases, corte, umbrales, sede y organizador. **No** se copian el estado (se
+  crearía cerrado), la asistencia (los CP saldrían con la gente del otro), el enlace ni las notas;
+  la fecha es la de hoy. Una plantilla nunca edita el torneo original: solo rellena valores.
+
+### Verificado
+
+- `npm run verificar`: **549 de 549**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.54.0] — 2026-10-20
 
 Resultados a un toque desde las listas, tus pendientes primero y rastro de correcciones.
