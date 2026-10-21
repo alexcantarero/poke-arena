@@ -475,7 +475,7 @@ export default async function CompetitionPage({
                           <button key={`${a}-${b}`} type="submit" name="marcador" value={`${a}-${b}`}
                             className={`flex min-h-12 flex-col items-center justify-center rounded-xl border-2 border-line-soft bg-surface-2 px-2 py-1.5 ${a > b ? "hover:border-win" : "hover:border-loss"}`}>
                             <span className={`font-display text-xl font-extrabold tabular ${a > b ? "text-win" : "text-loss"}`}>{a}–{b}</span>
-                            <span className="max-w-full truncate text-[11px] text-muted">{a > b ? nA : nB}</span>
+                            <span className="max-w-full truncate text-[10px] leading-tight text-muted" title={a > b ? nA : nB}>{a > b ? nA : nB}</span>
                           </button>
                         ))}
                       </div>

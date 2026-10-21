@@ -378,7 +378,7 @@ export function MatchForm({
         <div className="mb-4 flex items-center justify-center gap-4 rounded-xl bg-ground py-3">
           <div className="flex flex-col items-center gap-1">
             <Avatar player={A} size="sm" />
-            <span className="max-w-20 truncate text-xs text-muted">{A?.name}</span>
+            <span className="max-w-20 truncate text-[10px] leading-tight text-muted">{A?.name}</span>
           </div>
           <span className={`font-display text-4xl font-extrabold tabular leading-none
             ${score.a > score.b ? "text-win" : score.b > score.a ? "text-loss" : "text-tie"}`}>
@@ -386,7 +386,7 @@ export function MatchForm({
           </span>
           <div className="flex flex-col items-center gap-1">
             <Avatar player={B} size="sm" />
-            <span className="max-w-20 truncate text-xs text-muted">{bLabel}</span>
+            <span className="max-w-20 truncate text-[10px] leading-tight text-muted">{bLabel}</span>
           </div>
         </div>
         {/* v0.53 — el resultado dicho, antes de guardar */}
@@ -417,7 +417,7 @@ export function MatchForm({
                     className={`flex min-h-14 flex-col items-center justify-center rounded-xl border-2 px-2 py-2 transition-colors
                       ${activo ? (gana ? "border-win bg-win/15" : "border-loss bg-loss/15") : "border-line-soft bg-surface-2"}`}>
                     <span className={`font-display text-2xl font-extrabold tabular ${gana ? "text-win" : "text-loss"}`}>{a}–{b}</span>
-                    <span className="max-w-full truncate text-[11px] text-muted">{gana ? A?.name : bLabel}</span>
+                    <span className="max-w-full truncate text-[10px] leading-tight text-muted" title={gana ? (A?.name ?? "") : bLabel}>{gana ? A?.name : bLabel}</span>
                   </button>
                 );
               })}
@@ -455,7 +455,8 @@ export function MatchForm({
                       key={o.v} type="button" disabled={over}
                       data-on={games[i].winner === o.v}
                       onClick={() => setGame(i, { winner: games[i].winner === o.v ? "" : o.v })}
-                      className="truncate"
+                      className="truncate text-xs"
+                      title={o.l}
                     >
                       {o.l}
                     </button>
@@ -476,6 +477,7 @@ export function MatchForm({
                         data-on={games[i].first === o.v}
                         onClick={() => setGame(i, { first: o.v })}
                         className="truncate text-xs"
+                        title={o.l}
                       >
                         {o.l}
                       </button>
