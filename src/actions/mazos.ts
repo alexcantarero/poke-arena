@@ -93,6 +93,7 @@ export async function saveDeck(fd: FormData) {
     name: (str(fd, "name") || [main, secondary].filter(Boolean).join(" / ") || "Mazo").slice(0, 80),
     list,
     listJson: parsed,
+    notes: str(fd, "notes").slice(0, 2000), // v0.59 — comentarios de la lista
     format: str(fd, "format") || "standard",
     retired: bool(fd, "retired"),
     liveWins: int(fd, "liveWins", 0, 0, 99999),

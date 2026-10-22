@@ -24,6 +24,8 @@ import { MotionToggle } from "@/components/MotionToggle";
 import { ServiceWorkerOff } from "@/components/ServiceWorkerOff";
 import { type Lang, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { canalesConfigurados } from "@/lib/discord";
+import { probarDiscord } from "@/actions/ajustes";
 
 export const metadata = { title: "Ajustes" };
 
@@ -41,6 +43,7 @@ export default async function SettingsPage() {
   if (!me) redirect("/entrar");
   const manager = canManageLeague(me.role);
   const owner = isOwner(me.role);
+  const discord = canalesConfigurados(); // v0.59 — solo sí/no: la URL es un secreto
   const invites = manager ? await loadInvites() : [];
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
@@ -496,6 +499,30 @@ export default async function SettingsPage() {
           Va al final de la página y detrás de un `details` por lo mismo: no
           es algo con lo que uno se tropiece buscando otra cosa.
           --------------------------------------------------------------- */}
+      {/* v0.59 — Discord: qué avisos están puestos (sin enseñar nunca la URL, que
+          es un secreto) y botones para mandar una prueba sin esperar al lunes. */}
+      {manager && (
+        <Grupo id="discord" titulo="Discord" aside={tr(lng, "dc.aside")}>
+          <div className="flex flex-col gap-3 p-4 text-sm">
+            <p className="text-muted">{tr(lng, "dc.explica")}</p>
+            <ul className="flex flex-col gap-1.5">
+              {([["resultados", "dc.resultados", "DISCORD_WEBHOOK_RESULTADOS"], ["liga", "dc.liga", "DISCORD_WEBHOOK_LIGA"], ["agenda", "dc.agenda", "DISCORD_WEBHOOK_AGENDA"]] as const).map(([c, k, v]) => (
+                <li key={c} className="flex flex-wrap items-center gap-2">
+                  <span className={`chip ${discord[c] ? "chip-win" : ""}`}>{discord[c] ? tr(lng, "dc.puesto") : tr(lng, "dc.sinPoner")}</span>
+                  <span>{tr(lng, k)}</span>
+                  <code className="text-[11px] text-muted">{v}</code>
+                </li>
+              ))}
+            </ul>
+            <form action={probarDiscord} className="flex flex-wrap gap-2">
+              <button type="submit" name="tipo" value="liga" className="btn btn-sm" disabled={!discord.liga}>{tr(lng, "dc.probarLiga")}</button>
+              <button type="submit" name="tipo" value="agenda" className="btn btn-sm" disabled={!discord.agenda}>{tr(lng, "dc.probarAgenda")}</button>
+            </form>
+            <p className="text-xs text-muted">{tr(lng, "dc.nota")}</p>
+          </div>
+        </Grupo>
+      )}
+
       {owner && (
         <>
           <Grupo id="riesgo" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
@@ -624,7 +651,7 @@ function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean
   const cuenta: Array<[string, string]> = [["apariencia", "x.4b819e3f"], ["cuenta", "x.e92a19d9"]];
   const organizar: Array<[string, string]> = manager ? [
     ["invitaciones", "x.4b1f6ef2"], ["liga", "x.cdaf0f8a"], ["metagame", "x.75e1dc9e"],
-    ["regionales", "x.b96df8a7"], ["eventos", "x.657602e8"], ["jugadores", "x.b5291b8d"],
+    ["regionales", "x.b96df8a7"], ["eventos", "x.657602e8"], ["jugadores", "x.b5291b8d"], ["discord", "dc.menu"],
     ...(owner ? [["riesgo", "x.085b70dc"] as [string, string]] : []),
   ] : [];
   const enlace = ([id, k]: [string, string]) => (

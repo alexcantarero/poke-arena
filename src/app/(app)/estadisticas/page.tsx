@@ -142,6 +142,13 @@ export default async function StatsPage({
 
   const all = snap.matches.filter(isPlayed);
   const rows = applyMatchFilter(all, filter, index);
+  /* v0.59 — los filtros que tienen sentido para el meta online (Limitless): el
+     formato y las fechas. «Desde» marca la ventana (entre 7 y 90 días); sin
+     fechas, los 30 de siempre. Jugador o torneo no aplican: allí no estáis. */
+  const diasMeta = filter.from
+    ? Math.min(90, Math.max(7, Math.ceil((Date.now() - Date.parse(`${filter.from}T00:00:00Z`)) / 86400000)))
+    : 30;
+  const formatoMeta = filter.format === "expanded" ? "EXPANDED" : "STANDARD";
 
   /* v0.50 — una fila por jugador y partida, para el seguimiento: cada lado de
      una partida es una fila, con su resultado y su arquetipo. Respeta los
@@ -485,15 +492,10 @@ export default async function StatsPage({
       {/* v0.52 — los bloques, en orden: meta, vuestro metagame, torneos, jugadores,
           partidas y actividad. Antes la matriz iba a mitad y «cómo acaban las series»
           al final, separada de la actividad que iba arriba. */}
-      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.meta")}</h2>
+      {/* v0.59 — los NÚMEROS GRANDES primero, y después los gráficos por orden. */}
+      <h2 className="mt-6 mb-1 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.numeros")}</h2>
       {fuente !== "live" && (
-        <Suspense fallback={<div className="card h-96 animate-pulse" aria-hidden="true" />}>
-          <MetaOnline />
-        </Suspense>
-      )}
-      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
-      {fuente !== "live" && (
-          <div className="my-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <div className="mb-2 mt-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <KpiCard label={tr(lng, "x.64f94394")} value={rows.length} sub={`${totalGames} juegos disputados`} color="blue" />
             <KpiCard label={tr(lng, "x.ba25296c")} value={archs.length} sub={`${external} contra rivales externos`} color="purple" />
             <KpiCard
@@ -510,6 +512,17 @@ export default async function StatsPage({
             />
           </div>
       )}
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.meta")}</h2>
+      {fuente !== "live" && (
+        <>
+        <Suspense fallback={<div className="card h-96 animate-pulse" aria-hidden="true" />}>
+          <MetaOnline dias={diasMeta} formato={formatoMeta} />
+        </Suspense>
+        {/* v0.59 — qué filtros le llegan al meta online y cuáles no, dicho. */}
+        <p className="mt-2 text-xs text-muted">{tr(lng, "est.notaFiltrosMeta")}</p>
+        </>
+      )}
+      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
       {hayFamilias && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="label">{tr(lng, "x.ba25296c")}</span>

@@ -173,6 +173,14 @@ export function DeckForm({
           />
         </div>
 
+        {/* v0.59 — comentarios de la lista */}
+        <div className="mt-4">
+          <label className="label" htmlFor="notes">{tr(lng, "dk.notas")}</label>
+          <p className="text-xs text-muted">{tr(lng, "dk.notasAyuda")}</p>
+          <textarea className="input mt-1 min-h-24" id="notes" name="notes" maxLength={2000}
+            defaultValue={deck?.notes ?? ""} placeholder={tr(lng, "dk.notasEjemplo")} />
+        </div>
+
         {parsed && (
           <div className="mt-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">

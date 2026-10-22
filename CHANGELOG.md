@@ -2,6 +2,39 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.59.0] — 2026-10-21
+
+Discord, comentarios en los mazos y Estadísticas ordenada.
+**Lleva migración:** `drizzle/0022_v0_59_0.sql` (la lanza `npm run db:migrar`).
+
+### Añadido
+
+- **Avisos a Discord por webhooks** (`lib/discord.ts`, `lib/discordMensajes.ts`), tres, cada uno
+  a su canal y cada uno opcional (sin su variable, no se manda):
+  - `DISCORD_WEBHOOK_RESULTADOS` — los resultados de un torneo **al cerrarse**, a mano o por el
+    cron: el grupo por puesto, medalla en el corte, mazo y récord, y enlace a la ficha. Solo los
+    jugadores del grupo, nunca terceros.
+  - `DISCORD_WEBHOOK_LIGA` — **los lunes**, las partidas de liga sin resultado, por liga y jornada.
+  - `DISCORD_WEBHOOK_AGENDA` — **los lunes**, la agenda de la semana (calendario + torneos).
+  - Un aviso **nunca rompe nada**: si Discord no responde, el torneo se cierra igual y el cron
+    sigue. La URL del webhook es un secreto: no sale en pantalla ni en logs.
+  - **Ajustes → Discord**: qué avisos están puestos (sí/no) y botones para mandar una prueba.
+  - Sin cron nuevo: va en el de la limpieza, que ya corre cada noche (el plan Hobby los limita).
+  - 5 pruebas: orden, medallas, agrupación, semana de lunes a domingo, «lunes en Madrid».
+- **Comentarios en las listas de los mazos** (`decks.notes`): en el formulario del mazo, y en su
+  ficha encima de la lista.
+
+### Cambiado
+
+- **Estadísticas: los números grandes arriba** («En números»), y después los gráficos en orden:
+  meta, vuestro metagame, torneos, jugadores, partidas y actividad.
+- **El meta online recibe los filtros que le aplican**: el formato y las fechas («desde» marca la
+  ventana, entre 7 y 90 días). Debajo dice cuáles le llegan y cuáles no (jugador, torneo).
+
+### Verificado
+
+- `npm run verificar`: **561 de 561**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.58.0] — 2026-10-21
 
 Registrar partida más visual, líderes por pestaña, el fallo del Bo3 de liga y arreglos de tu

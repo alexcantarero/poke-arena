@@ -15,6 +15,7 @@ import {
   str, maybeNum, int, isoDate, bool, refresh, requireActor, requireManager, owns, confirmed,
   msj,
 } from "./_comun";
+import { notificarAgendaSemana, notificarPendientesLiga } from "@/lib/discord";
 
 /**
  * Empezar el Elo de cero desde hoy.
@@ -213,4 +214,17 @@ export async function resetLadderSeason(fd: FormData) {
   refresh();
   redirect(withFlash("/ajustes", "ok",
     `Temporada nueva: rangos del ladder a cero${tambienElo ? ", Elo de la liga desde hoy" : ""}${tambienPuestos ? " y puestos oficiales borrados" : ""}.`));
+}
+
+/**
+ * v0.59 — Manda ahora un aviso de prueba a Discord, sin esperar al lunes.
+ * Solo organizadores. Dice si salió, sin enseñar nunca la URL del webhook.
+ */
+export async function probarDiscord(fd: FormData) {
+  await requireManager();
+  const tipo = str(fd, "tipo");
+  const ok = tipo === "agenda" ? await notificarAgendaSemana(new Date().toISOString().slice(0, 10))
+    : tipo === "liga" ? await notificarPendientesLiga()
+    : false;
+  redirect(withFlash("/ajustes#discord", ok ? "ok" : "error", await msj(ok ? "dc.enviado" : "dc.noEnviado")));
 }

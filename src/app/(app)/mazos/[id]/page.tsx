@@ -75,6 +75,13 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
               <span className="text-xs font-normal text-muted">{tr(lng, "x.36d25802")}</span>
             </summary>
             <div className="border-t border-line-soft p-4">
+              {/* v0.59 — los comentarios de la lista, encima de ella */}
+              {deck.notes?.trim() && (
+                <div className="mb-4 rounded-xl border border-brand/30 bg-brand-soft p-3">
+                  <p className="label mb-1">{tr(lng, "dk.notas")}</p>
+                  <p className="whitespace-pre-line text-sm text-ink">{deck.notes}</p>
+                </div>
+              )}
               <DeckList list={deck.list} listJson={deck.listJson} />
             </div>
           </details>

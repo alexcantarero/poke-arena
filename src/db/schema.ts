@@ -207,6 +207,8 @@ export const decks = pgTable("decks", {
   list: text("list").notNull().default(""),
   /** La lista ya interpretada: { total, pokemon[], trainer[], energy[] }. */
   listJson: jsonb("list_json"),
+  /** v0.59 — comentarios de la lista: por qué tal carta, qué cambiar, contra qué cuidado. */
+  notes: text("notes").notNull().default(""),
   format: text("format").notNull().default("standard"),
   retired: boolean("retired").notNull().default(false),
   liveWins: integer("live_wins").notNull().default(0),

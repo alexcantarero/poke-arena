@@ -1367,6 +1367,27 @@ const ES = {
   "tf.igual": "Igual",
   "rr.victoria": "Victoria",
   "rr.derrota": "Derrota",
+  // v0.59 — Discord.
+  "dc.menu": "Discord",
+  "dc.aside": "avisos automáticos",
+  "dc.explica": "Tres avisos, cada uno a su canal: los resultados al cerrar un torneo, y los lunes por la mañana, las partidas de liga pendientes y la agenda de la semana. Cada uno se activa poniendo su webhook en Vercel.",
+  "dc.resultados": "Resultados de torneos",
+  "dc.liga": "Partidas de liga pendientes",
+  "dc.agenda": "Agenda de la semana",
+  "dc.puesto": "puesto",
+  "dc.sinPoner": "sin poner",
+  "dc.probarLiga": "Mandar pendientes ahora",
+  "dc.probarAgenda": "Mandar agenda ahora",
+  "dc.nota": "Los resultados no tienen botón de prueba: salen solos al cerrar un torneo. Si no hay nada que contar (ninguna pendiente, nada esta semana), no se manda nada.",
+  "dc.enviado": "Enviado a Discord.",
+  "dc.noEnviado": "No se ha mandado: no hay nada que contar, falta el webhook o Discord no ha respondido.",
+  // v0.59 — comentarios de los mazos.
+  "dk.notas": "Comentarios de la lista",
+  "dk.notasAyuda": "Por qué esa carta, qué cambiarías, contra qué hay que tener cuidado. Los ve todo el grupo.",
+  "dk.notasEjemplo": "2 Counter Catcher por el meta de Gardevoir. Si sube Dragapult, meter la 2.ª Iono…",
+  // v0.59 — Estadísticas ordenada.
+  "est.b.numeros": "En números",
+  "est.notaFiltrosMeta": "Al meta online le llegan el formato y las fechas de los filtros de arriba. El jugador, el torneo o la competición no: son partidas de Limitless de todo el mundo, donde no estáis.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2708,6 +2729,27 @@ const EN: Record<I18nKey, string> = {
   "tf.igual": "Same",
   "rr.victoria": "Win",
   "rr.derrota": "Loss",
+  // v0.59 — Discord.
+  "dc.menu": "Discord",
+  "dc.aside": "automatic notices",
+  "dc.explica": "Three notices, each to its own channel: results when a tournament closes, and on Monday mornings, pending league matches and the week's agenda. Each is turned on by setting its webhook in Vercel.",
+  "dc.resultados": "Tournament results",
+  "dc.liga": "Pending league matches",
+  "dc.agenda": "This week's agenda",
+  "dc.puesto": "set",
+  "dc.sinPoner": "not set",
+  "dc.probarLiga": "Send pending now",
+  "dc.probarAgenda": "Send agenda now",
+  "dc.nota": "Results have no test button: they go out by themselves when a tournament closes. If there's nothing to report (nothing pending, nothing this week), nothing is sent.",
+  "dc.enviado": "Sent to Discord.",
+  "dc.noEnviado": "Not sent: there's nothing to report, the webhook is missing or Discord didn't respond.",
+  // v0.59 — comentarios de los mazos.
+  "dk.notas": "List notes",
+  "dk.notasAyuda": "Why that card, what you'd change, what to watch out for. The whole group can see them.",
+  "dk.notasEjemplo": "2 Counter Catcher for the Gardevoir meta. If Dragapult rises, add the 2nd Iono…",
+  // v0.59 — Estadísticas ordenada.
+  "est.b.numeros": "In numbers",
+  "est.notaFiltrosMeta": "The online meta takes the format and dates from the filters above. Not the player, tournament or competition: these are worldwide Limitless matches, where you aren't.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { borrarTorneosAbandonados, cerrarTorneosTerminados } from "@/lib/limpiezaDb";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
+import { notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
+import { esLunesEnMadrid } from "@/lib/discordMensajes";
 
 /* =========================================================================
    GET /api/cron/limpieza — v0.19.
@@ -29,10 +31,21 @@ export async function GET(req: NextRequest) {
   let series = null;
   try { series = await sincronizarSeriesOnline(); } catch { /* se reintenta mañana */ }
 
+  /* v0.59 — Discord: los resultados de cada torneo que se acaba de cerrar solo, y
+     los lunes (hora de Madrid), las partidas de liga pendientes y la agenda de
+     la semana. Cada aviso es opcional y nunca rompe el cron. */
+  const discord = { resultados: 0, pendientes: false, agenda: false };
+  for (const t of cerrados) if (await notificarResultadosTorneo(t.id)) discord.resultados++;
+  const ahora = new Date();
+  if (esLunesEnMadrid(ahora)) {
+    discord.pendientes = await notificarPendientesLiga();
+    discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
+  }
   if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
   return NextResponse.json({
     borrados: borrados.length, torneos: borrados.map((t) => t.name),
     cerrados: cerrados.length, torneosCerrados: cerrados.map((t) => t.name),
     series,
+    discord,
   });
 }

@@ -25,6 +25,7 @@ import {
   msj,
 } from "./_comun";
 import { saveMatch } from "./partidas";
+import { notificarResultadosTorneo } from "@/lib/discord";
 
 export async function saveTournament(fd: FormData) {
   const actor = await requireActor();
@@ -199,6 +200,9 @@ export async function setTournamentStatus(fd: FormData) {
   await db.update(tournaments)
     .set({ status, closedAt: status === "closed" ? new Date() : null })
     .where(eq(tournaments.id, id));
+  // v0.59 — al cerrarse, los resultados a Discord. Nunca falla: si no hay
+  // webhook o Discord no responde, el torneo queda cerrado igual.
+  if (status === "closed" && tour.status !== "closed") await notificarResultadosTorneo(id);
 
   refresh();
   const STATUS_MESSAGE: Record<string, string> = {
