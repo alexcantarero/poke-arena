@@ -28,6 +28,9 @@ import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { SeccionPlegable } from "@/components/SeccionPlegable";
+import { LOGROS, etiquetasDe, leerLogros, nivelDeUso } from "@/lib/logros";
+import { urlDeObjeto } from "@/lib/objetos";
+import { spriteUrl } from "@/lib/pokemon";
 
 /* De dónde salen las cifras de arriba.
    Mezclar la liga, los torneos de fuera y los amistosos da un número que no
@@ -94,6 +97,12 @@ export default async function ProfilePage({
   const cpTable = getSeason(cp.season);
   const myTours = snap.tournaments.filter((t) => t.results.some((r) => r.playerId === id));
   const favArch = player.favoriteArchetypeId ? snap.archById.get(player.favoriteArchetypeId) : undefined;
+  /* v0.65 — la Ball de uso (mejora con lo que se usa la web), las etiquetas
+     (hitos con nombre) y los logros secretos (solo los encontrados). */
+  const misLogros = leerLogros(player.logros);
+  const uso = { partidas: mine.length, torneos: myTours.length, logros: misLogros.length };
+  const ballUso = nivelDeUso(uso);
+  const etiquetas = etiquetasDe(uso);
 
   // El rango del ladder lo cambia cada uno; el de otra persona, un
   // organizador. La comprobación de verdad está dentro de la Server Action.
@@ -158,6 +167,10 @@ export default async function ProfilePage({
             {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : tr(lng, "x.4e7afebc")}</span>}
             {isMe && <span className="chip chip-info">{tr(lng, "x.4dc2088e")}</span>}
             {player.ladderElo != null && <RankBadge elo={player.ladderElo} size="sm" />}
+            {/* v0.65 — las etiquetas: hitos conseguidos, como la del ladder. */}
+            {etiquetas.map((e) => (
+              <span key={e.clave} className="etiqueta" data-tono={e.tono}>{tr(lng, `etq.${e.clave}.${e.tono}`)}</span>
+            ))}
             <span>Desde {fmtDateLong(player.joined)}</span>
           </p>
           {player.bio && <p className="mt-2 max-w-prose text-sm text-ink-2">{player.bio}</p>}
@@ -178,6 +191,56 @@ export default async function ProfilePage({
         ) : null}
       </div>
 
+      {/* v0.65 — la Ball de uso y los logros secretos. */}
+      <section className="card mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={48} height={48} className="ball-uso-img size-12 flex-none" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "logro.ballTitulo")}</p>
+            <p className="font-display text-lg font-extrabold leading-tight">{ballUso.nivel.nombre}</p>
+            {ballUso.siguiente ? (
+              <>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar"
+                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
+                  aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                </div>
+                <p className="mt-1 text-[11px] text-muted">
+                  {ballUso.faltan} {tr(lng, "logro.puntosPara")} {ballUso.siguiente.nombre} · {tr(lng, "logro.comoSube")}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-[11px] text-muted">{tr(lng, "logro.ballMax")}</p>
+            )}
+          </div>
+        </div>
+        <div className="min-w-0 sm:w-[55%]">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+            {tr(lng, "logro.titulo")} · {misLogros.length}/{LOGROS.length}
+          </p>
+          {misLogros.length ? (
+            <ul className="grid grid-cols-1 gap-1.5 xs:grid-cols-2">
+              {LOGROS.filter((l) => misLogros.includes(l.clave)).map((l) => (
+                <li key={l.clave} className="logro-ficha" title={tr(lng, `logro.${l.clave}.como`)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={spriteUrl(l.pokemon)} alt="" width={44} height={44} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold">{tr(lng, `logro.${l.clave}.nombre`)}</span>
+                    <span className="block truncate text-[11px] text-muted">{tr(lng, `logro.${l.clave}.como`)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted">{tr(lng, isMe ? "logro.ningunoTu" : "logro.ninguno")}</p>
+          )}
+          {misLogros.length > 0 && misLogros.length < LOGROS.length && (
+            <p className="mt-1.5 text-[11px] text-muted">{LOGROS.length - misLogros.length} {tr(lng, "logro.quedan")}</p>
+          )}
+        </div>
+      </section>
+
       {/* ------------------------------ balance ------------------------------ */}
       <ScopeTabs
         basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel={tr(lng, "x.fdebf667")}
@@ -195,7 +258,7 @@ export default async function ProfilePage({
         {/* v0.25: la tarjeta dorada es el puesto en la liga, con el de Elo a la derecha. */}
         <Kpi
           highlight
-          label={posiciones.comp?.name ? posiciones.comp.name.slice(0, 18) : tr(lang, "home.league")}
+          label={posiciones.comp?.name ? posiciones.comp.name.slice(0, 30) /* v0.65: a 18 salía «LIGA REGULAR INVIE» */ : tr(lang, "home.league")}
           value={posiciones.liga
             ? <>{posiciones.liga.pos}.º{posiciones.elo && (
                 <span className="ml-2 text-base font-semibold text-ink-2">· Elo {posiciones.elo.pos}.º</span>)}</>

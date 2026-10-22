@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ganarLogro } from "@/components/logroCliente";
 import { createPortal } from "react-dom";
 import { spriteUrl } from "@/lib/pokemon";
 import { pokemonDelTema, registrarClic } from "@/lib/rafaga";
@@ -85,6 +86,7 @@ export function ThemeToggle() {
     // mismo clic, lo que se ha ganado es la explosión.
     if (r.rafaga) {
       mostrar({ tipo: "boom", id: contador.current });
+      ganarLogro("tadbulb"); // v0.65 — logro secreto
       return;
     }
 
@@ -97,6 +99,7 @@ export function ThemeToggle() {
     const arriba = rect ? rect.top > HUECO : false;
     const y = rect ? (arriba ? rect.top - SPRITE - 6 : rect.bottom + 6) : 80;
     mostrar({ tipo: "tema", slug: pokemonDelTema(next), id: contador.current, x, y, arriba });
+    ganarLogro(pokemonDelTema(next)); // v0.65 — «solrock» / «lunatone»
   }
 
   return (

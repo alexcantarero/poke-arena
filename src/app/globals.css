@@ -1459,3 +1459,78 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .liga-tabla tr[data-puesto="1"] .liga-puesto { color: var(--brand-strong, var(--brand)); background: color-mix(in oklab, var(--brand) 16%, transparent); }
 .liga-tabla tr[data-puesto="2"] .liga-puesto { color: var(--ink-2); background: var(--surface-3); }
 .liga-tabla tr[data-puesto="3"] .liga-puesto { color: var(--tier-bronce, #b7793e); background: color-mix(in oklab, var(--tier-bronce, #b7793e) 16%, transparent); }
+
+/* =========================================================================
+   v0.65 — La Poké Ball de plegar la barra, el aviso de logro, la Ball del
+   perfil y las etiquetas.
+   ========================================================================= */
+/* Enganchada al borde derecho de la barra (13,5 rem abierta, 4,5 plegada),
+   medio dentro y medio fuera. `top` lo pone BarraToggle midiendo «Análisis». */
+.barra-ball {
+  position: fixed; z-index: 45; left: calc(13.5rem - 1.05rem);
+  display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 9999px;
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .18);
+  transition: left .2s ease, transform .15s ease, box-shadow .15s;
+}
+.barra-ball[data-plegada="true"] { left: calc(4.5rem - 1.05rem); }
+.barra-ball:hover { transform: scale(1.12); box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
+.barra-ball:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.barra-ball-img { width: 1.6rem; height: 1.6rem; image-rendering: pixelated; transition: transform .35s ease; }
+/* Al plegar, la Ball rueda hacia la izquierda; al desplegar, de vuelta. */
+.barra-ball[data-plegada="true"] .barra-ball-img { transform: rotate(-180deg); }
+@media (max-width: 767.98px) { .barra-ball, .barra-voltorb { display: none; } }
+.barra-voltorb {
+  position: fixed; z-index: 46; left: calc(13.5rem + 1.4rem); width: 3rem; height: 3rem;
+  image-rendering: pixelated; pointer-events: none; animation: voltorb-sale 1.8s ease-out both;
+}
+@keyframes voltorb-sale {
+  0% { opacity: 0; transform: scale(.4) rotate(0); }
+  20% { opacity: 1; transform: scale(1.15) rotate(-15deg); }
+  40%, 70% { transform: scale(1) rotate(12deg) translateX(4px); }
+  100% { opacity: 0; transform: scale(1.6) rotate(0); filter: brightness(2); }
+}
+
+.logro-aviso {
+  position: fixed; z-index: 95; left: 50%; translate: -50% 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);
+  display: flex; align-items: center; gap: .75rem; max-width: calc(100vw - 2rem);
+  padding: .55rem 1.1rem .55rem .55rem; border-radius: 9999px;
+  background: var(--surface); border: 1px solid color-mix(in oklab, var(--brand) 55%, var(--line));
+  box-shadow: var(--shadow-3), 0 0 0 4px color-mix(in oklab, var(--brand) 16%, transparent);
+  animation: logro-entra .45s cubic-bezier(.2,.8,.3,1.2);
+}
+@media (min-width: 768px) { .logro-aviso { bottom: 1.5rem; } }
+.logro-aviso-img { width: 2.75rem; height: 2.75rem; object-fit: contain; image-rendering: pixelated; }
+@keyframes logro-entra { from { opacity: 0; transform: translateY(16px) scale(.9); } to { opacity: 1; transform: none; } }
+
+.ball-uso-img { image-rendering: pixelated; object-fit: contain; }
+.etiqueta { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .55rem; border-radius: 9999px;
+  font-size: 11px; font-weight: 700; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); }
+.etiqueta[data-tono="bronce"] { border-color: color-mix(in oklab, var(--tier-bronce) 60%, transparent); color: var(--tier-bronce); background: color-mix(in oklab, var(--tier-bronce) 12%, var(--surface)); }
+.etiqueta[data-tono="plata"] { border-color: #9aa5b4; color: color-mix(in oklab, #6b7787 80%, var(--ink)); background: color-mix(in oklab, #c7ced8 25%, var(--surface)); }
+.etiqueta[data-tono="oro"] { border-color: var(--brand); color: var(--brand-strong); background: color-mix(in oklab, var(--brand) 14%, var(--surface)); }
+.etiqueta[data-tono="secreto"] { border-color: #8b5cf6; color: color-mix(in oklab, #8b5cf6 75%, var(--ink)); background: color-mix(in oklab, #8b5cf6 12%, var(--surface)); }
+.logro-ficha { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: .9rem;
+  border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--line)); background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 8%, var(--surface)), var(--surface)); }
+.logro-ficha img { width: 2.75rem; height: 2.75rem; image-rendering: pixelated; object-fit: contain; flex: none; }
+@media (prefers-reduced-motion: reduce) { .barra-voltorb, .logro-aviso { animation: none; } .barra-ball, .barra-ball-img { transition: none; } }
+
+/* v0.65 — Mulligans: la Poké Ball en vez del dado. Se zarandea como en una
+   captura al cambiar (sustituye a la tirada del dado); el número va en una
+   chapa abajo a la derecha. */
+.dado-ball { position: absolute; inset: .15rem; width: calc(100% - .3rem); height: calc(100% - .3rem); image-rendering: pixelated; object-fit: contain; }
+.dado[data-cero="true"] .dado-ball { filter: grayscale(1); opacity: .45; }
+.dado .dado-num {
+  position: absolute; right: -.2rem; bottom: -.2rem; margin: 0; min-width: 1.2rem; height: 1.2rem; padding: 0 .2rem;
+  display: grid; place-items: center; border-radius: 9999px; font-size: .72rem; line-height: 1;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 3px rgb(0 0 0 / .2);
+}
+.dado[data-cero="false"] .dado-num { border-color: var(--brand); color: var(--ink); }
+.dado-tira { animation: ball-captura .7s ease-in-out; }
+@keyframes ball-captura {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-22deg); } 30% { transform: rotate(18deg); }
+  45% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 75% { transform: rotate(-3deg); }
+}
+@media (prefers-reduced-motion: reduce) { .dado-tira { animation: none; } }

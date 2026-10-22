@@ -2,6 +2,45 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.65.0] — 2026-10-22
+
+La barra de la v0.62 con una Poké Ball para plegarla, el ranking del inicio a elegir,
+logros secretos, la Ball de uso y las etiquetas del perfil.
+**Lleva migración:** `drizzle/0025_v0_65_0.sql` (la lanza `npm run db:migrar`). **Obligatoria
+antes de subir**: la app lee la columna nueva `players.logros`.
+
+### Cambiado
+
+- **La barra lateral vuelve a la de la v0.62** (iconos de línea). Los sprites se quedan en la
+  barra de abajo del móvil y en «Más».
+- **Plegar la barra: una Poké Ball en el borde**, a la altura de «Análisis», medio dentro y
+  medio fuera. Fuera el botón de arriba y su franja muerta. Rueda al plegar. La posición se
+  mide (cambia con el tamaño de la ventana y el scroll de la barra).
+- **La clasificación de cada liga vuelve a la de la v0.62** (con la columna «Arq.»), a petición.
+- **Inicio: el ranking se elige** — Elo (por defecto), CP o Liga, por URL (`?rk=cp`).
+- **Mulligans: una Poké Ball** que se zarandea como en una captura en vez del dado, con el
+  número en una chapa.
+- La tarjeta de la liga del inicio y del perfil ya no corta el nombre («LIGA REGULAR IN…»).
+
+### Añadido
+
+- **Logros secretos** (`lib/logros.ts`, `players.logros`): se ganan encontrando los easter eggs
+  — Solrock y Lunatone (cambiar el tema), Tadbulb (machacarlo), Psyduck (penalización de dos
+  premios), el Pokémon de la estación y uno nuevo: **machacar la Poké Ball de la barra saca un
+  Voltorb**. En el perfil solo se ven los encontrados; del resto, solo cuántos quedan. Aviso de
+  «logro desbloqueado» la primera vez. La acción solo admite claves conocidas y solo toca la
+  cuenta de quien llama.
+- **La Ball de uso** en el perfil: Poké → Super → Ultra → Master según partidas (1 punto),
+  torneos (3) y logros (5), con barra de progreso.
+- **Etiquetas** junto a la de Bronce del ladder: Entrenador / veterano / As de la liga
+  (partidas), Primer torneo / Torneísta / Viajero del circuito (torneos) y las de secretos.
+- 3 pruebas nuevas (`tests/logros.test.ts`).
+
+### Verificado
+
+- Codificación, acciones e i18n estricto en verde. `npm test`: **583 de 583**. `tsc`: ningún
+  error nuevo de los nuestros. `npm run build`: pendiente.
+
 ## [0.64.0] — 2026-10-22
 
 Fuera los emojis: sprites de objetos y Pokémon, como el resto de imágenes de la app.

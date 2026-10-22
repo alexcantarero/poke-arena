@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { pokemonAleatorio } from "@/lib/pokemonEstacion";
+import { ganarLogro } from "@/components/logroCliente";
 
 type Pokemon = { slug: string; src: string };
 type Burst = { id: number; x: number; y: number; abajo: boolean; pokemon: Pokemon };
@@ -33,6 +34,7 @@ export function SeasonPokemonButton({
     if (timer.current !== null) window.clearTimeout(timer.current);
     const seleccionado = pokemonAleatorio(pokemon);
     if (!seleccionado) return;
+    ganarLogro("estacion"); // v0.65 — logro secreto
     setBurst({
       id: ++nextId.current,
       x: rect.left + rect.width / 2,

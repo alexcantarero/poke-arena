@@ -29,12 +29,13 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
   const isActive = useActive();
   const groups = NAV_GROUPS_VISIBLES.map((g) =>
     g.key === "nav.group.account"
-      ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user", sprite: SPRITE_PERFIL }, ...g.items] }
+      ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user" }, ...g.items] }
       : g);
   return (
     <nav aria-label={tr(lang, "nav.sections")} className="flex flex-col gap-3">
       {groups.map((g) => (
-        <div key={g.title} className="flex flex-col gap-0.5">
+        /* v0.65 — `data-grupo`: la Poké Ball de plegar se coloca a la altura de «Análisis». */
+        <div key={g.title} className="flex flex-col gap-0.5" data-grupo={g.key}>
           {/* v0.62 — los títulos de sección se distinguen: más grandes, en negrita, con el
               gris fuerte del tema y una raya que separa el bloque. */}
           <span className="barra-texto barra-seccion flex items-center gap-2 px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-2 after:h-px after:flex-1 after:bg-line">
@@ -53,7 +54,9 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
                   ? "bg-surface-3 font-semibold text-ink"
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
             >
-              <NavIcono sprite={it.sprite} icon={it.icon} activo={isActive(it.href)} className={isActive(it.href) ? "size-6 text-brand" : "size-6 text-muted"} />
+              {/* v0.65 — la barra lateral vuelve a la de la v0.62: iconos de línea. Los
+                  sprites se quedan en la barra de abajo del móvil y en «Más». */}
+              <Icon name={it.icon} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
               <span className="barra-texto">{labelOf(lang, it)}</span>
               {/* v0.54 — tus partidas sin resultado, sobre «Liga». */}
               {it.href === "/competiciones" && pendientes > 0 && (

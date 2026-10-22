@@ -5,6 +5,7 @@ import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 import { spriteUrl } from "@/lib/pokemon";
 import { ObjetoSprite } from "@/components/ObjetoSprite";
+import { ganarLogro } from "@/components/logroCliente";
 
 /* =========================================================================
    Premios de un juego: dos filas de 0 a 6 y una casilla de penalización.
@@ -93,7 +94,10 @@ export function PrizePicker({ campo, nombreA, nombreB, valor, winner, disabled, 
             name={`${campo}_penalty_${lado}`}
             checked={penalizado}
             disabled={disabled}
-            onChange={(e) => onChange({ [esA ? "penalizadoA" : "penalizadoB"]: e.target.checked })}
+            onChange={(e) => {
+              onChange({ [esA ? "penalizadoA" : "penalizadoB"]: e.target.checked });
+              if (e.target.checked) ganarLogro("psyduck"); // v0.65 — logro secreto
+            }}
             className="size-4"
           />
           <span>

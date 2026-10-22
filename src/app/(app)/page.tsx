@@ -58,10 +58,20 @@ const diasHasta = (iso: string) =>
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vista?: string; resultados?: string }>;
+  searchParams: Promise<{ vista?: string; resultados?: string; rk?: string }>;
 }) {
   const q = await searchParams;
   const vista: Vista = q.vista === "grupo" ? "grupo" : "global";
+  /* v0.65 — el ranking del inicio se elige: Elo (por defecto), CP o la liga. */
+  const rk: "elo" | "cp" | "liga" = q.rk === "cp" || q.rk === "liga" ? q.rk : "elo";
+  const rkHref = (v: "elo" | "cp" | "liga") => {
+    const u = new URLSearchParams();
+    if (q.vista) u.set("vista", q.vista);
+    if (q.resultados) u.set("resultados", q.resultados);
+    if (v !== "elo") u.set("rk", v);
+    const t = u.toString();
+    return t ? `/?${t}` : "/";
+  };
   const [snap, session, irl, online] = await Promise.all([
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
@@ -372,7 +382,7 @@ export default async function HomePage({
           <Kpi
             tone="brand"
             icon="trophy"
-            label={mainComp ? shortName(mainComp.name, 16) : tr(lang, "home.league")}
+            label={mainComp ? shortName(mainComp.name, 30) /* v0.65: la etiqueta ya cabe en dos líneas; a 16 salía «LIGA REGULAR IN…» */ : tr(lang, "home.league")}
             value={<>
               {posiciones.liga.pos}.º
               {posiciones.elo && (
@@ -387,7 +397,7 @@ export default async function HomePage({
           <Kpi
             tone="brand"
             icon="trophy"
-            label={mainComp ? shortName(mainComp.name, 16) : tr(lang, "home.leader")}
+            label={mainComp ? shortName(mainComp.name, 30) /* v0.65: la etiqueta ya cabe en dos líneas; a 16 salía «LIGA REGULAR IN…» */ : tr(lang, "home.leader")}
             value={leader ? snap.playersById.get(leader.playerId)?.name ?? "—" : "—"}
             note={leader ? pct(leader.winRate, 0) : tr(lang, "home.noData")}
           />
@@ -425,11 +435,50 @@ export default async function HomePage({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
-          <div className="card-head">
-            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lang, "home.leagueRanking")}</h2>
-            <Link className="btn btn-ghost btn-sm" href="/ranking">{tr(lang, "home.seeAll")}</Link>
+          <div className="card-head flex-wrap gap-y-2">
+            <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">
+              {tr(lang, rk === "elo" ? "home.rkElo" : rk === "cp" ? "home.rkCp" : "home.leagueRanking")}
+            </h2>
+            <div className="flex items-center gap-2">
+              {/* v0.65 — qué ranking: Elo, CP o liga. Enlaces: funcionan sin JavaScript. */}
+              <nav className="seg" aria-label={tr(lang, "home.rkElegir")}>
+                {(["elo", "cp", "liga"] as const).map((v) => (
+                  <Link key={v} href={rkHref(v)} scroll={false} data-on={rk === v} aria-current={rk === v ? "page" : undefined}>
+                    {v === "elo" ? "Elo" : v === "cp" ? "CP" : tr(lang, "home.league")}
+                  </Link>
+                ))}
+              </nav>
+              <Link className="btn btn-ghost btn-sm" href={rk === "liga" && mainComp ? `/competiciones/${mainComp.id}` : "/ranking"}>{tr(lang, "home.seeAll")}</Link>
+            </div>
           </div>
-          {table.some((r) => r.played) ? (
+          {rk !== "liga" ? (() => {
+            /* Elo: los activos con alguna partida, por rating. CP: los que tienen
+               CP esta temporada. Mismo aspecto que la tabla de la liga. */
+            const conPartidas = new Set(played.flatMap((m) => [m.playerAId, m.playerBId ?? ""]));
+            const filas = rk === "elo"
+              ? snap.activePlayerIds.filter((id) => conPartidas.has(id))
+                  .map((id) => ({ id, valor: Math.round(snap.elo.rating[id] ?? snap.config.eloStart) }))
+              : snap.players.filter((p) => p.active)
+                  .map((p) => ({ id: p.id, valor: playerCp(snap, p.id).total })).filter((f) => f.valor > 0);
+            filas.sort((x, y) => y.valor - x.valor);
+            if (!filas.length) return <Empty title={tr(lang, rk === "cp" ? "home.rkSinCp" : "home.noMatchesYet")}>{rk === "cp" ? null : tr(lang, "home.noMatchesHint")}</Empty>;
+            return (
+              <ol className="divide-y divide-line-soft">
+                {filas.slice(0, 6).map((f, i) => (
+                  <li key={f.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${session?.playerId === f.id ? "bg-surface-2/70" : ""}`}>
+                    <span className={`flex size-6 flex-none items-center justify-center rounded-full font-display text-xs font-black tabular ${
+                      i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>
+                      {i + 1}
+                    </span>
+                    <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
+                    <span className="flex-none font-mono text-sm font-bold tabular">
+                      {f.valor}<span className="ml-1 text-[10px] font-semibold text-muted">{rk === "elo" ? "Elo" : "CP"}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            );
+          })() : table.some((r) => r.played) ? (
             <ol className="divide-y divide-line-soft">
               {table.slice(0, 6).map((r, i) => {
                 const isTop1 = i === 0;

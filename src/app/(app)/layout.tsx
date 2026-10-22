@@ -21,6 +21,7 @@ import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
+import { LogroAviso } from "@/components/LogroAviso";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
 import { logout } from "@/actions";
@@ -60,6 +61,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
       <aside className="shell-dark barra-lateral sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex">
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
+        {/* v0.65 — el botón de plegar ya no va aquí arriba: es la Poké Ball del
+            borde de la barra, a la altura de «Análisis» (ver BarraToggle). */}
         <BarraToggle mini={barraMini} />
         <div className="barra-texto px-2 pb-4 pt-2">
           {/* v0.17: la marca es la app; la liga y la temporada van debajo. */}
@@ -168,6 +171,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           `next build` falla al prerenderizar. */}
       <Suspense fallback={null}>
         <Snackbar />
+        <LogroAviso />
         {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
         <FilterMemory />
       </Suspense>

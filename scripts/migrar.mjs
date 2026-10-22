@@ -33,7 +33,7 @@ neonConfig.webSocketConstructor = globalThis.WebSocket;
 const host = new URL(url).host;
 console.log(`→ Base de datos: ${host}`);
 
-const MIGRACIONES = ["drizzle/0018_v0_45_0.sql", "drizzle/0019_v0_47_0.sql", "drizzle/0020_v0_54_0.sql", "drizzle/0021_v0_57_0.sql", "drizzle/0022_v0_59_0.sql", "drizzle/0023_v0_60_0.sql", "drizzle/0024_v0_61_0.sql"];
+const MIGRACIONES = ["drizzle/0018_v0_45_0.sql", "drizzle/0019_v0_47_0.sql", "drizzle/0020_v0_54_0.sql", "drizzle/0021_v0_57_0.sql", "drizzle/0022_v0_59_0.sql", "drizzle/0023_v0_60_0.sql", "drizzle/0024_v0_61_0.sql", "drizzle/0025_v0_65_0.sql"];
 const pool = new Pool({ connectionString: url });
 try {
   for (const f of MIGRACIONES) {

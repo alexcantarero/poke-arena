@@ -19,6 +19,7 @@ import {
   msj,
 } from "./_comun";
 import { anadirVisto } from "@/lib/tutorialesPagina";
+import { anadirLogro, CLAVES_LOGRO } from "@/lib/logros";
 
 export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
@@ -398,6 +399,20 @@ export async function setPersonalRegional(fd: FormData) {
 export async function marcarTutorialVisto() {
   const actor = await requireActor();
   await db.update(players).set({ tutorialVistoAt: new Date() }).where(eq(players.id, actor.id));
+}
+
+/** v0.65 — un logro secreto encontrado. Solo la cuenta de quien llama y solo
+    claves conocidas: es un endpoint público, y desde la consola se podría
+    pedir cualquier cosa. Devuelve si era nuevo, para avisar una sola vez. */
+export async function desbloquearLogro(clave: string): Promise<boolean> {
+  const actor = await requireActor();
+  if (!CLAVES_LOGRO.includes(clave)) return false;
+  const r = await db.select({ v: players.logros }).from(players).where(eq(players.id, actor.id));
+  const antes = r[0]?.v ?? "";
+  const despues = anadirLogro(antes, clave);
+  if (despues === antes) return false;
+  await db.update(players).set({ logros: despues }).where(eq(players.id, actor.id));
+  return true;
 }
 
 /** v0.61 — un tutorial de página ya visto. Solo la cuenta de quien llama, y solo claves conocidas. */
