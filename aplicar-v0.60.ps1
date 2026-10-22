@@ -6,11 +6,11 @@
     · v0.50 o v0.51 → aplica solo lo nuevo.
   Luego: verifica, compila, migra la base de .env.local y hace el commit.
 
-      powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\aplicar-v0.59.ps1"
-      powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\aplicar-v0.59.ps1" -SoloSubir
+      powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\aplicar-v0.60.ps1"
+      powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\aplicar-v0.60.ps1" -SoloSubir
 #>
 param(
-  [string]$Zip = "$env:USERPROFILE\Downloads\pokearena-v0.59-completa.zip",
+  [string]$Zip = "$env:USERPROFILE\Downloads\pokearena-v0.60-completa.zip",
   [switch]$SoloSubir
 )
 
@@ -69,7 +69,7 @@ npm run db:migrar
 if ($LASTEXITCODE -ne 0) { Aviso "No se han podido lanzar. No es grave: se puede repetir con «npm run db:migrar»." }
 
 Paso "6/6 · Commit"
-git add -A -- src tests scripts drizzle public package.json CHANGELOG.md next.config.ts IMPLEMENTAR-v0.51.0.md PASOS-v0.59.md
+git add -A -- src tests scripts drizzle public package.json CHANGELOG.md next.config.ts IMPLEMENTAR-v0.51.0.md PASOS-v0.60.md
 Corre "git commit" { git commit -q -m "v0.53: meta online con partidas reales, Estadísticas reordenada y Ciphermaniac" }
 Bien "Commit hecho"
 
