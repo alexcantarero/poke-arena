@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.66.0] — 2026-10-22
+
+Legibilidad, tras revisar la web desplegada. **Sin migración nueva** (lleva la de la v0.65).
+
+### Cambiado
+
+- **Contraste del gris tenue**: en la barra lateral clara, `--muted` estaba en 4,07:1 (por
+  debajo del 4,5 de AA): «SEASON 1», «otoño» y los títulos de sección se leían mal. Ahora 5,5:1.
+  El gris tenue general del tema claro sube de 4,6:1 a 5,3:1. El oscuro ya cumplía.
+- **Letra mínima**: lo que iba a 9 y 10 px sube a 10 y 11 px en toda la app (una regla en
+  `globals.css`, sin tocar cada pantalla).
+- **Barra lateral en pantallas bajas** (≤ 820 px de alto): filas de 36 px en vez de 44 y
+  menos aire entre secciones, para que «Top Decks» y lo de abajo quepan sin scroll. Las
+  pantallas altas no cambian.
+- **Lista de Ligas**: las partidas jugadas tienen su columna (PJ) en vez de ir apiladas bajo
+  el %V, que se apretaba.
+- Los pétalos y hojas de la estación se quedan como están, a petición.
+
 ## [0.65.0] — 2026-10-22
 
 La barra de la v0.62 con una Poké Ball para plegarla, el ranking del inicio a elegir,

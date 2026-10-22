@@ -96,7 +96,8 @@ export default async function CompetitionsPage() {
                     <li className="flex items-center gap-3 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted" aria-hidden="true">
                       <span className="w-5 flex-none" />
                       <span className="flex-1">{tr(lng, "x.588eb828")}</span>
-                      <span className="hidden xs:block">{tr(lng, "x.e5f65dc6")}</span>
+                      <span className="hidden w-16 text-right xs:block">{tr(lng, "x.e5f65dc6")}</span>
+                      <span className="w-8 text-right">{tr(lng, "x.a87fe3dd")}</span>
                       <span className="w-12 text-right">{tr(lng, "x.39683ef7")}</span>
                     </li>
                     {conPartidas.slice(0, 5).map((r, i) => (
@@ -106,13 +107,13 @@ export default async function CompetitionsPage() {
                           <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0" />
                           {cerrada && i === 0 && <span className="chip chip-brand flex-none text-[10px]">{tr(lng, "x.c4274e98")}</span>}
                         </span>
-                        <span className="hidden xs:block"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
+                        <span className="hidden w-16 justify-end xs:flex"><Record w={r.wins} d={r.ties} l={r.losses} /></span>
                         {/* El %V lleva al lado sobre cuántas partidas: un 100 %
-                            sobre una no es un 100 % sobre diez. */}
-                        <span className="flex w-12 flex-col items-end leading-tight">
-                          <span className="font-mono text-xs font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 0)}</span>
-                          <span className="text-[10px] tabular text-muted">{r.played} p.</span>
-                        </span>
+                            sobre una no es un 100 % sobre diez.
+                            v0.66 — en su propia columna (PJ) y no apilado bajo el
+                            %: en una línea se lee de un vistazo y no se aprieta. */}
+                        <span className="w-8 text-right font-mono text-xs tabular text-muted">{r.played}</span>
+                        <span className="w-12 text-right font-mono text-xs font-semibold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 0)}</span>
                       </li>
                     ))}
                   </ol>

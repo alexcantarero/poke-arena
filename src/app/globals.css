@@ -36,7 +36,7 @@
   /* tinta */
   --ink: #0d1526;
   --ink-2: #36445e;
-  --muted: #5f6d8a;
+  --muted: #56637d; /* v0.66 — antes #5f6d8a (4,6:1 sobre el fondo, justo); ahora 5,3:1 */
 
   /* marca — el dorado del canto holográfico */
   --brand: #8a5c0a;
@@ -1273,7 +1273,9 @@ html[data-motion="off"] .pkmn-destello { display: none; }
 html:not([data-theme="dark"]) .barra-lateral {
   --surface: #f5f7fb; --surface-2: #eaeff6; --surface-3: #dfe6f0;
   --line: #dbe2ec; --line-soft: #e7ecf3;
-  --ink: #1b2535; --ink-2: #3a4a61; --muted: #6a7a91; --ground: #eef2f8;
+  /* v0.66 — --muted era #6a7a91: 4,07:1 sobre la barra, por debajo del 4,5 de AA.
+     Con #56657c queda en 5,5:1 («SEASON 1», «otoño», los títulos de sección). */
+  --ink: #1b2535; --ink-2: #3a4a61; --muted: #56657c; --ground: #eef2f8;
   --info: #2a78d6;
   color-scheme: light;
 }
@@ -1534,3 +1536,30 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
   45% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 75% { transform: rotate(-3deg); }
 }
 @media (prefers-reduced-motion: reduce) { .dado-tira { animation: none; } }
+
+/* =========================================================================
+   v0.66 — Legibilidad.
+   ========================================================================= */
+/* Letra mínima: lo que iba a 9 y 10 px (etiquetas en mayúsculas, notas de las
+   tarjetas, chips) sube un punto. Va fuera de @layer para ganar a la utilidad
+   de Tailwind sin tocar cien ficheros; el tamaño de diseño sigue escrito en
+   cada sitio y aquí solo se pone el suelo. */
+.text-\[9px\] { font-size: 10px; }
+.text-\[10px\] { font-size: 11px; }
+.meta-kv { font-size: 11px; }
+
+/* La barra lateral en pantallas BAJAS (portátiles pequeños, ventanas a media
+   altura): antes había que hacer scroll dentro de ella para llegar a «Top
+   Decks». Con ratón no hacen falta 44 px por fila; 36 sobran. Las pantallas
+   altas no cambian. */
+@media (min-width: 768px) and (max-height: 820px) {
+  .barra-lateral .nav-side { min-height: 2.25rem; }
+  .barra-lateral nav { gap: .35rem; }
+  .barra-lateral .barra-seccion { padding-top: .25rem; padding-bottom: .1rem; }
+  .barra-lateral > .barra-texto { padding-bottom: .5rem; padding-top: .25rem; }
+  .barra-lateral > .mt-auto { padding-top: .5rem; gap: .35rem; }
+}
+@media (min-width: 768px) and (max-height: 640px) {
+  .barra-lateral .nav-side { min-height: 2rem; font-size: .8125rem; }
+  .barra-lateral nav { gap: .15rem; }
+}
