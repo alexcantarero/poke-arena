@@ -16,12 +16,13 @@ import { LangProvider } from "@/components/LangProvider";
 import { BarraToggle } from "@/components/BarraToggle";
 import { LideresMargen } from "@/components/LideresMargen";
 import { Tutorial } from "@/components/Tutorial";
+import { TutorialPagina } from "@/components/TutorialPagina";
 import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { readSession } from "@/lib/auth";
-import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente } from "@/lib/data";
+import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
 import { logout } from "@/actions";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // v0.56 — la barra lateral plegada o no: la cookie se lee aquí para que la página llegue ya bien, sin parpadeo.
   const barraMini = (await cookies()).get("arena-barra")?.value === "mini";
   const verTutorial = me ? await tutorialPendiente(me.id) : false; // v0.60
+  const paginasVistas = me ? await tutorialesVistos(me.id) : []; // v0.61
   // v0.54 — mis partidas sin resultado: el número del menú.
   const misPendientes = me ? await cargarPendientesDe(me.id) : [];
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
@@ -143,6 +145,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
         {/* v0.60 — el tutorial de primera vez: una vez por cuenta, también a los que ya estaban. */}
         {verTutorial && <Tutorial />}
+        {/* v0.61 — el de cada página, la primera vez que se entra; no se apila con el general. */}
+        {me && <TutorialPagina vistos={paginasVistas} bloqueado={verTutorial} />}
         {/* v0.58 — los líderes de la pestaña, en los márgenes de las pantallas anchas. */}
         <LideresMargen />
         <main className="mx-auto w-full max-w-5xl px-3 xl:max-w-6xl 2xl:max-w-7xl pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">

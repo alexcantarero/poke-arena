@@ -580,7 +580,9 @@ export function MatchForm({
         )}
         <input type="hidden" name="empate_tiempo" value={empateTiempo ? "1" : ""} />
 
-        {!decided && (
+        {/* v0.61 — solo en el modo detallado: en el rápido confundía, porque ahí
+            no se apuntan juegos sino el marcador. */}
+        {!decided && modo === "detalle" && (
           <p className="mt-3 text-sm text-muted">
             Faltan juegos: nadie llega a {need}.
           </p>

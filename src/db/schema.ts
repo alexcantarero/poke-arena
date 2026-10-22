@@ -145,6 +145,8 @@ export const players = pgTable("players", {
 
   /** v0.60 — cuándo vio el tutorial de primera vez. Nulo = aún no: le sale al entrar (una vez por cuenta, no por navegador). */
   tutorialVistoAt: timestamp("tutorial_visto_at", { withTimezone: true }),
+  /** v0.61 — los tutoriales de página ya vistos, por clave y separados por comas («inicio,ranking»). */
+  tutorialesVistos: text("tutoriales_vistos").notNull().default(""),
 
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),

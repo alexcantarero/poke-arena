@@ -21,7 +21,8 @@ function fondo(p: number | null): string {
   if (p == null) return "transparent";
   const fuerza = Math.min(1, Math.abs(p - 0.5) * 2.5);
   const color = p >= 0.5 ? "var(--win)" : "var(--loss)";
-  return `color-mix(in oklab, ${color} ${Math.round(12 + fuerza * 48)}%, transparent)`;
+  // v0.61 — más fondo de partida (26 % y no 12 %): en tema claro las barras casi no se veían.
+  return `color-mix(in oklab, ${color} ${Math.round(26 + fuerza * 44)}%, transparent)`;
 }
 
 function Icono({ f, size = "size-7" }: { f: FilaMeta; size?: string }) {

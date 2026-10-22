@@ -6,6 +6,7 @@ import { pct, wrColor } from "@/lib/format";
 import { num } from "@/lib/format";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { Forma, LeyendaRanking, MIN_PARTIDAS_PCT } from "@/components/RankingTable";
 
 /* =========================================================================
    v0.15.1 — El ranking con «Todo»: UNA tabla con todo sumado.
@@ -22,6 +23,8 @@ import { useLang } from "@/components/LangProvider";
    ========================================================================= */
 
 export type TodoRow = {
+  /** v0.61 — los últimos 5 resultados, del más antiguo al más reciente. */
+  forma?: Array<"w" | "l" | "t">;
   playerId: string;
   name: string;
   avatar: ReactNode;
@@ -125,6 +128,8 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                   <span className="block truncate font-semibold">{r.name}</span>
                   <span className="block truncate text-xs text-muted tabular">
                     <span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
+                    {/* v0.61 — el % también en cifra: en el móvil solo se veía la barra. */}
+                    {r.winRate != null ? <> · <b style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 0)}{r.played < MIN_PARTIDAS_PCT ? "*" : ""}</b></> : null}
                     {` · ${r.played} partidas`}
                     {r.torneos ? ` · ${r.torneos} torneo${r.torneos === 1 ? "" : "s"}` : ""}
                     {r.cp ? ` · ${r.cp} CP` : ""}
@@ -138,6 +143,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                       }}
                     />
                   </span>
+                  <span className="mt-1.5 block"><Forma f={r.forma} titulo={tr(lng, "rk.ayuda.forma")} /></span>
                 </span>
                 {sort.key !== "points" && (
                   <span className="flex-none text-right">
@@ -160,6 +166,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
               <th className="w-10 text-center">#</th>
               <th>{tr(lng, "x.588eb828")}</th>
               <th>{tr(lng, "x.e5f65dc6")}</th>
+              <th title={tr(lng, "rk.ayuda.forma")}>{tr(lng, "rk.forma")}</th>
               {COLS.map((c) => (
                 <th key={c.key} className="text-right">
                   <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={c.label}>
@@ -182,11 +189,14 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                     {/* v0.19: sin etiqueta de drop en el ranking (sigue en la ficha del torneo). */}
                   </Link>
                 </td>
-                <td className="font-mono text-[13px]">
+                {/* v0.61 — el récord en UNA línea: se partía en dos («56–» / «44–5»). */}
+                <td className="whitespace-nowrap font-mono text-[13px]">
                   <b className="text-win">{r.wins}</b>–<span className="text-loss">{r.losses}</span>–<span className="text-tie">{r.ties}</span>
                 </td>
+                <td><Forma f={r.forma} titulo={tr(lng, "rk.ayuda.forma")} /></td>
                 <td className="text-right">
-                  <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
+                  <span className={`block font-mono text-xs font-bold tabular ${r.played < MIN_PARTIDAS_PCT ? "opacity-50" : ""}`} style={{ color: wrColor(r.winRate) }}
+                    title={r.played < MIN_PARTIDAS_PCT ? tr(lng, "rk.orientativo") : undefined}>{pct(r.winRate, 1)}{r.played < MIN_PARTIDAS_PCT ? "*" : ""}</span>
                   <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">
                     <span
                       className="block h-full rounded-full"
@@ -211,6 +221,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
           </tbody>
         </table>
       </div>
+      <LeyendaRanking />
     </>
   );
 }

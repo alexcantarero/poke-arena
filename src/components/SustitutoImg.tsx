@@ -15,6 +15,8 @@ export function SustitutoImg({ className, fallback, titulo }: { className: strin
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={URL_SUSTITUTO} alt={titulo} title={titulo} onError={() => setRoto(true)}
-      className={`inline-block flex-none object-contain [image-rendering:pixelated] ${className}`} />
+      /* v0.61 — ampliado: el dibujo de Showdown trae mucho margen transparente y salía
+         diminuto al lado de los demás sprites. */
+      className={`inline-block flex-none scale-[1.7] object-contain [image-rendering:pixelated] ${className}`} />
   );
 }

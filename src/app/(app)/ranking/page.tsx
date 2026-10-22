@@ -188,9 +188,20 @@ export default async function RankingPage({
         cp: playerCp(snap, pid).total,
         torneos: tt?.torneos ?? 0, conCorte: tt?.conCorte ?? 0, cortes: tt?.cortes ?? 0,
         cutRate: tt?.cutRate ?? null, avgPlacement: tt?.avgPlacement ?? null, drops: tt?.drops ?? 0,
+        forma: formaReciente(scoped, pid), // v0.61
       };
     });
     nJugadoresRanking = filas.length;
+    // v0.61 — el líder y el mejor Elo también en la vista por defecto: en la
+    // v0.60 solo salían en la de liga, que no es la que se abre.
+    const conPartidas = filas.filter((f) => f.played > 0);
+    if (conPartidas.length) {
+      const porPuntos = [...conPartidas].sort((a, b) => b.points - a.points || (b.winRate ?? 0) - (a.winRate ?? 0));
+      liderTabla = { nombre: snap.playersById.get(porPuntos[0].playerId)?.name ?? "?", puntos: porPuntos[0].points,
+        ventaja: porPuntos[1] ? porPuntos[0].points - porPuntos[1].points : null };
+      const elo = [...conPartidas].sort((a, b) => b.elo - a.elo)[0];
+      mejorElo = { nombre: snap.playersById.get(elo.playerId)?.name ?? "?", elo: elo.elo };
+    }
     tabla = <RankingTodoTable rows={filas} />;
   } else if (vista === "tournament") {
     const filas: TourRankRow[] = [...porTorneo.values()]

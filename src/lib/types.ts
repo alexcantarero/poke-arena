@@ -17,7 +17,7 @@ export type {
  * en el HTML el hash y el correo de los demás. El tipo existe para que el
  * compilador no deje que eso vuelva a colarse.
  */
-export type PublicPlayer = Omit<Player, "email" | "passwordHash" | "loginAttempts" | "lockedUntil" | "sessionVersion" | "tutorialVistoAt">;
+export type PublicPlayer = Omit<Player, "email" | "passwordHash" | "loginAttempts" | "lockedUntil" | "sessionVersion" | "tutorialVistoAt" | "tutorialesVistos">;
 // v0.60 — `tutorialVistoAt` tampoco viaja al navegador: se lee aparte (`tutorialPendiente`).
 
 /** Una partida con sus juegos ya cargados: lo que consume el motor de estadísticas. */

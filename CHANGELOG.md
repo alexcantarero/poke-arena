@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.61.0] — 2026-10-21
+
+Los arreglos de la revisión en la app desplegada, y un tutorial por página.
+**Lleva migración:** `drizzle/0024_v0_61_0.sql` (la lanza `npm run db:migrar`).
+
+### Corregido (de la revisión de la v0.60 desplegada)
+
+- **El Ranking por defecto no tenía las mejoras de la v0.60**: la vista «Todo», que es la que se
+  abre, usa `RankingTodoTable`, y las mejoras se habían puesto en la de liga. Ahora también ahí:
+  la columna Forma, el % atenuado y con asterisco con menos de 5 partidas, el líder y el mejor
+  Elo arriba, y la leyenda. `Forma` y `LeyendaRanking` se comparten entre las dos tablas.
+- **El récord V–D–E se partía en dos líneas** («56–» / «44–5»): ahora en una.
+- **En el móvil no se veía el número del %**, solo la barra: ahora sale la cifra.
+- **El Sustituto salía diminuto** (el dibujo de Showdown trae mucho margen): ampliado.
+- **«Faltan juegos: nadie llega a 2»** salía en el modo rápido, donde confundía: solo en el detallado.
+- **`/perfil` daba 404**: ahora lleva a tu perfil.
+- **Barras del meta online en tema claro**: más contraste.
+
+### Añadido
+
+- **Tutorial de cada página**: la primera vez que entras en una de las 14 principales, una
+  tarjeta con para qué sirve y cómo se usa (dos pasos). Una vez por CUENTA
+  (`players.tutoriales_vistos`), no por navegador, y no se apila con el general: si te toca el
+  general, el de la página espera. `lib/tutorialesPagina.ts` (puro, 3 pruebas).
+
+### Verificado
+
+- `npm run verificar`: **569 de 569**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.60.0] — 2026-10-21
 
 Estadísticas por juegos, Ranking claro y tutorial de primera vez.

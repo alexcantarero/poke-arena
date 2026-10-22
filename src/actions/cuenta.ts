@@ -18,6 +18,7 @@ import {
   str, int, bool, pick, refresh, safeBack, requireActor, requireManager, owns, ownerCount, loginSchema, PALETTE, confirmed, puestoDe,
   msj,
 } from "./_comun";
+import { anadirVisto } from "@/lib/tutorialesPagina";
 
 export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
@@ -397,4 +398,11 @@ export async function setPersonalRegional(fd: FormData) {
 export async function marcarTutorialVisto() {
   const actor = await requireActor();
   await db.update(players).set({ tutorialVistoAt: new Date() }).where(eq(players.id, actor.id));
+}
+
+/** v0.61 — un tutorial de página ya visto. Solo la cuenta de quien llama, y solo claves conocidas. */
+export async function marcarTutorialPagina(clave: string) {
+  const actor = await requireActor();
+  const r = await db.select({ v: players.tutorialesVistos }).from(players).where(eq(players.id, actor.id));
+  await db.update(players).set({ tutorialesVistos: anadirVisto(r[0]?.v ?? "", clave) }).where(eq(players.id, actor.id));
 }

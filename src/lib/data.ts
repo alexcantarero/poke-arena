@@ -818,3 +818,9 @@ export const tutorialPendiente = cache(async (playerId: string): Promise<boolean
   const r = await db.select({ visto: players.tutorialVistoAt }).from(players).where(eq(players.id, playerId));
   return r.length > 0 && r[0].visto == null;
 });
+
+/** v0.61 — los tutoriales de página que ya vio. Aparte, como el general: no viaja con el jugador. */
+export const tutorialesVistos = cache(async (playerId: string): Promise<string[]> => {
+  const r = await db.select({ v: players.tutorialesVistos }).from(players).where(eq(players.id, playerId));
+  return (r[0]?.v ?? "").split(",").filter(Boolean);
+});

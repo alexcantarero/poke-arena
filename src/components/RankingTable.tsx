@@ -35,10 +35,10 @@ export type RankRow = {
 };
 
 /** v0.60 — con menos partidas que esto, el % de victorias es orientativo: se atenúa y lleva asterisco. */
-const MIN_PARTIDAS_PCT = 5;
+export const MIN_PARTIDAS_PCT = 5;
 
 /** v0.60 — la forma: cinco puntos de color, de izquierda (antiguo) a derecha (reciente). */
-function Forma({ f, titulo }: { f?: Array<"w" | "l" | "t">; titulo: string }) {
+export function Forma({ f, titulo }: { f?: Array<"w" | "l" | "t">; titulo: string }) {
   if (!f?.length) return <span className="text-muted">—</span>;
   const color = { w: "bg-win", l: "bg-loss", t: "bg-tie" } as const;
   return (
@@ -251,8 +251,16 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
           </tbody>
         </table>
       </div>
-      {/* v0.60 — la leyenda: qué es cada cosa y dónde se explica todo. */}
-      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+      <LeyendaRanking />
+    </>
+  );
+}
+
+/** v0.60 — la leyenda del ranking: los colores de la forma, el asterisco y los enlaces. La usan las dos tablas. */
+export function LeyendaRanking() {
+  const lng = useLang(); // v0.49: SIEMPRE la primera línea
+  return (
+    <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
         <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-win" />{tr(lng, "rk.lVictoria")}</span>
         <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-loss" />{tr(lng, "rk.lDerrota")}</span>
         <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-tie" />{tr(lng, "rk.lEmpate")}</span>
@@ -260,7 +268,6 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
         <span>· {tr(lng, "rk.lAsterisco")}</span>
         <Link href="/reglas" className="text-info underline underline-offset-2">{tr(lng, "reg.enlaceRanking")}</Link>
         <Link href="/glosario" className="text-info underline underline-offset-2">{tr(lng, "glo.enlace")}</Link>
-      </p>
-    </>
+    </p>
   );
 }
