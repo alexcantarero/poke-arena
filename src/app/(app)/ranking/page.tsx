@@ -5,9 +5,7 @@ import type { SerieLadder } from "@/components/statistics/LadderChart";
 import { LadderChartLazy } from "@/components/statistics/lazy";
 import { seriesLadder } from "@/lib/ladderSeries";
 import { RankBadge } from "@/components/Ladder";
-import {
-  archetypeStats, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings,
-} from "@/lib/stats";
+import { archetypeStats, formaReciente, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings } from "@/lib/stats";
 import { awardsCp, computeCp, cpKindOf, getSeason, seasonOfDate, type CpResultInput } from "@/lib/cp";
 import { estadoMundial, porPuestoZona } from "@/lib/mundial";
 import { FECHAS_RANKING, dentroDeRango, filtroAQuery, parseFiltroRanking, rangoDeFechas } from "@/lib/rankingFiltro";
@@ -166,6 +164,8 @@ export default async function RankingPage({
 
   /* --- las tres tablas posibles; solo se pinta una --- */
   let nJugadoresRanking = 0;
+  let liderTabla: { nombre: string; puntos: number; ventaja: number | null } | null = null; // v0.60
+  let mejorElo: { nombre: string; elo: number } | null = null; // v0.60
   const avatarDe = (pid: string) => {
     const p = snap.playersById.get(pid);
     return { avatar: <Avatar player={p} size="md" />, avatarSm: <Avatar player={p} size="sm" />, name: p?.name ?? "—" };
@@ -221,9 +221,18 @@ export default async function RankingPage({
         diff: r.diff, elo: r.elo, cp: playerCp(snap, r.playerId).total,
         streakKind: r.streak.kind, streakN: r.streak.n,
         topArchId: own[0]?.archetype?.id ?? null, topArchName: own[0]?.archetype?.name ?? null,
+        forma: formaReciente(scoped, r.playerId), // v0.60
       };
     });
     nJugadoresRanking = rows.length;
+    // v0.60 — las cifras de arriba: el líder (y su ventaja) y el mejor Elo.
+    if (rows.length) {
+      const porPuntos = [...rows].sort((a, b) => b.points - a.points || (b.winRate ?? 0) - (a.winRate ?? 0));
+      liderTabla = { nombre: snap.playersById.get(porPuntos[0].playerId)?.name ?? "?", puntos: porPuntos[0].points,
+        ventaja: porPuntos[1] ? porPuntos[0].points - porPuntos[1].points : null };
+      const elo = [...rows].sort((a, b) => b.elo - a.elo)[0];
+      mejorElo = { nombre: snap.playersById.get(elo.playerId)?.name ?? "?", elo: elo.elo };
+    }
     tabla = <RankingTable rows={rows} />;
   }
 
@@ -313,15 +322,19 @@ export default async function RankingPage({
       />
 
       <section className="mb-4 overflow-hidden rounded-2xl border border-brand/25 bg-[linear-gradient(120deg,color-mix(in_oklab,var(--brand-soft)_70%,var(--surface)),var(--surface)_65%)] shadow-sm">
-        <div className="grid grid-cols-3 divide-x divide-brand/15">
+        {/* v0.60 — cifras que cuentan algo: el líder y su ventaja, y el mejor Elo,
+            además del tamaño de lo que se está mirando. */}
+        <div className="grid grid-cols-2 divide-brand/15 sm:grid-cols-4 sm:divide-x">
           {[
-            { label: tr(lng, "x.64f94394"), value: scoped.length, accent: "text-info", bar: "bg-info" },
-            { label: tr(lng, "x.b5291b8d"), value: nJugadoresRanking, accent: "text-brand", bar: "bg-brand" },
-            { label: tr(lng, "x.f02a0f3c"), value: nTorneos, accent: "text-win", bar: "bg-win" },
+            ...(liderTabla ? [{ label: tr(lng, "rk.lider"), value: liderTabla.nombre, sub: `${liderTabla.puntos} pts${liderTabla.ventaja != null ? ` · +${liderTabla.ventaja}` : ""}`, accent: "text-brand", bar: "bg-brand" }] : []),
+            ...(mejorElo ? [{ label: tr(lng, "rk.mejorElo"), value: mejorElo.nombre, sub: `${mejorElo.elo} Elo`, accent: "text-info", bar: "bg-info" }] : []),
+            { label: tr(lng, "x.64f94394"), value: scoped.length, sub: `${nJugadoresRanking} ${tr(lng, "rk.jugadores")}`, accent: "text-ink", bar: "bg-line" },
+            { label: tr(lng, "x.f02a0f3c"), value: nTorneos, sub: "", accent: "text-win", bar: "bg-win" },
           ].map((item) => (
             <div key={item.label} className="relative min-w-0 px-4 py-3.5 sm:px-5">
-              <span className={`block font-display text-2xl font-black leading-none tabular ${item.accent}`}>{item.value}</span>
+              <span className={`block truncate font-display text-2xl font-black leading-none tabular ${item.accent}`}>{item.value}</span>
               <span className="mt-1 block text-[11px] font-bold uppercase tracking-wider text-muted">{item.label}</span>
+              {item.sub && <span className="block truncate text-xs text-ink-2 tabular">{item.sub}</span>}
               <span className={`absolute inset-x-0 bottom-0 h-0.5 ${item.bar}`} />
             </div>
           ))}
@@ -453,6 +466,18 @@ export default async function RankingPage({
         </section>
       )}
 
+      {/* v0.60 — los enfrentamientos directos, con lo de la liga (tabla y Elo);
+          lo del circuito oficial (Mundial y Ladder), detrás. */}
+      <section className="card mt-5 min-w-0 overflow-hidden">
+        <div className="card-head">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold">{tr(lng, "x.55125239")}</h2>
+            <p className="text-xs text-muted">{tr(lng, "x.acd50f5b")}</p>
+          </div>
+        </div>
+        <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
+      </section>
+
       {/* ---------------------- v0.17: camino al Mundial ---------------------- */}
       <section className="card mt-5" id="mundial">
         <div className="card-head">
@@ -533,15 +558,6 @@ export default async function RankingPage({
         </p>
       </section>
 
-      <section className="card mt-5 min-w-0 overflow-hidden">
-        <div className="card-head">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold">{tr(lng, "x.55125239")}</h2>
-            <p className="text-xs text-muted">{tr(lng, "x.acd50f5b")}</p>
-          </div>
-        </div>
-        <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
-      </section>
 
       {/* v0.24: fuera la cuadrícula de mini-gráficas por jugador; la evolución
           del Elo es UNA gráfica con todos (arriba). */}

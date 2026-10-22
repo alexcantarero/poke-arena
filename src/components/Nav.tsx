@@ -44,6 +44,7 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
               aria-current={isActive(it.href) ? "page" : undefined}
               data-on={isActive(it.href) ? "true" : "false"}
               title={labelOf(lang, it)}
+              data-tour={it.href}
               className={`nav-side tap relative justify-start rounded-lg px-3 text-sm font-medium transition-colors
                 ${isActive(it.href)
                   ? "bg-surface-3 font-semibold text-ink"
@@ -88,6 +89,7 @@ export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string;
         <div className="flex justify-center">
           <Link
             href="/partidas/nueva"
+            data-tour="registrar"
             aria-label={tr(lang, "shell.newMatch")}
             className="press -mt-5 flex size-14 items-center justify-center rounded-full border-4 border-ground
                        bg-brand text-on-brand active:scale-95"
@@ -121,6 +123,7 @@ function Tab({ item, active, badge = 0, lider }: { item: Item; active: boolean; 
       aria-current={active ? "page" : undefined}
       data-on={active ? "true" : "false"}
       className="nav-tab relative"
+      data-tour={item.href}
     >
       {/* v0.58 — el líder de la pestaña asoma sobre la pestaña activa. */}
       {active && lider && (

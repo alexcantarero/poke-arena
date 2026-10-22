@@ -392,3 +392,9 @@ export async function setPersonalRegional(fd: FormData) {
   }
   redirect("/#ultimo-regional");
 }
+
+/** v0.60 — el tutorial ya se vio (terminado o saltado). Solo la cuenta de quien llama. */
+export async function marcarTutorialVisto() {
+  const actor = await requireActor();
+  await db.update(players).set({ tutorialVistoAt: new Date() }).where(eq(players.id, actor.id));
+}

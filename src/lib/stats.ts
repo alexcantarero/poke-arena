@@ -532,22 +532,35 @@ export function archetypeStats(
     return r;
   };
 
+  /* v0.60 — POR JUEGOS (decisión de Ibai): cada juego suma al mazo con el que
+     se jugó —el suyo si lo tiene guardado, el de la serie si no—. Antes la
+     serie entera iba al mazo de la serie, y en la liga con «mazo distinto en
+     cada juego» un 1-2 con Dragapult en el juego 1 y Dhelmise en el 3 se le
+     apuntaba entero a uno solo. Ahora `played`, `wins`, `losses` y `ties` son
+     JUEGOS, y el % es de juegos. Una partida sin juegos (un empate por tiempo
+     apuntado en modo rápido, un resultado declarado) cuenta como una unidad:
+     no hay juegos que repartir. */
   for (const m of matches.filter(isPlayed)) {
-    const o = outcome(m);
     const { a: archA, b: archB } = archetypesOfMatch(m, index, archById);
-    const sides: Array<[Side, string | null, Archetype | undefined, number, number]> = [
-      ["a", m.playerAId, archA, o.ga, o.gb],
-      ["b", m.playerBId, archB, o.gb, o.ga],
-    ];
-    for (const [side, pid, arch, gf, ga] of sides) {
-      if (!arch) continue;
-      // Al filtrar por jugador, el lado del rival de fuera no cuenta como suyo.
-      if (onlyPlayerId && pid !== onlyPlayerId) continue;
-      const r = touch(arch);
-      r.played++; r.gameWins += gf; r.gameLosses += ga;
-      if (o.winner === "tie") r.ties++;
-      else if (o.winner === side) r.wins++;
-      else r.losses++;
+    const juegos = (m.games ?? []) as Array<{ winner: string; archetypeAId?: string | null; archetypeBId?: string | null }>;
+    const unidades: Array<{ winner: string; archA?: Archetype; archB?: Archetype }> = juegos.length
+      ? juegos.map((g) => ({
+          winner: g.winner,
+          archA: (g.archetypeAId && archById?.get(g.archetypeAId)) || archA,
+          archB: (g.archetypeBId && archById?.get(g.archetypeBId)) || archB,
+        }))
+      : [{ winner: outcome(m).winner, archA, archB }];
+    for (const u of unidades) {
+      for (const [side, pid, arch] of [["a", m.playerAId, u.archA], ["b", m.playerBId, u.archB]] as const) {
+        if (!arch) continue;
+        // Al filtrar por jugador, el lado del rival de fuera no cuenta como suyo.
+        if (onlyPlayerId && pid !== onlyPlayerId) continue;
+        const r = touch(arch);
+        r.played++;
+        if (u.winner === "tie") r.ties++;
+        else if (u.winner === side) { r.wins++; r.gameWins++; }
+        else { r.losses++; r.gameLosses++; }
+      }
     }
   }
 
@@ -1086,4 +1099,26 @@ export function wilsonScore(wins: number, played: number): [number, number, numb
   const center = (p + z2 / (2 * played)) / den;
   const half = (z * Math.sqrt((p * (1 - p) + z2 / (4 * played)) / played)) / den;
   return [center, Math.max(0, center - half), Math.min(1, center + half)];
+}
+
+/* ----------------------------------------------------- v0.60: la forma --- */
+
+export type ResultadoForma = "w" | "l" | "t";
+
+/**
+ * Los últimos `n` resultados de un jugador, del MÁS ANTIGUO al más reciente
+ * (para leerlos de izquierda a derecha, como en cualquier tabla de liga). Por
+ * fecha y, a igual fecha, por cuándo se apuntó.
+ */
+export function formaReciente(matches: MatchFull[], playerId: string, n = 5): ResultadoForma[] {
+  return matches
+    .filter((m) => isPlayed(m) && (m.playerAId === playerId || m.playerBId === playerId))
+    .sort((x, y) => y.date.localeCompare(x.date) || +new Date(y.createdAt) - +new Date(x.createdAt))
+    .slice(0, n)
+    .reverse()
+    .map((m) => {
+      const w = outcome(m).winner;
+      const lado = m.playerAId === playerId ? "a" : "b";
+      return w === "tie" ? "t" : w === lado ? "w" : "l";
+    });
 }

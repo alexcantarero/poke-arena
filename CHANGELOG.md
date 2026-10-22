@@ -2,6 +2,41 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.60.0] — 2026-10-21
+
+Estadísticas por juegos, Ranking claro y tutorial de primera vez.
+**Lleva migración:** `drizzle/0023_v0_60_0.sql` (la lanza `npm run db:migrar`).
+
+### Cambiado
+
+- **Las estadísticas por mazo cuentan POR JUEGOS** (decisión de Ibai): cada juego suma al mazo
+  con el que se jugó —el suyo si lo tiene, el de la serie si no—. Antes, la serie entera iba al
+  mazo de la serie: un 1-2 con Dragapult en el juego 1 y Dhelmise en el 3 se apuntaba entero a
+  uno. Uso y % de victorias por mazo pasan a ser de juegos; una partida sin juegos (empate por
+  tiempo en modo rápido) cuenta como una unidad. La matriz ya contaba por juegos desde la v0.25.
+  Estadísticas lo dice bajo «Vuestro metagame». 4 pruebas, con el caso real.
+- **Ranking, ordenado y claro**:
+  - Arriba, **el líder y su ventaja** y **el mejor Elo**, además de partidas y torneos.
+  - **Columna «Forma»**: los últimos 5 resultados en colores, del más antiguo al más reciente
+    (`formaReciente()`, con prueba). También en el móvil.
+  - **El % con menos de 5 partidas, atenuado y con asterisco**: es orientativo.
+  - **Cada columna se explica** al pasar el ratón, y una **leyenda** bajo la tabla enlaza a
+    Reglas y al Glosario.
+  - **Orden**: lo de la liga junto (tabla, Elo, enfrentamientos directos) y lo del circuito
+    oficial detrás (Camino al Mundial, Ladder).
+
+### Añadido
+
+- **Tutorial de primera vez**: siete pasos, y en cada uno se resalta en pantalla la parte de la
+  que habla (la barra de abajo en el móvil, la lateral en el PC). Sale **una vez por cuenta**
+  (`players.tutorial_visto_at`), no por navegador: no se repite al entrar desde otro dispositivo,
+  y les sale también a los que ya estaban. Ese dato no viaja al navegador con el resto del
+  jugador (fuera de `PublicPlayer`, como el correo).
+
+### Verificado
+
+- `npm run verificar`: **566 de 566**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.59.0] — 2026-10-21
 
 Discord, comentarios en los mazos y Estadísticas ordenada.

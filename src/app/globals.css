@@ -1240,3 +1240,26 @@ html[data-motion="off"] .pkmn-destello { display: none; }
 @keyframes lider-asoma { from { translate: -50% 10px; opacity: 0; } to { translate: -50% 0; opacity: 1; } }
 .nav-tab[data-on="true"] { text-shadow: 0 0 12px color-mix(in oklab, var(--brand) 55%, transparent); }
 @media (prefers-reduced-motion: reduce) { .lider-img, .nav-lider { animation: none; } }
+
+/* =========================================================================
+   v0.60 — Tutorial de primera vez.
+   ========================================================================= */
+/* La tarjeta: abajo en el móvil (por encima de la barra), abajo a la derecha en el PC. */
+.tour-tarjeta {
+  position: fixed; z-index: 90; left: .75rem; right: .75rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+  padding: 1rem; border-radius: 1.25rem;
+  background: var(--surface); border: 1px solid color-mix(in oklab, var(--brand) 45%, var(--line));
+  box-shadow: var(--shadow-3), 0 0 0 4px color-mix(in oklab, var(--brand) 18%, transparent);
+  animation: tour-entra .3s ease-out;
+}
+@media (min-width: 768px) { .tour-tarjeta { left: auto; right: 1.5rem; bottom: 1.5rem; width: 24rem; } }
+@keyframes tour-entra { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+/* Lo resaltado: un contorno que late. `outline` y no sombra, para que se vea
+   aunque el elemento esté dentro de una barra fija con su propio apilamiento. */
+.tour-foco {
+  outline: 3px solid var(--brand) !important; outline-offset: 3px; border-radius: .75rem;
+  animation: tour-late 1.3s ease-in-out infinite;
+}
+@keyframes tour-late { 0%, 100% { outline-color: var(--brand); } 50% { outline-color: color-mix(in oklab, var(--brand) 35%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .tour-tarjeta, .tour-foco { animation: none; } }

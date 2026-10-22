@@ -812,3 +812,9 @@ export const cargarPendientesDe = cache(async (playerId: string) => {
     .orderBy(asc(matches.round))
     .limit(20);
 });
+
+/** v0.60 — ¿le toca el tutorial de primera vez? Consulta aparte y mínima: el dato no viaja con el resto del jugador. */
+export const tutorialPendiente = cache(async (playerId: string): Promise<boolean> => {
+  const r = await db.select({ visto: players.tutorialVistoAt }).from(players).where(eq(players.id, playerId));
+  return r.length > 0 && r[0].visto == null;
+});

@@ -30,7 +30,23 @@ export type RankRow = {
   diff: number; elo: number; cp: number;
   streakKind: string; streakN: number;
   topArchId: string | null; topArchName: string | null;
+  /** v0.60 — los últimos 5 resultados, del más antiguo al más reciente. */
+  forma?: Array<"w" | "l" | "t">;
 };
+
+/** v0.60 — con menos partidas que esto, el % de victorias es orientativo: se atenúa y lleva asterisco. */
+const MIN_PARTIDAS_PCT = 5;
+
+/** v0.60 — la forma: cinco puntos de color, de izquierda (antiguo) a derecha (reciente). */
+function Forma({ f, titulo }: { f?: Array<"w" | "l" | "t">; titulo: string }) {
+  if (!f?.length) return <span className="text-muted">—</span>;
+  const color = { w: "bg-win", l: "bg-loss", t: "bg-tie" } as const;
+  return (
+    <span className="inline-flex items-center gap-1" title={titulo} aria-label={titulo}>
+      {f.map((x, i) => <span key={i} className={`size-2.5 rounded-full ${color[x]} ${i === f.length - 1 ? "ring-2 ring-current/20" : ""}`} />)}
+    </span>
+  );
+}
 
 type Key = "played" | "winRate" | "points" | "elo" | "resistance" | "diff" | "cp";
 
@@ -123,6 +139,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                       }}
                     />
                   </span>
+                  <span className="mt-1.5 block"><Forma f={r.forma} titulo={tr(lng, "rk.ayuda.forma")} /></span>
                 </span>
                 {sort.key !== "points" && (
                   <span className="flex-none text-right">
@@ -155,9 +172,10 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
               <th className="w-10 text-center font-display font-extrabold">#</th>
               <th>{tr(lng, "x.588eb828")}</th>
               <th>{tr(lng, "x.ae88bb6d")}</th>
+              <th title={tr(lng, "rk.ayuda.forma")}>{tr(lng, "rk.forma")}</th>
               {COLS.map((c) => (
                 <th key={c.key} className="text-right">
-                  <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={c.label}>
+                  <button type="button" onClick={() => click(c.key)} className="hover:text-ink" title={`${c.label}: ${tr(lng, `rk.ayuda.${c.key}`)}`}>
                     {c.short}{sort.key === c.key && <span className="opacity-60"> {sort.dir < 0 ? "▼" : "▲"}</span>}
                   </button>
                 </th>
@@ -207,8 +225,10 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                     {/* V–D–E, como se dice: un «3–1» son tres victorias y una derrota. */}
                     <b className="font-bold text-win">{r.wins}</b>–<span className="font-semibold text-loss">{r.losses}</span>{r.ties ? <>–<span className="font-semibold text-tie">{r.ties}</span></> : null}
                   </td>
+                  <td><Forma f={r.forma} titulo={tr(lng, "rk.ayuda.forma")} /></td>
                   <td className="text-right">
-                    <span className="block font-mono text-xs font-bold tabular" style={{ color: wrColor(r.winRate) }}>{pct(r.winRate, 1)}</span>
+                    <span className={`block font-mono text-xs font-bold tabular ${r.played < MIN_PARTIDAS_PCT ? "opacity-50" : ""}`} style={{ color: wrColor(r.winRate) }}
+                      title={r.played < MIN_PARTIDAS_PCT ? tr(lng, "rk.orientativo") : undefined}>{pct(r.winRate, 1)}{r.played < MIN_PARTIDAS_PCT ? "*" : ""}</span>
                     <span className="ml-auto mt-1 block h-1 w-14 overflow-hidden rounded-full bg-surface-3">
                       <span
                         className="block h-full rounded-full"
@@ -231,6 +251,16 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
           </tbody>
         </table>
       </div>
+      {/* v0.60 — la leyenda: qué es cada cosa y dónde se explica todo. */}
+      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-win" />{tr(lng, "rk.lVictoria")}</span>
+        <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-loss" />{tr(lng, "rk.lDerrota")}</span>
+        <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-full bg-tie" />{tr(lng, "rk.lEmpate")}</span>
+        <span>· {tr(lng, "rk.lForma")}</span>
+        <span>· {tr(lng, "rk.lAsterisco")}</span>
+        <Link href="/reglas" className="text-info underline underline-offset-2">{tr(lng, "reg.enlaceRanking")}</Link>
+        <Link href="/glosario" className="text-info underline underline-offset-2">{tr(lng, "glo.enlace")}</Link>
+      </p>
     </>
   );
 }

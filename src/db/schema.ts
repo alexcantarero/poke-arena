@@ -143,6 +143,9 @@ export const players = pgTable("players", {
   rankEurope: integer("rank_europe"),
   rankZoneUpdatedAt: timestamp("rank_zone_updated_at", { withTimezone: true }),
 
+  /** v0.60 — cuándo vio el tutorial de primera vez. Nulo = aún no: le sale al entrar (una vez por cuenta, no por navegador). */
+  tutorialVistoAt: timestamp("tutorial_visto_at", { withTimezone: true }),
+
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

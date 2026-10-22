@@ -522,7 +522,8 @@ export default async function StatsPage({
         <p className="mt-2 text-xs text-muted">{tr(lng, "est.notaFiltrosMeta")}</p>
         </>
       )}
-      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
+      <h2 className="mt-8 mb-1 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
+      <p className="mb-3 text-xs text-muted">{tr(lng, "est.porJuegos")}</p>
       {hayFamilias && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="label">{tr(lng, "x.ba25296c")}</span>
