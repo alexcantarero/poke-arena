@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
 import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
 import { bloqueados } from "@/lib/juegosMazos";
+import { ContadorDado } from "@/components/ContadorDado";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
 import { PrizePicker } from "@/components/PrizePicker";
@@ -381,9 +382,12 @@ export function MatchForm({
             hay ganador, su lado se ilumina y el otro se apaga un poco. */}
         <div
           className="vs-panel mb-4"
+          data-tipo={compId ? "liga" : "amistoso"} /* v0.62: el panel cambia según el tipo */
           style={{ "--ca": A?.color ?? "var(--info)", "--cb": B?.color ?? "var(--loss)" } as React.CSSProperties}
           data-gana={decided && !empateTiempo && score.a !== score.b ? (score.a > score.b ? "a" : "b") : undefined}
         >
+          {/* v0.62 — la cinta: qué tipo de partida es. */}
+          <span className="vs-cinta">{compId ? `⚔ ${tr(lng, "cinta.liga")}` : `🤝 ${tr(lng, "cinta.amistoso")}`}</span>
           <div className="vs-lado vs-a">
             <span className="vs-aro"><Avatar player={A} size="lg" /></span>
             <span className="vs-nombre" title={A?.name}>{A?.name}</span>
@@ -499,22 +503,14 @@ export function MatchForm({
                     <div className="flex flex-1 items-center gap-1.5">
                       <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
                       <span className="truncate text-xs text-muted max-w-[60px]" title={A?.name ?? "A"}>{A?.name ?? "A"}</span>
-                      <input 
-                        type="number" id={`g${i}_mulligans_a`} name={`g${i}_mulligans_a`} 
-                        className="input input-sm w-12 text-center p-1" 
-                        min={0} max={99} disabled={over} 
-                        defaultValue={match?.games[i]?.mulligansA ?? 0}
-                      />
+                      {/* v0.62 — el dado de los mulligans */}
+                      <ContadorDado name={`g${i}_mulligans_a`} defaultValue={match?.games[i]?.mulligansA ?? 0} disabled={over} etiqueta={A?.name ?? "A"} />
                     </div>
                     <div className="flex flex-1 items-center gap-1.5">
                       <label htmlFor={`g${i}_mulligans_b`} className="sr-only">Mulligans {bLabel}</label>
                       <span className="truncate text-xs text-muted max-w-[60px]" title={bLabel}>{bLabel}</span>
-                      <input 
-                        type="number" id={`g${i}_mulligans_b`} name={`g${i}_mulligans_b`} 
-                        className="input input-sm w-12 text-center p-1" 
-                        min={0} max={99} disabled={over} 
-                        defaultValue={match?.games[i]?.mulligansB ?? 0}
-                      />
+                      {/* v0.62 — el dado de los mulligans */}
+                      <ContadorDado name={`g${i}_mulligans_b`} defaultValue={match?.games[i]?.mulligansB ?? 0} disabled={over} etiqueta={bLabel} />
                     </div>
                   </div>
                 </div>

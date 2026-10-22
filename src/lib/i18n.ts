@@ -1487,6 +1487,15 @@ const ES = {
   "tp.ajustes.x1": "Arriba, lo de tu cuenta: apariencia, contraseña, reglas y glosario.",
   "tp.ajustes.t2": "Organizar la liga",
   "tp.ajustes.x2": "Si eres organizador, debajo están las invitaciones, la puntuación, los datos del metagame, los jugadores y los avisos a Discord. El menú de la izquierda lleva a cada sección.",
+  // v0.62 — cintas por tipo de partida.
+  "cinta.liga": "Liga",
+  "cinta.amistoso": "Amistoso",
+  "cinta.challenge": "League Challenge",
+  "cinta.cup": "League Cup",
+  "cinta.major": "Regional · gran torneo",
+  "cinta.online": "Torneo online",
+  "cinta.otro": "Torneo",
+  "cinta.ronda": "Ronda {n}",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2948,6 +2957,15 @@ const EN: Record<I18nKey, string> = {
   "tp.ajustes.x1": "At the top, your account: appearance, password, rules and glossary.",
   "tp.ajustes.t2": "Running the league",
   "tp.ajustes.x2": "If you're an organiser, below are invites, scoring, metagame data, players and Discord notices. The menu on the left takes you to each section.",
+  // v0.62 — cintas por tipo de partida.
+  "cinta.liga": "League",
+  "cinta.amistoso": "Friendly",
+  "cinta.challenge": "League Challenge",
+  "cinta.cup": "League Cup",
+  "cinta.major": "Regional · major event",
+  "cinta.online": "Online tournament",
+  "cinta.otro": "Tournament",
+  "cinta.ronda": "Round {n}",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

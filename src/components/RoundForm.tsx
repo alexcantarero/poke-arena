@@ -14,7 +14,8 @@ import type { RoundView } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
 import { Icon } from "./icons";
 import { PrizePicker } from "@/components/PrizePicker";
-import { tr } from "@/lib/i18n";
+import { familiaTorneo } from "@/lib/familiaTorneo";
+import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
 /** Cuántos rivales se enseñan antes de plegar el resto. Seis caben en dos
@@ -66,8 +67,10 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [],
+  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo,
 }: {
+  /** v0.62 — el tipo del torneo, para vestir la cinta de la ronda. */
+  tipoTorneo?: string;
   tournamentId: string;
   playerId: string;
   round: number;
@@ -202,6 +205,12 @@ export function RoundForm({
 
   return (
     <form action={saveTournamentRound} className="flex flex-col gap-3.5 rounded-xl border border-line-soft bg-ground p-3.5">
+      {/* v0.62 — la cinta de la ronda, vestida según el tipo de torneo. */}
+      <div className="torneo-cinta" data-familia={familiaTorneo(tipoTorneo)}>
+        <span aria-hidden="true">{({ challenge: "🎯", cup: "🏆", major: "👑", online: "🌐", otro: "🃏" } as const)[familiaTorneo(tipoTorneo)]}</span>
+        <span className="truncate">{tr(lng, `cinta.${familiaTorneo(tipoTorneo)}`)}</span>
+        <span className="ml-auto flex-none tabular opacity-90">{trf(lng, "cinta.ronda", { n: round })} · Bo{bestOf}</span>
+      </div>
       <input type="hidden" name="tournamentId" value={tournamentId} />
       <input type="hidden" name="playerId" value={playerId} />
       <input type="hidden" name="mode" value={mode} />

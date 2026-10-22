@@ -228,6 +228,7 @@ export default async function TournamentPage({
                 playerId={pid}
                 round={siguiente}
                 bestOf={bestOfDeRonda(t, siguiente) /* v0.57: según su fase */}
+                tipoTorneo={t.kind}
                 rivalDecks={deckOptions(snap, pid)}
                 archetypeOptions={archOptions}
                 myDecks={susDecks}
@@ -502,6 +503,7 @@ export default async function TournamentPage({
           playerId={me.id}
           round={nextRound}
           bestOf={bestOfDeRonda(t, nextRound) /* v0.57: según su fase */}
+          tipoTorneo={t.kind}
           rivalDecks={rivalDecks}
           archetypeOptions={archOptions}
           myDecks={myDecks}

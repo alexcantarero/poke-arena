@@ -1211,7 +1211,7 @@ html[data-motion="off"] .pkmn-destello { display: none; }
    ========================================================================= */
 /* En los márgenes, solo con sitio de sobra: barra (15 rem) + contenido (80 rem)
    + dos huecos. Con la barra plegada, el izquierdo se arrima a ella. */
-.app-shell { --barra-ancho: 15rem; }
+.app-shell { --barra-ancho: 13.5rem; } /* v0.62: más estrecha */
 .app-shell[data-barra="mini"] { --barra-ancho: 4.5rem; }
 .lider { display: none; position: fixed; bottom: 2rem; z-index: 0; pointer-events: none; }
 .lider-izq { left: calc(var(--barra-ancho) + 2rem); }
@@ -1263,3 +1263,105 @@ html[data-motion="off"] .pkmn-destello { display: none; }
 }
 @keyframes tour-late { 0%, 100% { outline-color: var(--brand); } 50% { outline-color: color-mix(in oklab, var(--brand) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .tour-tarjeta, .tour-foco { animation: none; } }
+
+/* =========================================================================
+   v0.62 — Barra lateral: sigue el tema.
+   Era oscura SIEMPRE, también en tema claro, y el contraste con el contenido
+   claro era muy fuerte. En claro, ahora es clara y suave; en oscuro, la de
+   siempre. Solo la barra: la cabecera del móvil sigue oscura.
+   ========================================================================= */
+html:not([data-theme="dark"]) .barra-lateral {
+  --surface: #f5f7fb; --surface-2: #eaeff6; --surface-3: #dfe6f0;
+  --line: #dbe2ec; --line-soft: #e7ecf3;
+  --ink: #1b2535; --ink-2: #3a4a61; --muted: #6a7a91; --ground: #eef2f8;
+  --info: #2a78d6;
+  color-scheme: light;
+}
+html:not([data-theme="dark"]) .barra-lateral .nav-side[data-on="true"] {
+  background: color-mix(in oklab, var(--info) 12%, transparent); color: var(--ink); font-weight: 600;
+}
+html:not([data-theme="dark"]) .barra-lateral .nav-side:not([data-on="true"]):hover { background: var(--surface-2); }
+
+/* =========================================================================
+   v0.62 — El panel y las cintas según el tipo de partida.
+   ========================================================================= */
+.vs-cinta {
+  grid-column: 1 / -1; justify-self: center; position: relative; z-index: 1; margin: -0.35rem 0 0.6rem;
+  padding: 0.15rem 0.75rem; border-radius: 9999px; font-size: 10px; font-weight: 800;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink);
+  background: color-mix(in oklab, var(--surface) 80%, transparent); border: 1px solid var(--line);
+}
+/* Liga: lo serio. Borde y brillo dorados, la cinta en dorado. */
+.vs-panel[data-tipo="liga"] { border-color: color-mix(in oklab, var(--brand) 60%, var(--line)); box-shadow: var(--shadow-2), 0 0 0 1px color-mix(in oklab, var(--brand) 35%, transparent), 0 8px 30px color-mix(in oklab, var(--brand) 18%, transparent); }
+.vs-panel[data-tipo="liga"] .vs-cinta { border-color: var(--brand); color: color-mix(in oklab, var(--brand) 70%, var(--ink)); }
+/* Amistoso: más relajado. Borde discontinuo y acento verde. */
+.vs-panel[data-tipo="amistoso"] { border-style: dashed; border-color: color-mix(in oklab, var(--win) 50%, var(--line)); }
+.vs-panel[data-tipo="amistoso"] .vs-cinta { border-color: var(--win); color: color-mix(in oklab, var(--win) 75%, var(--ink)); }
+
+/* La cinta de las rondas de torneo, una por familia. */
+.torneo-cinta {
+  --c1: #64748b; --c2: #475569;
+  display: flex; align-items: center; gap: 0.5rem; min-width: 0;
+  margin: -0.875rem -0.875rem 0.25rem; padding: 0.55rem 0.875rem;
+  border-radius: 0.75rem 0.75rem 0 0; color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase;
+  background: linear-gradient(100deg, var(--c1), var(--c2));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+}
+.torneo-cinta[data-familia="challenge"] { --c1: #0f9b8e; --c2: #1f6fb2; }
+.torneo-cinta[data-familia="cup"] { --c1: #7c3aed; --c2: #c026d3; }
+.torneo-cinta[data-familia="major"] { --c1: #b45309; --c2: #b91c1c; box-shadow: 0 6px 20px rgb(185 28 28 / 0.25); }
+.torneo-cinta[data-familia="online"] { --c1: #15803d; --c2: #0e7490; }
+
+/* =========================================================================
+   v0.62 — Dado de mulligans, cartas de premio y el huevo de la penalización.
+   ========================================================================= */
+.dado-contador { display: inline-flex; align-items: center; gap: 0.3rem; }
+.dado-btn { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; border: 1px solid var(--line);
+  background: var(--surface-2); font-weight: 800; color: var(--ink-2); }
+.dado-btn:disabled { opacity: .35; }
+.dado { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; }
+.dado-svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: color-mix(in oklab, #8b5cf6 22%, var(--surface));
+  stroke: #8b5cf6; stroke-width: 1.6; stroke-linejoin: round; }
+.dado-svg path { fill: none; stroke-width: 1; opacity: .6; }
+.dado-cara { fill: color-mix(in oklab, #8b5cf6 35%, var(--surface)); }
+.dado[data-cero="true"] .dado-svg { stroke: var(--line); fill: var(--surface-2); }
+.dado[data-cero="true"] .dado-cara { fill: var(--surface-3); }
+.dado-num { position: relative; margin-top: 0.35rem; font-family: var(--font-display); font-weight: 900; font-size: 0.95rem; color: var(--ink); }
+.dado-tira { animation: dado-tira 0.55s cubic-bezier(.2,.8,.3,1.2); }
+@keyframes dado-tira {
+  0% { transform: rotate(0) scale(1); }
+  40% { transform: rotate(250deg) scale(1.25); }
+  70% { transform: rotate(345deg) scale(0.92); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.premios-fila { display: flex; align-items: center; gap: 0.3rem; }
+.premio-cero { min-width: 2.2rem; height: 2.75rem; border-radius: 0.45rem; border: 1px solid var(--line); font-size: 0.85rem; font-weight: 700; color: var(--ink-2); background: var(--surface-2); }
+.premio-cero[data-on="true"] { border-color: var(--brand); background: color-mix(in oklab, var(--brand) 18%, var(--surface)); color: var(--ink); }
+/* Una carta boca abajo: el dorso azul con su óvalo. */
+.premio-carta {
+  --i: 1; position: relative; flex: 1; max-width: 2.6rem; aspect-ratio: 63 / 88; border-radius: 0.35rem;
+  border: 1.5px solid color-mix(in oklab, #1e40af 70%, var(--line));
+  background: radial-gradient(ellipse 45% 32% at 50% 50%, #f59e0b 0 30%, transparent 32%), linear-gradient(160deg, #2563eb, #1e3a8a);
+  transition: transform 0.15s;
+}
+.premio-carta:hover:not(:disabled) { transform: translateY(-2px); }
+/* Cogida: se voltea, en cadena (cada una un poco después que la anterior). */
+.premio-carta[data-tomada="true"] {
+  border-color: var(--brand);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 85%, white), var(--brand));
+  animation: premio-voltea 0.4s both; animation-delay: calc(var(--i) * 55ms);
+}
+.premio-num { font-family: var(--font-display); font-weight: 900; font-size: 0.9rem; color: var(--on-brand); }
+@keyframes premio-voltea { 0% { transform: rotateY(90deg); } 100% { transform: rotateY(0); } }
+
+.penal-huevo {
+  display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.25rem; padding: 0.15rem 0.6rem 0.15rem 0.2rem;
+  border-radius: 9999px; background: color-mix(in oklab, var(--loss) 14%, var(--surface)); color: var(--loss);
+  font-size: 0.75rem; font-weight: 700; width: fit-content; animation: penal-entra 0.6s ease-out;
+}
+.penal-img { width: 2.2rem; height: 2.2rem; object-fit: contain; image-rendering: pixelated; animation: penal-tiembla 0.9s ease-in-out 0.2s 2; }
+@keyframes penal-entra { 0% { opacity: 0; transform: scale(0.6); } 60% { transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes penal-tiembla { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .dado-tira, .premio-carta[data-tomada="true"], .penal-huevo, .penal-img { animation: none; } }

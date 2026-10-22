@@ -2,6 +2,32 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.62.0] — 2026-10-21
+
+Barra lateral, el panel según el tipo de partida, y mulligans y premios con animación.
+**Sin migración.**
+
+### Cambiado
+
+- **Barra lateral**: más estrecha (13,5 rem, antes 15) y **sigue el tema**: era oscura siempre,
+  también en tema claro, y el contraste con el contenido era muy fuerte; en claro ahora es clara y
+  suave. Los **títulos de sección** (Principal, Competir…) se distinguen: más grandes, en negrita,
+  con el gris fuerte y una raya que separa el bloque.
+- **Registrar partida, según el tipo**: el panel de enfrentamiento lleva una cinta con lo que es
+  («⚔ Liga» / «🤝 Amistoso») y su estilo (liga: borde y brillo dorados; amistoso: borde
+  discontinuo y verde). Las **rondas de torneo** llevan una cinta por familia, con su color:
+  Challenge, Cup, Regional y los grandes (dorado y rojo), online y el resto, más la ronda y el Bo.
+  `lib/familiaTorneo.ts` (puro, con prueba).
+- **Mulligans: un dado de veinte caras** (`ContadorDado`), con «−» y «+»; cada cambio lo tira.
+- **Premios: las seis cartas de premio** boca abajo; tocar la tercera voltea las tres primeras en
+  cadena. Tocar la misma la deja sin apuntar, y «0» es «ninguna», como antes.
+- **Huevo de pascua**: al marcar una penalización de 2 premios asoma un Psyduck que tiembla.
+- Todo respeta «reducir movimiento».
+
+### Verificado
+
+- `npm run verificar`: **570 de 570**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.61.0] — 2026-10-21
 
 Los arreglos de la revisión en la app desplegada, y un tutorial por página.

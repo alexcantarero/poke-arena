@@ -34,7 +34,9 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
     <nav aria-label={tr(lang, "nav.sections")} className="flex flex-col gap-3">
       {groups.map((g) => (
         <div key={g.title} className="flex flex-col gap-0.5">
-          <span className="barra-texto px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+          {/* v0.62 — los títulos de sección se distinguen: más grandes, en negrita, con el
+              gris fuerte del tema y una raya que separa el bloque. */}
+          <span className="barra-texto barra-seccion flex items-center gap-2 px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-2 after:h-px after:flex-1 after:bg-line">
             {tr(lang, g.key)}
           </span>
           {g.items.map((it) => (

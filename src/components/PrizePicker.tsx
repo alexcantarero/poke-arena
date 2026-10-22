@@ -3,6 +3,7 @@
 import { avisosDePremios, objetivoDe, OBJETIVO_BASE, type PremiosDeJuego } from "@/lib/premios";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { spriteUrl } from "@/lib/pokemon";
 
 /* =========================================================================
    Premios de un juego: dos filas de 0 a 6 y una casilla de penalización.
@@ -59,24 +60,21 @@ export function PrizePicker({ campo, nombreA, nombreB, valor, winner, disabled, 
           )}
         </div>
 
-        <div className="flex gap-1" role="group" aria-label={`Premios de ${nombre}`}>
-          {NUMEROS.map((n) => {
-            const puesto = actual === n;
+        {/* v0.62 — LAS CARTAS DE PREMIO. Seis cartas boca abajo; tocar la tercera
+            voltea las tres primeras, en cadena. Volver a tocar la misma la deja
+            sin apuntar (como antes), y «0» es «no cogió ninguna». */}
+        <div className="premios-fila" role="group" aria-label={`Premios de ${nombre}`}>
+          <button type="button" disabled={disabled} aria-pressed={actual === 0} data-on={actual === 0}
+            onClick={() => onChange({ [esA ? "premiosA" : "premiosB"]: actual === 0 ? null : 0 })}
+            className="premio-cero">0</button>
+          {NUMEROS.filter((n) => n > 0).map((n) => {
+            const tomada = actual != null && n <= actual;
             return (
-              <button
-                key={n}
-                type="button"
-                disabled={disabled}
-                aria-pressed={puesto}
-                // Volver a pulsar el elegido lo borra: es la forma de pasar de
-                // «0 premios» a «no lo apunté» sin un botón extra.
-                onClick={() => onChange({ [esA ? "premiosA" : "premiosB"]: puesto ? null : n })}
-                data-on={puesto}
-                className="min-h-11 flex-1 rounded-md border border-line text-sm tabular
-                           data-[on=true]:border-brand data-[on=true]:bg-brand/15
-                           data-[on=true]:font-semibold disabled:opacity-50"
-              >
-                {n}
+              <button key={n} type="button" disabled={disabled} aria-pressed={actual === n}
+                aria-label={`${n} premio${n === 1 ? "" : "s"}`}
+                onClick={() => onChange({ [esA ? "premiosA" : "premiosB"]: actual === n ? null : n })}
+                data-tomada={tomada} className="premio-carta" style={{ "--i": n } as React.CSSProperties}>
+                <span className="premio-num">{tomada ? n : ""}</span>
               </button>
             );
           })}
@@ -96,6 +94,15 @@ export function PrizePicker({ campo, nombreA, nombreB, valor, winner, disabled, 
             <span className="text-muted"> · {esA ? nombreB : nombreA} gana con 4</span>
           </span>
         </label>
+
+        {/* v0.62 — huevo de pascua: comerse una penalización de 2 premios duele. */}
+        {penalizado && (
+          <span className="penal-huevo" role="status">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={spriteUrl("psyduck")} alt="" className="penal-img" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <span>¡Dos premios fuera, {nombre}!</span>
+          </span>
+        )}
 
         <input type="hidden" name={`${campo}_prizes_${lado}`} value={actual ?? ""} />
       </div>

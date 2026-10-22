@@ -53,12 +53,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // v0.49 — el idioma, para que cualquier componente de cliente lo pida con
     // `useLang()` en vez de recibirlo por props de componente en componente.
     <LangProvider lang={lang}>
-    <div className="app-shell md:grid md:grid-cols-[15rem_minmax(0,1fr)]" data-barra={barraMini ? "mini" : undefined}>
+    <div className="app-shell md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]" data-barra={barraMini ? "mini" : undefined}>
       {/* v0.22: partículas de temporada al fondo (detrás de todo). */}
       <SeasonFx estacion={estacion} />
       {/* ------------------------------ escritorio ------------------------------ */}
       {/* v0.22: barra lateral oscura en los dos temas, a lo Argo CD. */}
-      <aside className="shell-dark sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex">
+      <aside className="shell-dark barra-lateral sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex">
         <div className="season-strip -mx-3 -mt-3 mb-2" aria-hidden="true" />
         <BarraToggle mini={barraMini} />
         <div className="barra-texto px-2 pb-4 pt-2">
