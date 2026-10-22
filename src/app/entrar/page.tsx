@@ -45,7 +45,9 @@ export default async function LoginPage() {
         </div>
       )}
 
-      <p className="mt-5 text-center text-sm text-muted">
+      {/* v0.67 — no hay correo: la recuperación la da un organizador. */}
+      {!empty && <p className="mt-4 text-center text-sm text-muted">{tr(lng, "rec.olvidaste")}</p>}
+      <p className="mt-3 text-center text-sm text-muted">
         ¿No tienes cuenta?{" "}
         <Link href="/registro" className="font-semibold text-ink underline underline-offset-2">
           {tr(lng, "x.86684350")}

@@ -3,6 +3,7 @@
 import type { PublicPlayer } from "@/lib/types";
 import { deletePlayer, setPlayerActive, setPlayerRole } from "@/actions";
 import { Avatar } from "./ui";
+import { RecuperacionBoton } from "./RecuperacionBoton";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
@@ -66,6 +67,13 @@ export function PlayerAdmin({
               <input type="hidden" name="id" value={p.id} />
               <button className="btn btn-ghost btn-sm text-loss" type="submit" title={tr(lng, "x.d7b82b21")}>×</button>
             </form>
+          )}
+
+          {/* v0.67 — enlace para que ponga contraseña nueva (si la ha olvidado). */}
+          {!locked(p) && p.active && (
+            <div className="basis-full pl-10">
+              <RecuperacionBoton playerId={p.id} nombre={p.name} />
+            </div>
           )}
         </div>
       ))}

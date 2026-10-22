@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.67.0] — 2026-10-22
+
+Recuperar la contraseña, sin correo. **Lleva migración:** `drizzle/0026_v0_67_0.sql` (la lanza
+`npm run db:migrar`). **Obligatoria antes de subir.**
+
+### Añadido
+
+- **Enlace de recuperación**: en Ajustes → Jugadores, «Enlace para nueva contraseña» junto a
+  cada persona. El organizador lo copia o lo comparte por WhatsApp; la persona abre
+  `/recuperar/<token>`, pone contraseña nueva dos veces y entra directamente.
+  - Vale **una vez** y **24 horas**; crear otro anula el pendiente de esa persona.
+  - En la base se guarda el **hash SHA-256** del token, nunca el token; el enlace solo se ve
+    una vez, en la pantalla de quien lo crea (ni en la URL ni en el aviso).
+  - El enlace se consume con un UPDATE condicional (dos pestañas no lo usan dos veces), y una
+    errata en la contraseña no lo gasta: se valida antes.
+  - Mismas reglas que la gestión de jugadores: no para uno mismo, y al organizador principal
+    solo lo toca otro organizador principal. Cuentas desactivadas, no.
+  - En la pantalla de entrar: «¿Has olvidado la contraseña? Pídele a un organizador…».
+- `lib/recuperacion.ts` (puro), 3 pruebas.
+
+### Corregido
+
+- **`session_version` no se comprobaba**: se guardaba en la cookie pero nadie la miraba, así
+  que «cerrar las demás sesiones» no era posible. Ahora `currentPlayer()` y `requireActor()`
+  la comparan con la de la cuenta. Las cookies de antes (versión 1 o sin versión) siguen
+  valiendo: nadie se queda fuera al desplegar.
+- **Cambiar la contraseña** (en Ajustes) ahora cierra las sesiones de los demás dispositivos y
+  mantiene la tuya.
+
 ## [0.66.0] — 2026-10-22
 
 Legibilidad, tras revisar la web desplegada. **Sin migración nueva** (lleva la de la v0.65).

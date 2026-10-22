@@ -1,4 +1,5 @@
 import "server-only";
+import { sesionVigente } from "@/lib/recuperacion";
 import { cache } from "react";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -367,10 +368,15 @@ export function playerCp(snap: DatosCp, playerId: string, season?: number): CpTo
 export const currentPlayer = cache(async (): Promise<PublicPlayer | null> => {
   const session = await readSession();
   if (!session) return null;
-  const rows = await db.select(PUBLIC_PLAYER_COLUMNS).from(players)
+  const rows = await db.select({ ...PUBLIC_PLAYER_COLUMNS, versionSesion: players.sessionVersion }).from(players)
     .where(eq(players.id, session.playerId));
-  const me = rows[0];
-  return me?.active ? me : null;
+  const fila = rows[0];
+  if (!fila?.active) return null;
+  /* v0.67 — una sesión emitida antes de cambiar o recuperar la contraseña ya
+     no vale. La versión se separa aquí: no viaja con el jugador público. */
+  const { versionSesion, ...me } = fila;
+  if (!sesionVigente(session.version, versionSesion)) return null;
+  return me;
 });
 
 /**

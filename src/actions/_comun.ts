@@ -13,6 +13,7 @@ import "server-only";
    cliente lo importara por error.
    ========================================================================= */
 
+import { sesionVigente } from "@/lib/recuperacion";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redirect } from "next/navigation";
@@ -155,7 +156,8 @@ export async function requireActor() {
   if (!session) redirect("/entrar");
   const rows = await db.select().from(players).where(eq(players.id, session.playerId));
   const actor = rows[0];
-  if (!actor || !actor.active) {
+  // v0.67 — y que la sesión no sea de antes de un cambio de contraseña.
+  if (!actor || !actor.active || !sesionVigente(session.version, actor.sessionVersion)) {
     await clearSession();
     redirect("/entrar");
   }

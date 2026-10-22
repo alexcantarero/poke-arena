@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 
 const scrypt = promisify(scryptCb) as (
@@ -146,6 +146,11 @@ export async function clearSession() {
 /** Token de invitación: 32 caracteres imposibles de adivinar. */
 export function newInviteToken() {
   return randomBytes(24).toString("base64url");
+}
+
+/** v0.67 — el hash con el que se guarda un token de recuperación (nunca el token). */
+export function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export type InviteState =

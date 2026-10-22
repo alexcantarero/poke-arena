@@ -7,9 +7,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { decks, invites, matches, playerFavorites, players, settings, tournamentResults } from "@/db/schema";
+import { decks, invites, matches, passwordResets, playerFavorites, players, settings, tournamentResults } from "@/db/schema";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
-import { clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES, isOwner, newInviteToken, normalizeEmail, passwordProblem, verifyPassword, writeSession } from "@/lib/auth";
+import { hashResetToken, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES, isOwner, newInviteToken, normalizeEmail, passwordProblem, verifyPassword, writeSession } from "@/lib/auth";
 import { newId, todayISO } from "@/lib/format";
 import { pokeSlug } from "@/lib/pokemon";
 import { withFlash } from "@/lib/flash";
@@ -20,6 +20,7 @@ import {
 } from "./_comun";
 import { anadirVisto } from "@/lib/tutorialesPagina";
 import { anadirLogro, CLAVES_LOGRO } from "@/lib/logros";
+import { caducidadRecuperacion, limpiarToken, type EstadoEnlace } from "@/lib/recuperacion";
 
 export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
@@ -156,11 +157,82 @@ export async function changePassword(_prev: FormState, fd: FormData): Promise<Fo
   }
   const bad = passwordProblem(next);
   if (bad) return { error: bad };
-  await db.update(players).set({ passwordHash: await hashPassword(next) }).where(eq(players.id, actor.id));
-  // La sesión actual sigue valiendo; se vuelve a emitir para que la cookie
-  // cuente desde ahora.
-  await writeSession(actor.id);
+  /* v0.67 — cambiar la contraseña cierra las DEMÁS sesiones (sube la versión
+     de la cuenta) y deja abierta esta, que se vuelve a emitir con la nueva. */
+  const version = (actor.sessionVersion ?? 1) + 1;
+  await db.update(players).set({ passwordHash: await hashPassword(next), sessionVersion: version }).where(eq(players.id, actor.id));
+  await writeSession(actor.id, version);
   return { ok: "Contraseña cambiada." };
+}
+
+/* -------------------------------------------------- v0.67: recuperación -- */
+
+/**
+ * Un organizador crea un enlace para que alguien ponga contraseña nueva.
+ *
+ * Las mismas reglas que el resto de la gestión de jugadores: no para uno mismo
+ * (para eso está «Cambiar contraseña»), y al organizador principal solo lo
+ * toca otro organizador principal. Crear uno nuevo anula los pendientes de esa
+ * persona. Se guarda el hash; el token solo se devuelve aquí, una vez, para
+ * que lo copie quien lo ha pedido.
+ */
+export async function crearEnlaceRecuperacion(_prev: EstadoEnlace, fd: FormData): Promise<EstadoEnlace> {
+  const actor = await requireManager();
+  const id = str(fd, "id");
+  const rows = await db.select({ id: players.id, name: players.name, role: players.role, active: players.active })
+    .from(players).where(eq(players.id, id));
+  const target = rows[0];
+  if (!target) return { error: await msj("rec.errNoExiste") };
+  if (target.id === actor.id) return { error: await msj("rec.errTuMismo") };
+  if (target.role === "owner" && !isOwner(actor.role)) return { error: await msj("rec.errOwner") };
+  if (!target.active) return { error: await msj("rec.errInactivo") };
+
+  await db.delete(passwordResets).where(and(eq(passwordResets.playerId, target.id), isNull(passwordResets.usedAt)));
+  const token = newInviteToken();
+  await db.insert(passwordResets).values({
+    tokenHash: hashResetToken(token), playerId: target.id, createdBy: actor.id, expiresAt: caducidadRecuperacion(),
+  });
+  return { enlace: `/recuperar/${token}`, nombre: target.name };
+}
+
+/**
+ * Poner contraseña nueva con un enlace de recuperación. Sin sesión: es justo
+ * para quien no puede entrar.
+ *
+ * Orden: primero se valida la contraseña (una errata no debe gastar el
+ * enlace); después se CONSUME el enlace con un UPDATE condicional —una sola
+ * sentencia, así dos pestañas no lo usan dos veces—; y solo si devuelve fila
+ * se cambia la contraseña, se sube la versión de la cuenta (las sesiones
+ * viejas mueren) y se entra con la nueva.
+ */
+export async function restablecerContrasena(_prev: FormState, fd: FormData): Promise<FormState> {
+  const token = limpiarToken(str(fd, "token"));
+  const next = String(fd.get("next") ?? "");
+  const repeat = String(fd.get("repeat") ?? "");
+  if (next !== repeat) return { error: await msj("rec.errNoCoinciden") };
+  const bad = passwordProblem(next);
+  if (bad) return { error: bad };
+  if (!token) return { error: await msj("rec.errEnlace") };
+
+  const usados = await db.update(passwordResets)
+    .set({ usedAt: new Date() })
+    .where(and(
+      eq(passwordResets.tokenHash, hashResetToken(token)),
+      isNull(passwordResets.usedAt),
+      gt(passwordResets.expiresAt, new Date()),
+    ))
+    .returning({ playerId: passwordResets.playerId });
+  const playerId = usados[0]?.playerId;
+  if (!playerId) return { error: await msj("rec.errEnlace") };
+
+  const rows = await db.select({ active: players.active, version: players.sessionVersion }).from(players).where(eq(players.id, playerId));
+  if (!rows[0]?.active) return { error: await msj("rec.errInactivo") };
+  const version = (rows[0].version ?? 1) + 1;
+  await db.update(players).set({
+    passwordHash: await hashPassword(next), sessionVersion: version, loginAttempts: 0, lockedUntil: null, lastSeenAt: new Date(),
+  }).where(eq(players.id, playerId));
+  await writeSession(playerId, version);
+  redirect(withFlash("/", "ok", await msj("rec.hecho")));
 }
 
 /* -------------------------------------------------------- invitaciones -- */

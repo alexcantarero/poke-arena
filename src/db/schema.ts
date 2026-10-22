@@ -175,6 +175,23 @@ export const invites = pgTable("invites", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ------------------------------------------------- v0.67: recuperación --- */
+
+/**
+ * Enlaces para recuperar la contraseña. Los crea un organizador para una
+ * persona concreta y valen una vez durante 24 horas (`lib/recuperacion.ts`).
+ * Se guarda el HASH (SHA-256) del token, nunca el token: quien pudiera leer
+ * esta tabla no podría usar un enlace pendiente.
+ */
+export const passwordResets = pgTable("password_resets", {
+  tokenHash: text("token_hash").primaryKey(),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("password_resets_player_idx").on(t.playerId)]);
+
 /* --------------------------------------------------------- arquetipos --- */
 
 /** Arquetipo = Pokémon principal (+ secundario). Es la unidad de las estadísticas. */
