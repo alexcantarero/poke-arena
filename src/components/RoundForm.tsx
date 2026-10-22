@@ -8,12 +8,13 @@
 
 import { useMemo, useState } from "react";
 import { saveTournamentRound, dropFromTournament } from "@/actions";
-import type { DeckOption, Side } from "@/lib/types";
+import type { DeckOption, PublicPlayer, Side } from "@/lib/types";
 import { archetypeValue } from "@/lib/types";
 import type { RoundView } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
-import { Icon } from "./icons";
 import { PrizePicker } from "@/components/PrizePicker";
+import { Avatar } from "./ui";
+import { ObjetoSprite } from "@/components/ObjetoSprite";
 import { familiaTorneo } from "@/lib/familiaTorneo";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -67,8 +68,10 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo,
+  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo, jugador,
 }: {
+  /** v0.63 — quien apunta la ronda, para su lado del panel de enfrentamiento. */
+  jugador?: PublicPlayer;
   /** v0.62 — el tipo del torneo, para vestir la cinta de la ronda. */
   tipoTorneo?: string;
   tournamentId: string;
@@ -84,7 +87,7 @@ export function RoundForm({
   /** Última ronda que admite el torneo (v0.13). Nulo = sin tope conocido. */
   maxRound?: number | null;
   /** v0.15 — gente del grupo que puede ser tu rival (todos menos tú). */
-  rivalPlayers?: Array<{ id: string; name: string }>;
+  rivalPlayers?: Array<{ id: string; name: string } & Partial<PublicPlayer>>;
 }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
@@ -202,6 +205,19 @@ export function RoundForm({
 
   const setFirst = (i: number, v: Side | "") =>
     setFirsts((prev) => prev.map((x, k) => (k === i ? (x === v ? "" : v) : x)));
+
+  /* v0.63 — el panel de enfrentamiento, como en Registrar partida. El rival es
+     alguien del grupo (con su avatar y su color) o un nombre suelto (con su
+     inicial). En modo rápido no hay juegos que contar: el centro dice VS y se
+     ilumina el lado ganador; juego a juego, sale el marcador. */
+  const familia = familiaTorneo(tipoTorneo);
+  const rivalDelGrupo = rivalPlayers.find((p) => p.id === rivalId);
+  const rivalAvatar = (rivalDelGrupo && "color" in rivalDelGrupo ? rivalDelGrupo : {
+    id: "", name: rivalName.trim() || "?", color: "#94a3b8", avatarKind: "initial", avatarValue: null,
+  }) as PublicPlayer;
+  const ganaPanel = mode === "games"
+    ? (won > lost && (settled || decidedByTie || timeCalled) ? "a" : lost > won && (settled || decidedByTie || timeCalled) ? "b" : undefined)
+    : result === "a" || result === "b" ? result : undefined;
 
   return (
     <form action={saveTournamentRound} className="flex flex-col gap-3.5 rounded-xl border border-line-soft bg-ground p-3.5">
@@ -321,10 +337,34 @@ export function RoundForm({
         </div>
       ) : null}
 
+      {/* --- v0.63: el panel de enfrentamiento --- */}
+      <div
+        className="vs-panel vs-panel-ronda" data-tipo="torneo" data-familia={familia}
+        data-gana={ganaPanel}
+        style={{ "--ca": jugador?.color ?? "var(--info)", "--cb": rivalDelGrupo?.color ?? "var(--loss)" } as React.CSSProperties}
+      >
+        <div className="vs-lado vs-a">
+          <span className="vs-aro"><Avatar player={jugador} size="lg" /></span>
+          <span className="vs-nombre" title={jugador?.name}>{jugador?.name ?? tr(lng, "v63.tu")}</span>
+        </div>
+        <div className="vs-centro">
+          {mode === "games" && gameWinners.some(Boolean) ? (
+            <span className="vs-marcador tabular">{won}<span className="vs-dos-puntos">:</span>{lost}</span>
+          ) : (
+            <span className="vs-marcador">VS</span>
+          )}
+          <span className="vs-etiqueta">{trf(lng, "cinta.ronda", { n: round })} · Bo{bestOf}</span>
+        </div>
+        <div className="vs-lado vs-b">
+          <span className="vs-aro"><Avatar player={rivalAvatar} size="lg" /></span>
+          <span className="vs-nombre" title={rivalName}>{rivalName.trim() || tr(lng, "x.dca34e30")}</span>
+        </div>
+      </div>
+
       {/* --- resultado: rápido o juego a juego --- */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="label">{tr(lng, "x.c7589dbf")}</span>
+          <span className="label flex items-center gap-1.5"><ObjetoSprite uso="resultado" className="size-5" />{tr(lng, "x.c7589dbf")}</span>
           <div className="seg">
             <button type="button" data-on={mode === "quick"} onClick={() => setMode("quick")}>{tr(lng, "x.778dc9d0")}</button>
             <button type="button" data-on={mode === "games"} onClick={() => setMode("games")}>{tr(lng, "x.d7d79088")}</button>
@@ -416,6 +456,8 @@ export function RoundForm({
                   nombreB={rivalName || tr(lng, "x.dca34e30")}
                   winner={gameWinners[i]}
                   valor={premios[i]}
+                  colorA={jugador?.color}
+                  colorB={rivalDelGrupo?.color}
                   onChange={(parcial) => setPremio(i, parcial)}
                 />
 
@@ -455,9 +497,9 @@ export function RoundForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-brand min-w-40 flex-1" type="submit">
-          <Icon name="check" className="size-4" />
-          {existing ? "Guardar cambios" : `Guardar ronda ${round}`}
+        <button className="btn btn-brand btn-gamer min-w-40 flex-1" type="submit">
+          <ObjetoSprite uso="guardar" className="size-5" />
+          {existing ? tr(lng, "v63.guardarCambios") : trf(lng, "v63.guardarRonda", { n: round })}
         </button>
         {onCancel && (
           <button className="btn btn-ghost" type="button" onClick={onCancel}>{tr(lng, "x.c111e0ab")}</button>

@@ -136,7 +136,8 @@ export async function CpBreakdown({ cp }: { cp: CpTotals }) {
   const invites = views.flatMap((v) => v.rows.filter((r) => r.invite));
 
   return (
-    <section className="card mb-5 min-w-0 overflow-hidden">
+    /* v0.63 — `id="cp"`: «Tus CP» de Torneos trae aquí. */
+    <section id="cp" className="card mb-5 min-w-0 scroll-mt-20 overflow-hidden">
       <div className="card-head">
         <div className="min-w-0">
           <h2 className="text-lg font-bold">Championship Points {cp.season}</h2>

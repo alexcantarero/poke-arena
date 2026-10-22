@@ -26,7 +26,11 @@ const BASE = "https://r2.ciphermaniac.com";
 const CACHE_SECONDS = 6 * 3600;
 const TIMEOUT_MS = 8000;
 /** Se identifican así, como piden. */
-const USER_AGENT = "PokeArenaTCG/0.52 (liga privada de amigos; lectura cacheada cada 6 h)";
+/* v0.63 — con la versión de verdad y sin datos de contacto personales. Si
+   Ciphermaniac responde 403 es un bloqueo de su lado (Cloudflare) a lecturas
+   automáticas: NO se intenta esquivar haciéndose pasar por un navegador. La
+   vía es pedirles acceso por su formulario (ver el diagnóstico). */
+const USER_AGENT = `PokeArenaTCG/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (liga privada de amigos; servidor a servidor; cache 6 h)`;
 
 export type Respuesta<T> = { ok: true; datos: T } | { ok: false; estado: number | "red"; url: string };
 
@@ -97,6 +101,10 @@ export type LineaDiagnostico = { fichero: string; estado: string; forma: string 
  */
 export async function diagnostico(): Promise<{ evento: string | null; lineas: LineaDiagnostico[] }> {
   const lineas: LineaDiagnostico[] = [];
+  // v0.63 — el puntero de la versión publicada, que su documentación pone
+  // como punto de partida. Si este también da 403, el bloqueo es general.
+  const canal = await leer<unknown>("build/v1/channels/production.json");
+  lineas.push({ fichero: "build/v1/channels/production.json", estado: canal.ok ? "200" : String(canal.estado), forma: canal.ok ? forma(canal.datos) : "—" });
   const cat = await leer<unknown>("reports/tournaments.json");
   lineas.push({ fichero: "reports/tournaments.json", estado: cat.ok ? "200" : String(cat.estado), forma: cat.ok ? forma(cat.datos) : "—" });
   const c = cat.ok ? await catalogo() : null;

@@ -127,7 +127,14 @@ export default async function TournamentsPage({
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label={tr(lng, "x.f02a0f3c")} value={snap.tournaments.length} note={`${mine.length} tuyos`} />
-        <Kpi label={tr(lng, "x.75c2f3d0")} value={myCp?.total ?? 0} note={snap.config.season} highlight />
+        {me ? (
+          <Link href={`/perfil/${me.id}#cp`} className="block rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-info"
+            aria-label={`${tr(lng, "x.75c2f3d0")}: ${myCp?.total ?? 0} · ${tr(lng, "v63.verEnPerfil")}`}>
+            <Kpi label={tr(lng, "x.75c2f3d0")} value={myCp?.total ?? 0} note={`${tr(lng, "v63.verEnPerfil")} →`} highlight />
+          </Link>
+        ) : (
+          <Kpi label={tr(lng, "x.75c2f3d0")} value={0} note={snap.config.season} highlight />
+        )}
         <Kpi label={tr(lng, "x.6296c540")} value={cpTotalGroup} note={tr(lng, "x.bb13ec73")} />
         <Kpi
           label={tr(lng, "x.af459507")}
@@ -136,29 +143,8 @@ export default async function TournamentsPage({
         />
       </div>
 
-      {myCp && myCp.buckets.length > 0 && (
-        <section className="card mb-5">
-          <div className="card-head">
-            <h2 className="text-lg font-bold">{tr(lng, "x.d3ce56ba")}</h2>
-            <Link className="btn btn-ghost btn-sm" href={`/perfil/${me!.id}`}>{tr(lng, "x.3c5d7a3a")}</Link>
-          </div>
-          <ul className="divide-y divide-line-soft">
-            {myCp.buckets.map((b) => (
-              <li key={b.bucket} className="flex items-center gap-3 px-4 py-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{b.label}</span>
-                  <span className="block text-xs text-muted">
-                    {b.bfl > 0
-                      ? `${b.counting} de ${b.bfl} huecos usados${b.spare ? ` · te quedan ${b.spare}` : " · lleno"}`
-                      : tr(lng, "x.c82bbe0b")}
-                  </span>
-                </span>
-                <span className="font-display text-xl font-extrabold tabular">{b.total}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* v0.63 — fuera «Tus huecos de Best Finish Limit»: ya está, entero, en el
+          perfil. «Tus CP» lleva allí. */}
 
       {zonaPendientes.length > 0 && (
         <section className="card mb-5">
@@ -203,7 +189,7 @@ export default async function TournamentsPage({
       <div className="card mb-4 flex flex-col gap-3 p-3 sm:p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <span className="label w-14 flex-none">{tr(lng, "x.87cf2a84")}</span>
-          <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
+          <div className="flex min-w-0 flex-wrap gap-1.5">
             {[["", tr(lng, "x.a4114a83")], ...Object.entries(TOURNAMENT_STATUS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
               <Link
                 key={k || tr(lng, "x.a9010807")}
@@ -221,7 +207,7 @@ export default async function TournamentsPage({
         {tiposPresentes.length > 1 && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <span className="label w-14 flex-none">{tr(lng, "x.6cc6198d")}</span>
-            <div className="scroll-fade flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
+            <div className="flex min-w-0 flex-wrap gap-1.5">
               <Link
                 href={urlFiltro({ tipo: "" })} scroll={false}
                 aria-current={!fTipo ? "true" : undefined}
@@ -244,12 +230,12 @@ export default async function TournamentsPage({
           </div>
         )}
 
-        <AutoSubmitForm action="/torneos" className="grid grid-cols-1 gap-2 border-t border-line-soft pt-3 xs:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <AutoSubmitForm action="/torneos" className="filtro-fechas grid grid-cols-2 gap-2 border-t border-line-soft pt-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
           {/* Lo que ya está puesto con chips viaja oculto: si no, cambiar la
               persona borraría el estado y el tipo elegidos. */}
           {fEstado && <input type="hidden" name="estado" value={fEstado} />}
           {fTipo && <input type="hidden" name="tipo" value={fTipo} />}
-          <label className="flex min-w-0 flex-col gap-1">
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
             <span className="label">{tr(lng, "x.05568bf8")}</span>
             <select className="input" name="jugador" defaultValue={filterId === "all" ? "" : filterId}>
               <option value="">{tr(lng, "x.8a3c3440")}</option>

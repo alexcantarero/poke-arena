@@ -10,6 +10,12 @@ export type NavItem = {
    * dejaría /mazos sin nombre en la barra superior.
    */
   oculto?: boolean;
+  /**
+   * v0.63 — el emoji de la sección, con temática de Pokémon: el Centro Pokémon
+   * para el inicio, el mapa para el calendario, las medallas para la liga…
+   * Se pinta en vez del icono de línea; `icon` queda de reserva.
+   */
+  emoji?: string;
 };
 /** `key` es la clave de traducción del título del grupo (`lib/i18n.ts`). */
 export type NavGroup = { key: string; title: string; items: NavItem[] };
@@ -36,17 +42,17 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.main",
     title: "Principal",
     items: [
-      { href: "/", label: "Inicio", icon: "home" },
-      { href: "/calendario", label: "Calendario", icon: "calendar" },
+      { href: "/", label: "Inicio", icon: "home", emoji: "🏥" },
+      { href: "/calendario", label: "Calendario", icon: "calendar", emoji: "🗺️" },
     ],
   },
   {
     key: "nav.group.compete",
     title: "Competir",
     items: [
-      { href: "/torneos", label: "Torneos", icon: "trophy" },
-      { href: "/competiciones", label: "Liga", icon: "league" },
-      { href: "/resultados", label: "Resultados", icon: "results" },
+      { href: "/torneos", label: "Torneos", icon: "trophy", emoji: "🏆" },
+      { href: "/competiciones", label: "Liga", icon: "league", emoji: "🏅" },
+      { href: "/resultados", label: "Resultados", icon: "results", emoji: "📜" },
       // Beta: se conserva la herramienta, pero se oculta de la navegación.
       // { href: "/mesa", label: "Mi Mesa", icon: "plus" },
     ],
@@ -55,26 +61,29 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.analysis",
     title: "Análisis",
     items: [
-      { href: "/ranking", label: "Ranking", icon: "rank" },
-      { href: "/estadisticas", label: "Estadísticas", icon: "stats" },
-      { href: "/topdecks", label: "Top Decks", icon: "globe" },
+      { href: "/ranking", label: "Ranking", icon: "rank", emoji: "🥇" },
+      { href: "/estadisticas", label: "Estadísticas", icon: "stats", emoji: "📊" },
+      { href: "/topdecks", label: "Top Decks", icon: "globe", emoji: "🃏" },
       /* v0.38 — Mazos sale del menú. No desaparece: vive dentro de Top
          Decks, que es donde se mira el metagame y se decide con qué ir, y
          es justo el momento en que uno quiere abrir su biblioteca. Un menú
          con dos entradas casi iguales («Top Decks» y «Mazos») obliga a
          elegir antes de saber qué hay en cada una. */
-      { href: "/mazos", label: "Mazos", icon: "deck", oculto: true },
+      { href: "/mazos", label: "Mazos", icon: "deck", emoji: "🎴", oculto: true },
     ],
   },
   {
     key: "nav.group.account",
     title: "Cuenta",
-    items: [{ href: "/ajustes", label: "Ajustes", icon: "cog" }],
+    items: [{ href: "/ajustes", label: "Ajustes", icon: "cog", emoji: "⚙️" }],
   },
 ];
 
 /** Todas las secciones, en orden. Incluye las ocultas: esta lista es la que
     resuelve en qué sección estás y cómo se titula la pantalla. */
+/** v0.63 — el emoji del perfil: la gorra de entrenador. */
+export const EMOJI_PERFIL = "🧢";
+
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 /** Los grupos tal y como se pintan en el menú: sin las secciones ocultas, y

@@ -8,6 +8,7 @@ import { ContadorDado } from "@/components/ContadorDado";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
 import { PrizePicker } from "@/components/PrizePicker";
+import { ObjetoSprite } from "@/components/ObjetoSprite";
 import { DeckPicker } from "./DeckPicker";
 import type { DeckOption } from "@/lib/types";
 import { tr, trf } from "@/lib/i18n";
@@ -242,9 +243,9 @@ export function MatchForm({
       <input type="hidden" name="playerAId" value={aId} />
 
       {/* ------------------------------ quién ------------------------------ */}
-      <section className="card p-4">
+      <section className="card registro-seccion p-4" data-acento="rival">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{tr(lng, "x.ec039ecb")}</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="rival" className="size-7" />{tr(lng, "x.ec039ecb")}</h2>
           <label className="inline-flex items-center gap-2 text-sm">
             <input
               type="checkbox" className="size-4" checked={external}
@@ -344,9 +345,9 @@ export function MatchForm({
       </section>
 
       {/* ----------------------------- resultado ----------------------------- */}
-      <section className="card p-4">
+      <section className="card registro-seccion p-4" data-acento="resultado">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold">{tr(lng, "x.c7589dbf")}</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="resultado" className="size-7" />{tr(lng, "x.c7589dbf")}</h2>
           <div className="seg seg-brand">
             {[1, 3, 5].map((n) => (
               <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
@@ -451,8 +452,14 @@ export function MatchForm({
             const over = isOver(i);
             return (
               <div key={i} className={`rounded-xl border border-line-soft p-3 ${over ? "opacity-40" : ""}`}>
-                <div className="mb-2 font-display text-sm font-bold uppercase tracking-wide text-muted">
-                  Juego {i + 1}
+                {/* v0.63 — la cabecera del juego, con color y el marcador de ese juego. */}
+                <div className="juego-cinta mb-2" data-gana={games[i].winner || undefined}>
+                  <span>{trf(lng, "v63.juego", { n: i + 1 })}</span>
+                  {games[i].winner && (
+                    <span className="ml-auto text-[10px] font-bold normal-case tracking-normal opacity-90">
+                      {games[i].winner === "tie" ? tr(lng, "x.09d03513") : trf(lng, "v63.ganaJuego", { n: games[i].winner === "a" ? (A?.name ?? "A") : bLabel })}
+                    </span>
+                  )}
                 </div>
 
                 {/* Botones grandes: en el móvil esto se pulsa con el pulgar. */}
@@ -476,7 +483,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_winner`} value={games[i].winner} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted">{tr(lng, "x.04e97451")}</span>
+                  <span className="text-xs text-muted"><span aria-hidden="true">🪙 </span>{tr(lng, "x.04e97451")}</span>
                   <div className="seg flex-1" role="group" aria-label={`Quién empezó el juego ${i + 1}`}>
                     {[
                       { v: "", l: "—" },
@@ -498,7 +505,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted w-14">{tr(lng, "x.0dc0ab48")}</span>
+                  <span className="text-xs text-muted w-14"><span aria-hidden="true">🎲 </span>{tr(lng, "x.0dc0ab48")}</span>
                   <div className="flex flex-1 items-center gap-2">
                     <div className="flex flex-1 items-center gap-1.5">
                       <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
@@ -522,6 +529,8 @@ export function MatchForm({
                   nombreB={bLabel}
                   winner={games[i].winner}
                   disabled={over}
+                  colorA={A?.color}
+                  colorB={B?.color}
                   valor={{
                     premiosA: games[i].premiosA, premiosB: games[i].premiosB,
                     penalizadoA: games[i].penalizadoA, penalizadoB: games[i].penalizadoB,
@@ -587,7 +596,7 @@ export function MatchForm({
 
       {/* ------------------------------ contexto ------------------------------ */}
       <details className="card p-4" open={Boolean(match?.competitionId || match?.tournamentId || match?.note)}>
-        <summary className="cursor-pointer text-lg font-bold">{tr(lng, "x.998fd670")}</summary>
+        <summary className="flex cursor-pointer items-center gap-2 text-lg font-bold"><ObjetoSprite uso="contexto" className="size-7" />{tr(lng, "x.998fd670")}</summary>
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="competitionId">{tr(lng, "x.c28ef3fd")}</label>
@@ -632,7 +641,8 @@ export function MatchForm({
         )}
         <div className="flex gap-2">
         <button className="btn btn-brand btn-gamer flex-1 text-base disabled:opacity-100 disabled:bg-surface-2 disabled:text-muted" type="submit" disabled={!canSave}>
-          {match ? "Guardar cambios" : tr(lng, "x.46ee46f3")}
+          <ObjetoSprite uso="guardar" className="size-6" />
+          {match ? tr(lng, "v63.guardarCambios") : tr(lng, "x.46ee46f3")}
         </button>
         {match && (
           <button className="btn btn-danger" type="submit" formAction={deleteMatch} name="id" value={match.id}>

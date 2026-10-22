@@ -2,6 +2,70 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.63.0] — 2026-10-22
+
+Ajustes ordenado, la Liga más sobria, el filtro múltiple del calendario, el panel de
+enfrentamiento en las rondas y Registrar partida con temática de Pokémon. **Sin migración.**
+
+### Cambiado
+
+- **Ajustes, por lo que se viene a hacer.** «La liga» tenía torneos, importación de datos y
+  el modo sin conexión mezclados. Ahora:
+  - **Lo tuyo**: «Este dispositivo» (animaciones y modo sin conexión, este último ahora para
+    todos: es la salida de emergencia de cualquiera) y Cuenta.
+  - **Organizar**: Jugadores · Invitaciones · **La liga** (nombre, temporada, Elo, altas,
+    reiniciar Elo, nueva temporada) · **Torneos y CP** (temporada de CP, zona, torneos
+    abandonados) · **Importar datos** (torneos online de Limitless, torneos previstos,
+    Regionales y City Leagues, eventos importados, diagnóstico de Ciphermaniac) ·
+    **Arquetipos** (catálogo y familias) · Discord · Zona de riesgo.
+  - Cada grupo con su emoji. El «Resumen rápido» pasa a una línea.
+  - **Fuera los puntos por victoria/empate/derrota**: se juega a los oficiales (3/1/0). Los
+    valores guardados se respetan.
+  - `saveSettings` ahora **solo actualiza los campos que llegan**: con dos formularios (La
+    liga · Torneos y CP), guardar uno ya no pisa el otro.
+- **La Liga, más sobria.** La clasificación es una tabla limpia: fuera los degradados de
+  fila, las medallas grandes y la columna «Arq.»; el podio solo se marca en el número. En el
+  móvil se ven por fin el récord y el %V (antes solo puesto y nombre). La modalidad va en el
+  subtítulo en vez de en una tarjeta suelta.
+- **Torneos**: fuera «Tus huecos de Best Finish Limit» (está entero en el perfil). **«Tus CP»
+  lleva a tu perfil**, al bloque de Championship Points (`#cp`). **El filtro ya no se corta**:
+  los chips saltan de línea y en el móvil las fechas van debajo de la persona.
+- **Calendario: varios tipos a la vez** (`?tipo=regional,league_cup`). Cada chip pone o
+  quita su tipo; un enlace viejo de un solo tipo se sigue leyendo. `lib/calendar.ts`
+  (`parseTipos`, `alternarTipo`, `pasaTipos`), 4 pruebas.
+- **Menú con emojis de Pokémon**: 🏥 Inicio (el Centro Pokémon), 🗺️ Calendario, 🏆 Torneos,
+  🏅 Liga, 📜 Resultados, 🥇 Ranking, 📊 Estadísticas, 🃏 Top Decks, ⚙️ Ajustes, 🧢 Perfil.
+  Barra lateral, barra de abajo y «Más». La activa va entera; las demás, un poco apagadas.
+- **Registrar partida, con color y objetos**: Buscarrivales en «¿Contra quién?», Caramelo
+  Raro en Resultado, Mapa en Contexto, Poké Ball en Guardar y Moneda Amuleto en Premios
+  (sprites de PokéAPI enlazados, como las Balls: `lib/objetos.ts`, 2 pruebas). Filo de color
+  en cada sección, la cabecera de cada juego cambia de color según quién lo gana, 🪙 en quién
+  empezó y 🎲 en los mulligans.
+- **Las fundas de los premios**: cada jugador con las suyas, del color de su perfil, con
+  brillo de plástico y una estrella (diseño propio, no el dorso oficial). Cogida, la carta se
+  ve boca arriba y dorada.
+
+### Añadido
+
+- **El panel de enfrentamiento en las rondas de torneo**, como en Registrar partida: tu avatar
+  contra el del rival (o su inicial si no es del grupo), «VS» o el marcador juego a juego, el
+  ganador iluminado y el borde con el color del tipo de torneo. Las rondas reciben los
+  jugadores públicos (`PublicPlayer`, nunca `currentPlayer()`).
+
+### Corregido
+
+- **Diagnóstico de Ciphermaniac (0/2, 403)**: no era un fallo de la app. Su documentación
+  sigue usando `reports/tournaments.json` y dice que un fichero que falta da 404; el 403 es su
+  servidor (Cloudflare) rechazando lecturas automáticas. El diagnóstico ahora lo explica, dice
+  qué significa cada código, prueba también `build/v1/channels/production.json` y enlaza su
+  formulario para pedir acceso. No se intenta esquivar el bloqueo. `lib/estadoFuente.ts`,
+  2 pruebas.
+
+### Verificado
+
+- Codificación, acciones e i18n estricto en verde. `npm test`: **578 de 578**. `tsc` (con
+  tipos de librería simulados): ningún error nuevo de los nuestros. `npm run build`: pendiente.
+
 ## [0.62.0] — 2026-10-21
 
 Barra lateral, el panel según el tipo de partida, y mulligans y premios con animación.

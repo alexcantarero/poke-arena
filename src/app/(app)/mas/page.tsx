@@ -2,6 +2,7 @@ import Link from "next/link";
 import { currentPlayer } from "@/lib/data";
 import { moreGroups } from "@/lib/nav";
 import { Icon } from "@/components/icons";
+import { NavIcono } from "@/components/NavIcono";
 import { Avatar, PageHead } from "@/components/ui";
 import { logout } from "@/actions";
 import { getLang } from "@/lib/lang";
@@ -38,7 +39,7 @@ export default async function MorePage() {
           <nav className="card divide-y divide-line-soft">
             {g.items.map((s) => (
               <Link key={s.href} href={s.href} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2">
-                <Icon name={s.icon} className="size-5 text-muted" />
+                <NavIcono emoji={s.emoji} icon={s.icon} className="size-6" tam="text-[1.25rem]" />
                 <span className="flex-1 font-medium">{tr(lang, `nav.${s.href}`)}</span>
                 <Icon name="back" className="size-4 rotate-180 text-muted" />
               </Link>

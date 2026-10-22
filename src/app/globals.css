@@ -1339,21 +1339,44 @@ html:not([data-theme="dark"]) .barra-lateral .nav-side:not([data-on="true"]):hov
 .premios-fila { display: flex; align-items: center; gap: 0.3rem; }
 .premio-cero { min-width: 2.2rem; height: 2.75rem; border-radius: 0.45rem; border: 1px solid var(--line); font-size: 0.85rem; font-weight: 700; color: var(--ink-2); background: var(--surface-2); }
 .premio-cero[data-on="true"] { border-color: var(--brand); background: color-mix(in oklab, var(--brand) 18%, var(--surface)); color: var(--ink); }
-/* Una carta boca abajo: el dorso azul con su óvalo. */
+/* v0.63 — Las fundas. Cada jugador con las suyas, del color de su perfil
+   (`--funda`, que llega de PrizePicker), como en la mesa. Diseño propio: el
+   brillo del plástico en diagonal, una trama fina y una estrella de cuatro
+   puntas. NO es el dorso oficial de las cartas. */
+.premios-caja {
+  border-color: color-mix(in oklab, #d4a72c 35%, var(--line));
+  background: linear-gradient(170deg, color-mix(in oklab, #f6d867 10%, var(--surface)), var(--surface) 60%);
+}
+.premios-fila { --funda: var(--info); }
+.premios-fila[data-lado="a"] { --funda: var(--funda-a, var(--info)); }
+.premios-fila[data-lado="b"] { --funda: var(--funda-b, var(--loss)); }
 .premio-carta {
-  --i: 1; position: relative; flex: 1; max-width: 2.6rem; aspect-ratio: 63 / 88; border-radius: 0.35rem;
-  border: 1.5px solid color-mix(in oklab, #1e40af 70%, var(--line));
-  background: radial-gradient(ellipse 45% 32% at 50% 50%, #f59e0b 0 30%, transparent 32%), linear-gradient(160deg, #2563eb, #1e3a8a);
+  --i: 1; position: relative; display: grid; place-items: center;
+  flex: 1; max-width: 2.6rem; aspect-ratio: 63 / 88; border-radius: 0.4rem;
+  border: 1.5px solid color-mix(in oklab, var(--funda) 55%, black);
+  background:
+    linear-gradient(125deg, rgb(255 255 255 / .38) 0 14%, transparent 26% 60%, rgb(255 255 255 / .16) 68%, transparent 76%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / .08) 0 3px, transparent 3px 7px),
+    linear-gradient(165deg, color-mix(in oklab, var(--funda) 82%, white), color-mix(in oklab, var(--funda) 72%, black));
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .2), 0 1px 3px rgb(0 0 0 / .25);
   transition: transform 0.15s;
 }
-.premio-carta:hover:not(:disabled) { transform: translateY(-2px); }
-/* Cogida: se voltea, en cadena (cada una un poco después que la anterior). */
+.premio-carta::before { /* el emblema de la funda */
+  content: ""; position: absolute; inset: 30% 24%;
+  background: rgb(255 255 255 / .85); opacity: .7;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+.premio-carta:hover:not(:disabled) { transform: translateY(-2px) rotate(-2deg); }
+/* Cogida: boca arriba, dorada; se voltea en cadena. */
 .premio-carta[data-tomada="true"] {
-  border-color: var(--brand);
-  background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 85%, white), var(--brand));
+  border-color: #b98a1c;
+  background: linear-gradient(160deg, #fff8dc, #f6d867 55%, #e2b53c);
+  box-shadow: inset 0 0 0 2px #f3d062, 0 0 0 1px color-mix(in oklab, var(--funda) 70%, transparent),
+    0 4px 12px color-mix(in oklab, #e2b53c 45%, transparent);
   animation: premio-voltea 0.4s both; animation-delay: calc(var(--i) * 55ms);
 }
-.premio-num { font-family: var(--font-display); font-weight: 900; font-size: 0.9rem; color: var(--on-brand); }
+.premio-carta[data-tomada="true"]::before { display: none; }
+.premio-num { position: relative; font-family: var(--font-display); font-weight: 900; font-size: 0.95rem; color: #5a3d00; }
 @keyframes premio-voltea { 0% { transform: rotateY(90deg); } 100% { transform: rotateY(0); } }
 
 .penal-huevo {
@@ -1365,3 +1388,71 @@ html:not([data-theme="dark"]) .barra-lateral .nav-side:not([data-on="true"]):hov
 @keyframes penal-entra { 0% { opacity: 0; transform: scale(0.6); } 60% { transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes penal-tiembla { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) { .dado-tira, .premio-carta[data-tomada="true"], .penal-huevo, .penal-img { animation: none; } }
+
+/* =========================================================================
+   v0.63 — Emojis del menú, color en Registrar partida y el panel de
+   enfrentamiento en las rondas de torneo.
+   ========================================================================= */
+/* El emoji no cambia de color: la sección activa va entera y las demás, un
+   poco apagadas. La pastilla de fondo sigue marcando cuál es. */
+.nav-emoji { filter: saturate(.55); opacity: .82; transition: filter .15s, opacity .15s, transform .15s; }
+.nav-emoji[data-on="true"] { filter: none; opacity: 1; transform: scale(1.08); }
+a:hover > .nav-emoji { filter: none; opacity: 1; }
+.objeto-sprite { image-rendering: pixelated; object-fit: contain; }
+
+/* Cada sección del formulario lleva un filo de color arriba. */
+.registro-seccion { position: relative; overflow: hidden; }
+.registro-seccion::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 3px;
+  background: linear-gradient(90deg, var(--info), color-mix(in oklab, var(--info) 30%, var(--brand)));
+}
+.registro-seccion[data-acento="resultado"]::before { background: linear-gradient(90deg, var(--brand), #ff8a3d, var(--loss)); }
+
+/* La cabecera de cada juego. */
+.juego-cinta {
+  display: flex; align-items: center; gap: .5rem; min-width: 0;
+  padding: .3rem .6rem; border-radius: .6rem;
+  font-family: var(--font-display); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-2);
+  background: linear-gradient(100deg, color-mix(in oklab, var(--info) 14%, var(--surface-2)), var(--surface-2));
+}
+.juego-cinta[data-gana="a"] { color: var(--ink); background: linear-gradient(100deg, color-mix(in oklab, var(--win) 28%, var(--surface-2)), var(--surface-2)); }
+.juego-cinta[data-gana="b"] { color: var(--ink); background: linear-gradient(100deg, color-mix(in oklab, var(--loss) 24%, var(--surface-2)), var(--surface-2)); }
+.juego-cinta[data-gana="tie"] { color: var(--ink); background: linear-gradient(100deg, color-mix(in oklab, var(--tie) 26%, var(--surface-2)), var(--surface-2)); }
+
+/* El panel de enfrentamiento en una ronda de torneo: el borde con el color
+   de la familia del torneo (los mismos que la cinta de arriba). */
+.vs-panel-ronda { padding: .85rem .6rem; }
+.vs-panel-ronda .vs-marcador { font-size: clamp(2.1rem, 9vw, 3rem); }
+.vs-panel[data-tipo="torneo"] { border-width: 1.5px; }
+.vs-panel[data-familia="challenge"] { border-color: #1f6fb2; }
+.vs-panel[data-familia="cup"] { border-color: #a21caf; }
+.vs-panel[data-familia="major"] { border-color: #b45309; box-shadow: var(--shadow-2), 0 6px 22px rgb(185 28 28 / .18); }
+.vs-panel[data-familia="online"] { border-color: #0e7490; }
+
+/* Filtros de Torneos: los chips saltan de línea en vez de cortarse, y las
+   fechas de iOS (que tienen un ancho mínimo propio) encogen con la rejilla. */
+.filtro-fechas input[type="date"] { min-width: 0; width: 100%; }
+@media (prefers-reduced-motion: reduce) { .nav-emoji { transition: none; } .nav-emoji[data-on="true"] { transform: none; } }
+
+/* v0.63 — La clasificación de una liga: tabla sobria, cifras alineadas a la
+   derecha, filas finas. El podio solo se marca con el número del puesto. */
+.liga-tabla { border-collapse: collapse; }
+.liga-tabla th {
+  padding: .5rem .5rem; text-align: right; white-space: nowrap;
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  border-block: 1px solid var(--line-soft);
+}
+.liga-tabla td { padding: .55rem .5rem; text-align: right; border-bottom: 1px solid var(--line-soft); }
+.liga-tabla tbody tr:last-child td { border-bottom: 0; }
+.liga-tabla tbody tr:hover td { background: color-mix(in oklab, var(--surface-2) 55%, transparent); }
+.liga-tabla th:first-child, .liga-tabla td:first-child { padding-left: 1rem; }
+.liga-tabla th:last-child, .liga-tabla td:last-child { padding-right: 1rem; }
+.liga-puesto {
+  display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 9999px;
+  font-family: var(--font-display); font-size: .75rem; font-weight: 800; color: var(--muted);
+}
+.liga-tabla tr[data-puesto="1"] .liga-puesto { color: var(--brand-strong, var(--brand)); background: color-mix(in oklab, var(--brand) 16%, transparent); }
+.liga-tabla tr[data-puesto="2"] .liga-puesto { color: var(--ink-2); background: var(--surface-3); }
+.liga-tabla tr[data-puesto="3"] .liga-puesto { color: var(--tier-bronce, #b7793e); background: color-mix(in oklab, var(--tier-bronce, #b7793e) 16%, transparent); }

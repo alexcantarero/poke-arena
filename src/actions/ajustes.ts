@@ -78,8 +78,25 @@ export async function saveSettings(fd: FormData) {
     registrationOpen: bool(fd, "registrationOpen"),
     updatedAt: new Date(),
   };
+  /* v0.63 — Ajustes se partió en grupos (La liga · Torneos y CP) y cada uno
+     tiene su formulario. Si se guardara todo siempre, guardar uno pisaría los
+     campos del otro con los valores por defecto. Así que solo se tocan los
+     campos que llegan. La casilla de altas no llega cuando está desmarcada:
+     por eso va acompañada de un `_registrationOpen` oculto que dice «este
+     formulario la lleva». Los puntos por victoria/empate/derrota ya no salen
+     en pantalla (3/1/0, los oficiales): al no llegar, se respetan los guardados. */
+  const presentes: Record<string, boolean> = {
+    name: fd.has("name"), season: fd.has("season"), cpSeason: fd.has("cpSeason"),
+    ptsWin: fd.has("ptsWin"), ptsTie: fd.has("ptsTie"), ptsLoss: fd.has("ptsLoss"),
+    eloStart: fd.has("eloStart"), eloK: fd.has("eloK"), eloScope: fd.has("eloScope"),
+    eloSince: fd.has("eloSince"), ratingZone: fd.has("ratingZone"),
+    registrationOpen: fd.has("_registrationOpen") || fd.has("registrationOpen"),
+  };
+  const parcial = Object.fromEntries(
+    Object.entries(values).filter(([k]) => k === "updatedAt" || presentes[k]),
+  ) as Partial<typeof values>;
   const existing = await db.select().from(settings).where(eq(settings.id, "default"));
-  if (existing[0]) await db.update(settings).set(values).where(eq(settings.id, "default"));
+  if (existing[0]) await db.update(settings).set(parcial).where(eq(settings.id, "default"));
   else await db.insert(settings).values({ id: "default", ...values });
   refresh();
   redirect(withFlash("/ajustes", "ok", await msj("x.06111673")));

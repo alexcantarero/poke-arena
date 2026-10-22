@@ -2,13 +2,13 @@ import Link from "next/link";
 import { currentPlayer, loadCompetitionHeads, loadEvents, loadTournamentHeads } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
 // v0.38: ya no se pintan partidas aquí, así que no hace falta leerlas.
-import { CALENDAR_KINDS, kindsPresent, toneOf } from "@/lib/calendar";
+import { CALENDAR_KINDS, alternarTipo, kindsPresent, parseTipos, pasaTipos, tiposAParam, toneOf } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Calendario" };
@@ -53,7 +53,10 @@ export default async function CalendarPage({
   const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
 
-  const tipo = q.tipo && CALENDAR_KINDS[q.tipo] ? q.tipo : "";
+  /* v0.63 — varios tipos a la vez (`?tipo=regional,league_cup`). `tipo` es el
+     valor tal cual va en la URL; `tipos`, la lista para filtrar. */
+  const tipos = parseTipos(q.tipo);
+  const tipo = tiposAParam(tipos);
   /** v0.16 — Calendario (rejilla del mes) o Agenda (lista grande de lo que viene). */
   const vista: "calendario" | "agenda" = q.vista === "agenda" ? "agenda" : "calendario";
   const vistaQs = vista === "agenda" ? "&vista=agenda" : "";
@@ -91,12 +94,12 @@ export default async function CalendarPage({
   const eventos = datos.events.filter((e) => !(e.tournamentId && datos.toursById.has(e.tournamentId)));
 
   for (const e of eventos) {
-    if (tipo && e.tournamentKind !== tipo) continue;
+    if (!pasaTipos(tipos, e.tournamentKind)) continue;
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
     pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind });
   }
   for (const t of datos.tournaments) {
-    if (tipo && t.kind !== tipo) continue;
+    if (!pasaTipos(tipos, t.kind)) continue;
     const tone = toneOf(t.kind, "event");
     // v0.16: un torneo del calendario lleva a su ficha.
     pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope });
@@ -120,8 +123,11 @@ export default async function CalendarPage({
 
   const mesHref = (y: number, m: number) =>
     `/calendario?y=${y}&m=${m}${tipo ? `&tipo=${tipo}` : ""}`;
-  const tipoHref = (t: string) =>
-    `/calendario?y=${year}&m=${month}${t ? `&tipo=${t}` : ""}${vistaQs}`;
+  /** v0.63 — la URL de un chip: la selección con ese tipo puesto o quitado. */
+  const tipoHref = (sel: string[]) => {
+    const t = tiposAParam(sel);
+    return `/calendario?y=${year}&m=${month}${t ? `&tipo=${t}` : ""}${vistaQs}`;
+  };
   const vistaHref = (v: "calendario" | "agenda") =>
     `/calendario?y=${year}&m=${month}${tipo ? `&tipo=${tipo}` : ""}${v === "agenda" ? "&vista=agenda" : ""}`;
 
@@ -131,7 +137,7 @@ export default async function CalendarPage({
   const agenda = [
     ...eventos
       .filter((e) => (e.endDate ?? e.date) >= today)
-      .filter((e) => !tipo || e.tournamentKind === tipo)
+      .filter((e) => pasaTipos(tipos, e.tournamentKind))
       .map((e) => ({
         id: e.id, date: e.date, endDate: e.endDate, title: e.title,
         kindLabel: toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : "event").label,
@@ -144,7 +150,7 @@ export default async function CalendarPage({
       })),
     ...datos.tournaments
       .filter((t) => (t.endDate ?? t.date) >= today)
-      .filter((t) => !tipo || t.kind === tipo)
+      .filter((t) => pasaTipos(tipos, t.kind))
       .map((t) => ({
         id: t.id, date: t.date, endDate: t.endDate, title: t.name,
         kindLabel: toneOf(t.kind, "event").label,
@@ -195,28 +201,33 @@ export default async function CalendarPage({
 
       {/* ------------------------------ filtros ------------------------------ */}
       {disponibles.length > 0 && (
-        <div className="scroll-x mb-3 flex gap-2 pb-1">
+        <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "v63.calFiltro")}>
           <Link
-            href={tipoHref("")}
-            aria-current={!tipo ? "page" : undefined}
-            className={`chip flex-none ${!tipo ? "chip-brand" : ""}`}
+            href={tipoHref([])}
+            aria-current={!tipos.length ? "page" : undefined}
+            className={`chip flex-none ${!tipos.length ? "chip-brand" : ""}`}
           >
             {tr(lng, "x.fdebf667")}
           </Link>
           {disponibles.map((k) => (
             <Link
               key={k}
-              href={tipoHref(k)}
-              aria-current={tipo === k ? "page" : undefined}
+              href={tipoHref(alternarTipo(tipos, k))}
+              aria-pressed={tipos.includes(k)}
               className="chip flex-none"
-              style={tipo === k
+              style={tipos.includes(k)
                 ? { background: CALENDAR_KINDS[k].color, color: "var(--ground)", borderColor: "transparent" }
                 : { borderColor: CALENDAR_KINDS[k].color, color: CALENDAR_KINDS[k].color }}
             >
-              <i className="size-2 rounded-full" style={{ background: CALENDAR_KINDS[k].color }} aria-hidden="true" />
+              {tipos.includes(k)
+                ? <span aria-hidden="true">✓</span>
+                : <i className="size-2 rounded-full" style={{ background: CALENDAR_KINDS[k].color }} aria-hidden="true" />}
               {CALENDAR_KINDS[k].label}
             </Link>
           ))}
+          <span className="text-[11px] text-muted">
+            {tipos.length > 1 ? trf(lng, "v63.calVarios", { n: tipos.length }) : tr(lng, "v63.calPista")}
+          </span>
         </div>
       )}
 

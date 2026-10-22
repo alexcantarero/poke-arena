@@ -71,7 +71,7 @@ export default async function SettingsPage() {
       <PageHead
         title={tr(lng, "x.9751f876")}
         sub={manager
-          ? tr(lng, "x.ec5883fe")
+          ? tr(lng, "v63.ajustesSub")
           : tr(lng, "x.d030dc04")}
       />
 
@@ -83,13 +83,25 @@ export default async function SettingsPage() {
       <div className="min-w-0">
       <h2 className="mb-3 font-display text-base font-bold">{tr(lng, "aj.bloqueCuenta")}</h2>
       {/* v0.22: preferencia de animaciones, de cada uno (vive en el navegador). */}
-      <Grupo id="apariencia" titulo={tr(lng, "x.4b819e3f")}>
-      <div className="card mb-6 p-4">
+      {/* v0.63 — «Este dispositivo»: las animaciones y el modo sin conexión son
+          de este navegador, no de la liga. El modo sin conexión antes solo lo
+          veían los organizadores, y es la salida de emergencia de cualquiera. */}
+      <Grupo id="apariencia" icono="📱" titulo={tr(lng, "v63.dispositivo")}>
+      <div className="card mb-4 p-4">
         <MotionToggle />
       </div>
+          {/* --- v0.35: la salida de emergencia del service worker --- */}
+          <div className="card mb-6 p-4">
+            <p className="label mb-2">{tr(lng, "x.f73a8413")}</p>
+            <p className="mb-3 text-sm text-muted">
+              {tr(lng, "x.6c0f91a4")}
+            </p>
+            <ServiceWorkerOff />
+          </div>
+
 
       </Grupo>
-      <Grupo id="cuenta" titulo={tr(lng, "x.e92a19d9")}>
+      <Grupo id="cuenta" icono="🔑" titulo={tr(lng, "x.e92a19d9")}>
       <PasswordForm />
 
       </Grupo>
@@ -101,48 +113,33 @@ export default async function SettingsPage() {
       {manager && <h2 className="mb-3 mt-8 font-display text-base font-bold">{tr(lng, "aj.bloqueOrganizar")}</h2>}
       {manager && (
         <>
-          <section className="card mb-4 overflow-hidden">
-            <div className="border-b border-line-soft bg-surface-2/70 px-4 py-4 sm:px-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="label mb-1">{tr(lng, "x.b5845ea1")}</p>
-                  <h2 className="font-display text-2xl font-bold leading-none text-ink">{tr(lng, "x.24a7798e")}</h2>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-strong">
-                  <Icon name="cog" className="size-3.5" /> {snap.config.name}
-                </span>
-              </div>
-            </div>
-            <div className="grid gap-3 p-4">
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{tr(lng, "x.b5291b8d")}</p>
-                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.players.length}</p>
-                </div>
-                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{tr(lng, "x.f02a0f3c")}</p>
-                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.tournaments.length}</p>
-                </div>
-                <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{tr(lng, "x.b11349f6")}</p>
-                  <p className="mt-2 font-display text-3xl font-bold leading-none text-ink">{snap.config.season}</p>
-                </div>
-              </div>
+          {/* v0.63 — el «Resumen rápido» era una tarjeta grande con tres números;
+              ahora es una línea: qué liga es y de qué tamaño. */}
+          <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
+            <b className="font-display text-base text-ink">{snap.config.name}</b>
+            <span className="tabular">{snap.players.length} {tr(lng, "v63.jugadoresMin")}</span>
+            <span className="tabular">{snap.tournaments.length} {tr(lng, "v63.torneosMin")}</span>
+            <span>{snap.config.season}</span>
+          </p>
 
-              {/* v0.58 — fuera los atajos: con el menú de secciones a la izquierda no
-                  aportaban nada. */}
-            </div>
-          </section>
-
+          <Grupo id="jugadores" icono="👥" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
+          <PlayerAdmin
+            players={snap.players} counts={counts} emails={emails}
+            meId={me.id} meRole={me.role}
+          />
+          </Grupo>
           {/* v0.53 — el texto de antes («cualquiera con el enlace puede darse de alta»)
               asustaba con razón y no era verdad: cada enlace es de UN uso por defecto,
               caduca a los 14 días y se puede anular. Ahora lo dice. */}
-          <Grupo id="invitaciones" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
+          <Grupo id="invitaciones" icono="✉️" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
           <InviteManager invites={invites} />
 
           </Grupo>
-          <Grupo id="liga" titulo={tr(lng, "x.cdaf0f8a")}>
-          <form action={saveSettings} className="card mb-6 flex flex-col gap-4 p-4">
+          {/* v0.63 — «La liga» solo tiene lo de la liga: nombre, temporada, Elo y
+              altas. Lo de torneos, la importación de datos y el modo sin
+              conexión se fueron a sus grupos. */}
+          <Grupo id="liga" icono="🏅" titulo={tr(lng, "x.cdaf0f8a")} aside={tr(lng, "v63.ligaAside")}>
+          <form action={saveSettings} className="card mb-4 flex flex-col gap-4 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <label className="label" htmlFor="s-name">{tr(lng, "x.e68491e9")}</label>
@@ -152,16 +149,6 @@ export default async function SettingsPage() {
                 <label className="label" htmlFor="s-season">{tr(lng, "x.b11349f6")}</label>
                 <input className="input" id="s-season" name="season" defaultValue={snap.config.season} />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 xs:grid-cols-3">
-              {([["ptsWin", tr(lng, "x.737c5401")], ["ptsTie", tr(lng, "x.65105f99")], ["ptsLoss", tr(lng, "x.1e1f43ed")]] as const).map(([n, l]) => (
-                <div className="flex flex-col gap-1.5" key={n}>
-                  <label className="label" htmlFor={`s-${n}`}>{l}</label>
-                  <input className="input" id={`s-${n}`} name={n} type="number" inputMode="numeric"
-                    defaultValue={snap.config[n]} />
-                </div>
-              ))}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -203,34 +190,16 @@ export default async function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="s-cpSeason">{tr(lng, "x.0f7ff796")}</label>
-                <select className="input" id="s-cpSeason" name="cpSeason" defaultValue={String(snap.config.cpSeason)}>
-                  {availableSeasons().map((y) => (
-                    <option key={y} value={y}>
-                      {y}{getSeason(y).confirmed ? "" : " (cifras provisionales)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="s-zone">{tr(lng, "x.06c8dea9")}</label>
-                <select className="input" id="s-zone" name="ratingZone" defaultValue={snap.config.ratingZone}>
-                  <option value="europe">{tr(lng, "x.10bf7156")}</option>
-                  <option value="us-canada">{tr(lng, "x.a419030b")}</option>
-                  <option value="latam">{tr(lng, "x.8e6189a6")}</option>
-                  <option value="oceania">{tr(lng, "x.0929a12c")}</option>
-                  <option value="mesa">{tr(lng, "x.99fa5b06")}</option>
-                </select>
-              </div>
-            </div>
-
+            <input type="hidden" name="_registrationOpen" value="1" />
             <label className="inline-flex items-center gap-2 text-sm">
               <input type="checkbox" name="registrationOpen" className="size-4" defaultChecked={snap.config.registrationOpen} />
               {tr(lng, "x.ad0d114c")}
             </label>
 
+            {/* v0.63 — sin los puntos por victoria/empate/derrota: se juega a los
+                oficiales (3 / 1 / 0) y cambiarlos no aportaba. Al no enviarse, se
+                conservan los guardados. */}
+            <p className="text-xs text-muted">{tr(lng, "v63.puntosOficiales")}</p>
             <button className="btn btn-brand w-full sm:w-auto" type="submit">{tr(lng, "x.37daa9ec")}</button>
           </form>
 
@@ -267,76 +236,6 @@ export default async function SettingsPage() {
             </p>
           </div>
 
-          {/* --- v0.19: limpieza de torneos abandonados --- */}
-          <div className="card mb-4 p-4">
-            <p className="label mb-2">{tr(lng, "x.3e9f2bdf")}</p>
-            <p className="mb-3 text-sm text-muted">
-              {tr(lng, "x.72e3c20a")}
-            </p>
-            <form action={limpiarTorneosAbandonados}>
-              <ConfirmButton className="btn" message={tr(lng, "x.912a675c")}>
-                <Icon name="trash" className="size-4" /> {tr(lng, "x.496832e0")}
-              </ConfirmButton>
-            </form>
-          </div>
-
-          {/* --- v0.36: importar los torneos online de Limitless --- */}
-          <div className="card mb-4 p-4">
-            <p className="label mb-2">{tr(lng, "x.4f4ec947")}</p>
-            <p className="mb-3 text-sm text-muted">
-              {tr(lng, "x.9edac8ac")}
-            </p>
-            <p className="mb-3 text-xs text-muted">
-              {tr(lng, "x.b2e8a5e3")}
-            </p>
-            <form action={importarTorneosLimitless} className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted">{tr(lng, "x.f21ae80f")}</span>
-                <input
-                  className="input w-24 text-center tabular" type="number" name="cuantos"
-                  min={1} max={50} defaultValue={25} inputMode="numeric"
-                />
-              </label>
-              <button className="btn btn-brand" type="submit">
-                <Icon name="refresh" className="size-4" /> {tr(lng, "x.0baa275c")}
-              </button>
-            </form>
-          </div>
-
-          {/* --- v0.52: diagnóstico de Ciphermaniac --- */}
-          <Link href="/ajustes/ciphermaniac" className="card mb-4 block p-4 hover:ring-1 hover:ring-info/50">
-            <p className="label mb-1">{tr(lng, "cm.enlace")}</p>
-            <p className="text-sm text-muted">{tr(lng, "cm.enlaceSub")}</p>
-          </Link>
-
-          {/* --- v0.44: torneos online semanales previstos en el calendario --- */}
-          <div className="card mb-4 p-4">
-            <p className="label mb-2">{tr(lng, "x.98fa9601")}</p>
-            <p className="mb-3 text-sm text-muted">
-              Busca en Limitless las series que se juegan cada semana o más a menudo, con más de
-              100 jugadores de media, y pone en el calendario sus próximas ediciones. Crown of
-              Spain y Mouji's Dojo entran siempre, tengan la gente que tengan. Se hace solo cada
-              noche; esto es por si no quieres esperar.
-            </p>
-            <p className="mb-3 text-xs text-muted">
-              {tr(lng, "x.4ac2cee2")}
-            </p>
-            <form action={sincronizarSeriesAhora}>
-              <button className="btn btn-brand" type="submit">
-                <Icon name="calendar" className="size-4" /> {tr(lng, "x.a892d3bb")}
-              </button>
-            </form>
-          </div>
-
-          {/* --- v0.35: la salida de emergencia del service worker --- */}
-          <div className="card mb-4 p-4">
-            <p className="label mb-2">{tr(lng, "x.f73a8413")}</p>
-            <p className="mb-3 text-sm text-muted">
-              {tr(lng, "x.6c0f91a4")}
-            </p>
-            <ServiceWorkerOff />
-          </div>
-
           {/* --- v0.18: reset global para el cambio de temporada --- */}
           <details className="card mb-6 border-loss/40">
             <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
@@ -369,7 +268,147 @@ export default async function SettingsPage() {
           </details>
 
           </Grupo>
-          <Grupo id="metagame" titulo={tr(lng, "x.75e1dc9e")} aside={tr(lng, "x.afee2f84")}>
+          <Grupo id="torneos" icono="🏆" titulo={tr(lng, "v63.torneosTitulo")} aside={tr(lng, "v63.torneosAside")}>
+          <form action={saveSettings} className="card mb-4 flex flex-col gap-4 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="s-cpSeason">{tr(lng, "x.0f7ff796")}</label>
+                <select className="input" id="s-cpSeason" name="cpSeason" defaultValue={String(snap.config.cpSeason)}>
+                  {availableSeasons().map((y) => (
+                    <option key={y} value={y}>
+                      {y}{getSeason(y).confirmed ? "" : " (cifras provisionales)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="label" htmlFor="s-zone">{tr(lng, "x.06c8dea9")}</label>
+                <select className="input" id="s-zone" name="ratingZone" defaultValue={snap.config.ratingZone}>
+                  <option value="europe">{tr(lng, "x.10bf7156")}</option>
+                  <option value="us-canada">{tr(lng, "x.a419030b")}</option>
+                  <option value="latam">{tr(lng, "x.8e6189a6")}</option>
+                  <option value="oceania">{tr(lng, "x.0929a12c")}</option>
+                  <option value="mesa">{tr(lng, "x.99fa5b06")}</option>
+                </select>
+              </div>
+            </div>
+
+            <button className="btn btn-brand w-full sm:w-auto" type="submit">{tr(lng, "x.37daa9ec")}</button>
+          </form>
+
+          {/* --- v0.19: limpieza de torneos abandonados --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">{tr(lng, "x.3e9f2bdf")}</p>
+            <p className="mb-3 text-sm text-muted">
+              {tr(lng, "x.72e3c20a")}
+            </p>
+            <form action={limpiarTorneosAbandonados}>
+              <ConfirmButton className="btn" message={tr(lng, "x.912a675c")}>
+                <Icon name="trash" className="size-4" /> {tr(lng, "x.496832e0")}
+              </ConfirmButton>
+            </form>
+          </div>
+
+          </Grupo>
+          <Grupo id="importar" icono="📥" titulo={tr(lng, "v63.importarTitulo")} aside={tr(lng, "v63.importarAside")}>
+          {/* --- v0.36: importar los torneos online de Limitless --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">{tr(lng, "x.4f4ec947")}</p>
+            <p className="mb-3 text-sm text-muted">
+              {tr(lng, "x.9edac8ac")}
+            </p>
+            <p className="mb-3 text-xs text-muted">
+              {tr(lng, "x.b2e8a5e3")}
+            </p>
+            <form action={importarTorneosLimitless} className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted">{tr(lng, "x.f21ae80f")}</span>
+                <input
+                  className="input w-24 text-center tabular" type="number" name="cuantos"
+                  min={1} max={50} defaultValue={25} inputMode="numeric"
+                />
+              </label>
+              <button className="btn btn-brand" type="submit">
+                <Icon name="refresh" className="size-4" /> {tr(lng, "x.0baa275c")}
+              </button>
+            </form>
+          </div>
+
+          {/* --- v0.44: torneos online semanales previstos en el calendario --- */}
+          <div className="card mb-4 p-4">
+            <p className="label mb-2">{tr(lng, "x.98fa9601")}</p>
+            <p className="mb-3 text-sm text-muted">
+              Busca en Limitless las series que se juegan cada semana o más a menudo, con más de
+              100 jugadores de media, y pone en el calendario sus próximas ediciones. Crown of
+              Spain y Mouji's Dojo entran siempre, tengan la gente que tengan. Se hace solo cada
+              noche; esto es por si no quieres esperar.
+            </p>
+            <p className="mb-3 text-xs text-muted">
+              {tr(lng, "x.4ac2cee2")}
+            </p>
+            <form action={sincronizarSeriesAhora}>
+              <button className="btn btn-brand" type="submit">
+                <Icon name="calendar" className="size-4" /> {tr(lng, "x.a892d3bb")}
+              </button>
+            </form>
+          </div>
+
+          <h3 className="mb-2 mt-2 px-1 text-sm font-bold">{tr(lng, "x.b96df8a7")}</h3>
+          <div className="card mb-3 p-4 text-sm">
+            <p className="text-ink-2">
+              {tr(lng, "x.b17e0e52")} <b>{tr(lng, "x.af108644")}</b> {tr(lng, "x.066545c8")} <b>{tr(lng, "x.80a3a865")}</b> {tr(lng, "x.42da5c0b")}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              {tr(lng, "x.d9fd4a94")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[["todo", tr(lng, "x.1ed46cfd")], ["regionales", tr(lng, "x.1b0a7db9")], ["city", tr(lng, "x.108fe4b5")]].map(([v, l]) => (
+                <form key={v} action={syncLimitlessIrl}>
+                  <input type="hidden" name="que" value={v} />
+                  <button className={`btn btn-sm ${v === "todo" ? "btn-brand" : ""}`} type="submit">{l}</button>
+                </form>
+              ))}
+            </div>
+          </div>
+
+          <h3 className="mb-2 mt-4 px-1 text-sm font-bold">{tr(lng, "x.657602e8")} <span className="font-normal text-muted">· {metaEventos.length}</span></h3>
+            {metaEventos.length === 0 ? (
+              <p className="card p-4 text-sm text-muted">{tr(lng, "x.b28a220d")}</p>
+            ) : (
+              <div className="card mb-6">
+                <ul className="divide-y divide-line-soft">
+                  {metaEventos.map((e) => (
+                    <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{e.name}</span>
+                        <span className="block text-[11px] text-muted tabular">
+                          {fmtDate(e.date)}
+                          {e.location && ` · ${e.location}`}
+                          {e.entries && ` · ${e.entries} lista(s)`}
+                          {e.coverage != null && ` · top ${e.coverage}`}
+                          {e.sourceName && ` · ${e.sourceName}`}
+                        </span>
+                      </span>
+                      <form action={deleteMetaEvent}>
+                        <input type="hidden" name="id" value={e.id} />
+                        <button className="btn btn-ghost btn-sm text-loss" type="submit"
+                          aria-label={`Quitar ${e.name}`}>
+                          <Icon name="trash" className="size-4" />
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          {/* --- v0.52: diagnóstico de Ciphermaniac --- */}
+          <Link href="/ajustes/ciphermaniac" className="card mb-4 block p-4 hover:ring-1 hover:ring-info/50">
+            <p className="label mb-1">{tr(lng, "cm.enlace")}</p>
+            <p className="text-sm text-muted">{tr(lng, "cm.enlaceSub")}</p>
+          </Link>
+
+          </Grupo>
+          <Grupo id="arquetipos" icono="🃏" titulo={tr(lng, "v63.arquetiposTitulo")} aside={tr(lng, "x.afee2f84")}>
           <ArchetypeSync total={snap.archetypes.length} />
 
           {/* --- v0.21: familias de arquetipos --- */}
@@ -429,62 +468,6 @@ export default async function SettingsPage() {
           {/* v0.14 — Regionales y City Leagues sin pegar nada. Solo mazos: ni
               los parsers leen nombres ni la tabla tiene dónde guardarlos. */}
           </Grupo>
-          <Grupo id="regionales" titulo={tr(lng, "x.b96df8a7")} aside="limitlesstcg.com">
-          <div className="card mb-3 p-4 text-sm">
-            <p className="text-ink-2">
-              {tr(lng, "x.b17e0e52")} <b>{tr(lng, "x.af108644")}</b> {tr(lng, "x.066545c8")} <b>{tr(lng, "x.80a3a865")}</b> {tr(lng, "x.42da5c0b")}
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {tr(lng, "x.d9fd4a94")}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[["todo", tr(lng, "x.1ed46cfd")], ["regionales", tr(lng, "x.1b0a7db9")], ["city", tr(lng, "x.108fe4b5")]].map(([v, l]) => (
-                <form key={v} action={syncLimitlessIrl}>
-                  <input type="hidden" name="que" value={v} />
-                  <button className={`btn btn-sm ${v === "todo" ? "btn-brand" : ""}`} type="submit">{l}</button>
-                </form>
-              ))}
-            </div>
-          </div>
-
-          </Grupo>
-          <Grupo id="eventos" titulo={tr(lng, "x.657602e8")} aside={`${metaEventos.length} eventos`}>
-            {metaEventos.length === 0 ? (
-              <p className="card p-4 text-sm text-muted">{tr(lng, "x.b28a220d")}</p>
-            ) : (
-              <div className="card mb-6">
-                <ul className="divide-y divide-line-soft">
-                  {metaEventos.map((e) => (
-                    <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{e.name}</span>
-                        <span className="block text-[11px] text-muted tabular">
-                          {fmtDate(e.date)}
-                          {e.location && ` · ${e.location}`}
-                          {e.entries && ` · ${e.entries} lista(s)`}
-                          {e.coverage != null && ` · top ${e.coverage}`}
-                          {e.sourceName && ` · ${e.sourceName}`}
-                        </span>
-                      </span>
-                      <form action={deleteMetaEvent}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <button className="btn btn-ghost btn-sm text-loss" type="submit"
-                          aria-label={`Quitar ${e.name}`}>
-                          <Icon name="trash" className="size-4" />
-                        </button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Grupo>
-          <Grupo id="jugadores" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
-          <PlayerAdmin
-            players={snap.players} counts={counts} emails={emails}
-            meId={me.id} meRole={me.role}
-          />
-          </Grupo>
         </>
       )}
 
@@ -502,7 +485,7 @@ export default async function SettingsPage() {
       {/* v0.59 — Discord: qué avisos están puestos (sin enseñar nunca la URL, que
           es un secreto) y botones para mandar una prueba sin esperar al lunes. */}
       {manager && (
-        <Grupo id="discord" titulo="Discord" aside={tr(lng, "dc.aside")}>
+        <Grupo id="discord" icono="💬" titulo="Discord" aside={tr(lng, "dc.aside")}>
           <div className="flex flex-col gap-3 p-4 text-sm">
             <p className="text-muted">{tr(lng, "dc.explica")}</p>
             <ul className="flex flex-col gap-1.5">
@@ -525,7 +508,7 @@ export default async function SettingsPage() {
 
       {owner && (
         <>
-          <Grupo id="riesgo" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
+          <Grupo id="riesgo" icono="⚠️" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
           <div className="flex flex-col gap-3">
 
             {seasonsWithTournaments.length > 0 && (
@@ -631,11 +614,14 @@ export default async function SettingsPage() {
  * v0.24 — Un grupo de Ajustes, plegado por defecto (acordeón nativo con
  * <details>: funciona sin JavaScript). La cabecera dice qué hay dentro.
  */
-function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; aside?: string; children: ReactNode }) {
+function Grupo({ id, titulo, aside, icono, children }: { id?: string; titulo: string; aside?: string; icono?: string; children: ReactNode }) {
   return (
     <details id={id} className="group mb-3">
       <summary className="card tap flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4">
-        <span className="font-display text-lg font-bold">{titulo}</span>
+        <span className="flex items-center gap-2.5 font-display text-lg font-bold">
+          {icono && <span aria-hidden="true" className="text-xl leading-none">{icono}</span>}
+          {titulo}
+        </span>
         <span className="flex min-w-0 items-center gap-2 text-xs text-muted">
           {aside && <span className="hidden truncate sm:inline">{aside}</span>}
           <span aria-hidden="true" className="transition-transform group-open:rotate-180">▾</span>
@@ -648,10 +634,13 @@ function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; a
 
 /** v0.55 — el menú de secciones de Ajustes: a la izquierda en el PC, una tira de chips en el móvil. */
 function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean; lng: Lang }) {
-  const cuenta: Array<[string, string]> = [["apariencia", "x.4b819e3f"], ["cuenta", "x.e92a19d9"]];
+  const cuenta: Array<[string, string]> = [["apariencia", "v63.dispositivo"], ["cuenta", "x.e92a19d9"]];
   const organizar: Array<[string, string]> = manager ? [
-    ["invitaciones", "x.4b1f6ef2"], ["liga", "x.cdaf0f8a"], ["metagame", "x.75e1dc9e"],
-    ["regionales", "x.b96df8a7"], ["eventos", "x.657602e8"], ["jugadores", "x.b5291b8d"], ["discord", "dc.menu"],
+    // v0.63 — por lo que se viene a hacer: la gente, la liga, los torneos, los
+    // datos de fuera y los arquetipos.
+    ["jugadores", "x.b5291b8d"], ["invitaciones", "x.4b1f6ef2"], ["liga", "x.cdaf0f8a"],
+    ["torneos", "v63.torneosTitulo"], ["importar", "v63.importarTitulo"], ["arquetipos", "v63.arquetiposTitulo"],
+    ["discord", "dc.menu"],
     ...(owner ? [["riesgo", "x.085b70dc"] as [string, string]] : []),
   ] : [];
   const enlace = ([id, k]: [string, string]) => (

@@ -284,9 +284,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 lockedDeckId={lockedRound}
                 existing={toRoundView(match)}
                 maxRound={maxRondasDe({ kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut })}
-                rivalPlayers={snap.players
-                  .filter((p) => p.active && p.id !== match.playerAId)
-                  .map((p) => ({ id: p.id, name: p.name }))}
+                jugador={snap.playersById.get(match.playerAId)}
+                rivalPlayers={snap.players.filter((p) => p.active && p.id !== match.playerAId)}
               />
               <p className="mt-3 text-xs text-muted">
                 {tr(lng, "x.21de2799")} <Link className="underline" href={`/torneos/${tour.id}`}>{tour.name}</Link>:

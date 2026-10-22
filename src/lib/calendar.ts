@@ -53,3 +53,32 @@ export function kindsPresent(kinds: Array<string | null | undefined>): string[] 
   const set = new Set(kinds.filter((k): k is string => Boolean(k && CALENDAR_KINDS[k])));
   return Object.keys(CALENDAR_KINDS).filter((k) => set.has(k));
 }
+
+/* =========================================================================
+   v0.63 — Filtro de varios tipos a la vez.
+
+   En la URL van separados por comas (`?tipo=regional,league_cup`): sigue
+   siendo un enlace que se comparte y la vuelta atrás funciona. Un `tipo`
+   antiguo de un solo valor se lee igual que antes.
+   ========================================================================= */
+
+/** Los tipos válidos de la URL, sin repetir y en el orden del calendario. */
+export function parseTipos(raw: string | string[] | null | undefined): string[] {
+  const texto = Array.isArray(raw) ? raw.join(",") : raw ?? "";
+  const pedidos = new Set(texto.split(",").map((t) => t.trim()).filter(Boolean));
+  return Object.keys(CALENDAR_KINDS).filter((k) => pedidos.has(k));
+}
+
+/** Pone o quita un tipo de la selección (tocar un chip). */
+export function alternarTipo(tipos: string[], tipo: string): string[] {
+  const set = new Set(tipos);
+  if (set.has(tipo)) set.delete(tipo); else if (CALENDAR_KINDS[tipo]) set.add(tipo);
+  return Object.keys(CALENDAR_KINDS).filter((k) => set.has(k));
+}
+
+/** Lo que va en la URL: vacío si no hay filtro. */
+export const tiposAParam = (tipos: string[]) => tipos.join(",");
+
+/** ¿Pasa el filtro? Sin tipos elegidos, pasa todo. */
+export const pasaTipos = (tipos: string[], kind: string | null | undefined) =>
+  tipos.length === 0 || (kind != null && tipos.includes(kind));

@@ -5,6 +5,7 @@ import { currentPlayer } from "@/lib/data";
 import { getLang } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { diagnostico } from "@/lib/sources/ciphermaniac";
+import { resumenEstados, tipoDeEstado } from "@/lib/estadoFuente";
 
 /* v0.52 — Diagnóstico de Ciphermaniac, solo para organizadores.
 
@@ -24,6 +25,8 @@ export default async function DiagnosticoCiphermaniac() {
 
   const { evento, lineas } = await diagnostico();
   const bien = lineas.filter((l) => l.estado === "200").length;
+  // v0.63 — qué quiere decir lo que ha salido, en vez de un número a secas.
+  const resumen = resumenEstados(lineas.map((l) => l.estado));
 
   return (
     <div className="flex flex-col gap-4">
@@ -36,6 +39,18 @@ export default async function DiagnosticoCiphermaniac() {
       <p className={`card p-4 text-sm font-semibold ${bien === lineas.length ? "text-win" : bien ? "text-brand" : "text-loss"}`}>
         {bien}/{lineas.length} · {evento ? `${tr(lng, "cm.evento")}: ${evento}` : tr(lng, "cm.sinCatalogo")}
       </p>
+
+      {resumen !== "ok" && (
+        <div className={`card p-4 text-sm ${resumen === "bloqueado" ? "border-loss/40" : ""}`}>
+          <p className="font-semibold">{tr(lng, `cm.res.${resumen}`)}</p>
+          <p className="mt-1 text-muted">{tr(lng, `cm.resSub.${resumen}`)}</p>
+          {resumen === "bloqueado" && (
+            <a className="btn btn-sm mt-3" href="https://ciphermaniac.com/feedback" target="_blank" rel="noopener noreferrer">
+              {tr(lng, "cm.pedirAcceso")} →
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="card overflow-x-auto overscroll-x-contain">
         <table className="w-full text-left text-xs">
@@ -50,7 +65,10 @@ export default async function DiagnosticoCiphermaniac() {
             {lineas.map((l) => (
               <tr key={l.fichero}>
                 <td className="p-2 align-top">{l.fichero}</td>
-                <td className={`p-2 align-top font-bold ${l.estado === "200" ? "text-win" : "text-loss"}`}>{l.estado}</td>
+                <td className={`p-2 align-top font-bold ${l.estado === "200" ? "text-win" : tipoDeEstado(l.estado) === "noExiste" ? "text-muted" : "text-loss"}`}>
+                  {l.estado}
+                  <span className="block font-sans text-[10px] font-normal text-muted">{tr(lng, `cm.tipo.${tipoDeEstado(l.estado)}`)}</span>
+                </td>
                 <td className="break-all p-2 align-top text-muted">{l.forma}</td>
               </tr>
             ))}

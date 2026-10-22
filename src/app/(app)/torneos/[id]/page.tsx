@@ -104,9 +104,10 @@ export default async function TournamentPage({
   /* v0.15 — el rival puede ser alguien del grupo. Se ofrecen las cuentas
      activas menos la tuya; con eso la ronda queda enlazada a su perfil y entra
      en el mapa de enfrentamientos directos. */
+  // v0.63 — jugadores enteros (PublicPlayer: sin correo ni hash) para pintar
+  // sus avatares en el panel de enfrentamiento de la ronda.
   const rivalPlayers = snap.players
-    .filter((p) => p.active && p.id !== me?.id)
-    .map((p) => ({ id: p.id, name: p.name }));
+    .filter((p) => p.active && p.id !== me?.id);
   /* El mazo fijado se resuelve aquí, contra la tabla entera: un mazo retirado
      no sale en los selectores pero sigue siendo el que se jugó. Y puede no
      haber mazo en absoluto: "bloquear el mismo mazo para todo el torneo"
@@ -234,9 +235,8 @@ export default async function TournamentPage({
                 myDecks={susDecks}
                 lockedDeckId={lockValueOf(res)}
                 maxRound={maxRonda}
-                rivalPlayers={snap.players
-                  .filter((x) => x.active && x.id !== pid)
-                  .map((x) => ({ id: x.id, name: x.name }))}
+                jugador={snap.playersById.get(pid)}
+                rivalPlayers={snap.players.filter((x) => x.active && x.id !== pid)}
               />
             </div>
           )}
@@ -510,6 +510,7 @@ export default async function TournamentPage({
           lockedDeckId={lockValueOf(myResult)}
           maxRound={maxRonda}
           rivalPlayers={rivalPlayers}
+          jugador={snap.playersById.get(me.id) /* el público, nunca `me`: lleva más campos */}
         />}
       </div>
       )
