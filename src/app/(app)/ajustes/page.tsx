@@ -86,7 +86,7 @@ export default async function SettingsPage() {
       {/* v0.63 — «Este dispositivo»: las animaciones y el modo sin conexión son
           de este navegador, no de la liga. El modo sin conexión antes solo lo
           veían los organizadores, y es la salida de emergencia de cualquiera. */}
-      <Grupo id="apariencia" icono="📱" titulo={tr(lng, "v63.dispositivo")}>
+      <Grupo id="apariencia" titulo={tr(lng, "v63.dispositivo")}>
       <div className="card mb-4 p-4">
         <MotionToggle />
       </div>
@@ -101,7 +101,7 @@ export default async function SettingsPage() {
 
 
       </Grupo>
-      <Grupo id="cuenta" icono="🔑" titulo={tr(lng, "x.e92a19d9")}>
+      <Grupo id="cuenta" titulo={tr(lng, "x.e92a19d9")}>
       <PasswordForm />
 
       </Grupo>
@@ -122,7 +122,7 @@ export default async function SettingsPage() {
             <span>{snap.config.season}</span>
           </p>
 
-          <Grupo id="jugadores" icono="👥" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
+          <Grupo id="jugadores" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
           <PlayerAdmin
             players={snap.players} counts={counts} emails={emails}
             meId={me.id} meRole={me.role}
@@ -131,14 +131,14 @@ export default async function SettingsPage() {
           {/* v0.53 — el texto de antes («cualquiera con el enlace puede darse de alta»)
               asustaba con razón y no era verdad: cada enlace es de UN uso por defecto,
               caduca a los 14 días y se puede anular. Ahora lo dice. */}
-          <Grupo id="invitaciones" icono="✉️" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
+          <Grupo id="invitaciones" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
           <InviteManager invites={invites} />
 
           </Grupo>
           {/* v0.63 — «La liga» solo tiene lo de la liga: nombre, temporada, Elo y
               altas. Lo de torneos, la importación de datos y el modo sin
               conexión se fueron a sus grupos. */}
-          <Grupo id="liga" icono="🏅" titulo={tr(lng, "x.cdaf0f8a")} aside={tr(lng, "v63.ligaAside")}>
+          <Grupo id="liga" titulo={tr(lng, "x.cdaf0f8a")} aside={tr(lng, "v63.ligaAside")}>
           <form action={saveSettings} className="card mb-4 flex flex-col gap-4 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -268,7 +268,7 @@ export default async function SettingsPage() {
           </details>
 
           </Grupo>
-          <Grupo id="torneos" icono="🏆" titulo={tr(lng, "v63.torneosTitulo")} aside={tr(lng, "v63.torneosAside")}>
+          <Grupo id="torneos" titulo={tr(lng, "v63.torneosTitulo")} aside={tr(lng, "v63.torneosAside")}>
           <form action={saveSettings} className="card mb-4 flex flex-col gap-4 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -310,7 +310,7 @@ export default async function SettingsPage() {
           </div>
 
           </Grupo>
-          <Grupo id="importar" icono="📥" titulo={tr(lng, "v63.importarTitulo")} aside={tr(lng, "v63.importarAside")}>
+          <Grupo id="importar" titulo={tr(lng, "v63.importarTitulo")} aside={tr(lng, "v63.importarAside")}>
           {/* --- v0.36: importar los torneos online de Limitless --- */}
           <div className="card mb-4 p-4">
             <p className="label mb-2">{tr(lng, "x.4f4ec947")}</p>
@@ -408,7 +408,7 @@ export default async function SettingsPage() {
           </Link>
 
           </Grupo>
-          <Grupo id="arquetipos" icono="🃏" titulo={tr(lng, "v63.arquetiposTitulo")} aside={tr(lng, "x.afee2f84")}>
+          <Grupo id="arquetipos" titulo={tr(lng, "v63.arquetiposTitulo")} aside={tr(lng, "x.afee2f84")}>
           <ArchetypeSync total={snap.archetypes.length} />
 
           {/* --- v0.21: familias de arquetipos --- */}
@@ -485,7 +485,7 @@ export default async function SettingsPage() {
       {/* v0.59 — Discord: qué avisos están puestos (sin enseñar nunca la URL, que
           es un secreto) y botones para mandar una prueba sin esperar al lunes. */}
       {manager && (
-        <Grupo id="discord" icono="💬" titulo="Discord" aside={tr(lng, "dc.aside")}>
+        <Grupo id="discord" titulo="Discord" aside={tr(lng, "dc.aside")}>
           <div className="flex flex-col gap-3 p-4 text-sm">
             <p className="text-muted">{tr(lng, "dc.explica")}</p>
             <ul className="flex flex-col gap-1.5">
@@ -508,7 +508,7 @@ export default async function SettingsPage() {
 
       {owner && (
         <>
-          <Grupo id="riesgo" icono="⚠️" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
+          <Grupo id="riesgo" titulo={tr(lng, "x.085b70dc")} aside={tr(lng, "x.39b1a2e2")}>
           <div className="flex flex-col gap-3">
 
             {seasonsWithTournaments.length > 0 && (
@@ -614,14 +614,11 @@ export default async function SettingsPage() {
  * v0.24 — Un grupo de Ajustes, plegado por defecto (acordeón nativo con
  * <details>: funciona sin JavaScript). La cabecera dice qué hay dentro.
  */
-function Grupo({ id, titulo, aside, icono, children }: { id?: string; titulo: string; aside?: string; icono?: string; children: ReactNode }) {
+function Grupo({ id, titulo, aside, children }: { id?: string; titulo: string; aside?: string; children: ReactNode }) {
   return (
     <details id={id} className="group mb-3">
       <summary className="card tap flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4">
-        <span className="flex items-center gap-2.5 font-display text-lg font-bold">
-          {icono && <span aria-hidden="true" className="text-xl leading-none">{icono}</span>}
-          {titulo}
-        </span>
+        <span className="font-display text-lg font-bold">{titulo}</span>
         <span className="flex min-w-0 items-center gap-2 text-xs text-muted">
           {aside && <span className="hidden truncate sm:inline">{aside}</span>}
           <span aria-hidden="true" className="transition-transform group-open:rotate-180">▾</span>

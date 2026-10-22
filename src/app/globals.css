@@ -1393,11 +1393,14 @@ html:not([data-theme="dark"]) .barra-lateral .nav-side:not([data-on="true"]):hov
    v0.63 — Emojis del menú, color en Registrar partida y el panel de
    enfrentamiento en las rondas de torneo.
    ========================================================================= */
-/* El emoji no cambia de color: la sección activa va entera y las demás, un
-   poco apagadas. La pastilla de fondo sigue marcando cuál es. */
-.nav-emoji { filter: saturate(.55); opacity: .82; transition: filter .15s, opacity .15s, transform .15s; }
-.nav-emoji[data-on="true"] { filter: none; opacity: 1; transform: scale(1.08); }
-a:hover > .nav-emoji { filter: none; opacity: 1; }
+/* v0.64 — Los sprites del menú (antes emojis). No cambian de color con el
+   tema: la sección activa va entera y las demás, un poco apagadas. La
+   pastilla de fondo sigue marcando cuál es. Pixel art: sin suavizar. */
+.nav-sprite { image-rendering: pixelated; filter: saturate(.5) drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity: .8; transition: filter .15s, opacity .15s, transform .15s; }
+.nav-sprite[data-tipo="pokemon"] { transform: scale(1.25); }
+.nav-sprite[data-on="true"] { filter: drop-shadow(0 2px 3px rgb(0 0 0 / .3)); opacity: 1; transform: scale(1.15); }
+.nav-sprite[data-on="true"][data-tipo="pokemon"] { transform: scale(1.4); }
+a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity: 1; }
 .objeto-sprite { image-rendering: pixelated; object-fit: contain; }
 
 /* Cada sección del formulario lleva un filo de color arriba. */
@@ -1433,7 +1436,7 @@ a:hover > .nav-emoji { filter: none; opacity: 1; }
 /* Filtros de Torneos: los chips saltan de línea en vez de cortarse, y las
    fechas de iOS (que tienen un ancho mínimo propio) encogen con la rejilla. */
 .filtro-fechas input[type="date"] { min-width: 0; width: 100%; }
-@media (prefers-reduced-motion: reduce) { .nav-emoji { transition: none; } .nav-emoji[data-on="true"] { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-sprite { transition: none; } }
 
 /* v0.63 — La clasificación de una liga: tabla sobria, cifras alineadas a la
    derecha, filas finas. El podio solo se marca con el número del puesto. */

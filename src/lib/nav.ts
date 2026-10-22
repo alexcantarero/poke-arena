@@ -11,11 +11,11 @@ export type NavItem = {
    */
   oculto?: boolean;
   /**
-   * v0.63 — el emoji de la sección, con temática de Pokémon: el Centro Pokémon
-   * para el inicio, el mapa para el calendario, las medallas para la liga…
-   * Se pinta en vez del icono de línea; `icon` queda de reserva.
+   * v0.64 — el sprite de la sección: un objeto de PokéAPI o un Pokémon, con el
+   * formato de `leerRef` (`lib/objetos.ts`). Si no carga, se pinta `icon`,
+   * que queda de reserva. Sustituye a los emojis de la v0.63.
    */
-  emoji?: string;
+  sprite?: string;
 };
 /** `key` es la clave de traducción del título del grupo (`lib/i18n.ts`). */
 export type NavGroup = { key: string; title: string; items: NavItem[] };
@@ -42,17 +42,17 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.main",
     title: "Principal",
     items: [
-      { href: "/", label: "Inicio", icon: "home", emoji: "🏥" },
-      { href: "/calendario", label: "Calendario", icon: "calendar", emoji: "🗺️" },
+      { href: "/", label: "Inicio", icon: "home", sprite: "pokemon:chansey" },
+      { href: "/calendario", label: "Calendario", icon: "calendar", sprite: "objeto:town-map" },
     ],
   },
   {
     key: "nav.group.compete",
     title: "Competir",
     items: [
-      { href: "/torneos", label: "Torneos", icon: "trophy", emoji: "🏆" },
-      { href: "/competiciones", label: "Liga", icon: "league", emoji: "🏅" },
-      { href: "/resultados", label: "Resultados", icon: "results", emoji: "📜" },
+      { href: "/torneos", label: "Torneos", icon: "trophy", sprite: "objeto:vs-seeker" },
+      { href: "/competiciones", label: "Liga", icon: "league", sprite: "objeto:shiny-charm" },
+      { href: "/resultados", label: "Resultados", icon: "results", sprite: "objeto:rare-candy" },
       // Beta: se conserva la herramienta, pero se oculta de la navegación.
       // { href: "/mesa", label: "Mi Mesa", icon: "plus" },
     ],
@@ -61,28 +61,28 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.analysis",
     title: "Análisis",
     items: [
-      { href: "/ranking", label: "Ranking", icon: "rank", emoji: "🥇" },
-      { href: "/estadisticas", label: "Estadísticas", icon: "stats", emoji: "📊" },
-      { href: "/topdecks", label: "Top Decks", icon: "globe", emoji: "🃏" },
+      { href: "/ranking", label: "Ranking", icon: "rank", sprite: "objeto:master-ball" },
+      { href: "/estadisticas", label: "Estadísticas", icon: "stats", sprite: "objeto:poke-radar" },
+      { href: "/topdecks", label: "Top Decks", icon: "globe", sprite: "objeto:great-ball" },
       /* v0.38 — Mazos sale del menú. No desaparece: vive dentro de Top
          Decks, que es donde se mira el metagame y se decide con qué ir, y
          es justo el momento en que uno quiere abrir su biblioteca. Un menú
          con dos entradas casi iguales («Top Decks» y «Mazos») obliga a
          elegir antes de saber qué hay en cada una. */
-      { href: "/mazos", label: "Mazos", icon: "deck", emoji: "🎴", oculto: true },
+      { href: "/mazos", label: "Mazos", icon: "deck", sprite: "objeto:poke-ball", oculto: true },
     ],
   },
   {
     key: "nav.group.account",
     title: "Cuenta",
-    items: [{ href: "/ajustes", label: "Ajustes", icon: "cog", emoji: "⚙️" }],
+    items: [{ href: "/ajustes", label: "Ajustes", icon: "cog", sprite: "objeto:dowsing-machine" }],
   },
 ];
 
 /** Todas las secciones, en orden. Incluye las ocultas: esta lista es la que
     resuelve en qué sección estás y cómo se titula la pantalla. */
-/** v0.63 — el emoji del perfil: la gorra de entrenador. */
-export const EMOJI_PERFIL = "🧢";
+/** v0.64 — el sprite del perfil: el Repartir Experiencia (tu progreso). */
+export const SPRITE_PERFIL = "objeto:exp-share";
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 

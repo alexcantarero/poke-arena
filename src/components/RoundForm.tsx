@@ -15,6 +15,7 @@ import { DeckPicker } from "./DeckPicker";
 import { PrizePicker } from "@/components/PrizePicker";
 import { Avatar } from "./ui";
 import { ObjetoSprite } from "@/components/ObjetoSprite";
+import { BALL_DE_FAMILIA, urlDeObjeto } from "@/lib/objetos";
 import { familiaTorneo } from "@/lib/familiaTorneo";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -223,7 +224,10 @@ export function RoundForm({
     <form action={saveTournamentRound} className="flex flex-col gap-3.5 rounded-xl border border-line-soft bg-ground p-3.5">
       {/* v0.62 — la cinta de la ronda, vestida según el tipo de torneo. */}
       <div className="torneo-cinta" data-familia={familiaTorneo(tipoTorneo)}>
-        <span aria-hidden="true">{({ challenge: "🎯", cup: "🏆", major: "👑", online: "🌐", otro: "🃏" } as const)[familiaTorneo(tipoTorneo)]}</span>
+        {/* v0.64 — la Ball de la familia (Poké, Super, Ultra…) en vez de un emoji. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={urlDeObjeto(BALL_DE_FAMILIA[familia] ?? "poke-ball")} alt="" aria-hidden="true" width={26} height={26}
+          className="objeto-sprite size-6 flex-none drop-shadow" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         <span className="truncate">{tr(lng, `cinta.${familiaTorneo(tipoTorneo)}`)}</span>
         <span className="ml-auto flex-none tabular opacity-90">{trf(lng, "cinta.ronda", { n: round })} · Bo{bestOf}</span>
       </div>

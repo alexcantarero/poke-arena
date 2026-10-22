@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
-import { EMOJI_PERFIL, MOBILE_HREFS, NAV_GROUPS_VISIBLES, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
+import { SPRITE_PERFIL, MOBILE_HREFS, NAV_GROUPS_VISIBLES, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
 import { NavIcono } from "./NavIcono";
 import { tr, type Lang } from "@/lib/i18n";
 import { lideresDe } from "@/lib/lideres";
@@ -29,7 +29,7 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
   const isActive = useActive();
   const groups = NAV_GROUPS_VISIBLES.map((g) =>
     g.key === "nav.group.account"
-      ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user", emoji: EMOJI_PERFIL }, ...g.items] }
+      ? { ...g, items: [{ href: `/perfil/${meId}`, label: tr(lang, "nav.myProfile"), icon: "user", sprite: SPRITE_PERFIL }, ...g.items] }
       : g);
   return (
     <nav aria-label={tr(lang, "nav.sections")} className="flex flex-col gap-3">
@@ -53,7 +53,7 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
                   ? "bg-surface-3 font-semibold text-ink"
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink"}`}
             >
-              <NavIcono emoji={it.emoji} icon={it.icon} activo={isActive(it.href)} className={isActive(it.href) ? "size-5 text-brand" : "size-5 text-muted"} />
+              <NavIcono sprite={it.sprite} icon={it.icon} activo={isActive(it.href)} className={isActive(it.href) ? "size-6 text-brand" : "size-6 text-muted"} />
               <span className="barra-texto">{labelOf(lang, it)}</span>
               {/* v0.54 — tus partidas sin resultado, sobre «Liga». */}
               {it.href === "/competiciones" && pendientes > 0 && (
@@ -103,7 +103,7 @@ export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string;
         </div>
 
         {items.slice(2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} lider={lideresDe(pathname)[0]} />)}
-        <Tab item={{ href: `/perfil/${meId}`, label: tr(lang, "nav.profile"), icon: "user", emoji: EMOJI_PERFIL }} active={isActive("/perfil")} />
+        <Tab item={{ href: `/perfil/${meId}`, label: tr(lang, "nav.profile"), icon: "user", sprite: SPRITE_PERFIL }} active={isActive("/perfil")} />
       </div>
     </nav>
   );
@@ -134,7 +134,7 @@ function Tab({ item, active, badge = 0, lider }: { item: Item; active: boolean; 
         <img src={spriteUrl(lider)} alt="" aria-hidden="true" className="nav-lider"
           onError={(e) => { e.currentTarget.style.display = "none"; }} />
       )}
-      <NavIcono emoji={item.emoji} icon={item.icon} activo={active} className="size-6" tam="text-[1.35rem]" />
+      <NavIcono sprite={item.sprite} icon={item.icon} activo={active} className="size-7" />
       {/* v0.54 — el número de partidas tuyas sin resultado. */}
       {badge > 0 && (
         <span className="absolute right-[calc(50%-1.1rem)] top-1 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-bold leading-4 tabular text-on-brand">{badge}</span>

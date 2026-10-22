@@ -388,7 +388,7 @@ export function MatchForm({
           data-gana={decided && !empateTiempo && score.a !== score.b ? (score.a > score.b ? "a" : "b") : undefined}
         >
           {/* v0.62 — la cinta: qué tipo de partida es. */}
-          <span className="vs-cinta">{compId ? `⚔ ${tr(lng, "cinta.liga")}` : `🤝 ${tr(lng, "cinta.amistoso")}`}</span>
+          <span className="vs-cinta">{compId ? tr(lng, "cinta.liga") : tr(lng, "cinta.amistoso")}</span>
           <div className="vs-lado vs-a">
             <span className="vs-aro"><Avatar player={A} size="lg" /></span>
             <span className="vs-nombre" title={A?.name}>{A?.name}</span>
@@ -483,7 +483,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_winner`} value={games[i].winner} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted"><span aria-hidden="true">🪙 </span>{tr(lng, "x.04e97451")}</span>
+                  <span className="text-xs text-muted">{tr(lng, "x.04e97451")}</span>
                   <div className="seg flex-1" role="group" aria-label={`Quién empezó el juego ${i + 1}`}>
                     {[
                       { v: "", l: "—" },
@@ -505,7 +505,7 @@ export function MatchForm({
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted w-14"><span aria-hidden="true">🎲 </span>{tr(lng, "x.0dc0ab48")}</span>
+                  <span className="text-xs text-muted w-14">{tr(lng, "x.0dc0ab48")}</span>
                   <div className="flex flex-1 items-center gap-2">
                     <div className="flex flex-1 items-center gap-1.5">
                       <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>

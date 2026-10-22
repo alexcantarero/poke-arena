@@ -14,6 +14,7 @@ import { importLocalTournaments } from "@/actions";
 import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { AutoSubmitForm } from "@/components/AutoSubmitForm";
 import { toneOf } from "@/lib/calendar";
+import { urlDeObjeto } from "@/lib/objetos";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -365,7 +366,14 @@ export default async function TournamentsPage({
                     )}
                     {own && cpDe(own) > 0 && <span className="chip chip-brand tabular">{cpDe(own)} CP</span>}
                     {own?.deckId && <ArchTag archetype={snap.archIndex.get(own.deckId)} />}
-                    {own?.prizes && <span className="chip">🎁 {own.prizes}</span>}
+                    {own?.prizes && (
+                      <span className="chip items-center gap-1">
+                        {/* v0.64 — la Moneda Amuleto (premios) en vez de un emoji. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={urlDeObjeto("premios")} alt="" aria-hidden="true" width={16} height={16} className="objeto-sprite size-4" />
+                        {own.prizes}
+                      </span>
+                    )}
                   </div>
                 ) : (best || cp > 0) ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">

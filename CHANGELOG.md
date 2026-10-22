@@ -2,6 +2,32 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.64.0] — 2026-10-22
+
+Fuera los emojis: sprites de objetos y Pokémon, como el resto de imágenes de la app.
+**Sin migración.** Lleva dentro la v0.63.
+
+### Cambiado
+
+- **El menú, con sprites en vez de emojis**: Chansey en Inicio (la ayudante del Centro
+  Pokémon), Mapa en Calendario, Buscarrivales en Torneos, Amuleto Iris en Liga, Caramelo Raro
+  en Resultados, Master Ball en Ranking, Pokéradar en Estadísticas, Super Ball en Top Decks,
+  Poké Ball en Mazos, Zahorí en Ajustes y Repartir Experiencia en Perfil. Objetos de PokéAPI
+  y Pokémon de Limitless, enlazados como siempre. Si un sprite no carga, sale el icono de línea
+  de antes, nunca una imagen rota (`NavIcono`). Barra lateral, barra de abajo y «Más».
+- **Edificios y estructuras (Centro Pokémon, gimnasios): no.** No hay sprites publicados de
+  ellos, y dibujarlos sería copiar un diseño de Pokémon. Por eso Chansey y no el edificio.
+- **La cinta de las rondas de torneo** lleva la Ball de su familia (Poké, Super, Ultra,
+  Premier) en vez de un emoji. Los premios de la lista de torneos, la Moneda Amuleto.
+- Fuera los emojis de los grupos de Ajustes y de Registrar partida (🪙, 🎲, ⚔, 🤝).
+- `lib/objetos.ts`: `leerRef` (`objeto:<slug>` / `pokemon:<nombre>`) y `BALL_DE_FAMILIA`,
+  2 pruebas más.
+
+### Verificado
+
+- Codificación, acciones e i18n estricto en verde. `npm test`: **580 de 580**. `tsc`: ningún
+  error nuevo de los nuestros. `npm run build`: pendiente.
+
 ## [0.63.0] — 2026-10-22
 
 Ajustes ordenado, la Liga más sobria, el filtro múltiple del calendario, el panel de

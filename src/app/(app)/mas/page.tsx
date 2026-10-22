@@ -39,7 +39,7 @@ export default async function MorePage() {
           <nav className="card divide-y divide-line-soft">
             {g.items.map((s) => (
               <Link key={s.href} href={s.href} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-2">
-                <NavIcono emoji={s.emoji} icon={s.icon} className="size-6" tam="text-[1.25rem]" />
+                <NavIcono sprite={s.sprite} icon={s.icon} className="size-7" />
                 <span className="flex-1 font-medium">{tr(lang, `nav.${s.href}`)}</span>
                 <Icon name="back" className="size-4 rotate-180 text-muted" />
               </Link>

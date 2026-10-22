@@ -31,3 +31,26 @@ export function urlDeObjeto(usoOSlug: UsoObjeto | string): string {
   const limpio = slug.toLowerCase().replace(/[^a-z0-9-]/g, "");
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${limpio}.png`;
 }
+
+/* =========================================================================
+   v0.64 — Sprites para decorar la web en vez de emojis.
+
+   Una referencia es `objeto:<slug de PokéAPI>` o `pokemon:<nombre>`. Los
+   objetos salen de PokéAPI (como las Balls); los Pokémon, de donde ya salen
+   todos los de la app (Limitless). Edificios y estructuras (el Centro
+   Pokémon, los gimnasios) NO están publicados como sprites, y dibujarlos
+   sería copiar un diseño de Pokémon: por eso el Inicio lleva a Chansey, la
+   ayudante del Centro Pokémon, en vez del edificio.
+   ========================================================================= */
+
+export type RefSprite = { tipo: "objeto" | "pokemon"; slug: string };
+
+export function leerRef(ref: string): RefSprite | null {
+  const m = /^(objeto|pokemon):([a-z0-9-]+)$/.exec(ref.trim().toLowerCase());
+  return m ? { tipo: m[1] as RefSprite["tipo"], slug: m[2] } : null;
+}
+
+/** La Ball de cada familia de torneo: cuanto más grande el torneo, mejor la Ball. */
+export const BALL_DE_FAMILIA: Record<string, string> = {
+  challenge: "poke-ball", cup: "great-ball", major: "ultra-ball", online: "premier-ball", otro: "poke-ball",
+};
