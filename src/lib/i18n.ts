@@ -781,7 +781,7 @@ const ES = {
   "x.efe273e1": "Último torneo grande · online",
   "x.f02a0f3c": "Torneos",
   "x.f035a26a": "Evolución del Elo",
-  "x.f0c24bc6": "Matriz de emparejamientos",
+  "x.f0c24bc6": "Emparejamientos de vuestra liga",
   "x.f0ea57e1": "Código de invitación",
   "x.f0f3ce8c": "Paginación",
   "x.f164a10e": "metagame online",
@@ -1255,7 +1255,7 @@ const ES = {
   "mo.titulo": "Meta online: cómo rinde cada mazo",
   "mo.sub": "Partidas reales de Limitless · últimos {dias} días · {torneos} torneos · {partidas} partidas",
   "mo.pctTitulo": "% de victorias por arquetipo (sin espejos)",
-  "mo.matrizTitulo": "Emparejamientos",
+  "mo.matrizTitulo": "Emparejamientos del meta online (Limitless, todo el mundo)",
   "mo.matrizSub": "% de victorias de la fila contra la columna, y las partidas debajo. Verde, gana; rojo, pierde. Con menos de 5 partidas no se da %.",
   "mo.contra": "contra →",
   "mo.pie": "Fuera del cálculo: {espejos} espejos (siempre dan 50 %) y {descartadas} partidas sin rival, sin ganador o sin mazo conocido. Datos de la API oficial de Limitless TCG.",
@@ -1365,6 +1365,8 @@ const ES = {
   // v0.57 — formato por fase.
   "tf.boCorte": "Formato del top cut",
   "tf.igual": "Igual",
+  "rr.victoria": "Victoria",
+  "rr.derrota": "Derrota",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -2120,7 +2122,7 @@ const EN: Record<I18nKey, string> = {
   "x.efe273e1": "Latest big tournament · online",
   "x.f02a0f3c": "Tournaments",
   "x.f035a26a": "Elo over time",
-  "x.f0c24bc6": "Matchup matrix",
+  "x.f0c24bc6": "Your league's matchups",
   "x.f0ea57e1": "Invite code",
   "x.f0f3ce8c": "Pagination",
   "x.f164a10e": "online metagame",
@@ -2594,7 +2596,7 @@ const EN: Record<I18nKey, string> = {
   "mo.titulo": "Online meta: how each deck performs",
   "mo.sub": "Real Limitless matches · last {dias} days · {torneos} tournaments · {partidas} matches",
   "mo.pctTitulo": "Win % by archetype (mirrors excluded)",
-  "mo.matrizTitulo": "Matchups",
+  "mo.matrizTitulo": "Online meta matchups (Limitless, worldwide)",
   "mo.matrizSub": "Win % of the row against the column, with matches below. Green wins; red loses. Under 5 matches, no % is given.",
   "mo.contra": "vs →",
   "mo.pie": "Left out: {espejos} mirrors (always 50%) and {descartadas} matches with no opponent, no winner or no known deck. Data from the official Limitless TCG API.",
@@ -2704,6 +2706,8 @@ const EN: Record<I18nKey, string> = {
   // v0.57 — formato por fase.
   "tf.boCorte": "Top cut format",
   "tf.igual": "Same",
+  "rr.victoria": "Win",
+  "rr.derrota": "Loss",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

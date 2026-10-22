@@ -375,18 +375,26 @@ export function MatchForm({
           <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
         </div>
 
-        <div className="mb-4 flex items-center justify-center gap-4 rounded-xl bg-ground py-3">
-          <div className="flex flex-col items-center gap-1">
-            <Avatar player={A} size="sm" />
-            <span className="max-w-20 truncate text-[10px] leading-tight text-muted">{A?.name}</span>
+        {/* v0.58 — PANTALLA DE ENFRENTAMIENTO. Cada jugador en su lado con su
+            color de perfil (el fondo se parte en diagonal en los dos), el avatar
+            con un aro que brilla, y el marcador en grande en el centro. Cuando
+            hay ganador, su lado se ilumina y el otro se apaga un poco. */}
+        <div
+          className="vs-panel mb-4"
+          style={{ "--ca": A?.color ?? "var(--info)", "--cb": B?.color ?? "var(--loss)" } as React.CSSProperties}
+          data-gana={decided && !empateTiempo && score.a !== score.b ? (score.a > score.b ? "a" : "b") : undefined}
+        >
+          <div className="vs-lado vs-a">
+            <span className="vs-aro"><Avatar player={A} size="lg" /></span>
+            <span className="vs-nombre" title={A?.name}>{A?.name}</span>
           </div>
-          <span className={`font-display text-4xl font-extrabold tabular leading-none
-            ${score.a > score.b ? "text-win" : score.b > score.a ? "text-loss" : "text-tie"}`}>
-            {score.a}–{score.b}
-          </span>
-          <div className="flex flex-col items-center gap-1">
-            <Avatar player={B} size="sm" />
-            <span className="max-w-20 truncate text-[10px] leading-tight text-muted">{bLabel}</span>
+          <div className="vs-centro">
+            <span className="vs-marcador tabular">{score.a}<span className="vs-dos-puntos">:</span>{score.b}</span>
+            <span className="vs-etiqueta">VS · Bo{bestOf}</span>
+          </div>
+          <div className="vs-lado vs-b">
+            <span className="vs-aro"><Avatar player={B} size="lg" /></span>
+            <span className="vs-nombre" title={bLabel}>{bLabel}</span>
           </div>
         </div>
         {/* v0.53 — el resultado dicho, antes de guardar */}
@@ -414,8 +422,8 @@ export function MatchForm({
                 const gana = a > b;
                 return (
                   <button key={`${a}-${b}`} type="button" aria-pressed={activo} onClick={() => elegirMarcador(a, b)}
-                    className={`flex min-h-14 flex-col items-center justify-center rounded-xl border-2 px-2 py-2 transition-colors
-                      ${activo ? (gana ? "border-win bg-win/15" : "border-loss bg-loss/15") : "border-line-soft bg-surface-2"}`}>
+                    className="marcador-btn" data-tono={gana ? "win" : "loss"}>
+                    <span className="marcador-palabra">{gana ? tr(lng, "rr.victoria") : tr(lng, "rr.derrota")}</span>
                     <span className={`font-display text-2xl font-extrabold tabular ${gana ? "text-win" : "text-loss"}`}>{a}–{b}</span>
                     <span className="max-w-full truncate text-[10px] leading-tight text-muted" title={gana ? (A?.name ?? "") : bLabel}>{gana ? A?.name : bLabel}</span>
                   </button>
@@ -423,8 +431,7 @@ export function MatchForm({
               })}
             </div>
             <button type="button" aria-pressed={empateTiempo} onClick={() => setEmpateTiempo((v) => !v)}
-              className={`mt-2 w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold
-                ${empateTiempo ? "border-tie bg-tie/15 text-ink" : "border-line-soft bg-surface-2 text-muted"}`}>
+              className="marcador-btn mt-2 w-full !min-h-11 !flex-row" data-tono="tie">
               {tr(lng, "rr.empateTiempo")}
             </button>
             {/* Lo que viaja: los juegos del marcador elegido, sin más detalle. */}
@@ -626,7 +633,7 @@ export function MatchForm({
           <p className="text-center text-xs text-muted">{!aId ? tr(lng, "rr.faltaJugador") : sameTwice ? tr(lng, "rr.mismoJugador") : tr(lng, "rr.faltaResultadoCorto")}</p>
         )}
         <div className="flex gap-2">
-        <button className="btn btn-brand flex-1 text-base disabled:opacity-100 disabled:bg-surface-2 disabled:text-muted" type="submit" disabled={!canSave}>
+        <button className="btn btn-brand btn-gamer flex-1 text-base disabled:opacity-100 disabled:bg-surface-2 disabled:text-muted" type="submit" disabled={!canSave}>
           {match ? "Guardar cambios" : tr(lng, "x.46ee46f3")}
         </button>
         {match && (

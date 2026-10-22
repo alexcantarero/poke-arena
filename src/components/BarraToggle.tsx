@@ -16,11 +16,16 @@ export function BarraToggle({ mini }: { mini: boolean }) {
     document.cookie = `arena-barra=${ahora ? "abierta" : "mini"}; path=/; max-age=31536000; samesite=lax`;
   };
   return (
+    /* v0.58 — discreto: un icono pequeño y tenue en la esquina, que se marca
+       al pasar el ratón. Antes era un botón ancho con una flecha grande. */
     <button type="button" onClick={alternar}
-      className="barra-toggle btn btn-ghost btn-sm w-full justify-center px-2 text-muted"
+      className="barra-toggle ml-auto grid size-6 place-items-center rounded-md text-muted/50 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:text-ink"
       title={tr(lng, mini ? "barra.desplegar" : "barra.plegar")}
       aria-label={tr(lng, "barra.alternar")}>
-      <span aria-hidden="true" className="barra-flecha inline-block transition-transform">«</span>
+      <svg viewBox="0 0 16 16" className="barra-flecha size-3.5 transition-transform" fill="none" stroke="currentColor"
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M10 3.5 5.5 8l4.5 4.5" />
+      </svg>
     </button>
   );
 }

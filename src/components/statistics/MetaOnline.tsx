@@ -5,6 +5,7 @@ import { spriteUrl } from "@/lib/pokemon";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { celdaDe, pctDe, type FilaMeta } from "@/lib/emparejamientosOnline";
 import { Termino } from "@/components/Termino";
+import { isOtherArchetype, OtherMark } from "@/components/ui";
 
 /* =========================================================================
    Meta online: % de victorias y matriz de emparejamientos, con partidas
@@ -24,6 +25,8 @@ function fondo(p: number | null): string {
 }
 
 function Icono({ f, size = "size-7" }: { f: FilaMeta; size?: string }) {
+  // v0.58 — «Other» no tiene sprite en Limitless (salía una imagen rota): el Sustituto.
+  if (isOtherArchetype(f.name)) return <OtherMark size={size === "size-6" ? "sm" : "md"} />;
   const slug = f.icons?.[0];
   return slug ? (
     // eslint-disable-next-line @next/next/no-img-element

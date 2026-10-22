@@ -17,6 +17,7 @@ import { KindEmblem, emblemKindOf } from "./Emblems";
 export {
   Kpi, Skeleton,
 } from "./primitives";
+import { SustitutoImg } from "@/components/SustitutoImg";
 
 /* Piezas compartidas por todas las pantallas. Todas pensadas para que
    funcionen igual de bien en 375px de ancho que en un monitor. */
@@ -101,8 +102,8 @@ export const isOtherArchetype = (name?: string | null): boolean =>
 /**
  * El marcador de «Other» y de lo que no tiene sprite.
  *
- * Aquí iba a ir el Substitute, que es lo que usa Limitless, y no se puede por
- * dos razones que conviene dejar escritas para no volver a intentarlo:
+ * v0.58 — YA sale el Sustituto, de Pokémon Showdown (ver `SustitutoImg`). Lo de
+ * abajo explica por qué no desde Limitless ni dibujado a mano:
  *
  * · **El sprite no existe en su CDN.** `…/pokemon/gen9/substitute.png`
  *   devuelve 404, igual que las variantes que probé. Los sprites que sí
@@ -115,6 +116,13 @@ export const isOtherArchetype = (name?: string | null): boolean =>
  * que es justo lo que hacía falta.
  */
 export function OtherMark({ size = "md" }: { size?: keyof typeof SPRITE_SIZES }) {
+  /* v0.58 — ahora, el Sustituto (de Pokémon Showdown: Limitless no lo tiene).
+     Las cartas apiladas de abajo quedan de RESPALDO si la imagen no carga. */
+  return <SustitutoImg className={SPRITE_SIZES[size]} titulo="Other" fallback={<OtherCartas size={size} />} />;
+}
+
+/** El marcador de cartas apiladas: el respaldo de `OtherMark`. */
+function OtherCartas({ size = "md" }: { size?: keyof typeof SPRITE_SIZES }) {
   return (
     <span
       className={`inline-grid flex-none place-items-center rounded-full border border-dashed border-line text-muted ${SPRITE_SIZES[size]}`}

@@ -2,6 +2,46 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.58.0] — 2026-10-21
+
+Registrar partida más visual, líderes por pestaña, el fallo del Bo3 de liga y arreglos de tu
+lista. **Sin migración.**
+
+### Corregido
+
+- **El fallo del Bo3 de liga**: la ficha de la partida pintaba el mazo de la SERIE en todos los
+  juegos. Con «mazo distinto en cada juego», cada juego guarda el suyo, y la ficha enseñaba el
+  mismo en los tres (el formulario de editar sí los enseñaba bien: por eso no cuadraban). El dato
+  guardado estaba bien; ahora la ficha también.
+- **«Other» con imagen rota** en el meta online: ahora sale el Sustituto.
+
+### Cambiado
+
+- **Registrar partida, en pantalla de enfrentamiento**: cada jugador en su lado con su color de
+  perfil (el fondo se parte en diagonal), el avatar con un aro que brilla, el marcador grande en
+  el centro con «VS · Bo3», y el ganador iluminado. Botones del modo rápido con «Victoria» o
+  «Derrota», brillo al elegirlos, y el botón de guardar con un destello. Se lee en tema claro y
+  oscuro, y respeta «reducir movimiento».
+- **«Other» = el Sustituto** (de Pokémon Showdown: Limitless no lo tiene). Si no cargara, vuelve
+  el marcador de cartas apiladas, nunca una imagen rota. En los seis sitios donde sale.
+- **El Pokémon de temporada sale hacia abajo** cuando está arriba del todo (la cabecera del
+  móvil): subiendo se iba fuera de la pantalla.
+- **Ajustes**: fuera los atajos (con el menú a la izquierda no aportaban); el menú, más ancho y
+  partiendo línea, ya no se come el contenido.
+- **Plegar la barra**: un icono pequeño y tenue en la esquina, en vez del botón ancho.
+- **Estadísticas**: fuera «Comparar». Y las dos matrices dicen cuál es cuál: «Emparejamientos de
+  vuestra liga» y «Emparejamientos del meta online (Limitless, todo el mundo)».
+
+### Añadido
+
+- **Líderes por pestaña**: dos Pokémon por sección, como los líderes de gimnasio. En pantallas
+  muy anchas, en los márgenes vacíos, flotando sobre una peana; en el móvil, el de la pestaña
+  asoma sobre la pestaña activa de la barra de abajo. `lib/lideres.ts` (puro, 3 pruebas).
+
+### Verificado
+
+- `npm run verificar`: **556 de 556**, `tsc` sin errores. `npm run build`: pendiente.
+
 ## [0.57.0] — 2026-10-20
 
 Torneos: formato por fase y resultado rápido en la vista de rondas.

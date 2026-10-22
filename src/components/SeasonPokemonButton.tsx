@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type 
 import { pokemonAleatorio } from "@/lib/pokemonEstacion";
 
 type Pokemon = { slug: string; src: string };
-type Burst = { id: number; x: number; y: number; pokemon: Pokemon };
+type Burst = { id: number; x: number; y: number; abajo: boolean; pokemon: Pokemon };
 
 const VIDA_MS = 2300;
 
@@ -37,6 +37,9 @@ export function SeasonPokemonButton({
       id: ++nextId.current,
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
+      // v0.58 — si el botón está arriba del todo (la cabecera del móvil), el
+      // Pokémon sale HACIA ABAJO: subiendo se iba fuera de la pantalla.
+      abajo: rect.top < 140,
       pokemon: seleccionado,
     });
     timer.current = window.setTimeout(() => {
@@ -59,8 +62,8 @@ export function SeasonPokemonButton({
       {burst && (
         <div key={burst.id} className="season-pokemon-burst" aria-hidden="true">
           <img
-            className="season-pokemon-sprite"
-            style={{ left: `${burst.x - 32}px`, top: `${burst.y - 32}px` } as CSSProperties}
+            className={`season-pokemon-sprite${burst.abajo ? " hacia-abajo" : ""}`}
+            style={{ left: `${burst.x - 32}px`, top: `${burst.abajo ? burst.y + 8 : burst.y - 32}px` } as CSSProperties}
             src={burst.pokemon.src}
             alt=""
           />

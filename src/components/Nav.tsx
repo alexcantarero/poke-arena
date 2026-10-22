@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
 import { MOBILE_HREFS, NAV_GROUPS_VISIBLES, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
 import { tr, type Lang } from "@/lib/i18n";
+import { lideresDe } from "@/lib/lideres";
+import { spriteUrl } from "@/lib/pokemon";
 
 /** v0.17: el texto de una sección en el idioma elegido (la clave es la ruta). */
 const labelOf = (lang: Lang, it: Item) => (it.href.startsWith("/perfil/") ? it.label : tr(lang, `nav.${it.href}`));
@@ -67,6 +69,7 @@ export function Sidebar({ meId, lang = "es", pendientes = 0 }: { meId: string; l
  */
 export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string; lang?: Lang; pendientes?: number }) {
   const isActive = useActive();
+  const pathname = usePathname(); // v0.58 — para el líder de la pestaña
   // En el orden de MOBILE_HREFS, no en el de la barra lateral: Estadísticas
   // ocupa el hueco que tenía Ranking, a la izquierda del «+».
   const items = MOBILE_HREFS
@@ -80,7 +83,7 @@ export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string;
                  pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="mx-auto grid max-w-lg grid-cols-5 items-end px-1 pt-1">
-        {items.slice(0, 2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} badge={it.href === "/" ? pendientes : 0} />)}
+        {items.slice(0, 2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} badge={it.href === "/" ? pendientes : 0} lider={lideresDe(pathname)[0]} />)}
 
         <div className="flex justify-center">
           <Link
@@ -94,7 +97,7 @@ export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string;
           </Link>
         </div>
 
-        {items.slice(2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} />)}
+        {items.slice(2).map((it) => <Tab key={it.href} item={{ ...it, label: labelOf(lang, it) }} active={isActive(it.href)} lider={lideresDe(pathname)[0]} />)}
         <Tab item={{ href: `/perfil/${meId}`, label: tr(lang, "nav.profile"), icon: "user" }} active={isActive("/perfil")} />
       </div>
     </nav>
@@ -111,7 +114,7 @@ export function BottomNav({ meId, lang = "es", pendientes = 0 }: { meId: string;
  * La pastilla, el hundido al tocar y el color están en `.nav-tab`
  * (globals.css), para que se toquen en un sitio y no en cuatro.
  */
-function Tab({ item, active, badge = 0 }: { item: Item; active: boolean; badge?: number }) {
+function Tab({ item, active, badge = 0, lider }: { item: Item; active: boolean; badge?: number; lider?: string }) {
   return (
     <Link
       href={item.href}
@@ -119,6 +122,12 @@ function Tab({ item, active, badge = 0 }: { item: Item; active: boolean; badge?:
       data-on={active ? "true" : "false"}
       className="nav-tab relative"
     >
+      {/* v0.58 — el líder de la pestaña asoma sobre la pestaña activa. */}
+      {active && lider && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={spriteUrl(lider)} alt="" aria-hidden="true" className="nav-lider"
+          onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      )}
       <Icon name={item.icon} className="size-6" />
       {/* v0.54 — el número de partidas tuyas sin resultado. */}
       {badge > 0 && (

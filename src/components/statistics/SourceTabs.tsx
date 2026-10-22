@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, Globe, GitCompare, Landmark, MapPin, Trophy } from "lucide-react";
+import { Database, Globe, Landmark, MapPin, Trophy } from "lucide-react";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -40,12 +40,8 @@ const OPCIONES = [
     Icon: Globe,
     on: "border-source-global bg-source-global-soft text-source-global",
   },
-  {
-    value: "both" as const,
-    label: "Comparar",
-    Icon: GitCompare,
-    on: "border-source-diff bg-source-diff-soft text-source-diff",
-  },
+  // v0.58 — fuera «Comparar»: no aportaba lo bastante. El valor «both» sigue
+  // existiendo por si alguien llega con un enlace antiguo; solo deja de ofrecerse.
   {
     value: "live" as const,
     label: "PTCG Live",

@@ -62,14 +62,6 @@ export default async function SettingsPage() {
     seasonsWithTournaments.map((y) => [y, snap.tournaments.filter((t) => t.season === y).length]),
   );
 
-  const atajos = [
-    { href: "#invitaciones", label: tr(lng, "x.4b1f6ef2") },
-    { href: "#liga", label: tr(lng, "x.942efd43") },
-    { href: "#metagame", label: "Metagame" },
-    // v0.53 — «Sin conexión» no se entendía: es la salida de emergencia del modo
-    // sin conexión (v0.35), y ahora el atajo lo dice.
-    { href: "#sin-conexion", label: tr(lng, "aj.atajoOffline") },
-  ];
 
   return (
     <>
@@ -83,7 +75,7 @@ export default async function SettingsPage() {
       <AbrirAncla />
       {/* v0.55 — menú de secciones a la izquierda (en el móvil, una tira arriba)
           y paneles a la derecha. Lo de cada uno primero; lo de organizar, después. */}
-      <div className="lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-6">
+      <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-6">
       <AjustesMenu manager={manager} owner={owner} lng={lng} />
       <div className="min-w-0">
       <h2 className="mb-3 font-display text-base font-bold">{tr(lng, "aj.bloqueCuenta")}</h2>
@@ -118,7 +110,7 @@ export default async function SettingsPage() {
                 </span>
               </div>
             </div>
-            <div className="grid gap-3 p-4 md:grid-cols-[1.2fr_0.8fr]">
+            <div className="grid gap-3 p-4">
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{tr(lng, "x.b5291b8d")}</p>
@@ -134,16 +126,8 @@ export default async function SettingsPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-line-soft bg-surface-2 p-3">
-                <p className="label mb-2">{tr(lng, "x.201c2cee")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {atajos.map((item) => (
-                    <a key={item.href} href={item.href} className="btn btn-sm btn-ghost">
-                      {item.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
+              {/* v0.58 — fuera los atajos: con el menú de secciones a la izquierda no
+                  aportaban nada. */}
             </div>
           </section>
 
@@ -644,15 +628,15 @@ function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean
     ...(owner ? [["riesgo", "x.085b70dc"] as [string, string]] : []),
   ] : [];
   const enlace = ([id, k]: [string, string]) => (
-    <a key={id} href={`#${id}`} className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, k)}</a>
+    <a key={id} href={`#${id}`} className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, k)}</a>
   );
   return (
     <nav aria-label={tr(lng, "aj.secciones")} className="mb-4 lg:sticky lg:top-4 lg:mb-0 lg:self-start">
       <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
         <span className="label hidden lg:mb-1 lg:block">{tr(lng, "aj.bloqueCuenta")}</span>
         {cuenta.map(enlace)}
-        <a href="/reglas" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "reg.titulo")}</a>
-        <a href="/glosario" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "glo.enlace")}</a>
+        <a href="/reglas" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "reg.titulo")}</a>
+        <a href="/glosario" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "glo.enlace")}</a>
         {organizar.length > 0 && <span className="label hidden lg:mb-1 lg:mt-4 lg:block">{tr(lng, "aj.bloqueOrganizar")}</span>}
         {organizar.map(enlace)}
       </div>

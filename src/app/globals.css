@@ -837,6 +837,15 @@ html[data-season="verano"] .season-p, html[data-season="invierno"] .season-p { c
   65% { opacity: 1; transform: translateY(-18px) scale(1.08) rotate(7deg); }
   100% { opacity: 0; transform: translateY(-38px) scale(0.86) rotate(-5deg); }
 }
+/* v0.58 — la misma salida, pero hacia abajo: cuando el botón está arriba del
+   todo (la cabecera del móvil), subiendo se iba fuera de la pantalla. */
+.season-pokemon-sprite.hacia-abajo { animation-name: season-pokemon-pop-abajo; }
+@keyframes season-pokemon-pop-abajo {
+  0% { opacity: 0; transform: translateY(-16px) scale(0.35) rotate(12deg); }
+  18% { opacity: 1; }
+  65% { opacity: 1; transform: translateY(18px) scale(1.08) rotate(-7deg); }
+  100% { opacity: 0; transform: translateY(38px) scale(0.86) rotate(5deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   html:not([data-motion="on"]) .season-pokemon-sprite {
     animation: none !important; opacity: 1;
@@ -1122,3 +1131,112 @@ html[data-motion="off"] .pkmn-destello { display: none; }
   .app-shell[data-barra="mini"] .barra-flecha { transform: rotate(180deg); }
 }
 @media (max-width: 767.98px) { .barra-toggle { display: none; } }
+
+/* =========================================================================
+   v0.58 — Registrar partida: pantalla de enfrentamiento y botones «gamer».
+   Fuera de @layer para ganar a las utilidades sin !important.
+   ========================================================================= */
+.vs-panel {
+  --ca: var(--info); --cb: var(--loss);
+  position: relative; overflow: hidden; border-radius: 1.25rem;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: 1rem 0.75rem;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(105deg,
+      color-mix(in oklab, var(--ca) 30%, var(--ground)) 0 47%,
+      color-mix(in oklab, var(--ca) 70%, white) 47% 47.6%,
+      color-mix(in oklab, var(--brand) 85%, white) 47.6% 52.4%,
+      color-mix(in oklab, var(--cb) 70%, white) 52.4% 53%,
+      color-mix(in oklab, var(--cb) 30%, var(--ground)) 53% 100%);
+  box-shadow: var(--shadow-2);
+}
+.vs-panel::after { /* un velo para que la raya del centro no compita con el marcador */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, color-mix(in oklab, var(--ground) 72%, transparent) 0 30%, transparent 62%);
+}
+.vs-lado { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; min-width: 0; transition: opacity .2s, filter .2s; }
+.vs-aro { border-radius: 9999px; display: grid; }
+.vs-a .vs-aro { box-shadow: 0 0 0 3px var(--ca), 0 0 18px color-mix(in oklab, var(--ca) 70%, transparent); }
+.vs-b .vs-aro { box-shadow: 0 0 0 3px var(--cb), 0 0 18px color-mix(in oklab, var(--cb) 70%, transparent); }
+.vs-nombre { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.01em; }
+.vs-centro { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding-inline: 0.5rem; }
+.vs-marcador { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.6rem, 11vw, 3.6rem); line-height: 1;
+  /* Desde el color de texto del tema: oscuro en el claro y claro en el oscuro, así se lee en los dos. */
+  background: linear-gradient(180deg, var(--ink) 35%, color-mix(in oklab, var(--brand) 75%, var(--ink))); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 10px color-mix(in oklab, var(--brand) 55%, transparent)); }
+.vs-dos-puntos { opacity: .6; margin-inline: .08em; }
+.vs-etiqueta { margin-top: .3rem; font-size: 10px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-2); }
+/* Con ganador: su lado se ilumina, el otro se apaga un poco. */
+.vs-panel[data-gana="a"] .vs-b, .vs-panel[data-gana="b"] .vs-a { opacity: .55; filter: saturate(.6); }
+.vs-panel[data-gana="a"] .vs-a .vs-aro { box-shadow: 0 0 0 3px var(--ca), 0 0 28px var(--ca); }
+.vs-panel[data-gana="b"] .vs-b .vs-aro { box-shadow: 0 0 0 3px var(--cb), 0 0 28px var(--cb); }
+
+.marcador-btn {
+  --t: var(--win);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
+  min-height: 4.25rem; padding: .5rem; border-radius: 1rem;
+  border: 2px solid color-mix(in oklab, var(--t) 35%, var(--line));
+  background: linear-gradient(160deg, color-mix(in oklab, var(--t) 14%, var(--surface-2)), var(--surface-2));
+  transition: transform .12s, box-shadow .15s, background .15s;
+}
+.marcador-btn[data-tono="loss"] { --t: var(--loss); }
+.marcador-btn[data-tono="tie"] { --t: var(--tie); font-weight: 700; color: var(--ink-2); gap: .4rem; }
+.marcador-btn:active { transform: scale(.96); }
+.marcador-btn[aria-pressed="true"] {
+  border-color: var(--t);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--t) 45%, var(--surface-2)), color-mix(in oklab, var(--t) 18%, var(--surface-2)));
+  box-shadow: 0 0 0 1px var(--t), 0 6px 22px color-mix(in oklab, var(--t) 45%, transparent);
+  color: var(--ink);
+}
+.marcador-palabra { font-size: 9px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: color-mix(in oklab, var(--t) 80%, var(--ink)); }
+
+.btn-gamer:not(:disabled) {
+  position: relative; overflow: hidden;
+  background: linear-gradient(100deg, var(--brand), color-mix(in oklab, var(--brand) 70%, #ff8a3d));
+  box-shadow: 0 6px 22px color-mix(in oklab, var(--brand) 45%, transparent);
+  text-transform: uppercase; letter-spacing: .08em; font-weight: 800;
+}
+.btn-gamer:not(:disabled)::after { /* un destello que cruza el botón */
+  content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / .35) 50%, transparent 70%);
+  animation: brillo-gamer 2.8s ease-in-out infinite;
+}
+@keyframes brillo-gamer { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .btn-gamer::after { animation: none; display: none; } .marcador-btn { transition: none; } }
+
+/* =========================================================================
+   v0.58 — Los líderes de cada pestaña.
+   ========================================================================= */
+/* En los márgenes, solo con sitio de sobra: barra (15 rem) + contenido (80 rem)
+   + dos huecos. Con la barra plegada, el izquierdo se arrima a ella. */
+.app-shell { --barra-ancho: 15rem; }
+.app-shell[data-barra="mini"] { --barra-ancho: 4.5rem; }
+.lider { display: none; position: fixed; bottom: 2rem; z-index: 0; pointer-events: none; }
+.lider-izq { left: calc(var(--barra-ancho) + 2rem); }
+.lider-der { right: 2rem; }
+@media (min-width: 1760px) { .lider { display: flex; flex-direction: column; align-items: center; } }
+.lider-img {
+  width: 148px; height: 148px; object-fit: contain; image-rendering: pixelated;
+  filter: drop-shadow(0 10px 14px rgb(0 0 0 / .35));
+  animation: lider-flota 5s ease-in-out infinite;
+}
+.lider-der .lider-img { transform: scaleX(-1); animation-name: lider-flota-espejo; animation-delay: -2.5s; }
+.lider-peana {
+  width: 120px; height: 18px; margin-top: -10px; border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in oklab, var(--brand) 40%, transparent), transparent 70%);
+}
+@keyframes lider-flota { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+@keyframes lider-flota-espejo { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+
+/* Móvil: el líder asoma sobre la pestaña activa de la barra de abajo. */
+.nav-lider {
+  position: absolute; top: -22px; left: 50%; translate: -50% 0;
+  width: 34px; height: 34px; object-fit: contain; image-rendering: pixelated; pointer-events: none;
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / .35));
+  animation: lider-asoma .35s ease-out;
+}
+@keyframes lider-asoma { from { translate: -50% 10px; opacity: 0; } to { translate: -50% 0; opacity: 1; } }
+.nav-tab[data-on="true"] { text-shadow: 0 0 12px color-mix(in oklab, var(--brand) 55%, transparent); }
+@media (prefers-reduced-motion: reduce) { .lider-img, .nav-lider { animation: none; } }

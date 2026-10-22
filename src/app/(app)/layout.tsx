@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
 import { LangProvider } from "@/components/LangProvider";
 import { BarraToggle } from "@/components/BarraToggle";
+import { LideresMargen } from "@/components/LideresMargen";
 import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
@@ -138,6 +139,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* v0.20: 12px de margen lateral por debajo de 400px (antes 16): en un
             móvil de 360px son 8px más de tarjeta para tablas y gráficas. */}
+        {/* v0.58 — los líderes de la pestaña, en los márgenes de las pantallas anchas. */}
+        <LideresMargen />
         <main className="mx-auto w-full max-w-5xl px-3 xl:max-w-6xl 2xl:max-w-7xl pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {children}
         </main>

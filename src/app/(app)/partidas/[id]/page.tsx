@@ -171,7 +171,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
           <ul className="mt-5 divide-y divide-line-soft border-t border-line-soft">
             {match.games.map((g) => {
-                const winnerArch = g.winner === "a" ? archA : g.winner === "b" ? archB : undefined;
+                /* v0.58 — EL FALLO DEL Bo3 DE LIGA: aquí se pintaba el mazo de la
+                   SERIE en todos los juegos. En la liga, con «mazo distinto en cada
+                   juego», cada juego guarda el suyo, y la ficha enseñaba el mismo
+                   en los tres aunque se jugaran con mazos distintos (el formulario
+                   de editar sí los enseñaba bien, y por eso no cuadraban). Ahora,
+                   el mazo de ese juego; si no lo tiene, el de la serie. */
+                const archJuegoA = (g.archetypeAId && snap.archById.get(g.archetypeAId)) || archA;
+                const archJuegoB = (g.archetypeBId && snap.archById.get(g.archetypeBId)) || archB;
+                const winnerArch = g.winner === "a" ? archJuegoA : g.winner === "b" ? archJuegoB : undefined;
                 /* v0.30 — el marcador de premios, si se apuntó. Nulo no es
                    cero: cuando no hay dato, no se pinta nada. */
                 const margen = margenDe({
