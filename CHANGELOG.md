@@ -2,6 +2,74 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.70.0] — 2026-10-22
+
+App instalable de verdad y preparada para Android. **Sin migración nueva.**
+
+### Añadido
+
+- **Ajustes → Este dispositivo** reúne todo lo del dispositivo: animaciones, **instalar la
+  app**, **la versión** (con «Buscar actualización») y el modo sin conexión. «Más» ya no lleva
+  la versión.
+- **Instalar**: botón «Instalar PokéArena» en Android y escritorio (se captura
+  `beforeinstallprompt` en el layout raíz, que si no se perdía), los tres pasos de Safari en
+  iPhone/iPad, aviso si en iPhone se usa otro navegador, y «ya estás en la app instalada».
+- **Pantalla de bienvenida** al abrir la app instalada (solo en `display-mode: standalone`):
+  icono y nombre sobre el azul de la app, se desvanece sola, sin JavaScript.
+- **Manifiesto**: iconos PNG 192/512 normales y *maskable* (Chrome y Google Play los piden en
+  PNG), `id`, fondo y tema en el azul del icono (la pantalla de inicio de Android sale de ahí) y
+  atajos (Registrar partida, Torneos, Ranking) al mantener pulsado el icono.
+- **`/.well-known/assetlinks.json`** para la app de Android (TWA), rellenado con
+  `ANDROID_TWA_PACKAGE` y `ANDROID_TWA_SHA256` en Vercel. Sin ellas, lista vacía.
+- **`docs/11-app-android.md`**: generar la app con Bubblewrap, APK para el grupo o Google Play en
+  prueba interna, cómo unir la app con el dominio y qué pide Play.
+
+## [0.69.0] — 2026-10-22
+
+La versión en el móvil y el aviso de versión nueva. **Sin migración nueva.**
+
+### Añadido
+
+- **«Hay una versión nueva · Actualizar»**: al abrir la app o volver a ella, se pregunta a
+  `/api/version` qué despliegue hay; si es otro, sale el aviso y «Actualizar» recarga. Es la
+  causa de que el móvil pareciera ir versiones por detrás: una app instalada no se recarga al
+  abrirla, se despierta con el código que tenía en memoria. Las páginas nunca estuvieron en
+  caché (`public/sw.js` las pide siempre a la red).
+- **La versión en «Más»** (el móvil no tiene barra lateral): número, si es producción o vista
+  previa (con la rama) y «Buscar actualización».
+- `GET /api/version`: sin sesión y sin datos, solo versión e id del despliegue, `no-store`.
+
+## [0.68.0] — 2026-10-22
+
+Destello en la barra, la Ball de cada uno en el ranking, el pie de la barra, el diagnóstico de
+Discord y Ciphermaniac desbloqueado. **Sin migración nueva** (lleva las de la v0.65 y v0.67).
+
+### Cambiado
+
+- **Barra lateral**: al pasar el ratón por una sección, un barrido de luz cruza la fila, el
+  icono se enciende en el color de marca y la fila brilla. Sin barrido con «reducir movimiento».
+- **Pie de la barra**: sin el «@commit» a la vista (sigue en el título), iconos de idioma, tema
+  y salir a 20 px con área de toque de 36 px, y fondo con un toque de marca.
+- **Inicio**: la Ball de uso de cada uno, pequeña, junto a su nombre en el ranking (Elo, CP y
+  Liga). Perfil e inicio calculan la Ball igual (`usoDeJugador`); antes el perfil contaba solo
+  las partidas del ámbito elegido.
+- **Ciphermaniac**: Reese ha metido nuestro User-Agent en su lista blanca. Se congela (ya no
+  lleva la versión de la app, que lo cambiaba en cada despliegue).
+
+### Corregido
+
+- **Discord «no iba»**, cuatro causas posibles que antes no se distinguían:
+  - El botón de prueba mandaba el aviso real: sin partidas pendientes o sin eventos esa semana
+    no mandaba nada y decía «no enviado», aunque el webhook estuviera bien. Ahora cada canal
+    tiene «Probar», que manda un mensaje de prueba siempre, y si falla dice **por qué**
+    (variable ausente en el despliegue, URL que no es un webhook, 401/403, 404, 429…).
+  - El filtro de la URL rechazaba en silencio las copiadas desde Discord PTB/Canary, las de
+    `/api/v10/webhooks/…` y las pegadas con comillas, espacios o salto de línea. Ahora se
+    normalizan (`lib/discordWebhook.ts`, 3 pruebas).
+  - Sin `CRON_SECRET` el cron diario responde 401 y los avisos de los lunes no salen nunca:
+    Ajustes → Discord ahora lo dice.
+  - Los fallos van al log de Vercel con el canal y el código HTTP (nunca la URL).
+
 ## [0.67.0] — 2026-10-22
 
 Recuperar la contraseña, sin correo. **Lleva migración:** `drizzle/0026_v0_67_0.sql` (la lanza

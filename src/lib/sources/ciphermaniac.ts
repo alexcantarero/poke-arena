@@ -30,7 +30,12 @@ const TIMEOUT_MS = 8000;
    Ciphermaniac responde 403 es un bloqueo de su lado (Cloudflare) a lecturas
    automáticas: NO se intenta esquivar haciéndose pasar por un navegador. La
    vía es pedirles acceso por su formulario (ver el diagnóstico). */
-const USER_AGENT = `PokeArenaTCG/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (liga privada de amigos; servidor a servidor; cache 6 h)`;
+/* v0.68 — Reese (Ciphermaniac) ha metido nuestro User-Agent en su lista
+   blanca. Por eso ya NO lleva la versión de la app: si cambiara con cada
+   versión, el bloqueo volvería en el siguiente despliegue. Se congela tal
+   cual lo mandaba la v0.67 (la desplegada cuando lo añadió), y se le pide que
+   acepte cualquier «PokeArenaTCG/…». No tocar sin avisarle. */
+const USER_AGENT = "PokeArenaTCG/0.67.0 (liga privada de amigos; servidor a servidor; cache 6 h)";
 
 export type Respuesta<T> = { ok: true; datos: T } | { ok: false; estado: number | "red"; url: string };
 

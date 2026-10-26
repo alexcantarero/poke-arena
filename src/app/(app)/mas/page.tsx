@@ -48,6 +48,7 @@ export default async function MorePage() {
         </section>
       ))}
 
+      {/* v0.70 — la versión y la instalación se mudaron a Ajustes → Este dispositivo. */}
       <form action={logout} className="mt-4">
         <button className="btn btn-danger w-full" type="submit">
           <Icon name="logout" className="size-4" /> {tr(lang, "shell.logoutLong")}

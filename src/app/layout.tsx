@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Saira_Condensed } from "next/font/google";
 import "./globals.css";
 import { getLang } from "@/lib/lang";
+import { tr } from "@/lib/i18n";
 import { LangProvider } from "@/components/LangProvider";
 import { estacionDe } from "@/lib/estacion";
+import { CapturaInstalacion } from "@/components/Instalacion";
 import { ServiceWorker } from "@/components/ServiceWorker";
 
 /* v0.20 — tipografías con `next/font`: se descargan al compilar y se sirven
@@ -108,6 +110,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* v0.49 — el idioma para los componentes de cliente, en TODA la app:
             también en entrar y registrarse, que están fuera del layout (app). */}
         <LangProvider lang={lang}>
+        {/* v0.70 — pantalla de bienvenida al abrir la app INSTALADA (en el
+            navegador no se ve: ver `.splash` en globals.css). Sin JavaScript:
+            se desvanece sola. El icono es el de la app, no un sprite. */}
+        <div className="splash" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="" width={96} height={96} className="splash-icono" />
+          <span className="splash-nombre">{tr(lang, "inst.nombreApp")}</span>
+        </div>
+        <CapturaInstalacion />
         {children}
         {/* v0.35 — registra el service worker después de cargar, y solo en
             producción. Ver `src/components/ServiceWorker.tsx`. */}

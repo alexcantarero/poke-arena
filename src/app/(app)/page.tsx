@@ -1,7 +1,9 @@
 import { getLang } from "@/lib/lang";
 import { diasRelativos, ordinal, tr, trf } from "@/lib/i18n";
-import { posicionesDe } from "@/lib/data";
+import { posicionesDe, usoDeJugador } from "@/lib/data";
 import Link from "next/link";
+import { urlDeObjeto } from "@/lib/objetos";
+import { nivelDeUso } from "@/lib/logros";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import { resultadoRapido } from "@/actions";
@@ -76,6 +78,15 @@ export default async function HomePage({
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
   const played = snap.matches.filter(isPlayed);
+  /* v0.68 — la Ball de uso de cada uno, pequeña, junto a su nombre en el ranking. */
+  const ballDe = (pid: string) => {
+    const n = nivelDeUso(usoDeJugador(snap, pid)).nivel;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={urlDeObjeto(n.ball)} alt={n.nombre} title={`${tr(lang, "home.ballDe")}: ${n.nombre}`}
+        width={20} height={20} className="ball-ranking" loading="lazy" />
+    );
+  };
   // v0.56 — ¿jugador nuevo? Alta en los últimos 30 días: le sale la bienvenida.
   const yo = session ? snap.playersById.get(session.playerId) : undefined;
   const esNuevo = Boolean(yo?.joined && Date.parse(`${yo.joined}T00:00:00Z`) > Date.now() - 30 * 86400000);
@@ -470,7 +481,10 @@ export default async function HomePage({
                       i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>
                       {i + 1}
                     </span>
-                    <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 font-semibold text-ink" />
+                      {ballDe(f.id)}
+                    </span>
                     <span className="flex-none font-mono text-sm font-bold tabular">
                       {f.valor}<span className="ml-1 text-[10px] font-semibold text-muted">{rk === "elo" ? "Elo" : "CP"}</span>
                     </span>
@@ -514,7 +528,10 @@ export default async function HomePage({
                         {i + 1}
                       </span>
                     )}
-                    <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 font-semibold text-ink" />
+                      {ballDe(r.playerId)}
+                    </span>
                     {/* El récord se esconde en pantallas estrechas: con el
                         nombre, el %V y la racha no cabe, y es lo que menos se
                         mira de los cuatro. Está entero en Ranking. */}

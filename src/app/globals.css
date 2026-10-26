@@ -1563,3 +1563,81 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
   .barra-lateral .nav-side { min-height: 2rem; font-size: .8125rem; }
   .barra-lateral nav { gap: .15rem; }
 }
+
+/* =========================================================================
+   v0.68 — Destello al pasar por la barra, y el pie de la barra.
+   ========================================================================= */
+/* Al pasar el ratón por una sección: un barrido de luz cruza la fila, el
+   icono se enciende en el color de marca y la fila brilla un poco. El barrido
+   va por debajo del texto (`isolation` + z-index -1). */
+.barra-lateral .nav-side { overflow: hidden; isolation: isolate; transition: background-color .15s, color .15s, box-shadow .2s; }
+.barra-lateral .nav-side::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 25%, color-mix(in oklab, var(--brand) 38%, transparent) 50%, transparent 75%);
+  transform: translateX(-130%);
+}
+.barra-lateral .nav-side:hover::after { transform: translateX(130%); transition: transform .65s ease; }
+.barra-lateral .nav-side:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand) 30%, transparent), 0 0 16px -6px color-mix(in oklab, var(--brand) 70%, transparent);
+}
+.barra-lateral .nav-side > svg { transition: color .15s, filter .2s, transform .2s; }
+.barra-lateral .nav-side:hover > svg {
+  color: var(--brand); transform: scale(1.1);
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--brand) 70%, transparent));
+}
+.barra-lateral .nav-side:focus-visible::after { transform: none; opacity: .5; }
+@media (prefers-reduced-motion: reduce) {
+  .barra-lateral .nav-side::after { display: none; }
+  .barra-lateral .nav-side:hover > svg { transform: none; }
+}
+
+/* El pie: fondo con un toque de marca en vez del gris plano, e iconos (idioma,
+   tema, salir) de 20 px con un área de toque decente. */
+.barra-pie {
+  border-color: color-mix(in oklab, var(--brand) 28%, var(--line));
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--brand) 16%, transparent), transparent 60%),
+    linear-gradient(170deg, color-mix(in oklab, var(--info) 10%, var(--surface-2)), var(--surface-2));
+}
+.barra-pie .barra-fila .btn { min-width: 2.25rem; min-height: 2.25rem; padding-inline: .45rem; }
+.barra-pie .barra-fila .btn svg { width: 1.25rem; height: 1.25rem; }
+.barra-pie .barra-salir { color: var(--muted); }
+.barra-pie .barra-salir:hover { color: var(--loss); background: color-mix(in oklab, var(--loss) 14%, transparent); }
+.barra-pie .barra-fila .btn { font-size: .8125rem; }
+/* La Ball de uso en el ranking del inicio: un detalle, no un adorno grande. */
+.ball-ranking { width: 1.15rem; height: 1.15rem; flex: none; image-rendering: pixelated; object-fit: contain; opacity: .9; }
+
+/* v0.69 — «Hay una versión nueva»: arriba, por encima de todo, sin tapar la muesca. */
+.aviso-version {
+  position: fixed; z-index: 96; left: 50%; translate: -50% 0; top: calc(env(safe-area-inset-top, 0px) + .6rem);
+  display: flex; align-items: center; gap: .5rem; width: min(30rem, calc(100vw - 1.5rem));
+  padding: .45rem .5rem .45rem .9rem; border-radius: 9999px;
+  background: var(--surface); border: 1px solid color-mix(in oklab, var(--brand) 55%, var(--line));
+  box-shadow: var(--shadow-3); animation: logro-entra .35s ease-out;
+}
+@media (prefers-reduced-motion: reduce) { .aviso-version { animation: none; } }
+
+/* v0.70 — Pantalla de bienvenida de la app instalada. Solo con
+   `display-mode: standalone` (en el navegador no se pinta). Cubre el primer
+   instante en blanco al abrir y se desvanece sola, sin JavaScript; nunca
+   bloquea el toque (`pointer-events: none`). En Android, el sistema pone antes
+   su propia pantalla con `background_color` e icono del manifiesto: esta
+   continúa con los mismos colores, así que se lee como una sola. */
+.splash { display: none; }
+@media (display-mode: standalone) {
+  .splash {
+    position: fixed; inset: 0; z-index: 200; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+    background: radial-gradient(60% 45% at 50% 42%, #1a2a4a, #0d1526 70%);
+    animation: splash-fuera .45s ease-in .75s both;
+  }
+  .splash-icono { width: 6rem; height: 6rem; border-radius: 1.4rem; box-shadow: 0 10px 40px rgb(0 0 0 / .45); animation: splash-icono .9s cubic-bezier(.2,.8,.3,1.2) both; }
+  .splash-nombre { font-family: var(--font-display); font-size: 1.5rem; font-weight: 900; letter-spacing: .02em; color: #f2b93a; animation: splash-texto .6s ease-out .15s both; }
+}
+@keyframes splash-fuera { to { opacity: 0; visibility: hidden; } }
+@keyframes splash-icono { from { opacity: 0; transform: scale(.6) rotate(-20deg); } to { opacity: 1; transform: none; } }
+@keyframes splash-texto { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (display-mode: standalone) and (prefers-reduced-motion: reduce) {
+  .splash { animation: splash-fuera .2s linear .3s both; }
+  .splash-icono, .splash-nombre { animation: none; }
+}

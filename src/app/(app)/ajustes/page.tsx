@@ -1,3 +1,5 @@
+import { Instalacion } from "@/components/Instalacion";
+import { VersionActual } from "@/components/AvisoVersion";
 import Link from "next/link";
 import { AbrirAncla } from "@/components/AbrirAncla";
 import type { ReactNode } from "react";
@@ -24,7 +26,7 @@ import { MotionToggle } from "@/components/MotionToggle";
 import { ServiceWorkerOff } from "@/components/ServiceWorkerOff";
 import { type Lang, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
-import { canalesConfigurados } from "@/lib/discord";
+import { estadoDiscord } from "@/lib/discord";
 import { probarDiscord } from "@/actions/ajustes";
 
 export const metadata = { title: "Ajustes" };
@@ -43,7 +45,9 @@ export default async function SettingsPage() {
   if (!me) redirect("/entrar");
   const manager = canManageLeague(me.role);
   const owner = isOwner(me.role);
-  const discord = canalesConfigurados(); // v0.59 — solo sí/no: la URL es un secreto
+  // v0.68 — por canal: sin poner / URL rara / bien, y si hay CRON_SECRET. Nunca la URL.
+  const estDc = estadoDiscord();
+  const discord = { resultados: estDc.canales.resultados !== "sinVariable", liga: estDc.canales.liga !== "sinVariable", agenda: estDc.canales.agenda !== "sinVariable" };
   const invites = manager ? await loadInvites() : [];
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
@@ -90,6 +94,13 @@ export default async function SettingsPage() {
       <div className="card mb-4 p-4">
         <MotionToggle />
       </div>
+      {/* v0.70 — instalar la app y la versión (antes en «Más»): todo lo de este
+          dispositivo, junto. */}
+      <div className="card mb-4 p-4">
+        <Instalacion />
+      </div>
+      <VersionActual />
+      <div className="mb-4" />
           {/* --- v0.35: la salida de emergencia del service worker --- */}
           <div className="card mb-6 p-4">
             <p className="label mb-2">{tr(lng, "x.f73a8413")}</p>
@@ -491,12 +502,26 @@ export default async function SettingsPage() {
             <ul className="flex flex-col gap-1.5">
               {([["resultados", "dc.resultados", "DISCORD_WEBHOOK_RESULTADOS"], ["liga", "dc.liga", "DISCORD_WEBHOOK_LIGA"], ["agenda", "dc.agenda", "DISCORD_WEBHOOK_AGENDA"]] as const).map(([c, k, v]) => (
                 <li key={c} className="flex flex-wrap items-center gap-2">
-                  <span className={`chip ${discord[c] ? "chip-win" : ""}`}>{discord[c] ? tr(lng, "dc.puesto") : tr(lng, "dc.sinPoner")}</span>
+                  <span className={`chip ${estDc.canales[c] === "ok" ? "chip-win" : estDc.canales[c] === "urlRara" ? "chip-loss" : ""}`}>
+                    {estDc.canales[c] === "ok" ? tr(lng, "dc.puesto") : estDc.canales[c] === "urlRara" ? tr(lng, "dc.urlRara") : tr(lng, "dc.sinPoner")}
+                  </span>
                   <span>{tr(lng, k)}</span>
                   <code className="text-[11px] text-muted">{v}</code>
+                  {/* v0.68 — prueba de verdad: siempre manda un mensaje. */}
+                  {discord[c] && (
+                    <form action={probarDiscord} className="ml-auto">
+                      <button type="submit" name="tipo" value={`probar-${c}`} className="btn btn-ghost btn-sm">{tr(lng, "dc.probarCanal")}</button>
+                    </form>
+                  )}
                 </li>
               ))}
+              <li className="flex flex-wrap items-center gap-2">
+                <span className={`chip ${estDc.cron ? "chip-win" : "chip-loss"}`}>{estDc.cron ? tr(lng, "dc.puesto") : tr(lng, "dc.sinPoner")}</span>
+                <span>{tr(lng, "dc.cron")}</span>
+                <code className="text-[11px] text-muted">CRON_SECRET</code>
+              </li>
             </ul>
+            {!estDc.cron && <p className="rounded-lg bg-loss-soft px-3 py-2 text-xs text-loss">{tr(lng, "dc.sinCron")}</p>}
             <form action={probarDiscord} className="flex flex-wrap gap-2">
               <button type="submit" name="tipo" value="liga" className="btn btn-sm" disabled={!discord.liga}>{tr(lng, "dc.probarLiga")}</button>
               <button type="submit" name="tipo" value="agenda" className="btn btn-sm" disabled={!discord.agenda}>{tr(lng, "dc.probarAgenda")}</button>

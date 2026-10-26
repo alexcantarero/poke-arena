@@ -15,7 +15,7 @@ import {
   str, maybeNum, int, isoDate, bool, refresh, requireActor, requireManager, owns, confirmed,
   msj,
 } from "./_comun";
-import { notificarAgendaSemana, notificarPendientesLiga } from "@/lib/discord";
+import { notificarAgendaSemana, notificarPendientesLiga, probarCanal } from "@/lib/discord";
 
 /**
  * Empezar el Elo de cero desde hoy.
@@ -240,6 +240,17 @@ export async function resetLadderSeason(fd: FormData) {
 export async function probarDiscord(fd: FormData) {
   await requireManager();
   const tipo = str(fd, "tipo");
+  /* v0.68 — «probar-<canal>» manda un mensaje de prueba (siempre hay algo que
+     mandar) y dice el MOTIVO si falla. «liga» y «agenda» siguen mandando el
+     aviso real, y si no hay nada que contar lo dicen así, no como un error. */
+  if (tipo.startsWith("probar-")) {
+    const canal = tipo.slice(7);
+    const canales = ["resultados", "liga", "agenda"] as const;
+    const valido = canales.find((c) => c === canal);
+    if (!valido) redirect("/ajustes#discord");
+    const motivo = await probarCanal(valido ?? "resultados");
+    redirect(withFlash("/ajustes#discord", motivo === "ok" ? "ok" : "error", await msj(`dc.motivo.${motivo}`)));
+  }
   const ok = tipo === "agenda" ? await notificarAgendaSemana(new Date().toISOString().slice(0, 10))
     : tipo === "liga" ? await notificarPendientesLiga()
     : false;

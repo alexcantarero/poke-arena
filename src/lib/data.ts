@@ -1,5 +1,6 @@
 import "server-only";
 import { sesionVigente } from "@/lib/recuperacion";
+import { leerLogros } from "@/lib/logros";
 import { cache } from "react";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -832,3 +833,17 @@ export const tutorialesVistos = cache(async (playerId: string): Promise<string[]
   const r = await db.select({ v: players.tutorialesVistos }).from(players).where(eq(players.id, playerId));
   return (r[0]?.v ?? "").split(",").filter(Boolean);
 });
+
+/**
+ * v0.68 — Lo que alguien ha usado la web, para su Ball de uso (`lib/logros.ts`):
+ * partidas jugadas (todas, sin filtro de ámbito), torneos en los que tiene
+ * resultado y logros secretos encontrados. Una sola definición para el perfil
+ * y el inicio, que antes podían dar Balls distintas (el perfil contaba solo
+ * las partidas del ámbito elegido).
+ */
+export function usoDeJugador(snap: Snapshot, playerId: string) {
+  const partidas = snap.matches.filter((m) => isPlayed(m) && (m.playerAId === playerId || m.playerBId === playerId)).length;
+  const torneos = snap.tournaments.filter((t) => t.results.some((r) => r.playerId === playerId)).length;
+  const logros = leerLogros(snap.playersById.get(playerId)?.logros).length;
+  return { partidas, torneos, logros };
+}

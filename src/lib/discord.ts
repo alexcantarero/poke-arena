@@ -6,6 +6,7 @@ import {
   embedAgenda, embedPendientes, embedTorneo, semanaDe,
   type Embed, type EventoAgenda, type Pendiente, type ResultadoTorneo,
 } from "./discordMensajes";
+import { motivoDeEstado, normalizarWebhook, type MotivoDiscord } from "./discordWebhook";
 
 /* =========================================================================
    v0.59 — Avisos automáticos a Discord, por webhooks.
@@ -44,9 +45,25 @@ export function canalesConfigurados(): Record<Canal, boolean> {
   };
 }
 
-async function enviar(canal: Canal, embed: Embed): Promise<boolean> {
-  const url = process.env[VARIABLE[canal]];
-  if (!url || !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(url)) return false;
+/** v0.68 — Estado de cada canal: sin poner, puesto pero con una URL que no es de
+    un webhook, o bien. Sigue sin enseñar la URL. Y si hay CRON_SECRET: sin él,
+    el cron diario responde 401 y los avisos de los lunes no salen nunca. */
+export function estadoDiscord(): { canales: Record<Canal, "ok" | "sinVariable" | "urlRara">; cron: boolean } {
+  const de = (c: Canal) => {
+    const raw = process.env[VARIABLE[c]];
+    if (!raw) return "sinVariable" as const;
+    return normalizarWebhook(raw) ? ("ok" as const) : ("urlRara" as const);
+  };
+  return { canales: { resultados: de("resultados"), liga: de("liga"), agenda: de("agenda") }, cron: Boolean(process.env.CRON_SECRET) };
+}
+
+/* v0.68 — Devuelve el MOTIVO, no solo sí/no. La URL se normaliza (comillas,
+   espacios, PTB/Canary, /api/v10/). Un aviso sigue sin romper nunca nada. */
+async function enviarConMotivo(canal: Canal, embed: Embed): Promise<MotivoDiscord> {
+  const raw = process.env[VARIABLE[canal]];
+  if (!raw) return "sinVariable";
+  const url = normalizarWebhook(raw);
+  if (!url) return "urlRara";
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -55,10 +72,35 @@ async function enviar(canal: Canal, embed: Embed): Promise<boolean> {
       signal: AbortSignal.timeout(6000),
       cache: "no-store",
     });
-    return res.ok;
+    const motivo = motivoDeEstado(res.status);
+    // Al log de Vercel va el canal y el código, NUNCA la URL (es un secreto).
+    if (motivo !== "ok") console.warn(`[discord] ${canal}: HTTP ${res.status}`);
+    return motivo;
   } catch {
-    return false;
+    console.warn(`[discord] ${canal}: sin respuesta`);
+    return "red";
   }
+}
+
+async function enviar(canal: Canal, embed: Embed): Promise<boolean> {
+  return (await enviarConMotivo(canal, embed)) === "ok";
+}
+
+/**
+ * v0.68 — El botón de prueba: manda un mensaje de prueba de verdad a ese canal,
+ * haya o no algo que contar. Antes probaba con el aviso real, y sin partidas
+ * pendientes o sin eventos esa semana no mandaba nada y decía «no enviado»:
+ * parecía que el webhook fallaba cuando estaba bien.
+ */
+export async function probarCanal(canal: Canal): Promise<MotivoDiscord> {
+  const nombres: Record<Canal, string> = { resultados: "resultados de torneos", liga: "partidas de liga pendientes", agenda: "agenda de la semana" };
+  return enviarConMotivo(canal, {
+    title: "✅ Prueba de PokeArena",
+    description: `Este canal recibirá los avisos de **${nombres[canal]}**. Si lees esto, el webhook funciona.`,
+    color: 0x2a78d6,
+    url: urlApp(),
+    timestamp: new Date().toISOString(),
+  });
 }
 
 /** Resultados de un torneo, al cerrarse. Solo los jugadores del grupo. */

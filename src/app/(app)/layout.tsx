@@ -22,6 +22,7 @@ import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 import { Snackbar } from "@/components/Snackbar";
 import { LogroAviso } from "@/components/LogroAviso";
+import { AvisoVersion } from "@/components/AvisoVersion";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
 import { logout } from "@/actions";
@@ -82,7 +83,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link className="btn btn-brand w-full" href="/partidas/nueva" data-tour="registrar">
             <Icon name="plus" className="size-4" /> <span className="barra-texto">{tr(lang, "shell.newMatch")}</span>
           </Link>
-                    <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-2">
+          {/* v0.68 — la tarjeta del pie con fondo propio (`.barra-pie`) e iconos más grandes. */}
+          <div className="barra-pie flex flex-col gap-2 rounded-xl border p-2">
             <div className="flex items-center gap-2">
               <Avatar player={me} size="sm" />
               <span className="barra-texto min-w-0 flex-1">
@@ -102,13 +104,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
                 {process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" && process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}
-                {process.env.NEXT_PUBLIC_GIT_SHA ? ` @${process.env.NEXT_PUBLIC_GIT_SHA}` : ""}
+                {/* v0.68 — sin «@commit» a la vista: sigue en el título (al pasar el ratón). */}
               </span>
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>
-                <button className="btn btn-ghost btn-sm px-2 text-muted hover:text-loss" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
-                  <Icon name="logout" className="size-4" />
+                <button className="barra-salir btn btn-ghost btn-sm" type="submit" title={tr(lang, "shell.logout")} aria-label={tr(lang, "shell.logout")}>
+                  <Icon name="logout" className="size-5" />
                 </button>
               </form>
             </div>
@@ -172,6 +174,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <Snackbar />
         <LogroAviso />
+        <AvisoVersion />
         {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
         <FilterMemory />
       </Suspense>

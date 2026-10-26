@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadSnapshot, playerCp } from "@/lib/data";
+import { loadSnapshot, playerCp, usoDeJugador } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import {
   archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, porRecientes,
@@ -100,7 +100,7 @@ export default async function ProfilePage({
   /* v0.65 — la Ball de uso (mejora con lo que se usa la web), las etiquetas
      (hitos con nombre) y los logros secretos (solo los encontrados). */
   const misLogros = leerLogros(player.logros);
-  const uso = { partidas: mine.length, torneos: myTours.length, logros: misLogros.length };
+  const uso = usoDeJugador(snap, id); // v0.68: sin el filtro de ámbito, igual que en el inicio
   const ballUso = nivelDeUso(uso);
   const etiquetas = etiquetasDe(uso);
 
