@@ -43,6 +43,12 @@ export default async function NewMatchPage({
         initialP1={p1}
         initialP2={p2}
         initialBestOf={bo}
+        pendientesLiga={snap.matches
+          .filter((m) => m.status === "scheduled" && m.competitionId && m.playerBId)
+          .map((m) => ({
+            id: m.id, competitionId: m.competitionId!, round: m.round, playerAId: m.playerAId, playerBId: m.playerBId!,
+            compName: snap.competitions.find((c) => c.id === m.competitionId)?.name ?? "",
+          }))}
         initialGames={initialGames}
       />
     </>

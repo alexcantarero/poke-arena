@@ -222,12 +222,13 @@ export default async function ProfilePage({
           {misLogros.length ? (
             <ul className="grid grid-cols-1 gap-1.5 xs:grid-cols-2">
               {LOGROS.filter((l) => misLogros.includes(l.clave)).map((l) => (
-                <li key={l.clave} className="logro-ficha" title={tr(lng, `logro.${l.clave}.como`)}>
+                /* v0.71 — sin la descripción (ni en el título): cómo se gana es
+                   parte del secreto. Solo el Pokémon y el nombre. */
+                <li key={l.clave} className="logro-ficha">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={spriteUrl(l.pokemon)} alt="" width={44} height={44} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-bold">{tr(lng, `logro.${l.clave}.nombre`)}</span>
-                    <span className="block truncate text-[11px] text-muted">{tr(lng, `logro.${l.clave}.como`)}</span>
                   </span>
                 </li>
               ))}

@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { canManageLeague, readSession } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { DeckForm } from "@/components/DeckForm";
 import { DeckList } from "@/components/DeckList";
-import { MulliganSim } from "@/components/MulliganSim";
 import { CardSearch } from "@/components/CardSearch";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
@@ -59,15 +59,11 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
           cambiarle el nombre. */}
       {deck.list.trim() && (
         <>
-          <details className="card mt-4">
-            <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">
-              {tr(lng, "x.6cb523f6")}
-              <span className="text-xs font-normal text-muted">{tr(lng, "x.fe777a76")}</span>
-            </summary>
-            <div className="border-t border-line-soft p-4">
-              <MulliganSim list={deck.list} listJson={deck.listJson} />
-            </div>
-          </details>
+          {/* v0.71 — el simulador de manos y mulligan se mudó a Herramientas. */}
+          <Link href={`/herramientas?h=manos&mazo=${deck.id}`} className="card mt-4 flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold hover:bg-surface-2">
+            <span>{tr(lng, "hr.mn.desdeMazo")}</span>
+            <span aria-hidden="true">→</span>
+          </Link>
 
           <details className="card mt-4">
             <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">

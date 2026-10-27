@@ -1406,12 +1406,16 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .objeto-sprite { image-rendering: pixelated; object-fit: contain; }
 
 /* Cada sección del formulario lleva un filo de color arriba. */
-.registro-seccion { position: relative; overflow: hidden; }
-.registro-seccion::before {
-  content: ""; position: absolute; inset: 0 0 auto; height: 3px;
-  background: linear-gradient(90deg, var(--info), color-mix(in oklab, var(--info) 30%, var(--brand)));
+/* v0.71 — el filo va como fondo de la propia tarjeta, no en un ::before con
+   `overflow: hidden`: ese recorte se comía los desplegables de mazo (el del
+   tercer mazo no se podía elegir). El fondo respeta las esquinas solo. */
+.registro-seccion {
+  background-image: linear-gradient(90deg, var(--info), color-mix(in oklab, var(--info) 30%, var(--brand)));
+  background-size: 100% 3px; background-repeat: no-repeat;
 }
-.registro-seccion[data-acento="resultado"]::before { background: linear-gradient(90deg, var(--brand), #ff8a3d, var(--loss)); }
+.registro-seccion[data-acento="resultado"] { background-image: linear-gradient(90deg, var(--brand), #ff8a3d, var(--loss)); }
+/* Y el desplegable abierto, siempre por encima de la tarjeta siguiente. */
+.deck-lista { scroll-margin-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
 
 /* La cabecera de cada juego. */
 .juego-cinta {

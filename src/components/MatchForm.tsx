@@ -34,6 +34,9 @@ type Props = {
   initialP1?: string;
   initialP2?: string;
   initialBestOf?: number;
+  /** v0.71 — partidas de liga EMPAREJADAS y sin jugar: si eliges a esos dos, se
+      avisa de que el resultado irá a esa partida de la liga (ver `saveMatch`). */
+  pendientesLiga?: Array<{ id: string; competitionId: string; compName: string; round: number; playerAId: string; playerBId: string }>;
   initialGames?: Array<{
     winner: string; first: string; archA: string; archB: string;
     premiosA?: number | null; premiosB?: number | null;
@@ -50,7 +53,7 @@ type Props = {
  */
 export function MatchForm({
   match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
-  initialP1, initialP2, initialBestOf, initialGames
+  initialP1, initialP2, initialBestOf, initialGames, pendientesLiga = [],
 }: Props) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
@@ -376,6 +379,21 @@ export function MatchForm({
           </span>
           <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
         </div>
+
+        {/* v0.71 — si estos dos tienen una partida de liga pendiente, el
+            resultado va ahí (lo hace el servidor) y se dice antes de guardar. */}
+        {(() => {
+          if (match || external || compId || !aId || !bId) return null;
+          const p = pendientesLiga
+            .filter((x) => (x.playerAId === aId && x.playerBId === bId) || (x.playerAId === bId && x.playerBId === aId))
+            .sort((x, y) => x.round - y.round)[0];
+          if (!p) return null;
+          return (
+            <p className="mb-3 rounded-lg border border-info/40 bg-info-soft/40 px-3 py-2 text-sm text-ink-2" role="status">
+              {trf(lng, "v71.irALiga", { liga: p.compName, n: p.round })}
+            </p>
+          );
+        })()}
 
         {/* v0.58 — PANTALLA DE ENFRENTAMIENTO. Cada jugador en su lado con su
             color de perfil (el fondo se parte en diagonal en los dos), el avatar

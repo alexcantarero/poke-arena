@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeckOption } from "@/lib/types";
 import { DECK_GROUP_LABEL } from "@/lib/types";
 import { spriteUrl } from "@/lib/pokemon";
@@ -56,6 +56,15 @@ export function DeckPicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
+  /* v0.71 — al abrir la lista, que se vea entera. En el móvil, con el teclado
+     abierto y la barra de abajo, el desplegable del tercer mazo quedaba por
+     debajo de lo visible y no se podía elegir. */
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => listaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+    return () => clearTimeout(t);
+  }, [open]);
 
   const selected = options.find((o) => o.id === value);
   const showSearch = options.length >= searchFrom;
@@ -126,7 +135,8 @@ export function DeckPicker({
 
       {open && !locked && (
         <div
-          className="absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-xl border border-line
+          ref={listaRef}
+          className="deck-lista absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-xl border border-line
                      bg-surface shadow-lg"
           role="listbox"
         >
@@ -146,7 +156,7 @@ export function DeckPicker({
             </div>
           )}
 
-          <div className="max-h-72 overflow-y-auto overscroll-contain">
+          <div className="max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain">
             {emptyLabel && !q && (
               <button
                 type="button" role="option" aria-selected={value === ""}

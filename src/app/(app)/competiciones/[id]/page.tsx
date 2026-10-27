@@ -126,7 +126,8 @@ export default async function CompetitionPage({
     <>
       <PageHead
         title={comp.name}
-        sub={`${kind.name} · ${infoModalidad.label} · Bo${comp.bestOf} · ${ids.length} jugadores${comp.kind === "swiss" ? ` · ${comp.rounds || suggestedRounds(ids.length)} rondas` : ""}`}
+        /* v0.71 — sin repetir el «Bo3» cuando la modalidad ya lo dice («Bo3 · hasta 3 mazos»). */
+        sub={`${kind.name} · ${infoModalidad.label}${infoModalidad.label.includes(`Bo${comp.bestOf}`) ? "" : ` · Bo${comp.bestOf}`} · ${ids.length} jugadores${comp.kind === "swiss" ? ` · ${comp.rounds || suggestedRounds(ids.length)} rondas` : ""}`}
         actions={
           <Link className="btn btn-ghost btn-sm" href="/competiciones">
             <Icon name="back" className="size-4" /> {tr(lng, "x.8a3c3440")}

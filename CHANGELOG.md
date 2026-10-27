@@ -2,6 +2,43 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.71.0] — 2026-10-26
+
+Herramientas, la partida de liga desde «+», el desplegable del tercer mazo y logros más
+secretos. **Sin migración nueva.**
+
+### Añadido
+
+- **Herramientas** (`/herramientas`, en Análisis), con cuatro pestañas:
+  - **Calculadora suiza**: simula el torneo entero cientos de veces con emparejamiento suizo
+    real (por puntos, empates, byes y, en los grandes, el corte del Día 2 y el top
+    asimétrico hasta 16). Por cada total de puntos: récords, jugadores esperados y qué parte
+    entra. Entrada segura, desde dónde hay opciones, cuántos pasan al Día 2 y «Tu torneo»
+    (tu récord actual → tu probabilidad). Estructura oficial automática para Challenge, Cup y
+    Regional. Mejora a `cut.ts`, que era una binomial.
+  - **Consistencia**: probabilidad exacta de abrir con alguna carta de salida sabiendo que no
+    hay mulligan, con y sin el robo del turno (básicos, salidas y cuántas son básicas).
+  - **Premios**: una carta o dos distintas en premios, exacto (hipergeométrica).
+  - **Manos y mulligan**: el simulador que estaba en cada mazo, con selector de mazo o lista
+    pegada. La ficha del mazo enlaza aquí.
+  - `lib/herramientas.ts`, puro: 10 pruebas. Ninguna cuenta devuelve NaN: entrada imposible
+    → `null` y la pantalla dice qué falla.
+
+### Corregido
+
+- **Registrar desde «+» una partida de liga pendiente** la guardaba aparte, como amistoso, y
+  la de la liga seguía pendiente. Ahora el formulario avisa y el servidor la anota en la
+  partida de la liga (la de la jornada más baja si hay varias).
+- **El desplegable del tercer mazo se cortaba** (el filo de color de las secciones, de la
+  v0.63, iba con `overflow: hidden`). Ahora el filo es fondo de la tarjeta, y la lista se
+  desplaza para quedar visible sobre el teclado y la barra.
+- **Logros**: solo el Pokémon y el nombre; cómo se ganan ya no se ve.
+- **Liga**: el subtítulo decía «Bo3» dos veces.
+- **Inicio**: la nota de «Tú» ya no se corta.
+- **«Falta el resultado» con un marcador válido**: no se ha podido reproducir (el formulario
+  de producción manda bien el marcador). Ahora se registra en el log de Vercel qué campos
+  llegaron cuando pasa, sin datos personales.
+
 ## [0.70.0] — 2026-10-22
 
 App instalable de verdad y preparada para Android. **Sin migración nueva.**

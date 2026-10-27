@@ -4,7 +4,7 @@
    v0.47 — partido de `src/actions/index.ts`. */
 
 import { redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { archetypes, competitions, games, matches } from "@/db/schema";
 import { validarMazosPorJuego } from "@/lib/juegosMazos";
@@ -80,6 +80,29 @@ export async function saveMatch(fd: FormData) {
     createdBy: actor.id,
   };
 
+  /* v0.71 — Registrar desde el botón «+» una partida que ya estaba EMPAREJADA
+     en una liga la anotaba aparte, como amistoso, y la de la liga seguía
+     pendiente: dos sitios para lo mismo. Ahora, si es nueva, sin competición
+     ni torneo elegidos y entre dos del grupo, se busca una partida de liga
+     PENDIENTE entre esos dos (en cualquier orden) y se anota EN ella, con su
+     liga y su jornada. Si hay varias, la de la jornada más baja. La orientación
+     A/B pasa a la del formulario: la clasificación no depende de ella. */
+  let pendienteLiga: typeof matches.$inferSelect | undefined;
+  if (!editing && !values.competitionId && !values.tournamentId && playerBId) {
+    pendienteLiga = (await db.select().from(matches).where(and(
+      eq(matches.status, "scheduled"),
+      isNotNull(matches.competitionId),
+      or(
+        and(eq(matches.playerAId, playerAId), eq(matches.playerBId, playerBId)),
+        and(eq(matches.playerAId, playerBId), eq(matches.playerBId, playerAId)),
+      ),
+    )).orderBy(asc(matches.round)).limit(1))[0];
+    if (pendienteLiga) {
+      values.competitionId = pendienteLiga.competitionId;
+      values.round = pendienteLiga.round;
+    }
+  }
+
   /* v0.24 — Ya no se imponen mazos de liga: cada partida lleva el mazo o
      arquetipo que se apunte. Solo queda la regla de la modalidad «Bo3». */
   if (values.competitionId) {
@@ -132,6 +155,7 @@ export async function saveMatch(fd: FormData) {
   // v0.53 — sin juegos solo vale un empate por tiempo. Antes, sin juegos, la
   // acción salía SIN GUARDAR y sin decir nada.
   if (!rows.length && values.seriesResult !== "tie") {
+    console.warn(`[saveMatch] sin juegos: bo${bestOf} campos=${[...fd.keys()].filter((k) => !k.startsWith("$")).join(",")}`);
     redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error", await msj("rr.faltaResultado")));
   }
 
@@ -172,16 +196,19 @@ export async function saveMatch(fd: FormData) {
     }
   }
 
-  const id = editing || newId("m");
-  if (editing) {
+  const id = editing || pendienteLiga?.id || newId("m");
+  if (editing || pendienteLiga) {
     // v0.54 — corregir un resultado deja rastro: quién y cuándo.
-    await db.update(matches).set({ ...values, createdBy: current?.createdBy ?? values.createdBy, updatedBy: actor.id, updatedAt: new Date() }).where(eq(matches.id, id));
+    await db.update(matches).set({ ...values, createdBy: current?.createdBy ?? pendienteLiga?.createdBy ?? values.createdBy, updatedBy: actor.id, updatedAt: new Date() }).where(eq(matches.id, id));
     await db.delete(games).where(eq(games.matchId, id));
   } else {
     await db.insert(matches).values({ id, ...values });
   }
   if (rows.length) await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
   refresh();
+  if (pendienteLiga) {
+    redirect(withFlash(`/competiciones/${pendienteLiga.competitionId}`, "ok", await msj("v71.anotadaEnLiga", { n: pendienteLiga.round })));
+  }
   redirect(withFlash("/resultados", "ok", editing ? "Partida guardada." : "Partida registrada."));
 }
 
@@ -214,7 +241,13 @@ export async function resultadoRapido(fd: FormData) {
   const suya = m.playerAId === actor.id || m.playerBId === actor.id || m.createdBy === actor.id;
   if (!suya && !canManageLeague(actor.role)) redirect(withFlash(volver, "error", await msj("rr.sinPermiso")));
   const r = leerMarcador(str(fd, "marcador"), m.bestOf);
-  if (!r) redirect(withFlash(volver, "error", await msj("rr.faltaResultado")));
+  if (!r) {
+    /* v0.71 — diagnóstico: qué llegó (solo los NOMBRES de los campos y el
+       marcador, nunca datos personales). Si una app abierta desde hace días
+       manda un formulario de otra versión, aquí se ve. */
+    console.warn(`[resultadoRapido] marcador no válido: «${str(fd, "marcador")}» bo${m.bestOf} campos=${[...fd.keys()].filter((k) => !k.startsWith("$")).join(",")}`);
+    redirect(withFlash(volver, "error", await msj("rr.faltaResultado")));
+  }
 
   const correccion = m.status === "done";
   await db.delete(games).where(eq(games.matchId, id));

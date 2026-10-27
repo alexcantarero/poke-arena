@@ -64,6 +64,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/ranking", label: "Ranking", icon: "rank", sprite: "objeto:master-ball" },
       { href: "/estadisticas", label: "Estadísticas", icon: "stats", sprite: "objeto:poke-radar" },
       { href: "/topdecks", label: "Top Decks", icon: "globe", sprite: "objeto:great-ball" },
+      // v0.71 — calculadora suiza, consistencia, premios y simulador de manos.
+      { href: "/herramientas", label: "Herramientas", icon: "tools", sprite: "objeto:itemfinder" },
       /* v0.38 — Mazos sale del menú. No desaparece: vive dentro de Top
          Decks, que es donde se mira el metagame y se decide con qué ir, y
          es justo el momento en que uno quiere abrir su biblioteca. Un menú
