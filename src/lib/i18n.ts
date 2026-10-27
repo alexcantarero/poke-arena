@@ -1496,6 +1496,14 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.72
+  "logro.klinklang.nombre": "Engranaje perfecto",
+  "logro.klinklang.como": "Hiciste girar la rueda de Ajustes hasta que encajaron los engranajes.",
+  "rueda.aria": "Rueda de ajustes",
+  "mo.porMazoTitulo": "Emparejamientos por mazo",
+  "mo.porMazoSub": "Toca un mazo para ver contra qué gana y contra qué pierde, de mejor a peor.",
+  "mo.porMazoNota": "Con menos de 5 partidas no se da %; el récord (V-D-E) sí.",
+  "mo.sinCruces": "Sin partidas contra los demás mazos de la lista.",
   // v0.71
   "nav./herramientas": "Herramientas",
   "v71.anotadaEnLiga": "Anotada en su partida de liga (jornada {n}), que estaba pendiente.",
@@ -3188,6 +3196,14 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.72
+  "logro.klinklang.nombre": "Perfect gear",
+  "logro.klinklang.como": "You spun the Settings gear until the cogs clicked.",
+  "rueda.aria": "Settings gear",
+  "mo.porMazoTitulo": "Matchups by deck",
+  "mo.porMazoSub": "Tap a deck to see what it beats and what it loses to, best to worst.",
+  "mo.porMazoNota": "Under 5 matches no % is given; the record (W-L-T) is.",
+  "mo.sinCruces": "No matches against the other decks listed.",
   // v0.71
   "nav./herramientas": "Tools",
   "v71.anotadaEnLiga": "Recorded in its pending league match (round {n}).",

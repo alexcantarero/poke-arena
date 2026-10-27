@@ -31,6 +31,8 @@ export const LOGROS: Logro[] = [
   { clave: "psyduck", nombre: "Dolor de cabeza", como: "Apuntaste una penalización de dos premios.", pokemon: "psyduck" },
   { clave: "estacion", nombre: "Observador de estaciones", como: "Tocaste la estación de la barra y asomó su Pokémon.", pokemon: "deerling" },
   { clave: "voltorb", nombre: "Eso no era una Poké Ball", como: "Le diste demasiadas veces a la Poké Ball de la barra.", pokemon: "voltorb" },
+  // v0.72
+  { clave: "klinklang", nombre: "Engranaje perfecto", como: "Hiciste girar la rueda de Ajustes hasta que encajaron los engranajes.", pokemon: "klinklang" },
 ];
 
 export const CLAVES_LOGRO = LOGROS.map((l) => l.clave);

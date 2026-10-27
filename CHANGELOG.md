@@ -2,6 +2,30 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.72.0] — 2026-10-26
+
+Móvil más claro, el último Regional compacto, emparejamientos por mazo y la rueda de Ajustes.
+**Sin migración.** Lleva dentro la v0.71.
+
+### Cambiado
+
+- **Barra de abajo del móvil y «Más»**: los iconos de línea de la barra lateral de PC, en vez
+  de los sprites (a 28 px se veían borrosos y desalineados).
+- **Inicio · El último Regional**: las cuatro tarjetas van de 2 en 2 también en el móvil y son
+  compactas (sprite a la izquierda, nombre y cifra a la derecha). «Top arquetipos», igual.
+  Mucho menos scroll.
+- **Estadísticas · Meta online**: nuevo bloque **«Emparejamientos por mazo»**: cada mazo se abre
+  y enseña sus cruces de mejor a peor, con barra, % y récord. En el móvil la matriz solo
+  dejaba ver cinco columnas. La matriz sigue debajo, más compacta en el móvil (filas solo con
+  el sprite, celdas de 36 px).
+- **Ajustes**: la rueda arriba a la izquierda, junto al título, con la versión debajo. Gira con
+  cada toque.
+
+### Añadido
+
+- **Logro secreto nuevo, «Engranaje perfecto»**: machacar la rueda de Ajustes saca a Klink,
+  Klang y Klinklang girando.
+
 ## [0.71.0] — 2026-10-26
 
 Herramientas, la partida de liga desde «+», el desplegable del tercer mazo y logros más

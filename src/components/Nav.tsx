@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
 import { SPRITE_PERFIL, MOBILE_HREFS, NAV_GROUPS_VISIBLES, NAV_ITEMS, type NavItem as Item } from "@/lib/nav";
-import { NavIcono } from "./NavIcono";
 import { tr, type Lang } from "@/lib/i18n";
 import { lideresDe } from "@/lib/lideres";
 import { spriteUrl } from "@/lib/pokemon";
@@ -137,7 +136,9 @@ function Tab({ item, active, badge = 0, lider }: { item: Item; active: boolean; 
         <img src={spriteUrl(lider)} alt="" aria-hidden="true" className="nav-lider"
           onError={(e) => { e.currentTarget.style.display = "none"; }} />
       )}
-      <NavIcono sprite={item.sprite} icon={item.icon} activo={active} className="size-7" />
+      {/* v0.72 — los iconos de línea de la barra lateral también aquí: en el
+          móvil los sprites a 28 px se veían borrosos y mal alineados. */}
+      <Icon name={item.icon} className="size-6" />
       {/* v0.54 — el número de partidas tuyas sin resultado. */}
       {badge > 0 && (
         <span className="absolute right-[calc(50%-1.1rem)] top-1 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-bold leading-4 tabular text-on-brand">{badge}</span>

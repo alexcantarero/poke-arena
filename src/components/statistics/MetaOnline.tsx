@@ -80,7 +80,57 @@ export async function MetaOnline({ dias = 30, formato = "STANDARD" }: { dias?: n
         </ol>
       </div>
 
-      {/* 2. Matriz: la fila contra la columna */}
+      {/* v0.72 — 2a. POR MAZO. En el móvil la matriz enseñaba cinco columnas y
+          había que leerla cruzando filas y columnas con el dedo. Aquí, cada mazo
+          se abre y enseña sus emparejamientos ordenados de mejor a peor, con
+          barra y récord: se lee de un vistazo. Plegables nativos: sin JS. */}
+      <div className="border-b border-line-soft p-4">
+        <h3 className="label mb-1">{tr(lng, "mo.porMazoTitulo")}</h3>
+        <p className="mb-3 text-xs text-muted">{tr(lng, "mo.porMazoSub")}</p>
+        <ul className="flex flex-col divide-y divide-line-soft rounded-lg border border-line-soft">
+          {filas.map((f) => {
+            const rivales = filas
+              .filter((c) => c.id !== f.id)
+              .map((c) => {
+                const cel = celdaDe(acc, f.id, c.id);
+                const nn = cel ? cel.w + cel.l + cel.t : 0;
+                return { c, cel, nn, p: cel && nn >= 5 ? pctDe(cel) : null };
+              })
+              .filter((x) => x.nn > 0)
+              .sort((a, b) => (b.p ?? -1) - (a.p ?? -1) || b.nn - a.nn);
+            return (
+              <li key={f.id}>
+                <details className="group">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-sm">
+                    <Icono f={f} size="size-7" />
+                    <span className="min-w-0 flex-1 truncate font-semibold">{f.name}</span>
+                    <span className="flex-none font-mono text-xs font-semibold tabular">{pct(f.pct, 0)}</span>
+                    <span className="flex-none text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+                  </summary>
+                  <ol className="flex flex-col gap-1 px-3 pb-3">
+                    {rivales.map(({ c, cel, nn, p }) => (
+                      <li key={c.id} className="flex items-center gap-2 text-xs">
+                        <Icono f={c} size="size-6" />
+                        <span className="w-24 flex-none truncate xs:w-32">{c.name}</span>
+                        <span className="relative h-3.5 min-w-0 flex-1 overflow-hidden rounded bg-surface-2">
+                          <span className="absolute inset-y-0 left-1/2 w-px bg-line" aria-hidden="true" />
+                          {p != null && <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${(p * 100).toFixed(1)}%`, background: fondo(p) }} />}
+                        </span>
+                        <span className="w-9 flex-none text-right font-mono font-semibold tabular">{p == null ? "·" : `${Math.round(p * 100)}%`}</span>
+                        <span className="w-14 flex-none text-right font-mono text-[11px] text-muted tabular">{cel!.w}-{cel!.l}{cel!.t ? `-${cel!.t}` : ""}</span>
+                      </li>
+                    ))}
+                    {rivales.length === 0 && <li className="text-xs text-muted">{tr(lng, "mo.sinCruces")}</li>}
+                  </ol>
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[11px] text-muted">{tr(lng, "mo.porMazoNota")}</p>
+      </div>
+
+      {/* 2b. Matriz: la fila contra la columna */}
       <div className="p-4">
         <h3 className="label mb-1">{tr(lng, "mo.matrizTitulo")}</h3>
         <p className="mb-3 text-xs text-muted">{tr(lng, "mo.matrizSub")}</p>
@@ -102,19 +152,22 @@ export async function MetaOnline({ dias = 30, formato = "STANDARD" }: { dias?: n
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id}>
-                  <th className="sticky left-0 z-10 bg-surface pr-1 text-left font-semibold">
+                  {/* v0.72 — en el móvil, la fila solo con el sprite (el nombre en
+                      el título y para lectores): la columna de nombres se comía
+                      media pantalla y dejaba ver cinco celdas. */}
+                  <th className="sticky left-0 z-10 bg-surface pr-1 text-left font-semibold" title={f.name}>
                     <span className="flex items-center gap-1.5">
                       <Icono f={f} size="size-6" />
-                      <span className="max-w-[6.5rem] truncate">{f.name}</span>
+                      <span className="sr-only sm:not-sr-only sm:max-w-[6.5rem] sm:truncate">{f.name}</span>
                     </span>
                   </th>
                   {filas.map((c) => {
-                    if (c.id === f.id) return <td key={c.id} className="size-11 rounded bg-surface-2 text-muted">—</td>;
+                    if (c.id === f.id) return <td key={c.id} className="size-9 rounded bg-surface-2 text-muted sm:size-11">—</td>;
                     const cel = celdaDe(acc, f.id, c.id);
                     const n = cel ? cel.w + cel.l + cel.t : 0;
                     const p = cel && n >= 5 ? pctDe(cel) : null; // con menos de 5, el % es ruido
                     return (
-                      <td key={c.id} className="size-11 rounded" style={{ background: fondo(p) }}
+                      <td key={c.id} className="size-9 rounded sm:size-11" style={{ background: fondo(p) }}
                         title={cel ? `${f.name} vs ${c.name}: ${cel.w}–${cel.l}${cel.t ? `–${cel.t}` : ""}` : undefined}>
                         {n ? (
                           <span className="flex flex-col leading-tight">

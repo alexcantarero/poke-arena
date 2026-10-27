@@ -138,7 +138,9 @@ export function UltimoRegional(p: Props) {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
+            {/* v0.72 — de 2 en 2 también en el móvil, y más compactas: antes cada
+                una ocupaba media pantalla y había que hacer mucho scroll. */}
+            <div className="grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-5 xl:grid-cols-4">
               <TarjetaInsignia
                 titulo={tr(L, "ur.mirror")} tono="brand" ins={ins?.espejo ?? null}
                 grande={(i) => trf(L, "ur.outOf", { a: i.valor, b: p.corteTamano })}
@@ -236,17 +238,18 @@ export function UltimoRegional(p: Props) {
           <span className="text-xs text-muted font-mono">{p.topNota}</span>
         </div>
         {p.top.length ? (
-          <ul className="grid grid-cols-2 gap-2.5 p-4 sm:grid-cols-3 lg:grid-cols-5">
+          <ul className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 sm:gap-2.5 sm:p-4 lg:grid-cols-5">
             {p.top.map((a) => (
-              <li key={a.key} className="rounded-xl border border-line bg-surface p-3 transition-colors hover:border-brand/40">
-                <div className="mb-2 grid h-16 place-items-center rounded-lg bg-surface-2">
-                  <Duo main={a.main} secondary={a.secondary} size="lg" />
-                </div>
-                <p className="truncate font-display text-sm font-bold tracking-tight text-ink" title={a.name}>{a.name}</p>
-                <p className="mt-1 flex items-baseline justify-between gap-2">
-                  <span className="font-display text-xl font-black tabular text-ink">{pctTxt(a.share, 1)}</span>
-                  <span className="font-mono text-[11px] text-muted tabular">{a.decks} {a.decks === 1 ? "lista" : "listas"}</span>
-                </p>
+              /* v0.72 — fila compacta: sprite a la izquierda, datos a la derecha. */
+              <li key={a.key} className="flex min-w-0 items-center gap-2 rounded-xl border border-line bg-surface p-2 transition-colors hover:border-brand/40">
+                <span className="grid size-11 flex-none place-items-center rounded-lg bg-surface-2">
+                  <Duo main={a.main} secondary={a.secondary} size="md" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-display text-[13px] font-bold leading-tight tracking-tight text-ink" title={a.name}>{a.name}</span>
+                  <span className="block font-display text-lg font-black leading-tight tabular text-ink">{pctTxt(a.share, 1)}</span>
+                  <span className="block font-mono text-[10px] text-muted tabular">{a.decks} {a.decks === 1 ? "lista" : "listas"}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -323,27 +326,27 @@ function TarjetaInsignia({
   const st = TONE_STYLES[tono];
   return (
     <div
-      className="flex flex-col rounded-xl border p-3.5"
+      className="flex min-w-0 flex-col rounded-xl border p-2.5 sm:p-3"
       style={{
         borderColor: st.border,
         background: st.bg,
         boxShadow: "var(--shadow-1)",
       }}
     >
-      <div className="mb-2 grid h-20 place-items-center rounded-lg bg-surface-2/60">
-        {ins ? <Duo main={ins.fila.main} secondary={ins.fila.secondary} size="lg" /> : <OtherMark size="lg" />}
-      </div>
-      <div className="flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate font-display text-sm font-bold tracking-tight text-ink">{ins ? ins.fila.name : "—"}</span>
-        <span className={`chip ${TONOS[tono]} flex-none text-[10px] font-bold`}>{titulo}</span>
+      <span className={`chip ${TONOS[tono]} mb-1.5 self-start text-[10px] font-bold`}>{titulo}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="grid size-12 flex-none place-items-center rounded-lg bg-surface-2/60 sm:size-14">
+          {ins ? <Duo main={ins.fila.main} secondary={ins.fila.secondary} size="md" /> : <OtherMark size="md" />}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-display text-[13px] font-bold leading-tight tracking-tight text-ink sm:text-sm">{ins ? ins.fila.name : "—"}</span>
+          {ins && <span className="block font-display text-xl font-black leading-tight tabular tracking-tight text-ink">{grande(ins)}</span>}
+        </span>
       </div>
       {ins ? (
         <>
-          <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-display text-2xl font-black tabular tracking-tight text-ink">{grande(ins)}</span>
-            <span className="text-xs font-medium text-muted">{pequeno}</span>
-          </p>
-          {pie(ins) && <p className="mt-0.5 font-mono text-[11px] text-muted tabular">{pie(ins)}</p>}
+          <p className="mt-1 text-[11px] leading-snug text-muted">{pequeno}</p>
+          {pie(ins) && <p className="mt-0.5 truncate font-mono text-[11px] text-muted tabular">{pie(ins)}</p>}
         </>
       ) : (
         <p className="mt-1 text-[11px] text-muted">{vacia}</p>
@@ -354,12 +357,13 @@ function TarjetaInsignia({
 
 const DUO = {
   sm: ["size-6", "size-5 -ml-2"],
+  md: ["size-10", "size-8 -ml-4"],
   lg: ["size-14", "size-11 -ml-5"],
 } as const;
 
 /** Los dos sprites del mazo, o el marcador de «otros» si no hay. */
 function Duo({ main, secondary, size }: { main?: string; secondary?: string; size: keyof typeof DUO }) {
-  if (!main) return <OtherMark size={size === "sm" ? "sm" : "lg"} />;
+  if (!main) return <OtherMark size={size === "lg" ? "lg" : size} />;
   return (
     <span className="inline-flex flex-none items-center" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}

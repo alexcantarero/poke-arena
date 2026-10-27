@@ -1,3 +1,4 @@
+import { RuedaAjustes } from "@/components/RuedaAjustes";
 import { Instalacion } from "@/components/Instalacion";
 import { VersionActual } from "@/components/AvisoVersion";
 import Link from "next/link";
@@ -73,6 +74,8 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHead
+        /* v0.72 — la rueda arriba a la izquierda, con la versión (y un secreto). */
+        icon={<RuedaAjustes version={process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} />}
         title={tr(lng, "x.9751f876")}
         sub={manager
           ? tr(lng, "v63.ajustesSub")
