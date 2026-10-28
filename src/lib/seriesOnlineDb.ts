@@ -6,7 +6,7 @@ import { fetchTournaments } from "@/lib/sources/limitless";
 import { num } from "@/lib/format";
 import { SERIES_SEGUIDAS } from "@/data/seriesSeguidas";
 import {
-  detectarSeries, idEventoPrevisto, PREFIJO_PREVISTO, proximasEdiciones,
+  detectarSeries, diaMadrid, nombreBase, edicionesReales, horaMadrid, idEventoPrevisto, PREFIJO_PREVISTO, proximasEdiciones,
 } from "./seriesOnline";
 
 /* =========================================================================
@@ -30,8 +30,8 @@ export type ResultadoSeries = {
   sinRespuesta: boolean;
 };
 
-/** De «2026-10-18T18:00:00.000Z» a «2026-10-18»: la columna es `date`. */
-const soloDia = (iso: string) => iso.slice(0, 10);
+/** v0.73 — el día EN ESPAÑA (antes, en UTC: los de las 23:00 UTC salían un día antes). */
+const soloDia = (iso: string) => diaMadrid(iso);
 
 export async function sincronizarSeriesOnline(
   ahora = new Date(),
@@ -50,7 +50,26 @@ export async function sincronizarSeriesOnline(
     minJugadores, seguidas: SERIES_SEGUIDAS.map((x) => x.patron),
   });
 
-  const filas = series.flatMap((s) => proximasEdiciones(s, ahora, semanas).map((cuando) => ({
+  /* v0.73 — primero las ediciones ya PUBLICADAS en Limitless (fecha y enlace
+     reales); las previstas solo para los días en que aún no hay ninguna. */
+  const reales = series.flatMap((s) => edicionesReales(s, torneos, ahora, semanas).map((t) => ({
+    id: `${PREFIJO_PREVISTO}r-${t.id}`,
+    title: `${nombreBase(t.name) || s.nombre} (online)`,
+    date: soloDia(t.date),
+    endDate: null,
+    kind: "tourney",
+    tournamentKind: "online",
+    location: "Limitless · online",
+    url: `https://play.limitlesstcg.com/tournament/${t.id}`,
+    competitionId: null,
+    tournamentId: null,
+    note: `Publicado en Limitless: ${t.name}. Empieza a las ${horaMadrid(t.date)} (hora de España).`,
+  })));
+  const diasReales = new Set(reales.map((r) => `${r.title}|${r.date}`));
+
+  const filas = [...reales, ...series.flatMap((s) => proximasEdiciones(s, ahora, semanas)
+    .filter((cuando) => !diasReales.has(`${s.nombre} (online)|${soloDia(cuando)}`))
+    .map((cuando) => ({
     id: idEventoPrevisto(s, cuando),
     title: `${s.nombre} (online)`,
     date: soloDia(cuando),
@@ -63,9 +82,9 @@ export async function sincronizarSeriesOnline(
     tournamentId: null,
     // Que se lea como lo que es: una previsión, no una inscripción.
     note: `Previsto${s.seguida ? " (serie que seguís)" : ""}: ${s.ediciones} ediciones recientes, `
-      + `una media de ${num(s.mediaJugadores)} jugadores. Hora prevista ${cuando.slice(11, 16)} UTC. `
+      + `una media de ${num(s.mediaJugadores)} jugadores. Hora prevista ${horaMadrid(cuando)} (hora de España). `
       + `El enlace es la última edición; confirma la próxima en Limitless.`,
-  })));
+  })))];
 
   const ids = filas.map((f) => f.id);
   const yaEstaban = new Set(ids.length

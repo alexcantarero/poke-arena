@@ -201,7 +201,7 @@ export default async function CalendarPage({
 
       {/* ------------------------------ filtros ------------------------------ */}
       {disponibles.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "v63.calFiltro")}>
+        <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "v63.calFiltro")} data-paso="calendario-2">
           <Link
             href={tipoHref([])}
             aria-current={!tipos.length ? "page" : undefined}

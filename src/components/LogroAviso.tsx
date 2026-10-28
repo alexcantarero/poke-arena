@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LOGROS } from "@/lib/logros";
+import { LOGROS, urlPokeApi } from "@/lib/logros";
 import { spriteUrl } from "@/lib/pokemon";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -28,7 +28,7 @@ export function LogroAviso() {
   return (
     <div className="logro-aviso" role="status">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={spriteUrl(logro.pokemon)} alt="" className="logro-aviso-img" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      <img src={logro.dex ? urlPokeApi(logro.dex) : spriteUrl(logro.pokemon)} alt="" className="logro-aviso-img" onError={(e) => { e.currentTarget.style.display = "none"; }} />
       <span className="min-w-0">
         <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-brand">{tr(lng, "logro.desbloqueado")}</span>
         <span className="block truncate font-display text-base font-extrabold">{tr(lng, `logro.${logro.clave}.nombre`)}</span>

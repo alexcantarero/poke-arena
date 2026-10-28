@@ -173,3 +173,41 @@ export function idEventoPrevisto(serie: Serie, fechaISO: string): string {
 
 /** El prefijo de esos ids, para encontrarlos y retirar los ya pasados. */
 export const PREFIJO_PREVISTO = "ltl-serie-";
+
+/* =========================================================================
+   v0.73 — Que el calendario cuadre con los torneos online de verdad.
+
+   Dos fallos que lo descuadraban:
+     1. El DÍA se sacaba en UTC. Un torneo a las 23:00 UTC es a la 01:00 del
+        día siguiente en España (00:00 en invierno): salía un día antes.
+        Ahora el día y la hora son los de Madrid.
+     2. Solo había PREVISIONES (la serie se juega los martes → «habrá uno el
+        martes»). Si Limitless ya publica la edición siguiente con su fecha,
+        manda esa: se usa la real y se quita la prevista de ese día.
+   ========================================================================= */
+
+const fmtDia = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
+const fmtHora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false });
+
+/** «2026-10-27T23:00:00Z» → «2026-10-28» (el día en España). */
+export function diaMadrid(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? fmtDia.format(new Date(t)) : iso.slice(0, 10);
+}
+
+/** «2026-10-27T23:00:00Z» → «00:00» (la hora en España). */
+export function horaMadrid(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? fmtHora.format(new Date(t)) : "";
+}
+
+/** Las ediciones YA PUBLICADAS (fecha futura) de una serie, dentro de `semanas`. */
+export function edicionesReales(serie: Serie, torneos: readonly TorneoOnline[], ahora: Date, semanas = 2): TorneoOnline[] {
+  const hasta = ahora.getTime() + semanas * 7 * DIA;
+  return torneos.filter((t) => {
+    const ms = Date.parse(t.date);
+    if (!Number.isFinite(ms) || ms <= ahora.getTime() || ms > hasta) return false;
+    const base = nombreBase(t.name);
+    return Boolean(base) && `${t.organizerId ?? "?"}|${base.toLowerCase()}` === serie.clave;
+  }).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+}

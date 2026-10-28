@@ -141,3 +141,25 @@ test("martes y sábados: dos franjas, y se prevén las dos", () => {
   const fechas = proximasEdiciones(s, AHORA, 1);
   assert.deepEqual(fechas.map((f) => new Date(f).getUTCDay()).sort(), [2, 6]);
 });
+
+/* v0.73 — el día y la hora de España, y las ediciones ya publicadas. */
+import { diaMadrid, edicionesReales, horaMadrid } from "../src/lib/seriesOnline.ts";
+
+test("un torneo a las 23:00 UTC es al día siguiente en España", () => {
+  assert.equal(diaMadrid("2026-10-27T23:00:00.000Z"), "2026-10-28"); // invierno: 00:00
+  assert.equal(horaMadrid("2026-10-27T23:00:00.000Z"), "00:00");
+  assert.equal(diaMadrid("2026-07-10T21:30:00.000Z"), "2026-07-10"); // verano: 23:30
+});
+
+test("las ediciones publicadas de una serie, y solo las suyas", () => {
+  const ahora = new Date("2026-10-27T12:00:00Z");
+  const serie = { clave: "7|seasac league challenge", nombre: "SEASAC League Challenge" } as never;
+  const t = (id: string, name: string, date: string, organizerId = 7) => ({ id, name, date, organizerId, players: 0 }) as never;
+  const r = edicionesReales(serie, [
+    t("a", "SEASAC League Challenge #14", "2026-10-28T18:00:00Z"),
+    t("b", "SEASAC League Challenge #13", "2026-10-26T18:00:00Z"), // ya pasó
+    t("c", "SEASAC League Challenge #15", "2026-10-28T18:00:00Z", 9), // otro organizador
+    t("d", "SEASAC League Challenge #20", "2026-12-28T18:00:00Z"), // fuera de la ventana
+  ], ahora);
+  assert.deepEqual(r.map((x: { id: string }) => x.id), ["a"]);
+});

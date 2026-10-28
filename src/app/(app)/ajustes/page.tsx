@@ -672,7 +672,7 @@ function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean
     <a key={id} href={`#${id}`} className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, k)}</a>
   );
   return (
-    <nav aria-label={tr(lng, "aj.secciones")} className="mb-4 lg:sticky lg:top-4 lg:mb-0 lg:self-start">
+    <nav aria-label={tr(lng, "aj.secciones")} className="mb-4 lg:sticky lg:top-4 lg:mb-0 lg:self-start" data-paso="ajustes-2">
       <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
         <span className="label hidden lg:mb-1 lg:block">{tr(lng, "aj.bloqueCuenta")}</span>
         {cuenta.map(enlace)}

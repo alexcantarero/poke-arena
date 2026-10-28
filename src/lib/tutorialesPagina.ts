@@ -8,14 +8,20 @@
    `/torneos`.
    ========================================================================= */
 
-export type TutorialPagina = { clave: string; pasos: Array<{ titulo: string; texto: string }> };
+/* v0.73 — cada paso señala algo de la página (`foco`): el elemento con
+   `data-paso="<clave>-<n>"`. Si la página no lo tiene, el primer paso señala
+   el título. Lo pinta `TutorialPagina`. */
+export type TutorialPagina = { clave: string; pasos: Array<{ titulo: string; texto: string; foco: string }> };
 
 const pasos = (clave: string, n: number) =>
-  Array.from({ length: n }, (_, i) => ({ titulo: `tp.${clave}.t${i + 1}`, texto: `tp.${clave}.x${i + 1}` }));
+  Array.from({ length: n }, (_, i) => ({
+    titulo: `tp.${clave}.t${i + 1}`, texto: `tp.${clave}.x${i + 1}`, foco: `[data-paso="${clave}-${i + 1}"]`,
+  }));
 
 /** [prueba de la ruta, clave, número de pasos] */
 const RUTAS: Array<[(r: string) => boolean, string, number]> = [
-  [(r) => r === "/", "inicio", 2],
+  [(r) => r === "/", "inicio", 3],
+  [(r) => r === "/herramientas", "herramientas", 2],
   [(r) => r === "/partidas/nueva", "registrar", 2],
   [(r) => r === "/torneos/nuevo", "torneoNuevo", 2],
   [(r) => /^\/torneos\/[^/]+$/.test(r), "torneo", 2],

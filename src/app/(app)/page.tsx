@@ -378,7 +378,7 @@ export default async function HomePage({
         </section>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4" data-paso="inicio-1">
         {/* v0.25 — tus partidas sobre el total de la liga, y en la tarjeta dorada
             tu puesto en la liga con tu puesto de Elo a la derecha. Sin sesión
             (o si no juegas la liga), se queda como antes: total y líder. */}
@@ -444,15 +444,19 @@ export default async function HomePage({
       {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
       <UltimoRegional {...panel} lang={lang} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="card">
+      {/* v0.73 — `grid-cols-1` + `min-w-0`: sin ellos, la columna de la rejilla
+          se ensanchaba con el título más largo de «Próximos torneos» y TODA la
+          fila se salía por la derecha en el móvil (y con ella, el selector
+          Elo · CP · Liga, que quedaba fuera de la pantalla). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="card min-w-0">
           <div className="card-head flex-wrap gap-y-2">
             <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">
               {tr(lang, rk === "elo" ? "home.rkElo" : rk === "cp" ? "home.rkCp" : "home.leagueRanking")}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
               {/* v0.65 — qué ranking: Elo, CP o liga. Enlaces: funcionan sin JavaScript. */}
-              <nav className="seg" aria-label={tr(lang, "home.rkElegir")}>
+              <nav className="seg" aria-label={tr(lang, "home.rkElegir")} data-paso="inicio-3">
                 {(["elo", "cp", "liga"] as const).map((v) => (
                   <Link key={v} href={rkHref(v)} scroll={false} data-on={rk === v} aria-current={rk === v ? "page" : undefined}>
                     {v === "elo" ? "Elo" : v === "cp" ? "CP" : tr(lang, "home.league")}
@@ -551,7 +555,7 @@ export default async function HomePage({
           ) : <Empty title={tr(lang, "home.noMatchesYet")}>{tr(lang, "home.noMatchesHint")}</Empty>}
         </section>
 
-        <section className="card">
+        <section className="card min-w-0">
           <div className="card-head">
             <h2 className="text-lg font-bold">{tr(lang, "home.upcoming")}</h2>
             <Link className="btn btn-ghost btn-sm" href="/calendario">{tr(lang, "nav./calendario")}</Link>

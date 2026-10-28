@@ -1,3 +1,4 @@
+import { PlanMundial } from "@/components/PlanMundial";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadSnapshot, playerCp, usoDeJugador } from "@/lib/data";
@@ -28,7 +29,7 @@ import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { SeccionPlegable } from "@/components/SeccionPlegable";
-import { LOGROS, etiquetasDe, leerLogros, nivelDeUso } from "@/lib/logros";
+import { LOGROS, etiquetasDe, leerLogros, nivelDeUso, urlPokeApi } from "@/lib/logros";
 import { urlDeObjeto } from "@/lib/objetos";
 import { spriteUrl } from "@/lib/pokemon";
 
@@ -226,7 +227,7 @@ export default async function ProfilePage({
                    parte del secreto. Solo el Pokémon y el nombre. */
                 <li key={l.clave} className="logro-ficha">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={spriteUrl(l.pokemon)} alt="" width={44} height={44} />
+                  <img src={l.dex ? urlPokeApi(l.dex) : spriteUrl(l.pokemon)} alt="" width={44} height={44} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-bold">{tr(lng, `logro.${l.clave}.nombre`)}</span>
                   </span>
@@ -437,6 +438,8 @@ export default async function ProfilePage({
 
       {/* --------------------------- Championship Points --------------------------- */}
       {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
+      {/* v0.73 — qué te falta para el Mundial (~650 CP), de lo más fácil a lo más difícil. */}
+      <PlanMundial cp={cp} />
 
       {myTours.length > 0 && (
         <>

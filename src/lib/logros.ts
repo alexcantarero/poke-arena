@@ -22,7 +22,14 @@ export type Logro = {
   como: string;
   /** Pokémon del sprite (slug de la app). */
   pokemon: string;
+  /** v0.73 — número de la Pokédex, para los que no están en los sprites de la
+      app (Limitless solo tiene los de Escarlata y Púrpura; Klinklang no). */
+  dex?: number;
 };
+
+/** v0.73 — sprite oficial de PokéAPI por número de Pokédex (enlazado, no dibujado). */
+export const urlPokeApi = (dex: number) =>
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Math.max(1, Math.round(dex))}.png`;
 
 export const LOGROS: Logro[] = [
   { clave: "solrock", nombre: "Amanecer", como: "Pasaste la app al tema claro.", pokemon: "solrock" },
@@ -32,7 +39,7 @@ export const LOGROS: Logro[] = [
   { clave: "estacion", nombre: "Observador de estaciones", como: "Tocaste la estación de la barra y asomó su Pokémon.", pokemon: "deerling" },
   { clave: "voltorb", nombre: "Eso no era una Poké Ball", como: "Le diste demasiadas veces a la Poké Ball de la barra.", pokemon: "voltorb" },
   // v0.72
-  { clave: "klinklang", nombre: "Engranaje perfecto", como: "Hiciste girar la rueda de Ajustes hasta que encajaron los engranajes.", pokemon: "klinklang" },
+  { clave: "klinklang", nombre: "Engranaje perfecto", como: "Hiciste girar la rueda de Ajustes hasta que encajaron los engranajes.", pokemon: "klinklang", dex: 601 },
 ];
 
 export const CLAVES_LOGRO = LOGROS.map((l) => l.clave);
@@ -52,13 +59,19 @@ export function anadirLogro(guardado: string | null | undefined, clave: string):
 
 /* ------------------------------------------------------- la Ball de uso -- */
 
-export type NivelBall = { ball: "poke-ball" | "great-ball" | "ultra-ball" | "master-ball"; nombre: string; desde: number };
+export type NivelBall = { ball: string; nombre: string; desde: number };
 
+/* v0.73 — más escalones y más separados: subir tiene que costar. Con los
+   puntos de uso (partida 1, torneo 3, logro 5), una temporada normal de liga
+   llega a Ultra; la Master Ball es de quien vive en la app. */
 export const NIVELES_BALL: NivelBall[] = [
   { ball: "poke-ball", nombre: "Poké Ball", desde: 0 },
-  { ball: "great-ball", nombre: "Super Ball", desde: 25 },
-  { ball: "ultra-ball", nombre: "Ultra Ball", desde: 80 },
-  { ball: "master-ball", nombre: "Master Ball", desde: 200 },
+  { ball: "great-ball", nombre: "Super Ball", desde: 40 },
+  { ball: "ultra-ball", nombre: "Ultra Ball", desde: 120 },
+  { ball: "dusk-ball", nombre: "Ocaso Ball", desde: 240 },
+  { ball: "luxury-ball", nombre: "Lujo Ball", desde: 400 },
+  { ball: "beast-ball", nombre: "Ente Ball", desde: 650 },
+  { ball: "master-ball", nombre: "Master Ball", desde: 1000 },
 ];
 
 export type Uso = { partidas: number; torneos: number; logros: number };

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { tr } from "@/lib/i18n";
 import { tutorialDe } from "@/lib/tutorialesPagina";
@@ -18,8 +18,30 @@ export function TutorialPagina({ vistos, bloqueado }: { vistos: string[]; bloque
   const [paso, setPaso] = useState<{ clave: string; i: number } | null>(null);
 
   const t = tutorialDe(ruta);
-  if (bloqueado || !t || vistosAqui.has(t.clave)) return null;
-  const i = paso?.clave === t.clave ? paso.i : 0;
+  const activo = Boolean(!bloqueado && t && !vistosAqui.has(t.clave));
+  const iActual = t && paso?.clave === t.clave ? paso.i : 0;
+
+  /* v0.73 — señalar lo que explica el paso: se resalta, se trae a la vista y
+     el resto se oscurece un poco. Si no está en la página, el primer paso
+     señala el título; los demás, nada (la tarjeta sola). */
+  useEffect(() => {
+    if (!activo || !t) return;
+    const visible = (el: Element) => (el as HTMLElement).offsetParent !== null;
+    let el = Array.from(document.querySelectorAll(t.pasos[iActual].foco)).find(visible) as HTMLElement | undefined;
+    if (!el && iActual === 0) el = document.querySelector("main h1") as HTMLElement | undefined ?? undefined;
+    if (!el) return;
+    const posicionada = getComputedStyle(el).position !== "static";
+    if (!posicionada) el.style.position = "relative";
+    el.classList.add("tour-foco", "tour-luz");
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    return () => {
+      el!.classList.remove("tour-foco", "tour-luz");
+      if (!posicionada) el!.style.position = "";
+    };
+  }, [activo, t?.clave, iActual]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!activo || !t) return null;
+  const i = iActual;
   const p = t.pasos[i];
   const ultimo = i === t.pasos.length - 1;
 

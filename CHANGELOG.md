@@ -2,6 +2,43 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.73.0] — 2026-10-27
+
+Móvil sin desbordes, Camino al Mundial, calendario online que cuadra, tutoriales que señalan,
+más Balls y el easter egg de los engranajes arreglado. **Sin migración.** Lleva la v0.71 y la v0.72.
+
+### Corregido
+
+- **No se podía cambiar el ranking Elo · CP · Liga en el móvil**: la rejilla de Inicio no
+  limitaba el ancho de sus columnas, el título más largo de «Próximos torneos» la ensanchaba y
+  media portada (con el selector) quedaba fuera de la pantalla. `grid-cols-1` + `min-w-0`, y
+  una regla general: un hijo de una rejilla ya no puede ensanchar su columna.
+- **Klink, Klang y Klinklang no se veían**: no están en los sprites de la app (Limitless solo
+  tiene los de Escarlata y Púrpura) y salían rotos encima del título. Ahora vienen de PokéAPI
+  por número de Pokédex y aparecen en el centro de la pantalla, por encima de todo. El logro
+  usa el mismo sprite.
+- **El calendario no cuadraba con los torneos online**: el día se calculaba en UTC (un torneo a
+  las 23:00 UTC salía el día anterior al de España) y solo había previsiones. Ahora día y hora
+  van en hora de España, y si Limitless ya ha publicado la edición siguiente se usa esa (fecha,
+  hora y enlace reales) y se quita la prevista de ese día. Pulsa «Torneos online previstos» en
+  Ajustes → Importar datos para rehacerlos.
+
+### Cambiado
+
+- **Acompañante de la barra de abajo**: asoma a la derecha del icono y más pequeño (24 px), sin
+  tapar la pantalla.
+- **Balls de uso**: siete escalones y más separados — Poké (0), Super (40), Ultra (120), Ocaso
+  (240), Lujo (400), Ente (650) y Master (1.000 puntos).
+- **Tutoriales de página**: cada paso señala lo que explica (lo resalta, lo trae a la vista y
+  oscurece el resto). Inicio tiene un tercer paso para el selector de ranking; Herramientas,
+  su propio tutorial. Siguen saliendo solo la primera vez.
+
+### Añadido
+
+- **Camino al Mundial** en el perfil, debajo de los CP: con 650 CP de referencia, qué puestos te
+  faltan en los huecos libres de Challenges, Cups y Regionales (o mejorando los que ya cuentan),
+  de más fácil a más difícil, con lo que suma cada uno. `lib/planMundial.ts`, 5 pruebas.
+
 ## [0.72.0] — 2026-10-26
 
 Móvil más claro, el último Regional compacto, emparejamientos por mazo y la rueda de Ajustes.

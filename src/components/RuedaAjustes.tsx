@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./icons";
-import { spriteUrl } from "@/lib/pokemon";
+import { urlPokeApi } from "@/lib/logros";
 import { registrarClic } from "@/lib/rafaga";
 import { ganarLogro } from "@/components/logroCliente";
 import { tr } from "@/lib/i18n";
@@ -16,7 +17,11 @@ import { useLang } from "@/components/LangProvider";
    gana el logro «Engranaje perfecto». Sprites de la app, no dibujados.
    ========================================================================= */
 
-const ENGRANAJES = ["klink", "klang", "klinklang"];
+/* v0.73 — por número de Pokédex (PokéAPI): Klink, Klang y Klinklang no están
+   en los sprites de la app (Limitless solo trae los de Escarlata y Púrpura), y
+   salían como imágenes rotas encima del título. Ahora, además, en el centro de
+   la pantalla y por encima de todo. */
+const ENGRANAJES = [599, 600, 601];
 
 export function RuedaAjustes({ version }: { version: string }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
@@ -42,14 +47,15 @@ export function RuedaAjustes({ version }: { version: string }) {
         <Icon name="cog" className="size-8" style={{ transform: `rotate(${giro * 72}deg)` }} />
       </button>
       <span className="font-mono text-[10px] font-semibold text-muted tabular">v{version}</span>
-      {secreto > 0 && (
+      {secreto > 0 && typeof document !== "undefined" && createPortal(
         <span key={secreto} className="rueda-secreto" aria-hidden="true">
-          {ENGRANAJES.map((p, i) => (
+          {ENGRANAJES.map((dex, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={p} src={spriteUrl(p)} alt="" style={{ animationDelay: `${i * 0.35}s` }}
+            <img key={dex} src={urlPokeApi(dex)} alt="" style={{ animationDelay: `${i * 0.3}s` }}
               onError={(e) => { e.currentTarget.style.display = "none"; }} />
           ))}
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   );

@@ -1231,13 +1231,15 @@ html[data-motion="off"] .pkmn-destello { display: none; }
 @keyframes lider-flota-espejo { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
 
 /* Móvil: el líder asoma sobre la pestaña activa de la barra de abajo. */
+/* v0.73 — el acompañante asoma por la DERECHA del icono, más pequeño: antes
+   salía encima, a 34 px, y tapaba un trozo de la pantalla. */
 .nav-lider {
-  position: absolute; top: -22px; left: 50%; translate: -50% 0;
-  width: 34px; height: 34px; object-fit: contain; image-rendering: pixelated; pointer-events: none;
-  filter: drop-shadow(0 3px 4px rgb(0 0 0 / .35));
+  position: absolute; top: 2px; left: calc(50% + 6px);
+  width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .35));
   animation: lider-asoma .35s ease-out;
 }
-@keyframes lider-asoma { from { translate: -50% 10px; opacity: 0; } to { translate: -50% 0; opacity: 1; } }
+@keyframes lider-asoma { from { translate: -6px 0; opacity: 0; } to { translate: 0 0; opacity: 1; } }
 .nav-tab[data-on="true"] { text-shadow: 0 0 12px color-mix(in oklab, var(--brand) 55%, transparent); }
 @media (prefers-reduced-motion: reduce) { .lider-img, .nav-lider { animation: none; } }
 
@@ -1650,8 +1652,14 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
    Klink, Klang y Klinklang salen girando, uno detrás de otro. */
 .rueda-ajustes svg { transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
 .rueda-ajustes:hover { border-color: color-mix(in oklab, var(--brand) 50%, var(--line)); }
-.rueda-secreto { position: absolute; left: 100%; top: 0; z-index: 30; display: flex; gap: .25rem; pointer-events: none; }
-.rueda-secreto img { width: 3rem; height: 3rem; image-rendering: pixelated; animation: engranaje 2.2s ease-out both; }
+.rueda-secreto {
+  position: fixed; inset: 0; z-index: 120; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  background: radial-gradient(circle at 50% 50%, rgb(0 0 0 / .35), transparent 60%);
+  animation: engranaje-fondo 2.6s ease-out both;
+}
+.rueda-secreto img { width: 5.5rem; height: 5.5rem; image-rendering: pixelated; filter: drop-shadow(0 6px 12px rgb(0 0 0 / .45)); animation: engranaje 2.4s ease-out both; }
+@keyframes engranaje-fondo { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes engranaje {
   0% { opacity: 0; transform: scale(.3) rotate(-180deg); }
   25% { opacity: 1; transform: scale(1.1) rotate(0); }
@@ -1659,3 +1667,12 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
   100% { opacity: 0; transform: scale(.8) rotate(540deg); }
 }
 @media (prefers-reduced-motion: reduce) { .rueda-ajustes svg { transition: none; } .rueda-secreto img { animation: none; } }
+
+/* v0.73 — Red de seguridad del móvil: un hijo de una rejilla no puede
+   ensanchar su columna por un texto largo (título truncado, nombre de torneo).
+   Era lo que sacaba media portada por la derecha en pantallas estrechas. */
+.grid > * { min-width: 0; }
+
+/* v0.73 — El tutorial de cada página señala lo que explica: el elemento sube
+   por encima y el resto de la pantalla se oscurece (una sombra enorme). */
+.tour-luz { z-index: 85; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .5); background-color: var(--surface); }

@@ -98,7 +98,7 @@ export function UltimoRegional(p: Props) {
   const enCorte = arquetiposEnCorte(p.filas);
 
   return (
-    <section id="ultimo-regional" className="mb-4 scroll-mt-20">
+    <section id="ultimo-regional" className="mb-4 scroll-mt-20" data-paso="inicio-2">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
 <h2 className="font-display text-xl font-extrabold">{tr(L, "ur.title")}</h2>
         <nav className="seg seg-brand flex-none whitespace-nowrap" aria-label={tr(L, "ur.whichData")}>

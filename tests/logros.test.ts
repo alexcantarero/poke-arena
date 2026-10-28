@@ -12,11 +12,12 @@ test("los logros guardados: válidos, sin repetir y en orden fijo", () => {
 
 test("la Ball de uso sube de Poké a Master", () => {
   assert.equal(nivelDeUso({ partidas: 0, torneos: 0, logros: 0 }).nivel.ball, "poke-ball");
-  const casi = nivelDeUso({ partidas: 20, torneos: 1, logros: 0 }); // 23 puntos
+  const casi = nivelDeUso({ partidas: 35, torneos: 1, logros: 0 }); // 38 puntos
   assert.equal(casi.nivel.ball, "poke-ball");
   assert.equal(casi.faltan, 2);
-  assert.equal(nivelDeUso({ partidas: 20, torneos: 0, logros: 1 }).nivel.ball, "great-ball");
-  const master = nivelDeUso({ partidas: 150, torneos: 10, logros: 6 });
+  assert.equal(nivelDeUso({ partidas: 35, torneos: 0, logros: 1 }).nivel.ball, "great-ball");
+  assert.equal(nivelDeUso({ partidas: 300, torneos: 20, logros: 4 }).nivel.ball, "dusk-ball"); // 380 puntos: a 20 de la Lujo
+  const master = nivelDeUso({ partidas: 900, torneos: 50, logros: 7 });
   assert.equal(master.nivel.ball, "master-ball");
   assert.equal(master.siguiente, null);
   assert.equal(master.progreso, 1);

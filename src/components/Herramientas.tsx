@@ -56,7 +56,7 @@ export function Herramientas({ mazos, inicial, mazoInicial }: { mazos: MazoHerra
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap gap-1.5" aria-label={tr(lng, "hr.titulo")}>
+      <nav className="flex flex-wrap gap-1.5" aria-label={tr(lng, "hr.titulo")} data-paso="herramientas-2">
         {pestanas.map(([k, l]) => (
           <button key={k} type="button" onClick={() => cambiar(k)} aria-pressed={pestana === k}
             className={`chip ${pestana === k ? "chip-brand" : ""}`}>{l}</button>
