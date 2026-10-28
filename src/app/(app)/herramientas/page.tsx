@@ -1,6 +1,7 @@
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { Herramientas, type MazoHerramienta } from "@/components/Herramientas";
+import { cargarDatosRecomendador } from "@/lib/recomendadorDatos";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -19,11 +20,13 @@ export default async function HerramientasPage({ searchParams }: { searchParams:
     ...conLista.filter((d) => d.playerId === me?.id),
     ...conLista.filter((d) => d.playerId !== me?.id),
   ].map((d) => ({ id: d.id, name: d.name, list: d.list, listJson: d.listJson }));
+  // v0.74 — el recomendador: todo agregado por Pokémon líder. Si algo falla, la pestaña lo dice.
+  const datos = await cargarDatosRecomendador(snap).catch(() => null);
 
   return (
     <>
       <PageHead title={tr(lng, "hr.titulo")} sub={tr(lng, "hr.sub")} />
-      <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} />
+      <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} datos={datos} />
     </>
   );
 }

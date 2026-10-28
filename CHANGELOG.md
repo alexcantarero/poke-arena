@@ -2,6 +2,32 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.74.0] — 2026-10-27
+
+El recomendador de mazos. **Sin migración.** Lleva la v0.71, v0.72 y v0.73.
+
+### Añadido
+
+- **Herramientas → Recomendador** (la primera pestaña): eliges tipo de torneo (Challenge, Cup,
+  Regional o City League), jugadores y lo que buscas (top cut, ganar, Día 2 o récord positivo) y
+  ordena los mazos por la probabilidad de conseguirlo, con cuota del campo, % por ronda,
+  consistencia 1–10, mejor y peor emparejamiento, conversión real al corte y fiabilidad.
+- **Un mazo = su Pokémon líder** (`liderDe`): «Dragapult ex», «Dragapult / Dusknoir» y el
+  `dragapult-dusknoir` de Limitless son Dragapult; el resto, variantes. Así se cruzan todas las
+  fuentes sin tablas de equivalencias.
+- **El campo, por tipo de torneo**, mezclando fuentes con pesos propios (Regional: sobre todo
+  Regionales importados; Cup: vuestros torneos + City Leagues + online; Challenge: sobre todo
+  vuestros torneos). Una fuente con pocos datos pesa menos.
+- **Emparejamientos** de la API de Limitless (online, 30 días) + vuestras rondas, encogidos
+  hacia el 50 % cuando hay pocas partidas, y convertidos de partida al mejor de 1 a serie al
+  mejor de 3 donde toca (p²(3 − 2p)). Las City Leagues se tratan como suizo al mejor de 1 + top 8.
+- **Probabilidades del torneo** con la estructura oficial (Día 2, corte asimétrico) y la línea
+  de corte de la calculadora suiza. Sin corte (Challenge), «top» es acabar entre los 8 primeros
+  y «ganar», acabar 1.º.
+- **Consistencia 1–10** (`notaConsistencia`): del % de mulligan de las listas y de los
+  mulligans reales que apuntáis (mandan con 20 juegos o más).
+- `lib/recomendador.ts` (puro, 8 pruebas) y `lib/recomendadorDatos.ts` (las fuentes).
+
 ## [0.73.0] — 2026-10-27
 
 Móvil sin desbordes, Camino al Mundial, calendario online que cuadra, tutoriales que señalan,

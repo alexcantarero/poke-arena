@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { MulliganSim } from "@/components/MulliganSim";
+import type { DatosRecomendador } from "@/lib/recomendadorDatos";
+import { notaConsistencia, recomendar, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
+import { spriteUrl } from "@/lib/pokemon";
 import {
   consistencia, premiosDeCarta, premiosDeDos, probCorteDesde, simularSuizo, type ResultadoSuizo,
 } from "@/lib/herramientas";
@@ -20,7 +23,7 @@ import { useLang } from "@/components/LangProvider";
    ========================================================================= */
 
 export type MazoHerramienta = { id: string; name: string; list: string; listJson: unknown };
-type Pestana = "suiza" | "consistencia" | "premios" | "manos";
+type Pestana = "recomendador" | "suiza" | "consistencia" | "premios" | "manos";
 
 const n = (v: string, def = 0) => {
   const x = Number(v.replace(",", "."));
@@ -40,12 +43,13 @@ function Campo({ label, value, onChange, min = 0, max = 9999, ayuda }: {
   );
 }
 
-export function Herramientas({ mazos, inicial, mazoInicial }: { mazos: MazoHerramienta[]; inicial?: string; mazoInicial?: string }) {
+export function Herramientas({ mazos, inicial, mazoInicial, datos }: { mazos: MazoHerramienta[]; inicial?: string; mazoInicial?: string; datos?: DatosRecomendador | null }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
   const [pestana, setPestana] = useState<Pestana>(
-    inicial === "consistencia" || inicial === "premios" || inicial === "manos" ? inicial : mazoInicial ? "manos" : "suiza");
+    inicial === "suiza" || inicial === "consistencia" || inicial === "premios" || inicial === "manos" ? inicial : mazoInicial ? "manos" : "recomendador");
 
   const pestanas: Array<[Pestana, string]> = [
+    ["recomendador", tr(lng, "rc.tab")],
     ["suiza", tr(lng, "hr.tab.suiza")], ["consistencia", tr(lng, "hr.tab.consistencia")],
     ["premios", tr(lng, "hr.tab.premios")], ["manos", tr(lng, "hr.tab.manos")],
   ];
@@ -62,6 +66,7 @@ export function Herramientas({ mazos, inicial, mazoInicial }: { mazos: MazoHerra
             className={`chip ${pestana === k ? "chip-brand" : ""}`}>{l}</button>
         ))}
       </nav>
+      {pestana === "recomendador" && <Recomendador datos={datos ?? null} />}
       {pestana === "suiza" && <Suiza />}
       {pestana === "consistencia" && <ConsistenciaPanel />}
       {pestana === "premios" && <PremiosPanel />}
@@ -336,6 +341,150 @@ function Manos({ mazos, mazoInicial }: { mazos: MazoHerramienta[]; mazoInicial?:
       {usarPegada
         ? (pegada.trim() ? <MulliganSim key={`p-${pegada.length}`} list={pegada} /> : null)
         : elegido ? <MulliganSim key={elegido.id} list={elegido.list} listJson={elegido.listJson} /> : <p className="text-sm text-muted">{tr(lng, "hr.mn.sinMazos")}</p>}
+    </section>
+  );
+}
+
+/* --------------------------------------------------------- recomendador -- */
+
+const TIPOS_REC: Array<{ tipo: TipoTorneo; label: string; jugadores: number; kind: string }> = [
+  { tipo: "league_challenge", label: "hr.sz.challenge", jugadores: 20, kind: "league_challenge" },
+  { tipo: "league_cup", label: "hr.sz.cup", jugadores: 48, kind: "league_cup" },
+  { tipo: "regional", label: "hr.sz.regional", jugadores: 1500, kind: "regional" },
+  { tipo: "city_league", label: "rc.city", jugadores: 40, kind: "league_cup" },
+];
+const OBJETIVOS: Objetivo[] = ["top", "ganar", "dia2", "positivo"];
+
+const nombreLider = (datos: DatosRecomendador, l: string) =>
+  datos.nombres[l] ?? l.split("-").map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ");
+
+function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
+  const lng = useLang(); // v0.49
+  const [tipo, setTipo] = useState<TipoTorneo>("league_cup");
+  const [jugadores, setJugadores] = useState("48");
+  const [objetivo, setObjetivo] = useState<Objetivo>("top");
+
+  const conf = TIPOS_REC.find((t) => t.tipo === tipo)!;
+  const N = Math.max(4, Math.round(n(jugadores, conf.jugadores)));
+  const est = estructuraDe(N, conf.kind);
+
+  // La línea de corte (puntos → fracción que entra) sale de simular el torneo con todos iguales.
+  /* Sin corte (League Challenge): «top» es acabar entre los 8 primeros de la
+     clasificación (es lo que da CP) y «ganar», acabar primero. */
+  const sinCorte = Boolean(est && !est.topCut);
+  const corte = est ? (est.topCut || Math.min(8, N)) : 0;
+  const lineas = useMemo(() => {
+    if (!est) return null;
+    const sim = (c: number) => simularSuizo({
+      jugadores: N, rondas: est.total, corte: c, pEmpate: 0.03,
+      fase1: est.umbral != null ? est.fase1 : null, umbralDia2: est.umbral ?? null,
+      asimetrico: est.asimetrico, maxCorte: TOP_CUT_MAXIMO_TCG, iteraciones: 120,
+    });
+    const aMapa = (r: ReturnType<typeof simularSuizo>) => (r ? Object.fromEntries(r.filas.map((f) => [f.puntos, f.pCorte])) : null);
+    return { pCorte: aMapa(sim(corte)), pPrimero: sinCorte ? aMapa(sim(1)) : null };
+  }, [N, corte, sinCorte, est?.total, est?.umbral, est?.fase1, est?.asimetrico]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pCorte = lineas?.pCorte ?? null;
+
+  const res = useMemo(() => {
+    if (!datos || !est || !pCorte) return null;
+    return recomendar({
+      tipo, objetivo,
+      fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, datos.grupo[tipo]],
+      estructura: {
+        rondas: est.total, corte: sinCorte ? 1 : est.topCut, pCorte,
+        pPrimero: lineas?.pPrimero ?? undefined,
+        fase1: est.umbral != null ? est.fase1 : null, umbral: est.umbral ?? null,
+      },
+    });
+  }, [datos, tipo, objetivo, est, pCorte, sinCorte, lineas]);
+
+  const objetivoDisponible = objetivo !== "dia2" || est?.umbral != null;
+
+  return (
+    <section className="card flex flex-col gap-4 p-4">
+      <div>
+        <h2 className="font-display text-lg font-bold">{tr(lng, "rc.titulo")}</h2>
+        <p className="mt-1 text-sm text-muted">{tr(lng, "rc.explica")}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="label">{tr(lng, "hr.sz.tipo")}</span>
+          <select className="input" value={tipo} onChange={(e) => {
+            const t = e.target.value as TipoTorneo;
+            setTipo(t); setJugadores(String(TIPOS_REC.find((x) => x.tipo === t)!.jugadores));
+            if (t !== "regional" && objetivo === "dia2") setObjetivo("top");
+          }}>
+            {TIPOS_REC.map((t) => <option key={t.tipo} value={t.tipo}>{tr(lng, t.label)}</option>)}
+          </select>
+        </label>
+        <Campo label={tr(lng, "hr.sz.jugadores")} value={jugadores} onChange={setJugadores} min={4} max={5000} />
+        <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+          <span className="label">{tr(lng, "rc.objetivo")}</span>
+          <select className="input" value={objetivo} onChange={(e) => setObjetivo(e.target.value as Objetivo)}>
+            {OBJETIVOS.filter((o) => o !== "dia2" || est?.umbral != null).map((o) => <option key={o} value={o}>{tr(lng, `rc.obj.${o}`)}</option>)}
+          </select>
+        </label>
+      </div>
+      {est && (
+        <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-2">
+          {est.umbral != null
+            ? trf(lng, "hr.sz.estructura2", { r1: est.fase1, r2: est.fase2, u: est.umbral, c: est.topCut })
+            : trf(lng, "hr.sz.estructura1", { r: est.total, c: est.topCut })}
+          {" · "}{tr(lng, tipo === "city_league" ? "rc.bo1" : "rc.bo3")}
+          {sinCorte && <>{" · "}{tr(lng, "rc.sinCorte")}</>}
+        </p>
+      )}
+
+      {!datos ? <p className="text-sm text-muted">{tr(lng, "rc.sinDatos")}</p>
+        : !est ? <p className="text-xs text-loss">{tr(lng, "hr.sz.pocos")}</p>
+        : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, "rc.vacio")}</p>
+        : !objetivoDisponible ? null : (
+        <>
+          <ol className="flex flex-col gap-2">
+            {res.filas.map((f, i) => {
+              const c = datos.consistencia[f.lider];
+              const nota = c ? notaConsistencia(c.teorico, c.juegos ? c.mull : null, c.juegos) : null;
+              return (
+                <li key={f.lider} className={`rounded-xl border p-3 ${i === 0 ? "border-brand/60 bg-brand/5" : "border-line-soft"}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-7 flex-none place-items-center rounded-full bg-surface-2 font-display text-sm font-black">{i + 1}</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={spriteUrl(f.lider)} alt="" className="size-10 flex-none object-contain [image-rendering:pixelated]"
+                      onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
+                      <span className="block text-[11px] text-muted">
+                        {trf(lng, "rc.cuota", { p: pct(f.cuota, 1) })} · {trf(lng, "rc.ronda", { p: pct(f.pRonda, 0) })}
+                        {nota != null && <> · {trf(lng, "rc.consistencia", { n: nota })}</>}
+                      </span>
+                    </span>
+                    <span className="flex-none text-right">
+                      <span className="block font-display text-xl font-black tabular">{pct(f.pObjetivo, f.pObjetivo < 0.1 ? 1 : 0)}</span>
+                      <span className={`block text-[11px] font-semibold tabular ${f.indice >= 1 ? "text-win" : "text-loss"}`}>×{f.indice.toFixed(2)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-10 text-[11px] text-muted">
+                    {f.mejor && <span>{trf(lng, "rc.mejor", { m: nombreLider(datos, f.mejor.contra), p: pct(f.mejor.p, 0) })}</span>}
+                    {f.peor && <span>{trf(lng, "rc.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</span>}
+                    {f.conversion != null && <span>{trf(lng, "rc.conversion", { x: f.conversion.toFixed(2) })}</span>}
+                    <span className={f.confianza === "alta" ? "text-win" : f.confianza === "media" ? "text-brand-strong" : "text-loss"}>
+                      {trf(lng, "rc.datos", { n: f.datos, c: tr(lng, `rc.conf.${f.confianza}`) })}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="text-[11px] text-muted">
+            {trf(lng, "rc.fuentes", {
+              t: datos.resumen.online?.torneos ?? 0, p: datos.resumen.online?.partidas ?? 0,
+              r: datos.resumen.regionales, c: datos.resumen.cityleagues,
+              g: Object.values(datos.grupo[tipo].cuota).reduce((a, b) => a + b, 0),
+            })}
+          </p>
+          <p className="text-[11px] text-muted">{tr(lng, "rc.nota")}</p>
+        </>
+      )}
     </section>
   );
 }
