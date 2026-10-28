@@ -72,3 +72,30 @@ test("sin corte (Challenge): ganar es acabar primero", () => {
   const r = probTorneo(0.5, e);
   assert.ok(r.pGanar > 0 && r.pGanar < r.pTop);
 });
+
+import { calibrar, evaluar, mejorVariante } from "../src/lib/recomendador.ts";
+
+test("calibrar: α < 1 acerca al 50 %, α > 1 aleja", () => {
+  assert.equal(calibrar(0.7, 1), 0.7);
+  assert.ok(Math.abs(calibrar(0.7, 0.5) - 0.6) < 1e-9);
+  assert.ok(calibrar(0.7, 1.5) > 0.7);
+});
+
+test("evaluar: un modelo demasiado seguro aprende un α < 1", () => {
+  // Dice 80 % y solo gana el 60 %: se pasa de seguro.
+  const ms = Array.from({ length: 100 }, (_, i) => ({ p: 0.8, r: (i < 60 ? 1 : 0) as 0 | 1 }));
+  const e = evaluar(ms);
+  assert.ok(e.alfa < 1);
+  assert.ok(e.brierCalibrado! < e.brier!);
+  assert.equal(e.acierto, 0.6);
+  assert.equal(evaluar(ms.slice(0, 10)).alfa, 1); // con pocas rondas, no se toca
+});
+
+test("la mejor variante: mejor % con datos suficientes", () => {
+  const v = mejorVariante([
+    { clave: "dragapult|dusknoir", nombre: "Dragapult Dusknoir", w: 60, l: 40, t: 0, listas: 0, corte: 0, conPuesto: 0 },
+    { clave: "dragapult|pidgeot", nombre: "Dragapult Pidgeot", w: 45, l: 55, t: 0, listas: 0, corte: 0, conPuesto: 0 },
+    { clave: "dragapult|raro", nombre: "Dragapult raro", w: 4, l: 0, t: 0, listas: 0, corte: 0, conPuesto: 0 },
+  ], null)!;
+  assert.equal(v.clave, "dragapult|dusknoir");
+});

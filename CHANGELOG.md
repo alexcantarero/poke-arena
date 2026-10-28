@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.75.0] — 2026-10-27
+
+El recomendador aprende de vuestras partidas y recomienda la variante concreta. **Sin
+migración.** Lleva de la v0.71 a la v0.74.
+
+### Añadido
+
+- **Acierto y calibración**: el modelo predice cada partida vuestra con los dos mazos conocidos
+  (liga y torneos) usando SOLO datos de fuera, y la compara con lo que pasó. Enseña el % de
+  acierto, el error (Brier; 0,25 es tirar una moneda) y, desde 30 partidas, aprende un
+  parámetro α que corrige si se pasa de seguro (acerca sus % al 50) o se queda corto. Se
+  recalcula solo con cada partida nueva. Al mejor de 3 se compara con la conversión de serie.
+- **La mejor variante**: dentro de cada arquetipo (Pokémon líder), las variantes por compañero
+  (Dragapult / Dusknoir, Dragapult / Pidgeot…) con su % de victorias online encogido hacia el
+  50 %, sus listas y su conversión al corte. Se recomienda la mejor con datos suficientes y se
+  pueden ver todas.
+- `calibrar`, `evaluar`, `valorarVariantes`, `mejorVariante` en `lib/recomendador.ts`
+  (3 pruebas más).
+
 ## [0.74.0] — 2026-10-27
 
 El recomendador de mazos. **Sin migración.** Lleva la v0.71, v0.72 y v0.73.

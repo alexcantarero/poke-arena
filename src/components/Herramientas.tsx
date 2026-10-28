@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { MulliganSim } from "@/components/MulliganSim";
 import type { DatosRecomendador } from "@/lib/recomendadorDatos";
-import { notaConsistencia, recomendar, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
+import { mejorVariante, notaConsistencia, recomendar, valorarVariantes, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
 import { spriteUrl } from "@/lib/pokemon";
 import {
   consistencia, premiosDeCarta, premiosDeDos, probCorteDesde, simularSuizo, type ResultadoSuizo,
@@ -388,7 +388,7 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   const res = useMemo(() => {
     if (!datos || !est || !pCorte) return null;
     return recomendar({
-      tipo, objetivo,
+      tipo, objetivo, alfa: datos.evaluacion.alfa,
       fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, datos.grupo[tipo]],
       estructura: {
         rondas: est.total, corte: sinCorte ? 1 : est.topCut, pCorte,
@@ -435,6 +435,27 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
         </p>
       )}
 
+      {/* v0.75 — cuánto acierta el modelo con vuestras partidas, y lo que ha aprendido. */}
+      {datos && (
+        <div className="rounded-lg border border-line-soft px-3 py-2 text-xs">
+          {datos.evaluacion.n === 0 ? (
+            <span className="text-muted">{tr(lng, "rc.ev.sin")}</span>
+          ) : (
+            <>
+              <span className="font-semibold">
+                {trf(lng, "rc.ev.acierto", { p: datos.evaluacion.acierto != null ? pct(datos.evaluacion.acierto, 0) : "—", n: datos.evaluacion.n })}
+              </span>
+              <span className="text-muted">
+                {" · "}{trf(lng, "rc.ev.brier", { b: (datos.evaluacion.brierCalibrado ?? datos.evaluacion.brier ?? 0).toFixed(3) })}
+                {" · "}{datos.evaluacion.n >= 30
+                  ? trf(lng, "rc.ev.alfa", { a: datos.evaluacion.alfa.toFixed(2) })
+                  : trf(lng, "rc.ev.faltan", { n: 30 - datos.evaluacion.n })}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {!datos ? <p className="text-sm text-muted">{tr(lng, "rc.sinDatos")}</p>
         : !est ? <p className="text-xs text-loss">{tr(lng, "hr.sz.pocos")}</p>
         : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, "rc.vacio")}</p>
@@ -463,6 +484,33 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                       <span className={`block text-[11px] font-semibold tabular ${f.indice >= 1 ? "text-win" : "text-loss"}`}>×{f.indice.toFixed(2)}</span>
                     </span>
                   </div>
+                  {(() => {
+                    /* v0.75 — la variante concreta que recomendamos, y las demás. */
+                    const vs = datos.variantes[f.lider] ?? [];
+                    const mv = mejorVariante(vs, datos.tasaCampo);
+                    if (!mv || vs.length < 2) return null;
+                    const todas = valorarVariantes(vs, datos.tasaCampo).filter((x) => x.w + x.l + x.t + x.listas >= 5);
+                    return (
+                      <details className="mt-2 pl-10">
+                        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-xs">
+                          <span className="text-muted">{tr(lng, "rc.var.mejor")}</span>
+                          <span className="font-semibold">{mv.nombre}</span>
+                          <span className="font-mono tabular text-muted">{pct(mv.wr, 0)}</span>
+                          <span className="text-info underline underline-offset-2">{trf(lng, "rc.var.ver", { n: todas.length })}</span>
+                        </summary>
+                        <ul className="mt-1.5 flex flex-col gap-1">
+                          {todas.map((x) => (
+                            <li key={x.clave} className="flex items-center gap-2 text-[11px]">
+                              <span className={`min-w-0 flex-1 truncate ${x.clave === mv.clave ? "font-bold" : ""}`}>{x.nombre}</span>
+                              <span className="w-10 text-right font-mono tabular">{pct(x.wr, 0)}</span>
+                              <span className="w-24 text-right text-muted tabular">{trf(lng, "rc.var.datos", { n: x.w + x.l + x.t, l: x.listas })}</span>
+                              {x.conversion != null && <span className="w-12 text-right font-mono tabular text-muted">×{x.conversion.toFixed(2)}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    );
+                  })()}
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-10 text-[11px] text-muted">
                     {f.mejor && <span>{trf(lng, "rc.mejor", { m: nombreLider(datos, f.mejor.contra), p: pct(f.mejor.p, 0) })}</span>}
                     {f.peor && <span>{trf(lng, "rc.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</span>}

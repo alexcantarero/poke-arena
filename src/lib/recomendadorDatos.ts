@@ -4,7 +4,7 @@ import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
 import { deckSizeOf, estimateBasics, mulliganChance } from "@/lib/mulligan";
-import { liderDe, type Cruce, type Fuente, type TipoTorneo } from "@/lib/recomendador";
+import { alMejorDe3, evaluar, liderDe, pPartida, tablaCruces, type Cruce, type Evaluacion, type Fuente, type Muestra, type TipoTorneo, type Variante } from "@/lib/recomendador";
 
 /* =========================================================================
    v0.74 — Los datos del recomendador, ya agregados por Pokémon líder.
@@ -30,6 +30,12 @@ export type DatosRecomendador = {
   /** líder → nombre legible (el más usado). */
   nombres: Record<string, string>;
   resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number };
+  /** v0.75 — líder → sus variantes (líder + compañero), con lo que rinde cada una. */
+  variantes: Record<string, Variante[]>;
+  /** v0.75 — el acierto del modelo en vuestras partidas y la calibración aprendida. */
+  evaluacion: Evaluacion;
+  /** Conversión media al corte de los presenciales (base para comparar variantes). */
+  tasaCampo: number | null;
 };
 
 const KINDS: Record<TipoTorneo, string[]> = {
@@ -41,6 +47,14 @@ const KINDS: Record<TipoTorneo, string[]> = {
 
 export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosRecomendador> {
   const nombres: Record<string, string> = {};
+  const variantes: Record<string, Map<string, Variante>> = {};
+  const variante = (lider: string, segundo: string, nombre: string) => {
+    const clave = segundo && segundo !== lider ? `${lider}|${segundo}` : lider;
+    const m = (variantes[lider] ??= new Map());
+    let v = m.get(clave);
+    if (!v) m.set(clave, (v = { clave, nombre, w: 0, l: 0, t: 0, listas: 0, corte: 0, conPuesto: 0 }));
+    return v;
+  };
   const nombrar = (lider: string, nombre: string) => { if (lider && !nombres[lider]) nombres[lider] = nombre; };
 
   /* --- online --------------------------------------------------------- */
@@ -56,9 +70,13 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
     };
     const cruces = new Map<string, Cruce>();
     for (const [a, fila] of m.acc.celdas) {
+      const ref = m.acc.mazos.get(a);
+      const la0 = lid(a);
+      const v = la0 ? variante(la0, ref?.icons?.[1] ?? "", ref?.name ?? la0) : null;
       for (const [b, c] of fila) {
         const la = lid(a), lb = lid(b);
         if (!la || !lb) continue;
+        if (v && la !== lb) { v.w += c.w; v.l += c.l; v.t += c.t; }
         online.cuota[la] = (online.cuota[la] ?? 0) + c.w + c.l + c.t;
         if (la === lb) continue;
         const k = `${la}|${lb}`;
@@ -89,12 +107,16 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
       if (!l) continue;
       nombrar(l, en.archetypeName);
       f.cuota[l] = (f.cuota[l] ?? 0) + en.copies;
+      const vv = variante(l, en.secondary, en.archetypeName);
+      vv.listas += en.copies;
       if (en.placement != null) {
         const corte = ev.topCut ?? (ev.kind === "city_league" ? 8 : 0);
         const x = f.conversion![l] ?? { n: 0, corte: 0 };
         x.n += 1;
         if (corte && en.placement <= corte) x.corte += 1;
         f.conversion![l] = x;
+        vv.conPuesto += 1;
+        if (corte && en.placement <= corte) vv.corte += 1;
       }
     }
     nReg = [...evById.values()].filter((e) => e.kind !== "city_league").length;
@@ -155,8 +177,32 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
     consistencia[l] = x;
   }
 
+  /* --- el acierto: vuestras partidas, predichas solo con fuentes de fuera ---
+     Cada partida jugada con los dos mazos conocidos (liga y torneos) es una
+     prueba: qué % daba el modelo al de la izquierda y si ganó. Solo cruces con
+     al menos 5 partidas de fuera; si no, el modelo diría «50 %» y no enseña nada. */
+  const fuera = tablaCruces([online, regionales, cityleagues]);
+  const muestras: Muestra[] = [];
+  for (const m of snap.matches) {
+    if (!isPlayed(m)) continue;
+    const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+    const la = ldArch(a), lb = ldArch(b);
+    if (!la || !lb || la === lb) continue;
+    const { p, n } = pPartida(fuera, la, lb);
+    if (n < 5) continue;
+    const w = outcome(m).winner;
+    muestras.push({ p: (m.bestOf ?? 1) >= 3 ? alMejorDe3(p) : p, r: w === "a" ? 1 : w === "b" ? 0 : 0.5 });
+  }
+  const evaluacion = evaluar(muestras);
+
+  const conv = [regionales, cityleagues].flatMap((f) => Object.values(f.conversion ?? {}));
+  const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
+
   return {
     fuentes: { online, regionales, cityleagues }, grupo, consistencia, nombres,
     resumen: { online: resOnline, regionales: nReg, cityleagues: nCity },
+    variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
+    evaluacion,
+    tasaCampo: tot.n ? tot.corte / tot.n : null,
   };
 }

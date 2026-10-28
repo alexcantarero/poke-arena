@@ -1496,6 +1496,15 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.75
+  "rc.ev.sin": "Aún no hay partidas vuestras con los dos mazos apuntados y datos de fuera para comprobar el acierto. Cuantas más apuntéis, más aprende.",
+  "rc.ev.acierto": "Acierto del modelo: {p} en {n} partidas vuestras",
+  "rc.ev.brier": "error {b} (0,250 = tirar una moneda)",
+  "rc.ev.alfa": "calibración aprendida α = {a}",
+  "rc.ev.faltan": "aprende a partir de 30 partidas (faltan {n})",
+  "rc.var.mejor": "Variante recomendada:",
+  "rc.var.ver": "ver las {n}",
+  "rc.var.datos": "{n} partidas · {l} listas",
   // v0.74
   "rc.sinCorte": "sin top cut: «top» es acabar entre los 8 primeros y «ganar», acabar 1.º",
   "rc.tab": "Recomendador",
@@ -3240,6 +3249,15 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.75
+  "rc.ev.sin": "There are no matches of yours yet with both decks recorded and outside data to check accuracy. The more you record, the more it learns.",
+  "rc.ev.acierto": "Model accuracy: {p} over {n} of your matches",
+  "rc.ev.brier": "error {b} (0.250 = coin flip)",
+  "rc.ev.alfa": "learned calibration α = {a}",
+  "rc.ev.faltan": "starts learning at 30 matches ({n} to go)",
+  "rc.var.mejor": "Recommended variant:",
+  "rc.var.ver": "see all {n}",
+  "rc.var.datos": "{n} matches · {l} lists",
   // v0.74
   "rc.sinCorte": "no top cut: “top” means finishing in the top 8 and “win” finishing 1st",
   "rc.tab": "Recommender",

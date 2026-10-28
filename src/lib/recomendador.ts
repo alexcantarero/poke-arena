@@ -202,6 +202,8 @@ export function recomendar(opts: {
   objetivo: Objetivo;
   fuentes: Fuente[];
   estructura: Estructura;
+  /** v0.75 — calibración aprendida de vuestras rondas (`evaluar`). 1 = sin tocar. */
+  alfa?: number;
   /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver. */
   minCuota?: number;
   max?: number;
@@ -245,7 +247,7 @@ export function recomendar(opts: {
       conversion = c.corte / c.n / tasaCampo;
       pPart += 0.05 * Math.max(-1, Math.min(1, Math.log2(Math.max(conversion, 1e-3))));
     }
-    pPart = Math.min(0.95, Math.max(0.05, pPart));
+    pPart = Math.min(0.95, Math.max(0.05, calibrar(pPart, opts.alfa ?? 1)));
     const pRonda = bo3 ? alMejorDe3(pPart) : pPart;
     const r = probTorneo(pRonda, estructura);
     const pObjetivo = objDe(r);
@@ -274,4 +276,94 @@ export function notaConsistencia(pMullTeorico: number | null, mullReales: number
   } else if (pMullTeorico != null) p = pMullTeorico;
   if (p == null || !Number.isFinite(p)) return null;
   return Math.max(1, Math.min(10, Math.round(10 - (p - 0.1) / 0.025)));
+}
+
+/* =========================================================================
+   v0.75 — Aprender del acierto.
+
+   No es una red neuronal: es más sencillo y, con pocos datos, mejor. El
+   modelo predice cada ronda que jugáis en un torneo (con las fuentes de FUERA,
+   para no examinarse con sus propias respuestas) y se compara con lo que pasó.
+   De ahí salen el % de acierto y un único parámetro, α, que corrige si el
+   modelo se pasa de seguro (α < 1: acerca sus % al 50) o se queda corto
+   (α > 1: los separa). Cada ronda nueva que apuntáis es feedback y α se
+   recalcula solo. Un solo número aprendido no se «sobreajusta» con 50 rondas;
+   una red con miles de pesos, sí.
+   ========================================================================= */
+
+/** Aplica la calibración: acerca (α < 1) o aleja (α > 1) del 50 %. */
+export const calibrar = (p: number, alfa: number) =>
+  Math.min(0.99, Math.max(0.01, 0.5 + (Number.isFinite(alfa) ? alfa : 1) * (p - 0.5)));
+
+export type Muestra = { p: number; r: 0 | 0.5 | 1 };
+
+export type Evaluacion = {
+  n: number;
+  /** % de rondas en que el favorito según el modelo ganó (sin contar p = 50 % ni empates). */
+  acierto: number | null;
+  /** Error cuadrático medio (Brier). 0,25 es lo que da decir siempre «50 %». */
+  brier: number | null;
+  /** El α que mejor encaja con lo que pasó. 1 si hay menos de `minimo` rondas. */
+  alfa: number;
+  /** Brier ya calibrado con ese α. */
+  brierCalibrado: number | null;
+};
+
+export function evaluar(muestras: Muestra[], minimo = 30): Evaluacion {
+  const ms = muestras.filter((m) => Number.isFinite(m.p));
+  const n = ms.length;
+  if (!n) return { n: 0, acierto: null, brier: null, alfa: 1, brierCalibrado: null };
+  const brierCon = (a: number) => ms.reduce((s, m) => s + (calibrar(m.p, a) - m.r) ** 2, 0) / n;
+  const decididas = ms.filter((m) => m.p !== 0.5 && m.r !== 0.5);
+  const acierto = decididas.length ? decididas.filter((m) => (m.p > 0.5) === (m.r === 1)).length / decididas.length : null;
+  let alfa = 1;
+  if (n >= minimo) {
+    let mejor = brierCon(1);
+    for (let a = 0.2; a <= 1.6 + 1e-9; a += 0.05) {
+      const b = brierCon(a);
+      if (b < mejor - 1e-12) { mejor = b; alfa = Math.round(a * 100) / 100; }
+    }
+  }
+  return { n, acierto, brier: brierCon(1), alfa, brierCalibrado: brierCon(alfa) };
+}
+
+/* =========================================================================
+   v0.75 — La mejor VARIANTE de cada arquetipo.
+
+   Dragapult es el arquetipo; Dragapult / Dusknoir y Dragapult / Pidgeot son
+   variantes, y no rinden igual. Cada variante se puntúa por su % de
+   victorias (online, encogido hacia el 50 % con 20 partidas imaginarias) y,
+   si hay base, por cómo convierte al corte en Regionales y City Leagues. Se
+   recomienda la de mejor puntuación entre las que tienen datos suficientes.
+   ========================================================================= */
+
+export type Variante = {
+  clave: string;
+  nombre: string;
+  /** Partidas online (w, l, t) y listas / conversión de los presenciales. */
+  w: number; l: number; t: number;
+  listas: number;
+  corte: number;
+  /** Listas con puesto (base de la conversión). */
+  conPuesto: number;
+};
+
+export type VarianteValorada = Variante & { wr: number; conversion: number | null; puntuacion: number; cuota: number };
+
+export function valorarVariantes(vs: Variante[], tasaCampo: number | null, k = 20): VarianteValorada[] {
+  const total = vs.reduce((s, v) => s + v.w + v.l + v.t + v.listas, 0) || 1;
+  return vs.map((v) => {
+    const n = v.w + v.l + v.t;
+    const wr = (v.w + v.t / 2 + k * 0.5) / (n + k);
+    const conversion = tasaCampo && v.conPuesto >= 10 ? v.corte / v.conPuesto / tasaCampo : null;
+    const extra = conversion != null ? 0.05 * Math.max(-1, Math.min(1, Math.log2(Math.max(conversion, 1e-3)))) : 0;
+    return { ...v, wr, conversion, puntuacion: wr + extra, cuota: (n + v.listas) / total };
+  }).sort((a, b) => b.puntuacion - a.puntuacion || b.cuota - a.cuota);
+}
+
+/** La variante a recomendar: la mejor puntuada con al menos `minimo` datos; si ninguna, la más jugada. */
+export function mejorVariante(vs: Variante[], tasaCampo: number | null, minimo = 15): VarianteValorada | null {
+  if (!vs.length) return null;
+  const v = valorarVariantes(vs, tasaCampo);
+  return v.find((x) => x.w + x.l + x.t + x.listas >= minimo) ?? [...v].sort((a, b) => b.cuota - a.cuota)[0];
 }
