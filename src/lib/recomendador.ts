@@ -137,7 +137,7 @@ export function tablaCruces(fuentes: Fuente[], pesos?: Record<string, number>): 
 }
 
 /** % de partida de A contra B, encogido hacia el 50 % con `k` partidas imaginarias. */
-export function pPartida(t: Tabla, a: string, b: string, k = 8): { p: number; n: number } {
+export function pPartida(t: Tabla, a: string, b: string, k = 4): { p: number; n: number } {
   if (a === b) return { p: 0.5, n: 0 };
   const c = t.get(a)?.get(b);
   const n = c ? c.w + c.l + c.t : 0;
@@ -306,8 +306,13 @@ export function recomendar(opts: {
         if (!peor || p < peor.p) peor = { contra: rival, p };
       }
     }
-    // El suizo: 70 % campo medio, 30 % el campo de arriba (las rondas finales).
-    let pPart = 0.7 * contra(lider, campo) + 0.3 * contra(lider, campoArriba);
+    // v0.82 — el mix campo/arriba depende del objetivo: ganar el torneo exige
+    // vencer a los que llegan arriba; acabar con récord solo necesita ganar el
+    // campo general. Esto separa los rankings según lo que el jugador busca.
+    const mezclaCampo = objetivo === "positivo" ? 0.90
+      : objetivo === "ganar" ? 0.30
+      : 0.65; // top y dia2: equilibrado
+    let pPart = mezclaCampo * contra(lider, campo) + (1 - mezclaCampo) * contra(lider, campoArriba);
     // El corte: contra el campo de arriba.
     let pTopPart = contra(lider, campoArriba);
     const ratio = ratioExito(lider);
@@ -325,6 +330,11 @@ export function recomendar(opts: {
       pPart += (wrLive - 0.5) / 3;
     }
     const ajuste = opts.ajustes?.[lider] ?? 0;
+    // v0.82 — amplificar: las desviaciones del 50 % se magnifican ×1.4 para
+    // que los buenos mazos destaquen más. acotar() limita a [0.05, 0.95].
+    const AMPLIF = 1.4;
+    pPart     = 0.5 + (pPart     - 0.5) * AMPLIF;
+    pTopPart  = 0.5 + (pTopPart  - 0.5) * AMPLIF;
     const acotar = (x: number) => Math.min(0.95, Math.max(0.05, calibrar(x, opts.alfa ?? 1) + ajuste));
     pPart = acotar(pPart); pTopPart = acotar(pTopPart);
     const pRonda = bo3 ? alMejorDe3(pPart) : pPart;
