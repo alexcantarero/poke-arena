@@ -2,6 +2,22 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.81.0] — 2026-10-29
+
+Camino al Mundial ajustado a la realidad europea. **Sin migración.**
+
+### Cambiado
+
+- **Como mucho 2 Internacionales por temporada** (`MAX_POR_TEMPORADA`): en Europa no hay más,
+  así que solo pueden llenar 2 de los 5 huecos que comparten con los Regionales, tanto en el
+  plan como en «Lo mínimo».
+- **Dificultad por tipo: Challenge < Cup < Regional < Internacional** (`FACILIDAD`): además del
+  tamaño del campo, cada tipo multiplica la probabilidad de conseguir un puesto (Challenge
+  ×1,6 — se «maxea» rápido—, Cup ×1, Regional ×0,75, Internacional ×0,55). Campos típicos más
+  realistas: Challenge 12, Cup 32.
+- **El Día 2 en los puestos**: en Regionales e Internacionales, «Top 512 · casi Día 2» y «Top
+  256 · Día 2», para leer los objetivos como se piensan en la mesa.
+
 ## [0.80.0] — 2026-10-29
 
 Recomendador que premia ganar Regionales, Camino al Mundial por tipo de torneo y Estadísticas

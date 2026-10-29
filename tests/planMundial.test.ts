@@ -74,3 +74,29 @@ test("v0.80: lo mínimo de cada tipo, o cuánto daría como mucho", () => {
   assert.equal(ch.puesto, null);           // con Challenges, no
   assert.equal(ch.maximo, 60);
 });
+
+const internacional = [
+  { from: 1, to: 1, cp: 500, minPlayers: 0 }, { from: 9, to: 16, cp: 300, minPlayers: 33 },
+  { from: 129, to: 256, cp: 100, minPlayers: 513 }, { from: 257, to: 512, cp: 85, minPlayers: 1025 },
+];
+const conInternacional = (): ContadorPlan[] => {
+  const c = contadores();
+  c[2].eventos.push({ tipo: "international", etiqueta: "Internacional", tramos: internacional, campoTipico: CAMPO_TIPICO.international });
+  return c;
+};
+
+test("v0.81: como mucho 2 Internacionales por temporada", () => {
+  const p = planMundial(0, conInternacional(), 2000);
+  assert.ok(p.pasos.filter((x) => x.tipo === "international").length <= 2);
+  const m = minimoPorTipo(0, conInternacional(), 650).find((x) => x.tipo === "international")!;
+  assert.ok(m.puesto === null || m.veces <= 2);
+});
+
+test("v0.81: Challenge < Cup < Regional en dificultad, y el Regional dice «Día 2»", () => {
+  const p = planMundial(0, conInternacional(), 650);
+  const dif = (t: string) => Math.min(...p.pasos.filter((x) => x.tipo === t).map((x) => x.dificultad));
+  if (p.pasos.some((x) => x.tipo === "league_challenge") && p.pasos.some((x) => x.tipo === "regional")) {
+    assert.ok(dif("league_challenge") < dif("regional"));
+  }
+  assert.ok(p.pasos.some((x) => /Día 2/.test(x.puesto)) || p.pasos.every((x) => x.tipo !== "regional"));
+});

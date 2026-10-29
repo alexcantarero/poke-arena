@@ -1576,7 +1576,7 @@ const ES = {
   "pm.facil": "Fácil",
   "pm.medio": "Medio",
   "pm.dificil": "Difícil",
-  "pm.nota": "650 CP es una referencia, no el corte oficial: la invitación es por puesto en el ranking de tu zona y la línea solo se sabe al acabar la temporada. La dificultad mezcla la parte del campo típico que consigue ese puesto con lo que habéis conseguido vosotros en la app.",
+  "pm.nota": "650 CP es una referencia, no el corte oficial: la invitación es por puesto en el ranking de tu zona y la línea solo se sabe al acabar la temporada. La dificultad (Challenge < Cup < Regional < Internacional) mezcla la parte del campo típico que consigue ese puesto con lo que habéis conseguido vosotros. En Europa hay como mucho 2 Internacionales por temporada: solo pueden llenar 2 de los 5 huecos que comparten con los Regionales. En un Regional, rozar el Día 2 (top 512) ya puntúa y el Día 2 es un buen objetivo.",
   "tp.inicio.t3": "Elige el ranking",
   "tp.inicio.x3": "Aquí cambias entre Elo, CP y la clasificación de la liga. La Ball junto a cada nombre es su nivel de uso de la app.",
   "tp.herramientas.t1": "Herramientas",

@@ -67,10 +67,36 @@ export type Plan = {
 
 /** Campo típico por tipo de evento, para medir la dificultad. */
 export const CAMPO_TIPICO: Record<string, number> = {
-  league_challenge: 16, league_cup: 40, regional: 1500, international: 3500,
+  league_challenge: 12, league_cup: 32, regional: 1500, international: 3500,
 };
 
-const nombrePuesto = (t: TramoCp) => (t.from === 1 && t.to === 1 ? "Campeón" : t.from === t.to ? `${t.from}.º` : `Top ${t.to}`);
+/**
+ * v0.81 — Cuánto más fácil (o difícil) es puntuar en cada tipo, además del
+ * tamaño del campo: Challenge < Cup < Regional < Internacional. En una
+ * Challenge el campo es local y corto (se «maxea» rápido); en una Cup cuesta
+ * más; en un Regional, llegar al Día 2 ya es un logro; un Internacional es lo
+ * más difícil. Multiplica la probabilidad de conseguir cada puesto.
+ */
+export const FACILIDAD: Record<string, number> = {
+  league_challenge: 1.6, league_cup: 1.0, regional: 0.75, international: 0.55,
+};
+
+/**
+ * v0.81 — Cuántos torneos de un tipo caben en una temporada. En Europa hay
+ * como mucho 2 Internacionales (Europa y, si toca, otro), así que solo pueden
+ * llenar 2 de los 5 huecos que comparten con los Regionales.
+ */
+export const MAX_POR_TEMPORADA: Record<string, number> = { international: 2 };
+
+/** Cómo se llama un puesto. En Regionales e Internacionales, con su referencia al Día 2. */
+function nombrePuesto(t: TramoCp, tipo = ""): string {
+  const base = t.from === 1 && t.to === 1 ? "Campeón" : t.from === t.to ? `${t.from}.º` : `Top ${t.to}`;
+  if (tipo !== "regional" && tipo !== "international") return base;
+  if (t.to >= 1024) return base;
+  if (t.to >= 512) return `${base} · casi Día 2`;
+  if (t.to >= 129) return `${base} · Día 2`;
+  return base;
+}
 
 export function planMundial(total: number, contadores: ContadorPlan[], objetivo = 650): Plan {
   const obj = Number.isFinite(objetivo) && objetivo > 0 ? Math.round(objetivo) : 650;
@@ -95,10 +121,11 @@ export function planMundial(total: number, contadores: ContadorPlan[], objetivo 
       for (const t of ev.tramos) {
         if (t.cp <= h.ahora || t.minPlayers > ev.campoTipico) continue;
         const k = ev.tramos.indexOf(t);
-        const p = ev.prob?.[k] ?? Math.min(1, t.to / ev.campoTipico);
+        const p0 = ev.prob?.[k] ?? Math.min(1, t.to / ev.campoTipico);
+        const p = Math.min(1, p0 * (FACILIDAD[ev.tipo] ?? 1));
         const dificultad = Math.min(1, Math.max(0, 1 - p));
         opciones.push({
-          h: idx, contador: h.c.contador, tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t),
+          h: idx, contador: h.c.contador, tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t, ev.tipo),
           ahora: h.ahora, cp: t.cp, gana: t.cp - h.ahora, dificultad,
         });
       }
@@ -111,10 +138,18 @@ export function planMundial(total: number, contadores: ContadorPlan[], objetivo 
   const niveles = [...new Set(opciones.map((o) => o.dificultad))].sort((a, b) => a - b);
   const mejorHasta = (nivel: number) => {
     const porHueco = new Map<number, Opcion>();
-    for (const o of opciones) {
-      if (o.dificultad > nivel + 1e-9) continue;
+    const usados: Record<string, number> = {};
+    // v0.81 — los tipos con tope por temporada (Internacionales: 2) se reparten
+    // primero a los huecos donde más ganan; el resto de huecos, sin ellos.
+    const validas = opciones.filter((o) => o.dificultad <= nivel + 1e-9)
+      .sort((a, b) => b.gana - a.gana || a.dificultad - b.dificultad);
+    for (const o of validas) {
+      const tope = MAX_POR_TEMPORADA[o.tipo];
       const ya = porHueco.get(o.h);
-      if (!ya || o.gana > ya.gana || (o.gana === ya.gana && o.dificultad < ya.dificultad)) porHueco.set(o.h, o);
+      if (ya) continue;
+      if (tope != null && (usados[o.tipo] ?? 0) >= tope) continue;
+      porHueco.set(o.h, o);
+      usados[o.tipo] = (usados[o.tipo] ?? 0) + 1;
     }
     return [...porHueco.values()].sort((a, b) => a.dificultad - b.dificultad || b.gana - a.gana);
   };
@@ -177,13 +212,14 @@ export function minimoPorTipo(total: number, contadores: ContadorPlan[], objetiv
     for (const ev of c.eventos) {
       // De más asequible (puesto más bajo de la tabla) a más difícil.
       const tramos = [...ev.tramos].filter((t) => t.minPlayers <= ev.campoTipico).sort((a, b) => b.to - a.to);
-      const sumaCon = (t: TramoCp) => huecos.map((h) => Math.max(0, t.cp - h)).sort((a, b) => b - a);
+      const tope = MAX_POR_TEMPORADA[ev.tipo] ?? Infinity;
+      const sumaCon = (t: TramoCp) => huecos.map((h) => Math.max(0, t.cp - h)).sort((a, b) => b - a).slice(0, tope);
       const maximo = tramos.length ? sumaCon(tramos[tramos.length - 1]).reduce((s, x) => s + x, 0) : 0;
       let elegido: MinimoTipo | null = null;
       for (const t of tramos) {
         let s = 0, veces = 0;
         for (const g of sumaCon(t)) { if (s >= faltan || g <= 0) break; s += g; veces++; }
-        if (s >= faltan) { elegido = { tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t), veces, maximo }; break; }
+        if (s >= faltan) { elegido = { tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t, ev.tipo), veces, maximo }; break; }
       }
       out.push(elegido ?? { tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: null, veces: 0, maximo });
     }
