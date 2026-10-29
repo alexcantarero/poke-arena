@@ -2,6 +2,29 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.79.0] — 2026-10-29
+
+Emparejamientos de Trainer Hill en el recomendador. **Lleva migración**
+(`drizzle/0027_v0_79_0.sql`, la lanza `npm run db:migrar`): sin ella la app funciona, pero no
+se puede importar. Lleva de la v0.76 a la v0.78.
+
+### Añadido
+
+- **Ajustes → Importar datos → Emparejamientos de Trainer Hill (CSV)**: subes el fichero de
+  «Export data (csv)» de trainerhill.com (Meta → Matchups) y dices de qué eventos es —
+  torneos grandes (Majors), online o mezclado—. Uno por tipo: subir otro lo sustituye. Se
+  pueden borrar. La app no visita su web: el fichero lo descargas tú.
+- `lib/trainerHill.ts`: lee el CSV, quita los espejos (A contra A) y la fila repetida en el
+  otro sentido, ignora su `win_rate` (depende de cómo cuente los empates quien exporta) y
+  guarda V-D-E. El nombre de Limitless da el líder y la variante (`dragapult-dusknoir` →
+  Dragapult / Dusknoir; `mega-excadrill-ex` → Mega Excadrill; `n-zoroark` → Zoroark). 3 pruebas.
+- **En el recomendador**, cada nivel pesa según el torneo: los Majors (presenciales, al mejor
+  de 3) mandan en los emparejamientos de Regionales y pesan bastante en Cups; los online,
+  como la API de Limitless (sobre todo Challenges); el mezclado, a medias. También alimentan
+  las variantes y el acierto del modelo.
+- Basic Box, Festival Lead y similares se identifican por su nombre también en los datos online
+  de Limitless, para que casen con Trainer Hill.
+
 ## [0.78.0] — 2026-10-28
 
 Los torneos online del calendario, como torneos de verdad, y la limpieza sin depender del

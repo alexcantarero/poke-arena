@@ -66,9 +66,10 @@ export type Fuente = {
    como casi todo lo online), poco en las Cups (allí solo el top cut es al
    mejor de 3) y casi nada en los Regionales. */
 export const PESOS_CAMPO: Record<TipoTorneo, Record<string, number>> = {
-  regional: { regionales: 0.7, cityleagues: 0.2, online: 0.05, grupo: 0.05 },
-  league_cup: { grupo: 0.45, cityleagues: 0.4, online: 0.1, regionales: 0.05 },
-  league_challenge: { grupo: 0.4, online: 0.35, cityleagues: 0.2, regionales: 0.05 },
+  // v0.79 — th_*: Trainer Hill (majors = torneos grandes presenciales).
+  regional: { regionales: 0.6, th_majors: 0.2, th_mixto: 0.05, cityleagues: 0.15, online: 0.03, grupo: 0.05 },
+  league_cup: { grupo: 0.45, cityleagues: 0.35, th_majors: 0.05, th_mixto: 0.05, online: 0.1, regionales: 0.05 },
+  league_challenge: { grupo: 0.4, online: 0.3, th_online: 0.1, th_mixto: 0.05, cityleagues: 0.2, regionales: 0.05 },
   city_league: { cityleagues: 0.75, online: 0.15, regionales: 0.1 },
 };
 
@@ -80,10 +81,12 @@ export const PESOS_CAMPO: Record<TipoTorneo, Record<string, number>> = {
  */
 export const PESOS_CRUCES: Record<TipoTorneo, Record<string, number>> = {
   // v0.77 — «yo»: tus propias partidas, solo en el modo personalizado, cuentan doble.
-  regional: { online: 0.15, grupo: 1, yo: 2 },
-  league_cup: { online: 0.3, grupo: 1, yo: 2 },
-  league_challenge: { online: 1, grupo: 1, yo: 2 },
-  city_league: { online: 0.5, grupo: 1, yo: 2 },
+  // v0.79 — Trainer Hill: los «majors» (presenciales, mejor de 3) mandan en
+  // Regionales; los online, como la API de Limitless; el mezclado, a medias.
+  regional: { online: 0.15, th_majors: 1, th_mixto: 0.4, th_online: 0.15, grupo: 1, yo: 2 },
+  league_cup: { online: 0.3, th_majors: 0.6, th_mixto: 0.4, th_online: 0.3, grupo: 1, yo: 2 },
+  league_challenge: { online: 1, th_majors: 0.3, th_mixto: 0.6, th_online: 1, grupo: 1, yo: 2 },
+  city_league: { online: 0.5, th_majors: 0.4, th_mixto: 0.5, th_online: 0.5, grupo: 1, yo: 2 },
 };
 
 /** Al mejor de 3 (Regional, Cup, Challenge) o de 1 (City League, suizo). */

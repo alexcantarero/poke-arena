@@ -6,7 +6,8 @@
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, metaEntries, metaEvents, players } from "@/db/schema";
+import { archetypes, matchupImports, metaEntries, metaEvents, players } from "@/db/schema";
+import { parseTrainerHill } from "@/lib/trainerHill";
 import { todayISO } from "@/lib/format";
 import { seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
@@ -315,4 +316,44 @@ export async function syncLimitlessIrl(fd: FormData) {
   refresh();
   const msg = `Limitless: ${avisos.join(", ")}.${fallos.length ? ` ${fallos.length} con problemas: ${fallos.slice(0, 2).join("; ")}` : ""}`;
   redirect(withFlash("/ajustes", fallos.length && !avisos.some((a) => !a.startsWith("0")) ? "error" : "ok", msg));
+}
+
+/* =========================================================================
+   v0.79 — Importar emparejamientos de Trainer Hill (CSV).
+
+   El fichero lo descarga el organizador desde trainerhill.com (Meta →
+   Matchups → «Export data (csv)») y lo sube aquí: la app no visita su web.
+   Se elige de qué eventos es (Majors, online o mezclado), porque cada uno pesa
+   distinto según el tipo de torneo en el recomendador. Uno por nivel: subir
+   otro del mismo nivel sustituye al anterior.
+   ========================================================================= */
+const NIVELES_TH = new Set(["majors", "online", "mixto"]);
+
+export async function importarTrainerHill(fd: FormData) {
+  const actor = await requireManager();
+  const nivel = str(fd, "nivel");
+  const entrada = fd.get("csv");
+  const fichero = entrada instanceof File ? entrada : null;
+  if (!NIVELES_TH.has(nivel)) return redirect(withFlash("/ajustes#importar", "error", "Elige de qué eventos es el fichero."));
+  if (!fichero || fichero.size === 0) return redirect(withFlash("/ajustes#importar", "error", "Sube el CSV exportado de Trainer Hill."));
+  if (fichero.size > 2_000_000) return redirect(withFlash("/ajustes#importar", "error", "El fichero es demasiado grande (más de 2 MB)."));
+  const r = parseTrainerHill(await fichero.text());
+  if (!r.filas.length) redirect(withFlash("/ajustes#importar", "error", r.errores[0] ?? "El fichero no tiene emparejamientos."));
+  await db.delete(matchupImports).where(eq(matchupImports.nivel, nivel));
+  await db.insert(matchupImports).values({
+    id: `th-${nivel}`, fuente: "trainerhill", nivel, nombre: fichero.name.slice(0, 120),
+    filas: r.filas, partidas: r.partidas, createdBy: actor.id,
+  });
+  refresh();
+  redirect(withFlash("/ajustes#importar", "ok",
+    `Trainer Hill (${nivel}): ${r.filas.length} emparejamientos de ${r.mazos.length} mazos, ${r.partidas.toLocaleString("es-ES")} partidas.`
+    + (r.errores.length ? ` ${r.errores.length} línea(s) no se entendieron.` : "")));
+}
+
+export async function borrarImportacionCruces(fd: FormData) {
+  await requireManager();
+  const id = str(fd, "id");
+  if (id) await db.delete(matchupImports).where(eq(matchupImports.id, id));
+  refresh();
+  redirect(withFlash("/ajustes#importar", "ok", "Importación borrada."));
 }

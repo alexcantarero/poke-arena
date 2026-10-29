@@ -767,3 +767,22 @@ export type LadderEntry = typeof ladderEntries.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
 export type MetaEvent = typeof metaEvents.$inferSelect;
 export type MetaEntry = typeof metaEntries.$inferSelect;
+
+/* ------------------------------------------- v0.79: emparejamientos importados --- */
+
+/**
+ * Emparejamientos subidos a mano desde Trainer Hill (CSV «Export data»). Uno por
+ * NIVEL de eventos (`majors`, `online` o `mixto`): subir otro del mismo nivel
+ * sustituye al anterior. Las filas van ya limpias (sin espejos ni duplicados),
+ * con V-D-E y el líder de cada mazo (`lib/trainerHill.ts`).
+ */
+export const matchupImports = pgTable("matchup_imports", {
+  id: text("id").primaryKey(),
+  fuente: text("fuente").notNull().default("trainerhill"),
+  nivel: text("nivel").notNull(),
+  nombre: text("nombre").notNull().default(""),
+  filas: jsonb("filas").notNull(),
+  partidas: integer("partidas").notNull().default(0),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1496,6 +1496,18 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.79
+  "th.titulo": "Emparejamientos de Trainer Hill (CSV)",
+  "th.explica": "En trainerhill.com → Meta → Matchups, elige los eventos y pulsa «Export data (csv)». Súbelo aquí y di de qué eventos es: los de torneos grandes (Majors) son los únicos emparejamientos presenciales al mejor de 3 que tiene el recomendador. Uno por tipo: subir otro lo sustituye.",
+  "th.fichero": "Fichero CSV",
+  "th.nivel": "De qué eventos",
+  "th.nivel.majors": "Torneos grandes (Majors)",
+  "th.nivel.online": "Online",
+  "th.nivel.mixto": "Mezclado (online + Majors)",
+  "th.importar": "Importar",
+  "th.partidas": "partidas",
+  "th.borrar": "Borrar",
+  "th.enRecomendador": "Y {n} partidas de Trainer Hill.",
   // v0.78
   "v78.abrirWeb": "Abrir en su web",
   // v0.77
@@ -3266,6 +3278,18 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.79
+  "th.titulo": "Trainer Hill matchups (CSV)",
+  "th.explica": "On trainerhill.com → Meta → Matchups, pick the events and press “Export data (csv)”. Upload it here and say which events it covers: Majors are the recommender's only in-person best-of-3 matchups. One per type: uploading another replaces it.",
+  "th.fichero": "CSV file",
+  "th.nivel": "Which events",
+  "th.nivel.majors": "Majors",
+  "th.nivel.online": "Online",
+  "th.nivel.mixto": "Mixed (online + Majors)",
+  "th.importar": "Import",
+  "th.partidas": "matches",
+  "th.borrar": "Delete",
+  "th.enRecomendador": "Plus {n} Trainer Hill matches.",
   // v0.78
   "v78.abrirWeb": "Open on its site",
   // v0.77

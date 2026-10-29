@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { fmtDate } from "@/lib/format";
 import { canManageLeague } from "@/lib/auth";
-import { currentPlayer, loadInvites, loadMetaEvents, loadPlayerEmails, loadSnapshot } from "@/lib/data";
+import { currentPlayer, loadInvites, loadMetaEvents, loadMatchupImports, loadPlayerEmails, loadSnapshot } from "@/lib/data";
 import { availableSeasons, getSeason } from "@/lib/cp";
 import { asEloScope, ELO_SCOPES, isPlayed, sideOf } from "@/lib/stats";
 import { PageHead, Sprites } from "@/components/ui";
@@ -20,7 +20,7 @@ import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
 import { importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
-import { deleteMetaEvent } from "@/actions";
+import { deleteMetaEvent, importarTrainerHill, borrarImportacionCruces } from "@/actions";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { MotionToggle } from "@/components/MotionToggle";
@@ -55,6 +55,8 @@ export default async function SettingsPage() {
   // Lo importado de los Regionales va aparte del snapshot: crece más deprisa
   // que el resto y solo hace falta aquí y en Top Decks.
   const metaEventos = manager ? await loadMetaEvents() : [];
+  // v0.79 — los CSV de Trainer Hill importados.
+  const importacionesTH = manager ? await loadMatchupImports() : [];
 
   const played = snap.matches.filter(isPlayed);
   const counts = Object.fromEntries(
@@ -365,6 +367,43 @@ export default async function SettingsPage() {
                 <Icon name="calendar" className="size-4" /> {tr(lng, "x.a892d3bb")}
               </button>
             </form>
+          </div>
+
+          {/* v0.79 — Trainer Hill: emparejamientos de torneos grandes y online,
+              subidos a mano (el CSV de su página de Matchups). */}
+          <div className="card mb-3 p-4 text-sm">
+            <p className="font-semibold">{tr(lng, "th.titulo")}</p>
+            <p className="mt-1 text-xs text-muted">{tr(lng, "th.explica")}</p>
+            <form action={importarTrainerHill} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="label">{tr(lng, "th.fichero")}</span>
+                <input className="input text-sm" type="file" name="csv" accept=".csv,text/csv" required />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="label">{tr(lng, "th.nivel")}</span>
+                <select className="input" name="nivel" defaultValue="mixto">
+                  <option value="majors">{tr(lng, "th.nivel.majors")}</option>
+                  <option value="online">{tr(lng, "th.nivel.online")}</option>
+                  <option value="mixto">{tr(lng, "th.nivel.mixto")}</option>
+                </select>
+              </label>
+              <button className="btn btn-brand" type="submit">{tr(lng, "th.importar")}</button>
+            </form>
+            {importacionesTH.length > 0 && (
+              <ul className="mt-3 flex flex-col divide-y divide-line-soft rounded-lg border border-line-soft">
+                {importacionesTH.map((im) => (
+                  <li key={im.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
+                    <span className="chip">{tr(lng, `th.nivel.${im.nivel}`)}</span>
+                    <span className="min-w-0 flex-1 truncate">{im.nombre}</span>
+                    <span className="text-muted tabular">{im.partidas.toLocaleString("es-ES")} {tr(lng, "th.partidas")} · {fmtDate(im.createdAt.toISOString().slice(0, 10))}</span>
+                    <form action={borrarImportacionCruces}>
+                      <input type="hidden" name="id" value={im.id} />
+                      <button className="btn btn-ghost btn-sm text-loss" type="submit">{tr(lng, "th.borrar")}</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <h3 className="mb-2 mt-2 px-1 text-sm font-bold">{tr(lng, "x.b96df8a7")}</h3>

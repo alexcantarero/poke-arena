@@ -1,5 +1,6 @@
 import "server-only";
-import { loadMetaIrl, type Snapshot } from "@/lib/data";
+import { loadMatchupImports, loadMetaIrl, type Snapshot } from "@/lib/data";
+import { liderDeSlug, type FilaTH } from "@/lib/trainerHill";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
@@ -24,12 +25,14 @@ import { ajustesPersonales, alMejorDe3, evaluar, type RegistroPersonal, liderDe,
 
 export type DatosRecomendador = {
   fuentes: Record<"online" | "regionales" | "cityleagues", Fuente>;
+  /** v0.79 — emparejamientos importados de Trainer Hill, uno por nivel (`th_majors`, `th_online`, `th_mixto`). */
+  trainerHill: Fuente[];
   grupo: Record<TipoTorneo, Fuente>;
   /** líder → consistencia: mulligan teórico (de las listas) y real (de vuestros juegos). */
   consistencia: Record<string, { teorico: number | null; mull: number; juegos: number }>;
   /** líder → nombre legible (el más usado). */
   nombres: Record<string, string>;
-  resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number };
+  resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number; trainerHill: number };
   /** v0.75 — líder → sus variantes (líder + compañero), con lo que rinde cada una. */
   variantes: Record<string, Variante[]>;
   /** v0.75 — el acierto del modelo en vuestras partidas y la calibración aprendida. */
@@ -77,7 +80,10 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     const m = await fetchMatrizMeta({ days: 45, limit: 40, top: 60, minPartidas: 10, apiKey: process.env.LIMITLESS_API_KEY });
     const lid = (id: string) => {
       const ref = m.acc.mazos.get(id);
-      const l = ref?.icons?.[0] || liderDe(ref?.name ?? id);
+      // v0.79 — los arquetipos con nombre propio (Basic Box, Festival Lead) por su
+      // nombre, como en Trainer Hill; el resto, por el primer Pokémon.
+      const especial = /^(basic-box|festival-lead|lost-box|future-box|ancient-box)/.test(id);
+      const l = especial ? liderDeSlug(id).lider : ref?.icons?.[0] || liderDe(ref?.name ?? id);
       if (ref) nombrar(l, ref.name);
       return l;
     };
@@ -135,6 +141,31 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     nReg = [...evById.values()].filter((e) => e.kind !== "city_league").length;
     nCity = [...evById.values()].filter((e) => e.kind === "city_league").length;
   } catch { /* sin tablas o sin datos: vacías */ }
+
+  /* --- Trainer Hill (v0.79): los CSV importados ----------------------- */
+  const trainerHill: Fuente[] = [];
+  let partidasTH = 0;
+  for (const im of await loadMatchupImports()) {
+    const filas = (Array.isArray(im.filas) ? im.filas : []) as FilaTH[];
+    const f: Fuente = { id: `th_${im.nivel}`, cuota: {}, cruces: [] };
+    for (const x of filas) {
+      if (!x.lider1 || !x.lider2) continue;
+      const n = x.w + x.l + x.t;
+      f.cuota[x.lider1] = (f.cuota[x.lider1] ?? 0) + n;
+      f.cuota[x.lider2] = (f.cuota[x.lider2] ?? 0) + n;
+      nombrar(x.lider1, x.deck1); nombrar(x.lider2, x.deck2);
+      // Variantes: cada nombre de Trainer Hill es una (líder + compañero).
+      const v1 = variante(x.lider1, liderDeSlug(x.deck1).segundo, x.deck1);
+      const v2 = variante(x.lider2, liderDeSlug(x.deck2).segundo, x.deck2);
+      if (x.lider1 !== x.lider2) {
+        v1.w += x.w; v1.l += x.l; v1.t += x.t;
+        v2.w += x.l; v2.l += x.w; v2.t += x.t;
+        f.cruces!.push({ a: x.lider1, b: x.lider2, w: x.w, l: x.l, t: x.t });
+      }
+    }
+    partidasTH += im.partidas;
+    trainerHill.push(f);
+  }
 
   /* --- vuestros torneos, por tipo ------------------------------------ */
   const ldArch = (a?: { main?: string | null; name?: string }) => (a ? a.main || liderDe(a.name) : "");
@@ -205,7 +236,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
      Cada partida jugada con los dos mazos conocidos (liga y torneos) es una
      prueba: qué % daba el modelo al de la izquierda y si ganó. Solo cruces con
      al menos 5 partidas de fuera; si no, el modelo diría «50 %» y no enseña nada. */
-  const fuera = tablaCruces([online, regionales, cityleagues]);
+  const fuera = tablaCruces([online, regionales, cityleagues, ...trainerHill]);
   const muestras: Muestra[] = [];
   for (const m of snap.matches) {
     if (!isPlayed(m)) continue;
@@ -255,8 +286,8 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
 
   return {
-    fuentes: { online, regionales, cityleagues }, grupo, consistencia, nombres,
-    resumen: { online: resOnline, regionales: nReg, cityleagues: nCity },
+    fuentes: { online, regionales, cityleagues }, trainerHill, grupo, consistencia, nombres,
+    resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH },
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,
     tasaCampo: tot.n ? tot.corte / tot.n : null,

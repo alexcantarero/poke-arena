@@ -847,3 +847,16 @@ export function usoDeJugador(snap: Snapshot, playerId: string) {
   const logros = leerLogros(snap.playersById.get(playerId)?.logros).length;
   return { partidas, torneos, logros };
 }
+
+/**
+ * v0.79 — Los emparejamientos importados (Trainer Hill). Si la tabla aún no
+ * existe (no se ha lanzado la migración 0027), lista vacía: nada se rompe.
+ */
+export async function loadMatchupImports() {
+  try {
+    const { matchupImports } = await import("@/db/schema");
+    return await db.select().from(matchupImports);
+  } catch {
+    return [];
+  }
+}
