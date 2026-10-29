@@ -1496,6 +1496,14 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.77
+  "rc.modo": "Tipo de recomendación",
+  "rc.modo.general": "General",
+  "rc.modo.tuyo": "Para ti",
+  "rc.modo.tuyoNota": "Con tus partidas: cuenta lo que rindes con cada mazo por encima o por debajo de lo esperado (con freno, ±10 puntos como mucho) y tus emparejamientos valen doble.",
+  "rc.soloMios": "Solo los mazos que tengo ({n})",
+  "rc.tengo": "Lo tienes",
+  "rc.tuRecord": "Tú: {w}-{l}-{t} · {d} pts sobre lo esperado",
   // v0.76
   "vm.mas": "Ver {n} más",
   "vm.menos": "Ver menos",
@@ -3256,6 +3264,14 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.77
+  "rc.modo": "Recommendation type",
+  "rc.modo.general": "General",
+  "rc.modo.tuyo": "For you",
+  "rc.modo.tuyoNota": "Using your matches: it counts how much you over- or under-perform with each deck versus expectations (capped at ±10 points) and your matchups count double.",
+  "rc.soloMios": "Only decks I own ({n})",
+  "rc.tengo": "You own it",
+  "rc.tuRecord": "You: {w}-{l}-{t} · {d} pts vs expected",
   // v0.76
   "vm.mas": "Show {n} more",
   "vm.menos": "Show less",

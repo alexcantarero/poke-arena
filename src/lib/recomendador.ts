@@ -79,10 +79,11 @@ export const PESOS_CAMPO: Record<TipoTorneo, Record<string, number>> = {
  * peso el % se acerca más al 50 % (menos confianza), sin perder la señal.
  */
 export const PESOS_CRUCES: Record<TipoTorneo, Record<string, number>> = {
-  regional: { online: 0.15, grupo: 1 },
-  league_cup: { online: 0.3, grupo: 1 },
-  league_challenge: { online: 1, grupo: 1 },
-  city_league: { online: 0.5, grupo: 1 },
+  // v0.77 — «yo»: tus propias partidas, solo en el modo personalizado, cuentan doble.
+  regional: { online: 0.15, grupo: 1, yo: 2 },
+  league_cup: { online: 0.3, grupo: 1, yo: 2 },
+  league_challenge: { online: 1, grupo: 1, yo: 2 },
+  city_league: { online: 0.5, grupo: 1, yo: 2 },
 };
 
 /** Al mejor de 3 (Regional, Cup, Challenge) o de 1 (City League, suizo). */
@@ -227,6 +228,11 @@ export function recomendar(opts: {
   /** v0.76 — victorias y derrotas en Pokémon TCG Live por líder (a ciegas, al
       mejor de 1). Solo se usan para las Challenges. */
   live?: Record<string, { w: number; l: number }>;
+  /** v0.77 — modo personalizado: cuánto rindes TÚ con cada líder por encima
+      (o por debajo) de lo que el modelo esperaba. Se suma a la probabilidad de ronda. */
+  ajustes?: Record<string, number>;
+  /** v0.77 — solo estos líderes (p. ej. «los que tengo»). */
+  soloLideres?: string[];
   /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver. */
   minCuota?: number;
   max?: number;
@@ -250,7 +256,10 @@ export function recomendar(opts: {
     objetivo === "ganar" ? r.pGanar : objetivo === "top" ? r.pTop : objetivo === "dia2" ? (r.pDia2 ?? r.pTop) : r.pPositivo;
   const objMedia = objDe(media) || 1e-9;
 
-  const candidatos = Object.entries(campo).filter(([, c]) => c >= (opts.minCuota ?? 0.01)).map(([l]) => l);
+  const solo = opts.soloLideres ? new Set(opts.soloLideres) : null;
+  const candidatos = solo
+    ? [...solo].filter((l) => l)
+    : Object.entries(campo).filter(([, c]) => c >= (opts.minCuota ?? 0.01)).map(([l]) => l);
   const filas: FilaRecomendada[] = candidatos.map((lider) => {
     let pPart = 0, datos = 0;
     let mejor: FilaRecomendada["mejor"] = null, peor: FilaRecomendada["peor"] = null;
@@ -278,12 +287,13 @@ export function recomendar(opts: {
       const wrLive = (lv.w + 15) / (lv.w + lv.l + 30);
       pPart += (wrLive - 0.5) / 3;
     }
-    pPart = Math.min(0.95, Math.max(0.05, calibrar(pPart, opts.alfa ?? 1)));
+    pPart = calibrar(pPart, opts.alfa ?? 1) + (opts.ajustes?.[lider] ?? 0);
+    pPart = Math.min(0.95, Math.max(0.05, pPart));
     const pRonda = bo3 ? alMejorDe3(pPart) : pPart;
     const r = probTorneo(pRonda, estructura);
     const pObjetivo = objDe(r);
     return {
-      lider, cuota: campo[lider], pRonda, ...r, pObjetivo, indice: pObjetivo / objMedia, datos,
+      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo, indice: pObjetivo / objMedia, datos,
       confianza: datos >= 300 ? "alta" : datos >= 60 ? "media" : "baja", mejor, peor, conversion,
     };
   });
@@ -397,4 +407,32 @@ export function mejorVariante(vs: Variante[], tasaCampo: number | null, minimo =
   if (!vs.length) return null;
   const v = valorarVariantes(vs, tasaCampo);
   return v.find((x) => x.w + x.l + x.t + x.listas >= minimo) ?? [...v].sort((a, b) => b.cuota - a.cuota)[0];
+}
+
+/* =========================================================================
+   v0.77 — Recomendación PERSONALIZADA.
+
+   La general responde «qué mazo le va mejor al jugador medio». La tuya mira
+   además lo que has jugado: con cada líder, cuánto has ganado frente a lo que
+   el modelo esperaba con tus emparejamientos. Si con Slowking ganas más de lo
+   que «debería», ese mazo sube para ti; si con Dragapult pierdes más, baja.
+
+   El ajuste se encoge con `k` partidas imaginarias (pocas partidas → casi
+   nada) y se limita a ±10 puntos: un mal fin de semana no hunde un mazo.
+   ========================================================================= */
+
+export type RegistroPersonal = { lider: string; p: number; r: 0 | 0.5 | 1 };
+
+export function ajustesPersonales(registros: RegistroPersonal[], k = 15): Record<string, { ajuste: number; n: number; w: number; l: number; t: number; esperado: number }> {
+  const acc: Record<string, { s: number; e: number; n: number; w: number; l: number; t: number }> = {};
+  for (const r of registros) {
+    if (!r.lider || !Number.isFinite(r.p)) continue;
+    const x = (acc[r.lider] ??= { s: 0, e: 0, n: 0, w: 0, l: 0, t: 0 });
+    x.s += r.r; x.e += r.p; x.n++;
+    if (r.r === 1) x.w++; else if (r.r === 0) x.l++; else x.t++;
+  }
+  return Object.fromEntries(Object.entries(acc).map(([l, x]) => [l, {
+    ajuste: Math.max(-0.1, Math.min(0.1, (x.s - x.e) / (x.n + k))),
+    n: x.n, w: x.w, l: x.l, t: x.t, esperado: x.n ? x.e / x.n : 0.5,
+  }]));
 }

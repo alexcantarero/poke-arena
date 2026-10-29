@@ -2,6 +2,22 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.77.0] — 2026-10-28
+
+El recomendador, general o para ti. **Sin migración.** Lleva la v0.76.
+
+### Añadido
+
+- **General · Para ti** en Herramientas → Recomendador.
+  - **General**: el jugador medio, como hasta ahora.
+  - **Para ti**: con tus partidas. Por cada mazo (líder) que has jugado, cuánto has ganado
+    frente a lo que el modelo esperaba con tus emparejamientos; ese «extra» (encogido con 15
+    partidas imaginarias y con tope de ±10 puntos) se suma a su probabilidad. Tus partidas
+    entran además como fuente de emparejamientos que cuenta doble. En cada mazo: «Lo tienes» y
+    tu récord con él frente a lo esperado.
+  - **Solo los mazos que tengo**: limita la recomendación a los líderes de tus mazos.
+- `ajustesPersonales` en `lib/recomendador.ts` (2 pruebas).
+
 ## [0.76.0] — 2026-10-28
 
 Mulligans en las rondas de torneo con diseño propio, pestañas nuevas, perfil ordenado, el

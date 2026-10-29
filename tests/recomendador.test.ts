@@ -118,3 +118,23 @@ test("TCG Live solo mueve la Challenge", () => {
   assert.ok(ch.pRonda > 0.5);
   assert.ok(Math.abs(cu.pRonda - 0.5) < 1e-9);
 });
+
+import { ajustesPersonales } from "../src/lib/recomendador.ts";
+
+test("personalizado: rendir por encima de lo esperado sube el mazo, con freno", () => {
+  const regs = [
+    ...Array.from({ length: 20 }, () => ({ lider: "slowking", p: 0.5, r: 1 as const })),
+    ...Array.from({ length: 4 }, () => ({ lider: "dragapult", p: 0.6, r: 0 as const })),
+  ];
+  const a = ajustesPersonales(regs);
+  assert.ok(a.slowking.ajuste > 0 && a.slowking.ajuste <= 0.1);
+  assert.ok(a.dragapult.ajuste < 0 && a.dragapult.ajuste >= -0.1);
+  assert.equal(a.slowking.w, 20);
+});
+
+test("personalizado: el ajuste y «solo los que tengo» cambian la recomendación", () => {
+  const fuentes = [{ id: "online", cuota: { a: 50, b: 50, c: 50 } }];
+  const e = { rondas: 5, corte: 8, pCorte: { 15: 1, 12: 1, 9: 0.2 } };
+  const r = recomendar({ tipo: "league_cup", objetivo: "top", fuentes, estructura: e, ajustes: { c: 0.08 }, soloLideres: ["b", "c"] });
+  assert.deepEqual(r.filas.map((f) => f.lider), ["c", "b"]);
+});

@@ -1,10 +1,10 @@
 import "server-only";
 import { loadMetaIrl, type Snapshot } from "@/lib/data";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
-import { archetypesOfMatch, isPlayed, outcome } from "@/lib/stats";
+import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
 import { deckSizeOf, estimateBasics, mulliganChance } from "@/lib/mulligan";
-import { alMejorDe3, evaluar, liderDe, pPartida, tablaCruces, type Cruce, type Evaluacion, type Fuente, type Muestra, type TipoTorneo, type Variante } from "@/lib/recomendador";
+import { ajustesPersonales, alMejorDe3, evaluar, type RegistroPersonal, liderDe, pPartida, tablaCruces, type Cruce, type Evaluacion, type Fuente, type Muestra, type TipoTorneo, type Variante } from "@/lib/recomendador";
 
 /* =========================================================================
    v0.74 — Los datos del recomendador, ya agregados por Pokémon líder.
@@ -38,6 +38,15 @@ export type DatosRecomendador = {
   tasaCampo: number | null;
   /** v0.76 — líder → victorias y derrotas en TCG Live (de las fichas de los mazos). */
   live: Record<string, { w: number; l: number }>;
+  /** v0.77 — lo tuyo, para el modo personalizado (null sin sesión). */
+  personal: {
+    /** líder → cuánto rindes por encima de lo esperado, y tu récord con él. */
+    porLider: ReturnType<typeof ajustesPersonales>;
+    /** Tus partidas como fuente de emparejamientos («yo»). */
+    fuente: Fuente;
+    /** Líderes de los que tienes mazo. */
+    misLideres: string[];
+  } | null;
 };
 
 const KINDS: Record<TipoTorneo, string[]> = {
@@ -47,7 +56,7 @@ const KINDS: Record<TipoTorneo, string[]> = {
   city_league: [],
 };
 
-export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosRecomendador> {
+export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | null): Promise<DatosRecomendador> {
   const nombres: Record<string, string> = {};
   const variantes: Record<string, Map<string, Variante>> = {};
   const variante = (lider: string, segundo: string, nombre: string) => {
@@ -210,6 +219,38 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
   }
   const evaluacion = evaluar(muestras);
 
+  /* --- lo tuyo (v0.77) ------------------------------------------------
+     Tus partidas con tu mazo y el del rival conocidos: lo que el modelo (con
+     datos de fuera) esperaba y lo que pasó, por tu líder; y como fuente de
+     emparejamientos propia. */
+  let personal: DatosRecomendador["personal"] = null;
+  if (meId) {
+    const registros: RegistroPersonal[] = [];
+    const cruces = new Map<string, Cruce>();
+    for (const m of snap.matches) {
+      if (!isPlayed(m)) continue;
+      const lado = sideOf(m, meId);
+      if (!lado) continue;
+      const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      const mio = ldArch(lado === "a" ? a : b), suyo = ldArch(lado === "a" ? b : a);
+      if (!mio || !suyo) continue;
+      const w = outcome(m).winner;
+      const r: 0 | 0.5 | 1 = w === "tie" ? 0.5 : w === lado ? 1 : 0;
+      const p0 = pPartida(fuera, mio, suyo).p;
+      registros.push({ lider: mio, p: (m.bestOf ?? 1) >= 3 ? alMejorDe3(p0) : p0, r });
+      if (mio !== suyo) {
+        const x = cruces.get(`${mio}|${suyo}`) ?? { a: mio, b: suyo, w: 0, l: 0, t: 0 };
+        if (r === 1) x.w++; else if (r === 0) x.l++; else x.t++;
+        cruces.set(`${mio}|${suyo}`, x);
+      }
+    }
+    const misLideres: string[] = [...new Set<string>(snap.decks
+      .filter((d) => d.playerId === meId && !d.retired)
+      .map((d) => ldArch(snap.archIndex.get(d.id)))
+      .filter((l): l is string => Boolean(l)))];
+    personal = { porLider: ajustesPersonales(registros), fuente: { id: "yo", cuota: {}, cruces: [...cruces.values()] }, misLideres };
+  }
+
   const conv = [regionales, cityleagues].flatMap((f) => Object.values(f.conversion ?? {}));
   const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
 
@@ -220,5 +261,6 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
     evaluacion,
     tasaCampo: tot.n ? tot.corte / tot.n : null,
     live,
+    personal,
   };
 }

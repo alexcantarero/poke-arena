@@ -369,6 +369,11 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   const [tipo, setTipo] = useState<TipoTorneo>("league_cup");
   const [jugadores, setJugadores] = useState("48");
   const [objetivo, setObjetivo] = useState<Objetivo>("top");
+  /* v0.77 — general (el jugador medio) o para ti (tus partidas y tus mazos). */
+  const [modo, setModo] = useState<"general" | "tuyo">("general");
+  const [soloMios, setSoloMios] = useState(false);
+  const yo = datos?.personal ?? null;
+  const tuyo = modo === "tuyo" && yo != null;
 
   const conf = TIPOS_REC.find((t) => t.tipo === tipo)!;
   const N = Math.max(4, Math.round(n(jugadores, conf.jugadores)));
@@ -395,14 +400,16 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
     if (!datos || !est || !pCorte) return null;
     return recomendar({
       tipo, objetivo, alfa: datos.evaluacion.alfa, live: datos.live,
-      fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, datos.grupo[tipo]],
+      ajustes: tuyo ? Object.fromEntries(Object.entries(yo!.porLider).map(([l, x]) => [l, x.ajuste])) : undefined,
+      soloLideres: tuyo && soloMios && yo!.misLideres.length ? yo!.misLideres : undefined,
+      fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, datos.grupo[tipo], ...(tuyo ? [yo!.fuente] : [])],
       estructura: {
         rondas: est.total, corte: sinCorte ? 1 : est.topCut, pCorte,
         pPrimero: lineas?.pPrimero ?? undefined,
         fase1: est.umbral != null ? est.fase1 : null, umbral: est.umbral ?? null,
       },
     });
-  }, [datos, tipo, objetivo, est, pCorte, sinCorte, lineas]);
+  }, [datos, tipo, objetivo, est, pCorte, sinCorte, lineas, tuyo, soloMios, yo]);
 
   const objetivoDisponible = objetivo !== "dia2" || est?.umbral != null;
 
@@ -412,6 +419,25 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
         <h2 className="font-display text-lg font-bold">{tr(lng, "rc.titulo")}</h2>
         <p className="mt-1 text-sm text-muted">{tr(lng, "rc.explica")}</p>
       </div>
+      {/* v0.77 — general o personalizado. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="pestanas" role="tablist" aria-label={tr(lng, "rc.modo")}>
+          <button type="button" role="tab" className="pestana" data-on={modo === "general"} aria-selected={modo === "general"} onClick={() => setModo("general")}>
+            {tr(lng, "rc.modo.general")}
+          </button>
+          <button type="button" role="tab" className="pestana" data-on={modo === "tuyo"} aria-selected={modo === "tuyo"} onClick={() => setModo("tuyo")} disabled={!yo}>
+            {tr(lng, "rc.modo.tuyo")}
+          </button>
+        </div>
+        {tuyo && yo!.misLideres.length > 0 && (
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4" checked={soloMios} onChange={(e) => setSoloMios(e.target.checked)} />
+            {trf(lng, "rc.soloMios", { n: yo!.misLideres.length })}
+          </label>
+        )}
+      </div>
+      {tuyo && <p className="-mt-2 text-xs text-muted">{tr(lng, "rc.modo.tuyoNota")}</p>}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <label className="flex min-w-0 flex-col gap-1">
           <span className="label">{tr(lng, "hr.sz.tipo")}</span>
@@ -515,6 +541,22 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                           ))}
                         </ul>
                       </details>
+                    );
+                  })()}
+                  {tuyo && (() => {
+                    /* v0.77 — lo tuyo con este mazo. */
+                    const mi = yo!.porLider[f.lider];
+                    const tengo = yo!.misLideres.includes(f.lider);
+                    if (!mi && !tengo) return null;
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-10 text-[11px]">
+                        {tengo && <span className="font-semibold text-win">✓ {tr(lng, "rc.tengo")}</span>}
+                        {mi && (
+                          <span className={mi.ajuste > 0.005 ? "text-win" : mi.ajuste < -0.005 ? "text-loss" : "text-muted"}>
+                            {trf(lng, "rc.tuRecord", { w: mi.w, l: mi.l, t: mi.t, d: `${mi.ajuste >= 0 ? "+" : "−"}${Math.abs(Math.round(mi.ajuste * 100))}` })}
+                          </span>
+                        )}
+                      </div>
                     );
                   })()}
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-10 text-[11px] text-muted">

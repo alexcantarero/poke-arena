@@ -21,7 +21,7 @@ export default async function HerramientasPage({ searchParams }: { searchParams:
     ...conLista.filter((d) => d.playerId !== me?.id),
   ].map((d) => ({ id: d.id, name: d.name, list: d.list, listJson: d.listJson }));
   // v0.74 — el recomendador: todo agregado por Pokémon líder. Si algo falla, la pestaña lo dice.
-  const datos = await cargarDatosRecomendador(snap).catch(() => null);
+  const datos = await cargarDatosRecomendador(snap, me?.id).catch(() => null);
 
   return (
     <>
