@@ -442,7 +442,7 @@ export default async function ProfilePage({
       {/* --------------------------- Championship Points --------------------------- */}
       {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
       {/* v0.73 — qué te falta para el Mundial (~650 CP), de lo más fácil a lo más difícil. */}
-      <PlanMundial cp={cp} />
+      <PlanMundial cp={cp} torneos={snap.tournaments.map((t) => ({ kind: t.kind, puestos: t.results.map((r) => r.placement) }))} />
 
       {myTours.length > 0 && (
         <>

@@ -456,6 +456,19 @@ export default async function StatsPage({
         />
       )}
 
+      {/* v0.80 — «Meta online: cómo rinde cada mazo» y sus emparejamientos son
+          datos de Limitless, no vuestros: van en la pestaña Online. Antes salían
+          en «Jugadores de la app», mezclados con lo vuestro. */}
+      {fuente === "global" && (
+        <>
+          <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.meta")}</h2>
+          <Suspense fallback={<div className="card h-96 animate-pulse" aria-hidden="true" />}>
+            <MetaOnline dias={diasMeta} formato={formatoMeta} />
+          </Suspense>
+          <p className="mt-2 text-xs text-muted">{tr(lng, "est.notaFiltrosMeta")}</p>
+        </>
+      )}
+
       {!conLocal && (
         <p className="card mb-4 p-3 text-xs text-ink-2">
           {tr(lng, "x.ec96e036")} <b>{tr(lng, "x.f164a10e")}</b>{tr(lng, "x.30f8ab5a")} <b>{tr(lng, "x.a48666d6")}</b> {tr(lng, "x.09a7e130")}
@@ -511,16 +524,6 @@ export default async function StatsPage({
               color="yellow"
             />
           </div>
-      )}
-      <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.meta")}</h2>
-      {fuente !== "live" && (
-        <>
-        <Suspense fallback={<div className="card h-96 animate-pulse" aria-hidden="true" />}>
-          <MetaOnline dias={diasMeta} formato={formatoMeta} />
-        </Suspense>
-        {/* v0.59 — qué filtros le llegan al meta online y cuáles no, dicho. */}
-        <p className="mt-2 text-xs text-muted">{tr(lng, "est.notaFiltrosMeta")}</p>
-        </>
       )}
       <h2 className="mt-8 mb-1 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.vuestro")}</h2>
       <p className="mb-3 text-xs text-muted">{tr(lng, "est.porJuegos")}</p>
@@ -625,12 +628,14 @@ export default async function StatsPage({
             </div>
             {vista === "jugadores" ? (
               <ConversionTable
+                visibles={3}
                 rows={sortRows(porJugador, (r) => r.cutRate ?? r.top4Rate, orden)}
                 matchColumns
                 empty={tr(lng, "x.cb5d9f0a")}
               />
             ) : (
               <ConversionTable
+                visibles={3}
                 rows={sortRows(porMazo, (r) => r.cutRate ?? r.top8Rate, orden)}
                 empty={tr(lng, "x.fab62873")}
               />

@@ -1,5 +1,5 @@
 import { getSeason, type CpTotals } from "@/lib/cp";
-import { CAMPO_TIPICO, planMundial, type ContadorPlan } from "@/lib/planMundial";
+import { CAMPO_TIPICO, minimoPorTipo, planMundial, probDeTramo, type ContadorPlan } from "@/lib/planMundial";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -13,7 +13,19 @@ const CONTADORES: Array<{ contador: string; tipos: string[] }> = [
   { contador: "regional", tipos: ["regional", "international"] },
 ];
 
-export async function PlanMundial({ cp, objetivo = 650 }: { cp: CpTotals; objetivo?: number }) {
+/* v0.80 — los alias puntúan y se miden como su tipo. */
+const ALIAS: Record<string, string> = { pokemon_challenge: "league_challenge", pokemon_cup: "league_cup", special: "regional" };
+
+export async function PlanMundial({ cp, objetivo = 650, torneos = [] }: {
+  cp: CpTotals; objetivo?: number;
+  /** v0.80 — vuestros torneos (tipo y puestos de todos), para medir lo difícil que es cada puesto. */
+  torneos?: Array<{ kind: string; puestos: Array<number | null> }>;
+}) {
+  const puestosDe: Record<string, number[]> = {};
+  for (const t of torneos) {
+    const k = ALIAS[t.kind] ?? t.kind;
+    (puestosDe[k] ??= []).push(...t.puestos.filter((x): x is number => x != null && x > 0));
+  }
   const lng = await getLang(); // v0.49
   const tabla = getSeason(cp.season);
   const contadores: ContadorPlan[] = CONTADORES.flatMap(({ contador, tipos }) => {
@@ -22,11 +34,16 @@ export async function PlanMundial({ cp, objetivo = 650 }: { cp: CpTotals; objeti
     const contados = cp.rows.filter((r) => r.bucket === contador && !r.excluded && r.counted > 0).map((r) => r.counted);
     const eventos = tipos.flatMap((tipo) => {
       const ev = tabla.events[tipo];
-      return ev?.tiers?.length ? [{ tipo, etiqueta: ev.label, tramos: ev.tiers, campoTipico: CAMPO_TIPICO[tipo] ?? 40 }] : [];
+      if (!ev?.tiers?.length) return [];
+      const campoTipico = CAMPO_TIPICO[tipo] ?? 40;
+      return [{ tipo, etiqueta: ev.label, tramos: ev.tiers, campoTipico,
+        prob: ev.tiers.map((t) => probDeTramo(t, campoTipico, puestosDe[tipo] ?? []).p) }];
     });
     return [{ contador, etiqueta: def.label, contados, huecos: def.bfl, eventos }];
   });
   const plan = planMundial(cp.total, contadores, objetivo);
+  const minimos = minimoPorTipo(cp.total, contadores, objetivo);
+  const nTipo = (tipo: string) => (puestosDe[tipo] ?? []).length;
 
   return (
     <section className="card mb-5 p-4">
@@ -55,12 +72,31 @@ export async function PlanMundial({ cp, objetivo = 650 }: { cp: CpTotals; objeti
                   </span>
                 </span>
                 <span className="flex-none font-mono text-sm font-bold tabular text-win">+{p.gana}</span>
-                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${p.dificultad < 0.5 ? "bg-win/15 text-win" : p.dificultad < 0.9 ? "bg-brand/15 text-brand-strong" : "bg-loss/15 text-loss"}`}>
-                  {tr(lng, p.dificultad < 0.5 ? "pm.facil" : p.dificultad < 0.9 ? "pm.medio" : "pm.dificil")}
+                {/* v0.80 — la dificultad es «1 − lo a menudo que se consigue»: fácil si
+                    lo logra ~1 de cada 3, medio hasta 1 de cada 10, difícil por debajo. */}
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${p.dificultad <= 0.7 ? "bg-win/15 text-win" : p.dificultad <= 0.9 ? "bg-brand/15 text-brand-strong" : "bg-loss/15 text-loss"}`}
+                  title={trf(lng, "pm.prob", { p: Math.round((1 - p.dificultad) * 100), n: nTipo(p.tipo) })}>
+                  {tr(lng, p.dificultad <= 0.7 ? "pm.facil" : p.dificultad <= 0.9 ? "pm.medio" : "pm.dificil")} · {Math.round((1 - p.dificultad) * 100)} %
                 </span>
               </li>
             ))}
           </ol>
+        </>
+      )}
+      {plan.faltan > 0 && (
+        <>
+          {/* v0.80 — lo mínimo si solo jugaras un tipo de torneo. */}
+          <h3 className="mb-1.5 mt-4 text-sm font-bold">{tr(lng, "pm.minimoTitulo")}</h3>
+          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {minimos.map((m) => (
+              <li key={m.tipo} className="rounded-lg border border-line-soft px-3 py-2 text-sm">
+                <span className="block font-semibold">{m.etiqueta}</span>
+                <span className="block text-xs text-muted">
+                  {m.puesto ? trf(lng, "pm.minimo", { v: m.veces, p: m.puesto }) : trf(lng, "pm.noLlega", { n: m.maximo })}
+                </span>
+              </li>
+            ))}
+          </ul>
         </>
       )}
       <p className="mt-3 text-[11px] text-muted">{tr(lng, "pm.nota")}</p>

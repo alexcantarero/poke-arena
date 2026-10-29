@@ -32,6 +32,8 @@ export type DatosRecomendador = {
   consistencia: Record<string, { teorico: number | null; mull: number; juegos: number }>;
   /** líder → nombre legible (el más usado). */
   nombres: Record<string, string>;
+  /** v0.80 — líder → sprites, para los arquetipos sin Pokémon en el nombre (Basic Box…). */
+  iconos: Record<string, string[]>;
   resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number; trainerHill: number };
   /** v0.75 — líder → sus variantes (líder + compañero), con lo que rinde cada una. */
   variantes: Record<string, Variante[]>;
@@ -61,6 +63,7 @@ const KINDS: Record<TipoTorneo, string[]> = {
 
 export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | null): Promise<DatosRecomendador> {
   const nombres: Record<string, string> = {};
+  const iconos: Record<string, string[]> = {};
   const variantes: Record<string, Map<string, Variante>> = {};
   const variante = (lider: string, segundo: string, nombre: string) => {
     const clave = segundo && segundo !== lider ? `${lider}|${segundo}` : lider;
@@ -84,6 +87,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       // nombre, como en Trainer Hill; el resto, por el primer Pokémon.
       const especial = /^(basic-box|festival-lead|lost-box|future-box|ancient-box)/.test(id);
       const l = especial ? liderDeSlug(id).lider : ref?.icons?.[0] || liderDe(ref?.name ?? id);
+      if (especial && ref?.icons?.length && !iconos[l]) iconos[l] = ref.icons.slice(0, 2);
       if (ref) nombrar(l, ref.name);
       return l;
     };
@@ -130,9 +134,11 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       vv.listas += en.copies;
       if (en.placement != null) {
         const corte = ev.topCut ?? (ev.kind === "city_league" ? 8 : 0);
-        const x = f.conversion![l] ?? { n: 0, corte: 0 };
+        const x = f.conversion![l] ?? { n: 0, corte: 0, top4: 0, ganados: 0 };
         x.n += 1;
         if (corte && en.placement <= corte) x.corte += 1;
+        if (en.placement <= 4) x.top4 = (x.top4 ?? 0) + 1;
+        if (en.placement === 1) x.ganados = (x.ganados ?? 0) + 1;
         f.conversion![l] = x;
         vv.conPuesto += 1;
         if (corte && en.placement <= corte) vv.corte += 1;
@@ -286,7 +292,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
 
   return {
-    fuentes: { online, regionales, cityleagues }, trainerHill, grupo, consistencia, nombres,
+    fuentes: { online, regionales, cityleagues }, trainerHill, grupo, consistencia, nombres, iconos,
     resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH },
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,

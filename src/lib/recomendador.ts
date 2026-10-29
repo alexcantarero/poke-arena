@@ -57,8 +57,9 @@ export type Fuente = {
   cuota: Record<string, number>;
   /** Emparejamientos (de A contra B, por partidas). Opcional. */
   cruces?: Cruce[];
-  /** Conversión real al corte, si la fuente tiene puestos: líder → {listas, enCorte}. */
-  conversion?: Record<string, { n: number; corte: number }>;
+  /** Conversión real, si la fuente tiene puestos: líder → listas, en el corte y
+      (v0.80) en top 4 y ganadas. */
+  conversion?: Record<string, { n: number; corte: number; top4?: number; ganados?: number }>;
 };
 
 /** Cuánto pesa cada fuente en el campo de cada tipo de torneo. */
@@ -245,14 +246,38 @@ export function recomendar(opts: {
   const tabla = tablaCruces(fuentes, PESOS_CRUCES[tipo]);
   const bo3 = AL_MEJOR_DE[tipo] === 3;
 
-  // Conversión real (Regionales / City Leagues): enCorte/listas del mazo frente a la del campo.
-  const conv: Record<string, { n: number; corte: number }> = {};
+  /* v0.80 — ÉXITO real en presenciales (Regionales / City Leagues), no solo
+     entrar en el corte: cada lista suma 1 si entra al corte, +1 si llega a top 4
+     y +2 si GANA. Se compara con la media del campo. Pesa más en los torneos
+     grandes (Regional) que en los pequeños: ganar un Regional dice mucho más
+     del mazo que ganar una Challenge. */
+  const conv: Record<string, { n: number; corte: number; puntos: number }> = {};
   for (const f of fuentes) for (const [l, c] of Object.entries(f.conversion ?? {})) {
-    const x = conv[l] ?? { n: 0, corte: 0 };
-    x.n += c.n; x.corte += c.corte; conv[l] = x;
+    const x = conv[l] ?? { n: 0, corte: 0, puntos: 0 };
+    x.n += c.n; x.corte += c.corte; x.puntos += c.corte + (c.top4 ?? 0) + 2 * (c.ganados ?? 0);
+    conv[l] = x;
   }
-  const totConv = Object.values(conv).reduce((a, c) => ({ n: a.n + c.n, corte: a.corte + c.corte }), { n: 0, corte: 0 });
-  const tasaCampo = totConv.n ? totConv.corte / totConv.n : 0;
+  const totConv = Object.values(conv).reduce((a, c) => ({ n: a.n + c.n, puntos: a.puntos + c.puntos }), { n: 0, puntos: 0 });
+  const mediaExito = totConv.n ? totConv.puntos / totConv.n : 0;
+  const PESO_EXITO: Record<TipoTorneo, number> = { regional: 0.1, league_cup: 0.06, city_league: 0.06, league_challenge: 0.03 };
+  const ratioExito = (l: string): number | null => {
+    const c = conv[l];
+    return c && c.n >= 10 && mediaExito > 0 ? (c.puntos / c.n) / mediaExito : null;
+  };
+
+  /* v0.80 — EL CAMPO DE LAS RONDAS QUE DECIDEN. En las últimas rondas del
+     suizo y en el corte no te cruzas con el campo medio: te cruzas con los
+     mazos que ganan. Así que se usa también un campo «de arriba», cada mazo
+     pesado por su cuota × su éxito real. Ganarle a lo que gana (el «counter»
+     del mazo dominante) vale más que ganarle a lo que se queda por el camino. */
+  const campoArriba: Record<string, number> = {};
+  let totArriba = 0;
+  for (const [l, f] of Object.entries(campo)) {
+    const r = ratioExito(l);
+    const w = f * (r == null ? 1 : Math.max(0.2, Math.min(4, r)));
+    campoArriba[l] = w; totArriba += w;
+  }
+  for (const l of Object.keys(campoArriba)) campoArriba[l] /= totArriba || 1;
 
   const media = probTorneo(0.5, estructura);
   const objDe = (r: ReturnType<typeof probTorneo>) =>
@@ -263,24 +288,33 @@ export function recomendar(opts: {
   const candidatos = solo
     ? [...solo].filter((l) => l)
     : Object.entries(campo).filter(([, c]) => c >= (opts.minCuota ?? 0.01)).map(([l]) => l);
+
+  const contra = (lider: string, campoX: Record<string, number>) => {
+    let p = 0;
+    for (const [rival, frac] of Object.entries(campoX)) p += frac * pPartida(tabla, lider, rival).p;
+    return p;
+  };
+
   const filas: FilaRecomendada[] = candidatos.map((lider) => {
-    let pPart = 0, datos = 0;
+    let datos = 0;
     let mejor: FilaRecomendada["mejor"] = null, peor: FilaRecomendada["peor"] = null;
     for (const [rival, frac] of Object.entries(campo)) {
       const { p, n } = pPartida(tabla, lider, rival);
-      pPart += frac * p;
       datos += n;
       if (rival !== lider && frac >= 0.03 && n >= 5) {
         if (!mejor || p > mejor.p) mejor = { contra: rival, p };
         if (!peor || p < peor.p) peor = { contra: rival, p };
       }
     }
-    // Un pequeño ajuste por la conversión real, si hay base (≥ 20 listas): ±5 puntos como mucho.
-    const c = conv[lider];
-    let conversion: number | null = null;
-    if (c && c.n >= 20 && tasaCampo > 0) {
-      conversion = c.corte / c.n / tasaCampo;
-      pPart += 0.05 * Math.max(-1, Math.min(1, Math.log2(Math.max(conversion, 1e-3))));
+    // El suizo: 70 % campo medio, 30 % el campo de arriba (las rondas finales).
+    let pPart = 0.7 * contra(lider, campo) + 0.3 * contra(lider, campoArriba);
+    // El corte: contra el campo de arriba.
+    let pTopPart = contra(lider, campoArriba);
+    const ratio = ratioExito(lider);
+    const conversion = ratio;
+    if (ratio != null) {
+      const extra = PESO_EXITO[tipo] * Math.max(-1.5, Math.min(1.5, Math.log2(Math.max(ratio, 1e-3))));
+      pPart += extra; pTopPart += extra;
     }
     /* v0.76 — Challenge: lo que rinde el mazo en TCG Live (a ciegas y al mejor
        de 1, como una Challenge). Encogido con 30 partidas imaginarias y con
@@ -290,13 +324,15 @@ export function recomendar(opts: {
       const wrLive = (lv.w + 15) / (lv.w + lv.l + 30);
       pPart += (wrLive - 0.5) / 3;
     }
-    pPart = calibrar(pPart, opts.alfa ?? 1) + (opts.ajustes?.[lider] ?? 0);
-    pPart = Math.min(0.95, Math.max(0.05, pPart));
+    const ajuste = opts.ajustes?.[lider] ?? 0;
+    const acotar = (x: number) => Math.min(0.95, Math.max(0.05, calibrar(x, opts.alfa ?? 1) + ajuste));
+    pPart = acotar(pPart); pTopPart = acotar(pTopPart);
     const pRonda = bo3 ? alMejorDe3(pPart) : pPart;
-    const r = probTorneo(pRonda, estructura);
+    const pCorteRonda = alMejorDe3(pTopPart); // el top cut siempre al mejor de 3
+    const r = probTorneo(pRonda, estructura, pCorteRonda);
     const pObjetivo = objDe(r);
     return {
-      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo, indice: pObjetivo / objMedia, datos,
+      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo, indice: pObjetivo / objMedia, datos: Math.round(datos),
       confianza: datos >= 300 ? "alta" : datos >= 60 ? "media" : "baja", mejor, peor, conversion,
     };
   });

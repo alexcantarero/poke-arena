@@ -138,3 +138,18 @@ test("personalizado: el ajuste y «solo los que tengo» cambian la recomendació
   const r = recomendar({ tipo: "league_cup", objetivo: "top", fuentes, estructura: e, ajustes: { c: 0.08 }, soloLideres: ["b", "c"] });
   assert.deepEqual(r.filas.map((f) => f.lider), ["c", "b"]);
 });
+
+test("v0.80: el mazo que gana Regionales y su counter suben", () => {
+  // Campo: a (gana mucho), b, c. c le gana a «a»; b no.
+  const fuentes = [{
+    id: "regionales", cuota: { a: 100, b: 100, c: 100 },
+    conversion: { a: { n: 100, corte: 30, top4: 15, ganados: 6 }, b: { n: 100, corte: 5, top4: 1, ganados: 0 }, c: { n: 100, corte: 10, top4: 3, ganados: 1 } },
+    cruces: [{ a: "c", b: "a", w: 60, l: 40, t: 0 }, { a: "b", b: "a", w: 50, l: 50, t: 0 }, { a: "b", b: "c", w: 50, l: 50, t: 0 }],
+  }];
+  const e = { rondas: 8, corte: 8, pCorte: { 24: 1, 21: 1, 18: 0.3 } };
+  const r = recomendar({ tipo: "regional", objetivo: "ganar", fuentes, estructura: e });
+  const pos = (l: string) => r.filas.findIndex((x) => x.lider === l);
+  assert.ok(pos("a") < pos("b"));   // el que gana Regionales, por delante
+  assert.ok(pos("c") < pos("b"));   // su counter, por delante del que no le gana
+  assert.ok(r.filas.every((f) => Number.isInteger(f.datos)));
+});

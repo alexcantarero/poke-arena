@@ -1748,3 +1748,11 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 }
 .pestana[data-on="true"] svg { color: var(--brand); }
 .pestana:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+
+/* v0.80 — «Ver más» sin JavaScript para tablas (ConversionTable): una casilla
+   oculta y `:has`. Las filas de más se esconden hasta marcarla. */
+.ver-mas-css .fila-extra { display: none; }
+.ver-mas-css:has(> input:checked) .fila-extra { display: revert; }
+.ver-mas-css .vm-abierto { display: none; }
+.ver-mas-css:has(> input:checked) .vm-abierto { display: inline; }
+.ver-mas-css:has(> input:checked) .vm-cerrado { display: none; }

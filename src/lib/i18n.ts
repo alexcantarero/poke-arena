@@ -1496,6 +1496,11 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.80
+  "pm.prob": "Se consigue ~{p} % de las veces (con {n} resultados vuestros de este tipo)",
+  "pm.minimoTitulo": "Lo mínimo, si solo jugaras un tipo de torneo",
+  "pm.minimo": "{v} × {p}",
+  "pm.noLlega": "No llegas solo con estos: como mucho +{n} CP",
   // v0.79
   "th.titulo": "Emparejamientos de Trainer Hill (CSV)",
   "th.explica": "En trainerhill.com → Meta → Matchups, elige los eventos y pulsa «Export data (csv)». Súbelo aquí y di de qué eventos es: los de torneos grandes (Majors) son los únicos emparejamientos presenciales al mejor de 3 que tiene el recomendador. Uno por tipo: subir otro lo sustituye.",
@@ -1571,7 +1576,7 @@ const ES = {
   "pm.facil": "Fácil",
   "pm.medio": "Medio",
   "pm.dificil": "Difícil",
-  "pm.nota": "650 CP es una referencia, no el corte oficial: la invitación es por puesto en el ranking de tu zona y la línea solo se sabe al acabar la temporada. La dificultad se calcula por la parte del campo típico que consigue ese puesto.",
+  "pm.nota": "650 CP es una referencia, no el corte oficial: la invitación es por puesto en el ranking de tu zona y la línea solo se sabe al acabar la temporada. La dificultad mezcla la parte del campo típico que consigue ese puesto con lo que habéis conseguido vosotros en la app.",
   "tp.inicio.t3": "Elige el ranking",
   "tp.inicio.x3": "Aquí cambias entre Elo, CP y la clasificación de la liga. La Ball junto a cada nombre es su nivel de uso de la app.",
   "tp.herramientas.t1": "Herramientas",
@@ -3278,6 +3283,11 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.80
+  "pm.prob": "Achieved ~{p}% of the time (with {n} of your results of this type)",
+  "pm.minimoTitulo": "The minimum, if you only played one tournament type",
+  "pm.minimo": "{v} × {p}",
+  "pm.noLlega": "Not enough on its own: at most +{n} CP",
   // v0.79
   "th.titulo": "Trainer Hill matchups (CSV)",
   "th.explica": "On trainerhill.com → Meta → Matchups, pick the events and press “Export data (csv)”. Upload it here and say which events it covers: Majors are the recommender's only in-person best-of-3 matchups. One per type: uploading another replaces it.",

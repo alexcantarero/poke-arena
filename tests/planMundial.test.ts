@@ -56,3 +56,21 @@ test("si ni con todo se llega, se dice", () => {
   assert.equal(p.inalcanzable, true);
   assert.equal(p.suma, 60); // 4 Challenges ganadas
 });
+
+import { minimoPorTipo, probDeTramo } from "../src/lib/planMundial.ts";
+
+test("v0.80: la dificultad mezcla la base con vuestros resultados", () => {
+  const sinDatos = probDeTramo({ to: 8 }, 40, []);
+  assert.ok(Math.abs(sinDatos.p - 0.2) < 1e-9);
+  const conDatos = probDeTramo({ to: 8 }, 40, [1, 3, 5, 7, 2, 9, 12, 4, 6, 8]);
+  assert.ok(conDatos.p >= 0.5 && conDatos.hechos === 8); // 8 de 10 en top 8
+});
+
+test("v0.80: lo mínimo de cada tipo, o cuánto daría como mucho", () => {
+  const m = minimoPorTipo(100, contadores(), 650);
+  const re = m.find((x) => x.tipo === "regional")!;
+  assert.ok(re.puesto && re.veces >= 2);   // con Regionales se llega
+  const ch = m.find((x) => x.tipo === "league_challenge")!;
+  assert.equal(ch.puesto, null);           // con Challenges, no
+  assert.equal(ch.maximo, 60);
+});

@@ -6,6 +6,7 @@ import { Calculator, Gauge, Gift, Layers, Sparkles } from "lucide-react";
 import type { DatosRecomendador } from "@/lib/recomendadorDatos";
 import { mejorVariante, notaConsistencia, recomendar, valorarVariantes, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
 import { spriteUrl } from "@/lib/pokemon";
+import { urlDeObjeto } from "@/lib/objetos";
 import {
   consistencia, premiosDeCarta, premiosDeDos, probCorteDesde, simularSuizo, type ResultadoSuizo,
 } from "@/lib/herramientas";
@@ -501,9 +502,15 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                 <li key={f.lider} className={`rounded-xl border p-3 ${i === 0 ? "border-brand/60 bg-brand/5" : "border-line-soft"}`}>
                   <div className="flex items-center gap-3">
                     <span className="grid size-7 flex-none place-items-center rounded-full bg-surface-2 font-display text-sm font-black">{i + 1}</span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={spriteUrl(f.lider)} alt="" className="size-10 flex-none object-contain [image-rendering:pixelated]"
-                      onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                    {/* v0.80 — los arquetipos sin Pokémon en el nombre (Basic Box, Festival
+                        Lead) con los sprites que les pone Limitless; si no, una Poké Ball. */}
+                    <span className="flex size-10 flex-none items-center justify-center">
+                      {(datos.iconos?.[f.lider] ?? [f.lider]).map((s, k) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={s} src={spriteUrl(s)} alt="" className={`${k ? "-ml-4 size-7" : "size-10"} object-contain [image-rendering:pixelated]`}
+                          onError={(e) => { const im = e.currentTarget; if (!im.dataset.f) { im.dataset.f = "1"; im.src = urlDeObjeto("poke-ball"); im.className = "size-7 object-contain"; } }} />
+                      ))}
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
                       <span className="block text-[11px] text-muted">
@@ -564,7 +571,7 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                     {f.peor && <span>{trf(lng, "rc.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</span>}
                     {f.conversion != null && <span>{trf(lng, "rc.conversion", { x: f.conversion.toFixed(2) })}</span>}
                     <span className={f.confianza === "alta" ? "text-win" : f.confianza === "media" ? "text-brand-strong" : "text-loss"}>
-                      {trf(lng, "rc.datos", { n: f.datos, c: tr(lng, `rc.conf.${f.confianza}`) })}
+                      {trf(lng, "rc.datos", { n: Math.round(f.datos).toLocaleString("es-ES"), c: tr(lng, `rc.conf.${f.confianza}`) })}
                     </span>
                   </div>
                 </li>

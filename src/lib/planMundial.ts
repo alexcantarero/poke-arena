@@ -31,7 +31,12 @@ export type ContadorPlan = {
   contados: number[];
   huecos: number;
   /** Tipos de evento que gastan de este contador, con sus tramos y su campo típico. */
-  eventos: Array<{ tipo: string; etiqueta: string; tramos: TramoCp[]; campoTipico: number }>;
+  eventos: Array<{
+    tipo: string; etiqueta: string; tramos: TramoCp[]; campoTipico: number;
+    /** v0.80 — probabilidad de conseguir cada tramo (alineada con `tramos`), si
+        se sabe por vuestros resultados (`probDeTramo`). Si no, se estima por el campo típico. */
+    prob?: number[];
+  }>;
 };
 
 export type PasoPlan = {
@@ -89,7 +94,9 @@ export function planMundial(total: number, contadores: ContadorPlan[], objetivo 
     for (const ev of h.c.eventos) {
       for (const t of ev.tramos) {
         if (t.cp <= h.ahora || t.minPlayers > ev.campoTipico) continue;
-        const dificultad = Math.min(1, Math.max(0, 1 - t.to / ev.campoTipico));
+        const k = ev.tramos.indexOf(t);
+        const p = ev.prob?.[k] ?? Math.min(1, t.to / ev.campoTipico);
+        const dificultad = Math.min(1, Math.max(0, 1 - p));
         opciones.push({
           h: idx, contador: h.c.contador, tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t),
           ahora: h.ahora, cp: t.cp, gana: t.cp - h.ahora, dificultad,
@@ -129,4 +136,57 @@ export function planMundial(total: number, contadores: ContadorPlan[], objetivo 
   const todo = mejorHasta(1);
   const suma = todo.reduce((a, o) => a + o.gana, 0);
   return { objetivo: obj, total, faltan, pasos: todo.map(({ h: _h, ...p }) => p), suma, inalcanzable: true };
+}
+
+/* =========================================================================
+   v0.80 — Cómo de difícil es cada puesto, con vuestros datos.
+
+   La base es la parte del campo típico que lo consigue (top 8 de 40 = 20 %).
+   Encima, lo que ha pasado en la app: de todos vuestros resultados en ese
+   tipo de torneo, cuántos llegaron a ese puesto. Se mezclan con `k`
+   resultados imaginarios de la base: con 3 resultados casi no cambia; con 40,
+   manda lo vuestro.
+   ========================================================================= */
+export function probDeTramo(tramo: { to: number }, campoTipico: number, puestos: number[], k = 10): { p: number; n: number; hechos: number } {
+  const base = Math.min(1, tramo.to / Math.max(1, campoTipico));
+  const validos = puestos.filter((x) => Number.isFinite(x) && x > 0);
+  const hechos = validos.filter((x) => x <= tramo.to).length;
+  return { p: (k * base + hechos) / (k + validos.length), n: validos.length, hechos };
+}
+
+export type MinimoTipo = {
+  tipo: string; etiqueta: string;
+  /** El puesto más asequible que, repetido, te lleva al objetivo. null si ni ganando todo llegas. */
+  puesto: string | null;
+  veces: number;
+  /** Lo máximo que podría sumar este tipo solo, ganándolo todo. */
+  maximo: number;
+};
+
+/**
+ * v0.80 — Lo MÍNIMO de cada tipo de torneo: si solo jugaras ese tipo, qué
+ * puesto (el más asequible) tendrías que repetir y cuántas veces, usando sus
+ * huecos libres y mejorando los que ya cuentan.
+ */
+export function minimoPorTipo(total: number, contadores: ContadorPlan[], objetivo = 650): MinimoTipo[] {
+  const faltan = Math.max(0, Math.round(objetivo) - Math.round(total));
+  const out: MinimoTipo[] = [];
+  for (const c of contadores) {
+    const llenos = [...c.contados].sort((a, b) => a - b).slice(0, c.huecos);
+    const huecos = [...Array(Math.max(0, c.huecos - llenos.length)).fill(0), ...llenos];
+    for (const ev of c.eventos) {
+      // De más asequible (puesto más bajo de la tabla) a más difícil.
+      const tramos = [...ev.tramos].filter((t) => t.minPlayers <= ev.campoTipico).sort((a, b) => b.to - a.to);
+      const sumaCon = (t: TramoCp) => huecos.map((h) => Math.max(0, t.cp - h)).sort((a, b) => b - a);
+      const maximo = tramos.length ? sumaCon(tramos[tramos.length - 1]).reduce((s, x) => s + x, 0) : 0;
+      let elegido: MinimoTipo | null = null;
+      for (const t of tramos) {
+        let s = 0, veces = 0;
+        for (const g of sumaCon(t)) { if (s >= faltan || g <= 0) break; s += g; veces++; }
+        if (s >= faltan) { elegido = { tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t), veces, maximo }; break; }
+      }
+      out.push(elegido ?? { tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: null, veces: 0, maximo });
+    }
+  }
+  return out;
 }

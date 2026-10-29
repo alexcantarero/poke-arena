@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ConvStats } from "@/lib/tournamentStats";
 import { pct, wrColor } from "@/lib/format";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 /* =========================================================================
@@ -45,10 +45,12 @@ const COLS: Col[] = [
 const esTasa = (k: keyof ConvRow) => String(k).endsWith("Rate");
 
 export async function ConversionTable({
-  rows, empty, matchColumns = false,
+  rows, empty, matchColumns = false, visibles,
 }: {
   rows: ConvRow[];
   empty: ReactNode;
+  /** v0.80 — enseña solo los primeros N y el resto tras «Ver más» (sin JS: una casilla y `:has`). */
+  visibles?: number;
   /** Añade %V y victorias de partidas, que solo tienen sentido para personas. */
   matchColumns?: boolean;
 }) {
@@ -56,12 +58,15 @@ export async function ConversionTable({
 
   if (!rows.length) return <div className="px-4 py-8 text-center text-sm text-muted">{empty}</div>;
 
+  const extra = (i: number) => (visibles != null && i >= visibles ? "fila-extra" : "");
+  const sobran = visibles != null ? Math.max(0, rows.length - visibles) : 0;
   return (
-    <>
+    <div className="ver-mas-css">
+      {sobran > 0 && <input type="checkbox" id={`vm-${rows[0].id}`} className="sr-only" />}
       {/* -------- móvil -------- */}
       <ul className="divide-y divide-line-soft md:hidden">
-        {rows.map((r) => (
-          <li key={r.id} className="px-4 py-3">
+        {rows.map((r, i) => (
+          <li key={r.id} className={`px-4 py-3 ${extra(i)}`}>
             <Cabecera row={r} />
             <div className="mt-2 grid grid-cols-2 gap-2 text-center xs:grid-cols-4">
               <Mini label={tr(lng, "x.5b766ead")} value={pct(r.cutRate, 0)} tone={r.cutRate} />
@@ -99,8 +104,8 @@ export async function ConversionTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-surface-2">
+            {rows.map((r, i) => (
+              <tr key={r.id} className={`hover:bg-surface-2 ${extra(i)}`}>
                 <td><Cabecera row={r} /></td>
                 {COLS.map((c) => {
                   const v = r[c.key] as number | null;
@@ -124,7 +129,13 @@ export async function ConversionTable({
           </tbody>
         </table>
       </div>
-    </>
+      {sobran > 0 && (
+        <label htmlFor={`vm-${rows[0].id}`} className="ver-mas-boton flex min-h-11 cursor-pointer items-center justify-center gap-2 border-t border-line-soft text-sm font-semibold text-info hover:bg-surface-2">
+          <span className="vm-cerrado">{trf(lng, "vm.mas", { n: sobran })} ▾</span>
+          <span className="vm-abierto">{tr(lng, "vm.menos")} ▴</span>
+        </label>
+      )}
+    </div>
   );
 }
 

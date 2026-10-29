@@ -2,6 +2,38 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.80.0] — 2026-10-29
+
+Recomendador que premia ganar Regionales, Camino al Mundial por tipo de torneo y Estadísticas
+ordenadas. **Sin migración nueva** (si vienes de antes de la v0.79, lleva la suya).
+
+### Cambiado
+
+- **Recomendador**:
+  - **Ganar pesa más**: el éxito real en presenciales ya no es solo «entrar al corte»: cada
+    lista suma 1 por corte, +1 por top 4 y +2 por ganar, frente a la media. Pesa más en
+    Regionales (±10 puntos como mucho) que en Cups o Challenges.
+  - **El campo de las rondas que deciden**: en las últimas rondas y en el corte te cruzas con
+    lo que gana. El suizo usa un 70 % el campo medio y un 30 % un campo «de arriba» (cuota ×
+    éxito real); el corte, solo el de arriba. Así sube lo que gana (Dragapult) y, sobre todo,
+    su counter.
+  - Números redondos (nada de «2949.350000000002 partidas»).
+  - Basic Box, Festival Lead y similares con los sprites que les pone Limitless (o una Poké
+    Ball), en vez de una imagen rota.
+- **Camino al Mundial**:
+  - La dificultad de cada puesto mezcla la parte del campo típico que lo consigue con lo que
+    habéis conseguido vosotros en ese tipo de torneo (encogido con 10 resultados), y se ve el %
+    («Fácil · 35 %»). Antes casi todo salía «Difícil».
+  - Nuevo bloque **«Lo mínimo, si solo jugaras un tipo de torneo»**: qué puesto (el más
+    asequible) y cuántas veces, o cuánto daría como mucho si no llega.
+  - Revisadas las tablas de CP 2027: los Internacionales ya daban más que los Regionales
+    (p. ej. top 256: 100 frente a 60) y comparten los 5 huecos.
+- **Estadísticas**:
+  - «Meta online: cómo rinde cada mazo» y sus emparejamientos pasan a la pestaña **Online**
+    (son datos de Limitless); en «Jugadores de la app» queda solo lo vuestro.
+  - «Qué mazos / jugadores llegan al corte» enseña 3 y el resto con «Ver N más» / «Ver menos»
+    (sin JavaScript).
+
 ## [0.79.0] — 2026-10-29
 
 Emparejamientos de Trainer Hill en el recomendador. **Lleva migración**
