@@ -72,11 +72,11 @@ export async function PlanMundial({ cp, objetivo = 650, torneos = [] }: {
                   </span>
                 </span>
                 <span className="flex-none font-mono text-sm font-bold tabular text-win">+{p.gana}</span>
-                {/* v0.80 — la dificultad es «1 − lo a menudo que se consigue»: fácil si
-                    lo logra ~1 de cada 3, medio hasta 1 de cada 10, difícil por debajo. */}
-                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${p.dificultad <= 0.7 ? "bg-win/15 text-win" : p.dificultad <= 0.9 ? "bg-brand/15 text-brand-strong" : "bg-loss/15 text-loss"}`}
+                {/* v0.82 — la dificultad es «1 − lo a menudo que se consigue»: fácil si
+                    lo logra >15 % (dif ≤ 0.85), medio entre 5-15 % (dif ≤ 0.95), difícil por debajo. */}
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${p.dificultad <= 0.85 ? "bg-win/15 text-win" : p.dificultad <= 0.95 ? "bg-brand/15 text-brand-strong" : "bg-loss/15 text-loss"}`}
                   title={trf(lng, "pm.prob", { p: Math.round((1 - p.dificultad) * 100), n: nTipo(p.tipo) })}>
-                  {tr(lng, p.dificultad <= 0.7 ? "pm.facil" : p.dificultad <= 0.9 ? "pm.medio" : "pm.dificil")} · {Math.round((1 - p.dificultad) * 100)} %
+                  {tr(lng, p.dificultad <= 0.85 ? "pm.facil" : p.dificultad <= 0.95 ? "pm.medio" : "pm.dificil")} · {Math.round((1 - p.dificultad) * 100)} %
                 </span>
               </li>
             ))}

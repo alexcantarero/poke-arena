@@ -78,7 +78,8 @@ export const CAMPO_TIPICO: Record<string, number> = {
  * más difícil. Multiplica la probabilidad de conseguir cada puesto.
  */
 export const FACILIDAD: Record<string, number> = {
-  league_challenge: 1.6, league_cup: 1.0, regional: 0.75, international: 0.55,
+  // v0.82 — recalibrado: Challenge campeón=Fácil, Cup campeón=Medio, Regional Top128+=Difícil.
+  league_challenge: 3.5, league_cup: 1.8, regional: 0.55, international: 0.4,
 };
 
 /**
