@@ -16,6 +16,21 @@ const CONTADORES: Array<{ contador: string; tipos: string[] }> = [
 /* v0.80 — los alias puntúan y se miden como su tipo. */
 const ALIAS: Record<string, string> = { pokemon_challenge: "league_challenge", pokemon_cup: "league_cup", special: "regional" };
 
+/* v0.82 — estilos visuales según la categoría épica de dificultad. */
+const ESTILOS_NIVEL: Record<string, string> = {
+  muy_facil: "bg-win/15 text-win",
+  facil: "bg-win/20 text-win font-semibold",
+  medio: "bg-brand/15 text-brand-strong",
+  dificil: "bg-orange-500/15 text-orange-400 font-semibold",
+  muy_dificil: "bg-loss/20 text-loss font-bold",
+  extremo: "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30",
+  leyenda: "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30",
+  mitico: "bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30",
+  inmortal: "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30",
+  titan: "bg-indigo-500/25 text-indigo-200 font-black border border-indigo-400/40",
+  campeon_supremo: "bg-gradient-to-r from-amber-500/30 via-rose-500/30 to-amber-500/30 text-amber-200 font-black border border-amber-400/50 shadow-sm shadow-amber-500/20",
+};
+
 export async function PlanMundial({ cp, objetivo = 650, torneos = [] }: {
   cp: CpTotals; objetivo?: number;
   /** v0.80 — vuestros torneos (tipo y puestos de todos), para medir lo difícil que es cada puesto. */
@@ -72,11 +87,10 @@ export async function PlanMundial({ cp, objetivo = 650, torneos = [] }: {
                   </span>
                 </span>
                 <span className="flex-none font-mono text-sm font-bold tabular text-win">+{p.gana}</span>
-                {/* v0.82 — la dificultad es «1 − lo a menudo que se consigue»: fácil si
-                    lo logra >15 % (dif ≤ 0.85), medio entre 5-15 % (dif ≤ 0.95), difícil por debajo. */}
-                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${p.dificultad <= 0.85 ? "bg-win/15 text-win" : p.dificultad <= 0.95 ? "bg-brand/15 text-brand-strong" : "bg-loss/15 text-loss"}`}
-                  title={trf(lng, "pm.prob", { p: Math.round((1 - p.dificultad) * 100), n: nTipo(p.tipo) })}>
-                  {tr(lng, p.dificultad <= 0.85 ? "pm.facil" : p.dificultad <= 0.95 ? "pm.medio" : "pm.dificil")} · {Math.round((1 - p.dificultad) * 100)} %
+                {/* v0.82 — categoría épica (Fácil, Medio, Difícil, Muy difícil, Extremo, Leyenda, Mítico, Inmortal, Titán, Campeón Supremo). */}
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] ${ESTILOS_NIVEL[p.nivelClave] ?? "bg-surface-2 text-muted"}`}
+                  title={trf(lng, "pm.prob", { p: Math.round(p.probEst), n: nTipo(p.tipo) })}>
+                  {tr(lng, p.nivelLabel)} · {p.probEst < 1 ? "<1 %" : `${Math.round(p.probEst)} %`}
                 </span>
               </li>
             ))}

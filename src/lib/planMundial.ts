@@ -45,12 +45,16 @@ export type PasoPlan = {
   etiqueta: string;
   /** «Top 8», «Campeón», «Top 64»… */
   puesto: string;
+  to: number;
   /** Qué vale ese hueco ahora (0 si está vacío). */
   ahora: number;
   cp: number;
   gana: number;
   /** 0 = muy fácil … 1 = muy difícil. */
   dificultad: number;
+  nivelClave: string;
+  nivelLabel: string;
+  probEst: number;
 };
 
 export type Plan = {
@@ -90,6 +94,51 @@ export const FACILIDAD: Record<string, number> = {
 export const MAX_POR_TEMPORADA: Record<string, number> = { international: 2 };
 
 /** Cómo se llama un puesto. En Regionales e Internacionales, con su referencia al Día 2. */
+export type NivelDificultad = {
+  clave: "muy_facil" | "facil" | "medio" | "dificil" | "muy_dificil" | "extremo" | "leyenda" | "mitico" | "inmortal" | "titan" | "campeon_supremo";
+  labelKey: string;
+  dificultad: number;
+  prob: number;
+};
+
+export function nivelDePuesto(tipo: string, to: number): NivelDificultad {
+  if (tipo === "league_challenge" || tipo === "pokemon_challenge") {
+    if (to === 1) return { clave: "facil", labelKey: "pm.facil", dificultad: 0.30, prob: 30 };
+    return { clave: "muy_facil", labelKey: "pm.muyFacil", dificultad: 0.10, prob: 80 };
+  }
+  if (tipo === "league_cup" || tipo === "pokemon_cup") {
+    if (to === 1) return { clave: "medio", labelKey: "pm.medio", dificultad: 0.55, prob: 12 };
+    if (to <= 4) return { clave: "facil", labelKey: "pm.facil", dificultad: 0.35, prob: 25 };
+    if (to <= 8) return { clave: "facil", labelKey: "pm.facil", dificultad: 0.25, prob: 45 };
+    return { clave: "muy_facil", labelKey: "pm.muyFacil", dificultad: 0.15, prob: 70 };
+  }
+  if (tipo === "regional" || tipo === "special") {
+    if (to === 1) return { clave: "campeon_supremo", labelKey: "pm.campeonSupremo", dificultad: 0.999, prob: 0.1 };
+    if (to <= 4) return { clave: "titan", labelKey: "pm.titan", dificultad: 0.99, prob: 0.3 };
+    if (to <= 8) return { clave: "inmortal", labelKey: "pm.inmortal", dificultad: 0.985, prob: 0.5 };
+    if (to <= 16) return { clave: "mitico", labelKey: "pm.mitico", dificultad: 0.97, prob: 1 };
+    if (to <= 32) return { clave: "leyenda", labelKey: "pm.leyenda", dificultad: 0.94, prob: 2 };
+    if (to <= 64) return { clave: "extremo", labelKey: "pm.extremo", dificultad: 0.90, prob: 3 };
+    if (to <= 128) return { clave: "muy_dificil", labelKey: "pm.muyDificil", dificultad: 0.82, prob: 5 };
+    if (to <= 256) return { clave: "dificil", labelKey: "pm.dificil", dificultad: 0.70, prob: 9 };
+    if (to <= 512) return { clave: "medio", labelKey: "pm.medio", dificultad: 0.55, prob: 17 };
+    return { clave: "facil", labelKey: "pm.facil", dificultad: 0.40, prob: 35 };
+  }
+  if (tipo === "international") {
+    if (to === 1) return { clave: "campeon_supremo", labelKey: "pm.campeonSupremo", dificultad: 0.9999, prob: 0.05 };
+    if (to <= 4) return { clave: "titan", labelKey: "pm.titan", dificultad: 0.995, prob: 0.15 };
+    if (to <= 8) return { clave: "inmortal", labelKey: "pm.inmortal", dificultad: 0.99, prob: 0.25 };
+    if (to <= 16) return { clave: "mitico", labelKey: "pm.mitico", dificultad: 0.98, prob: 0.5 };
+    if (to <= 32) return { clave: "leyenda", labelKey: "pm.leyenda", dificultad: 0.96, prob: 1 };
+    if (to <= 64) return { clave: "extremo", labelKey: "pm.extremo", dificultad: 0.93, prob: 1.8 };
+    if (to <= 128) return { clave: "muy_dificil", labelKey: "pm.muyDificil", dificultad: 0.88, prob: 3.5 };
+    if (to <= 256) return { clave: "dificil", labelKey: "pm.dificil", dificultad: 0.78, prob: 6 };
+    if (to <= 512) return { clave: "dificil", labelKey: "pm.dificil", dificultad: 0.65, prob: 8 };
+    return { clave: "medio", labelKey: "pm.medio", dificultad: 0.55, prob: 15 };
+  }
+  return { clave: "medio", labelKey: "pm.medio", dificultad: 0.50, prob: 20 };
+}
+
 function nombrePuesto(t: TramoCp, tipo = ""): string {
   const base = t.from === 1 && t.to === 1 ? "Campeón" : t.from === t.to ? `${t.from}.º` : `Top ${t.to}`;
   if (tipo !== "regional" && tipo !== "international") return base;
@@ -121,13 +170,14 @@ export function planMundial(total: number, contadores: ContadorPlan[], objetivo 
     for (const ev of h.c.eventos) {
       for (const t of ev.tramos) {
         if (t.cp <= h.ahora || t.minPlayers > ev.campoTipico) continue;
+        const n = nivelDePuesto(ev.tipo, t.to);
         const k = ev.tramos.indexOf(t);
-        const p0 = ev.prob?.[k] ?? Math.min(1, t.to / ev.campoTipico);
-        const p = Math.min(1, p0 * (FACILIDAD[ev.tipo] ?? 1));
-        const dificultad = Math.min(1, Math.max(0, 1 - p));
+        const probEmp = ev.prob?.[k] != null ? Math.round(ev.prob[k] * 100) : null;
+        const probEst = probEmp != null && probEmp > 0 ? probEmp : n.prob;
         opciones.push({
-          h: idx, contador: h.c.contador, tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t, ev.tipo),
-          ahora: h.ahora, cp: t.cp, gana: t.cp - h.ahora, dificultad,
+          h: idx, contador: h.c.contador, tipo: ev.tipo, etiqueta: ev.etiqueta, puesto: nombrePuesto(t, ev.tipo), to: t.to,
+          ahora: h.ahora, cp: t.cp, gana: t.cp - h.ahora, dificultad: n.dificultad,
+          nivelClave: n.clave, nivelLabel: n.labelKey, probEst,
         });
       }
     }
