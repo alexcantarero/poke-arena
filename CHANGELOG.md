@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.78.0] — 2026-10-28
+
+Los torneos online del calendario, como torneos de verdad, y la limpieza sin depender del
+cron. **Sin migración.** Lleva la v0.76 y la v0.77.
+
+### Cambiado
+
+- **Cada torneo online del calendario es un torneo de la app**: al sincronizar las series
+  online (cron, botón de Ajustes o al abrir Torneos/Calendario) se crea su torneo — online,
+  «en curso», con fecha, hora de España, Bo1 con corte Bo3 y el enlace a Limitless — y el
+  evento queda enlazado. Sale en Torneos, el calendario lleva a su ficha y la ficha enlaza a
+  la web. Se crea una sola vez: si ya existe, no se toca.
+- **«Abrir en su web»** arriba, en la cabecera de cada torneo con enlace.
+- **Limpieza sin cron**: borrar a los 3 días los torneos sin ningún dato y cerrar a los 7 los
+  que tienen datos ya eran las reglas, pero solo las aplicaba el cron diario, que sin
+  `CRON_SECRET` no corre. Ahora, además, se aplican al abrir Torneos o el Calendario si hace
+  más de 6 horas de la última vez (`limpiezaPerezosa`), junto con la sincronización online.
+
 ## [0.77.0] — 2026-10-28
 
 El recomendador, general o para ti. **Sin migración.** Lleva la v0.76.

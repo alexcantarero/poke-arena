@@ -1,3 +1,4 @@
+import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import Link from "next/link";
 import { currentPlayer, loadCompetitionHeads, loadEvents, loadTournamentHeads } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
@@ -33,6 +34,7 @@ export default async function CalendarPage({
   searchParams,
 }: { searchParams: Promise<{ y?: string; m?: string; tipo?: string; vista?: string }> }) {
   const lng = await getLang(); // v0.49
+  await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
 
   const q = await searchParams;
   const now = new Date();

@@ -571,9 +571,17 @@ export default async function TournamentPage({
         actions={
           /* En el móvil el «‹ Torneos» va encima del título (`back`); este
              botón ocupaba una fila entera debajo de la cabecera. */
-          <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
-            <Icon name="back" className="size-4" /> {tr(lng, "x.f02a0f3c")}
-          </Link>
+          <>
+            {/* v0.78 — el enlace a su web (Limitless, RK9…), arriba y a la vista. */}
+            {t.url && (
+              <a className="btn btn-brand btn-sm" href={t.url} target="_blank" rel="noopener noreferrer">
+                <Icon name="share" className="size-4" /> {tr(lng, "v78.abrirWeb")}
+              </a>
+            )}
+            <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
+              <Icon name="back" className="size-4" /> {tr(lng, "x.f02a0f3c")}
+            </Link>
+          </>
         }
       />
 

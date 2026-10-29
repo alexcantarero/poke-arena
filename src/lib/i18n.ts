@@ -1496,6 +1496,8 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.78
+  "v78.abrirWeb": "Abrir en su web",
   // v0.77
   "rc.modo": "Tipo de recomendación",
   "rc.modo.general": "General",
@@ -3264,6 +3266,8 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.78
+  "v78.abrirWeb": "Open on its site",
   // v0.77
   "rc.modo": "Recommendation type",
   "rc.modo.general": "General",

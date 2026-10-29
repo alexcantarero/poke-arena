@@ -53,3 +53,28 @@ export async function cerrarTorneosTerminados(ahora = new Date()): Promise<Array
   await db.update(tournaments).set({ status: "closed", closedAt: ahora }).where(inArray(tournaments.id, ids));
   return torneos.filter((t) => ids.includes(t.id)).map((t) => ({ id: t.id, name: t.name }));
 }
+
+/**
+ * v0.78 — La limpieza, también SIN el cron.
+ *
+ * Las reglas son las de siempre (borrar a los 3 días lo que no tiene datos;
+ * cerrar a los 7 lo que sí), pero dependían del cron diario de Vercel, que sin
+ * `CRON_SECRET` no se ejecuta nunca. Ahora, además, al abrir Torneos o el
+ * Calendario se pasa la limpieza si hace más de 6 horas de la última (por
+ * instancia del servidor: como mucho, unas pocas veces al día). Si falla, la
+ * página se pinta igual.
+ */
+const SEIS_HORAS = 6 * 3600_000;
+export async function limpiezaPerezosa(): Promise<void> {
+  const g = globalThis as typeof globalThis & { __arenaLimpieza?: number };
+  const ahora = Date.now();
+  if (g.__arenaLimpieza && ahora - g.__arenaLimpieza < SEIS_HORAS) return;
+  g.__arenaLimpieza = ahora;
+  try {
+    await borrarTorneosAbandonados(new Date(ahora));
+    await cerrarTorneosTerminados(new Date(ahora));
+    // Y los torneos online del calendario (que ahora crean su torneo en la app).
+    const { sincronizarSeriesOnline } = await import("./seriesOnlineDb");
+    await sincronizarSeriesOnline();
+  } catch { /* la próxima vez */ }
+}

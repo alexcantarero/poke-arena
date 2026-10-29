@@ -1,3 +1,4 @@
+import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
 import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
@@ -28,6 +29,7 @@ export default async function TournamentsPage({
   searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string }>;
 }) {
   const lng = await getLang(); // v0.49
+  await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
 
   /* v0.47 — Fase B: `snap` NO es el snapshot entero. Son torneos, resultados,
      jugadores y solo las rondas de torneo (`loadTorneosPantalla`), sin las

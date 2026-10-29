@@ -1,7 +1,7 @@
 import "server-only";
-import { and, inArray, like, lt } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, lt } from "drizzle-orm";
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { events, tournaments } from "@/db/schema";
 import { fetchTournaments } from "@/lib/sources/limitless";
 import { num } from "@/lib/format";
 import { SERIES_SEGUIDAS } from "@/data/seriesSeguidas";
@@ -64,6 +64,7 @@ export async function sincronizarSeriesOnline(
     competitionId: null,
     tournamentId: null,
     note: `Publicado en Limitless: ${t.name}. Empieza a las ${horaMadrid(t.date)} (hora de España).`,
+    _hora: horaMadrid(t.date),
   })));
   const diasReales = new Set(reales.map((r) => `${r.title}|${r.date}`));
 
@@ -84,6 +85,7 @@ export async function sincronizarSeriesOnline(
     note: `Previsto${s.seguida ? " (serie que seguís)" : ""}: ${s.ediciones} ediciones recientes, `
       + `una media de ${num(s.mediaJugadores)} jugadores. Hora prevista ${horaMadrid(cuando)} (hora de España). `
       + `El enlace es la última edición; confirma la próxima en Limitless.`,
+    _hora: horaMadrid(cuando),
   })))];
 
   const ids = filas.map((f) => f.id);
@@ -93,14 +95,35 @@ export async function sincronizarSeriesOnline(
 
   let creados = 0, actualizados = 0;
   for (const f of filas) {
-    const { id, ...valores } = f;
+    const { id, _hora, ...valores } = f;
+    void _hora;
     if (yaEstaban.has(id)) {
       await db.update(events).set(valores).where(inArray(events.id, [id]));
       actualizados++;
     } else {
-      await db.insert(events).values(f);
+      await db.insert(events).values({ id, ...valores });
       creados++;
     }
+  }
+
+  /* v0.78 — Cada torneo online del calendario es también un TORNEO de la app:
+     sale en Torneos, el calendario lleva a su ficha y la ficha enlaza a
+     Limitless. Se crea «en curso» (para poder apuntar rondas sin pasos) y una sola vez: si
+     ya existe, no se toca (podéis haber apuntado rondas). Si nadie apunta nada,
+     la limpieza lo borra a los 3 días de su fecha; si se apunta algo, se cierra
+     solo a los 7. */
+  const sinTorneo = await db.select({ id: events.id }).from(events)
+    .where(and(like(events.id, `${PREFIJO_PREVISTO}%`), isNull(events.tournamentId)));
+  const pendientes = new Set(sinTorneo.map((r) => r.id));
+  for (const f of filas) {
+    if (!pendientes.has(f.id)) continue;
+    const idTorneo = `to-${f.id.slice(PREFIJO_PREVISTO.length)}`.slice(0, 120);
+    await db.insert(tournaments).values({
+      id: idTorneo, name: f.title.slice(0, 160), kind: "online", scope: "online", status: "open",
+      date: f.date, startTime: f._hora || null, venue: "Limitless", organizer: "Limitless",
+      url: f.url ?? "", bestOf: 1, bestOfTop: 3, notes: f.note,
+    }).onConflictDoNothing();
+    await db.update(events).set({ tournamentId: idTorneo }).where(eq(events.id, f.id));
   }
 
   // Las previsiones ya pasadas se retiran: no son historia, eran una apuesta.
