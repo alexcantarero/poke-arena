@@ -99,3 +99,22 @@ test("la mejor variante: mejor % con datos suficientes", () => {
   ], null)!;
   assert.equal(v.clave, "dragapult|dusknoir");
 });
+
+import { PESOS_CRUCES } from "../src/lib/recomendador.ts";
+
+test("los cruces online pesan menos en un Regional que en una Challenge", () => {
+  const f = [{ id: "online", cuota: {}, cruces: [{ a: "x", b: "y", w: 70, l: 30, t: 0 }] }];
+  const ch = pPartida(tablaCruces(f, PESOS_CRUCES.league_challenge), "x", "y").p;
+  const rg = pPartida(tablaCruces(f, PESOS_CRUCES.regional), "x", "y").p;
+  assert.ok(ch > rg && rg > 0.5);
+});
+
+test("TCG Live solo mueve la Challenge", () => {
+  const fuentes = [{ id: "online", cuota: { a: 50, b: 50 } }];
+  const e = { rondas: 5, corte: 8, pCorte: { 15: 1, 12: 1, 9: 0.2 } };
+  const live = { a: { w: 80, l: 20 } };
+  const ch = recomendar({ tipo: "league_challenge", objetivo: "top", fuentes, estructura: e, live }).filas.find((x) => x.lider === "a")!;
+  const cu = recomendar({ tipo: "league_cup", objetivo: "top", fuentes, estructura: e, live }).filas.find((x) => x.lider === "a")!;
+  assert.ok(ch.pRonda > 0.5);
+  assert.ok(Math.abs(cu.pRonda - 0.5) < 1e-9);
+});

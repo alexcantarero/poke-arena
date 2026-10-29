@@ -1,3 +1,4 @@
+import { VerMas } from "@/components/VerMas";
 import { PlanMundial } from "@/components/PlanMundial";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -27,7 +28,7 @@ import { posicionesDe } from "@/lib/data";
 import { FavStar } from "@/components/FavStar";
 import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { SeccionPlegable } from "@/components/SeccionPlegable";
 import { LOGROS, etiquetasDe, leerLogros, nivelDeUso, urlPokeApi } from "@/lib/logros";
 import { urlDeObjeto } from "@/lib/objetos";
@@ -54,7 +55,7 @@ const SCOPES = {
 type ScopeKey = keyof typeof SCOPES;
 
 /** Cuántas partidas enseña el perfil antes de mandar a Resultados. */
-const ULTIMAS = 8;
+const ULTIMAS = 10;
 const isScope = (s: string): s is ScopeKey => (Object.keys(SCOPES) as string[]).includes(s);
 
 export default async function ProfilePage({
@@ -363,9 +364,10 @@ export default async function ProfilePage({
             </Empty>
           )}
         </section>
-      </div>
 
-      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        {/* v0.76 — a la derecha de «Sus mazos», en columna: el cara a cara y los
+            emparejamientos. Antes «Sus mazos» iba sola y dejaba media fila vacía. */}
+        <div className="flex min-w-0 flex-col gap-4">
         <SeccionPlegable
           titulo={tr(lng, "x.55125239")}
           clave="perfil-h2h"
@@ -415,6 +417,7 @@ export default async function ProfilePage({
             </Empty>
           )}
         </SeccionPlegable>
+        </div>
       </div>
 
       {/* ------------------------- torneos: lo que se enseña ------------------------ */}
@@ -444,8 +447,11 @@ export default async function ProfilePage({
       {myTours.length > 0 && (
         <>
           <SectionTitle aside={`${myTours.length}`}>{tr(lng, "x.f02a0f3c")}</SectionTitle>
-          <div className="card mb-5 divide-y divide-line-soft">
-            {myTours.map((t) => {
+          <div className="card mb-5">
+            {/* v0.76 — los 3 más recientes; el resto, tras «Ver más». */}
+            <VerMas n={3} mas={(k) => trf(lng, "vm.mas", { n: k })} menos={tr(lng, "vm.menos")}
+              envolver={(hijos) => <div className="divide-y divide-line-soft">{hijos}</div>}
+              items={[...myTours].sort((x, y) => y.date.localeCompare(x.date)).map((t) => {
               const r = t.results.find((x) => x.playerId === id)!;
               return (
                 <Link key={t.id} href={`/torneos/${t.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
@@ -467,7 +473,7 @@ export default async function ProfilePage({
                   )}
                 </Link>
               );
-            })}
+            })} />
           </div>
         </>
       )}
@@ -517,8 +523,10 @@ export default async function ProfilePage({
       <div className="card">
         {scoped.length ? (
           <>
-          <MatchList>
-            {scoped.slice().sort(porRecientes).slice(0, ULTIMAS).map((m) => (
+          {/* v0.76 — las 3 últimas a la vista; hasta 10 tras «Ver más»; el resto, en Resultados. */}
+          <VerMas n={3} mas={(k) => trf(lng, "vm.mas", { n: k })} menos={tr(lng, "vm.menos")}
+            envolver={(hijos) => <MatchList>{hijos}</MatchList>}
+            items={scoped.slice().sort(porRecientes).slice(0, ULTIMAS).map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}
@@ -529,8 +537,7 @@ export default async function ProfilePage({
                 archB={m.deckBId ? snap.archIndex.get(m.deckBId) : (m.opponentArchetypeId ? snap.archById.get(m.opponentArchetypeId) : undefined)}
                 context={m.competitionId ? snap.compsById.get(m.competitionId)?.name : m.tournamentId ? snap.toursById.get(m.tournamentId)?.name : undefined}
               />
-            ))}
-          </MatchList>
+            ))} />
           <Link
             className="flex min-h-12 items-center justify-center gap-2 border-t border-line-soft text-sm font-semibold text-info hover:bg-surface-2"
             href={`/resultados?jugador=${player.id}${

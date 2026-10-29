@@ -239,9 +239,17 @@ export async function syncLimitlessIrl(fd: FormData) {
     filas: Array<{ placement: number | null; copies: number; name: string; main: string; secondary: string }>,
   ) => {
     // Si alguien ya lo pegó a mano con el mismo nombre y fecha, manda lo suyo.
-    if (identidades.has(`${ev.name}|${ev.date}|${ev.division}`)) return false;
-    await db.insert(metaEvents).values(ev).onConflictDoNothing();
-    await db.delete(metaEntries).where(eq(metaEntries.eventId, ev.id));
+    const ident = `${ev.name}|${ev.date}|${ev.division}`;
+    if (identidades.has(ident)) return false;
+    /* v0.76 — si el evento NO se ha insertado (choca con otro de mismo nombre,
+       fecha y división, p. ej. dos City Leagues de la misma prefectura el
+       mismo día), no se guardan sus puestos: antes se intentaba igual y la
+       clave ajena reventaba toda la importación (error 23503). */
+    const insertado = await db.insert(metaEvents).values(ev).onConflictDoNothing().returning({ id: metaEvents.id });
+    if (!insertado.length && !ids.has(ev.id as string)) return false;
+    identidades.add(ident);
+    ids.add(ev.id as string);
+    await db.delete(metaEntries).where(eq(metaEntries.eventId, ev.id as string));
     const rows = filas.map((f) => {
       const a = casar(f.name, f.main, f.secondary);
       return {
@@ -289,7 +297,8 @@ export async function syncLimitlessIrl(fd: FormData) {
     let n = 0;
     for (const x of r.leidas) {
       const ok = await guardar({
-        id: `ltjp-${x.liga.id}`, name: `City League ${x.liga.prefecture} ${x.liga.date.slice(5).replace("-", "/")}`,
+        // v0.76 — con el número de Limitless: dos City Leagues de la misma prefectura el mismo día existen.
+        id: `ltjp-${x.liga.id}`, name: `City League ${x.liga.prefecture} ${x.liga.date.slice(5).replace("-", "/")} #${x.liga.id}`,
         date: x.liga.date, kind: "city_league",
         location: `${x.liga.prefecture}, Japón`, format: "standard", division: "masters",
         season: seasonOfDate(x.liga.date), playerCount: null, topCut: 8, coverage: x.puestos.length,

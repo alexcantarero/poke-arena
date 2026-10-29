@@ -72,8 +72,9 @@ export async function SourceTabs({
   };
 
   return (
-    <div className="scroll-x scroll-fade mb-4 flex snap-x snap-proximity gap-2" role="tablist" aria-label={tr(lng, "x.da8315d3")}>
-      {OPCIONES.map(({ value, label, Icon, on }) => {
+    /* v0.76 — mismas pestañas que Herramientas (`.pestanas`). */
+    <div className="pestanas mb-4" role="tablist" aria-label={tr(lng, "x.da8315d3")}>
+      {OPCIONES.map(({ value, label, Icon }) => {
         const activo = value === current;
         return (
           <Link
@@ -81,8 +82,7 @@ export async function SourceTabs({
             href={href(value)}
             role="tab"
             aria-selected={activo}
-            className={`tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors
-              ${activo ? on : "border-line bg-surface text-muted hover:text-ink"}`}
+            className="pestana" data-on={activo}
           >
             <Icon className="size-4" aria-hidden="true" />
             {label}

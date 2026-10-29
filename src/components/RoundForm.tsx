@@ -13,6 +13,7 @@ import { archetypeValue } from "@/lib/types";
 import type { RoundView } from "@/lib/stats";
 import { DeckPicker } from "./DeckPicker";
 import { PrizePicker } from "@/components/PrizePicker";
+import { Mulligans } from "@/components/Mulligans";
 import { Avatar } from "./ui";
 import { ObjetoSprite } from "@/components/ObjetoSprite";
 import { BALL_DE_FAMILIA, urlDeObjeto } from "@/lib/objetos";
@@ -451,6 +452,12 @@ export function RoundForm({
                     ))}
                   </div>
                 </div>
+
+                {/* v0.76 — los mulligans: antes las rondas de torneo no los pedían. */}
+                <Mulligans juego={i} nombreA={tr(lng, "v63.tu")} nombreB={rivalName || tr(lng, "x.dca34e30")}
+                  inicialA={existing?.match.games.find((g) => g.number === i + 1)?.mulligansA ?? 0}
+                  inicialB={existing?.match.games.find((g) => g.number === i + 1)?.mulligansB ?? 0}
+                  colorA={jugador?.color} colorB={rivalDelGrupo?.color} />
 
                 {/* v0.30 — premios cogidos y penalización. "a" eres tú:
                     las rondas de torneo se apuntan siempre desde tu lado. */}

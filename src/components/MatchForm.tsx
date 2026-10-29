@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
 import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
 import { bloqueados } from "@/lib/juegosMazos";
-import { ContadorDado } from "@/components/ContadorDado";
+import { Mulligans } from "@/components/Mulligans";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
 import { PrizePicker } from "@/components/PrizePicker";
@@ -522,23 +522,10 @@ export function MatchForm({
                 </div>
                 <input type="hidden" name={`g${i}_first`} value={games[i].first} />
 
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-muted w-14">{tr(lng, "x.0dc0ab48")}</span>
-                  <div className="flex flex-1 items-center gap-2">
-                    <div className="flex flex-1 items-center gap-1.5">
-                      <label htmlFor={`g${i}_mulligans_a`} className="sr-only">Mulligans {A?.name ?? "A"}</label>
-                      <span className="truncate text-xs text-muted max-w-[60px]" title={A?.name ?? "A"}>{A?.name ?? "A"}</span>
-                      {/* v0.62 — el dado de los mulligans */}
-                      <ContadorDado name={`g${i}_mulligans_a`} defaultValue={match?.games[i]?.mulligansA ?? 0} disabled={over} etiqueta={A?.name ?? "A"} />
-                    </div>
-                    <div className="flex flex-1 items-center gap-1.5">
-                      <label htmlFor={`g${i}_mulligans_b`} className="sr-only">Mulligans {bLabel}</label>
-                      <span className="truncate text-xs text-muted max-w-[60px]" title={bLabel}>{bLabel}</span>
-                      {/* v0.62 — el dado de los mulligans */}
-                      <ContadorDado name={`g${i}_mulligans_b`} defaultValue={match?.games[i]?.mulligansB ?? 0} disabled={over} etiqueta={bLabel} />
-                    </div>
-                  </div>
-                </div>
+                {/* v0.76 — los mulligans, con la misma estética que los premios. */}
+                <Mulligans juego={i} nombreA={A?.name ?? "A"} nombreB={bLabel}
+                  inicialA={match?.games[i]?.mulligansA ?? 0} inicialB={match?.games[i]?.mulligansB ?? 0}
+                  colorA={A?.color} colorB={B?.color} disabled={over} />
 
                 {/* v0.30 — premios cogidos por cada uno y penalización. */}
                 <PrizePicker

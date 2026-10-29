@@ -1496,6 +1496,13 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.76
+  "vm.mas": "Ver {n} más",
+  "vm.menos": "Ver menos",
+  "mull.titulo": "Mulligans",
+  "mull.ninguno": "ninguno",
+  "mull.aria": "{n} mulligans de {nombre}",
+  "mull.pista": "{rival} puede robar +{n}",
   // v0.75
   "rc.ev.sin": "Aún no hay partidas vuestras con los dos mazos apuntados y datos de fuera para comprobar el acierto. Cuantas más apuntéis, más aprende.",
   "rc.ev.acierto": "Acierto del modelo: {p} en {n} partidas vuestras",
@@ -1530,7 +1537,7 @@ const ES = {
   "rc.conf.alta": "alta",
   "rc.conf.media": "media",
   "rc.conf.baja": "baja",
-  "rc.fuentes": "Datos: {t} torneos online ({p} partidas, 30 días), {r} Regionales y {c} City Leagues importados (120 días) y {g} rivales en vuestros torneos de este tipo.",
+  "rc.fuentes": "Datos: {t} torneos online ({p} partidas, 45 días), {r} Regionales y {c} City Leagues importados (120 días) y {g} rivales en vuestros torneos de este tipo.",
   "rc.nota": "Es una estimación para ordenar opciones, no una predicción. «×» compara con un mazo medio (1,00 = igual). Con fiabilidad baja, los números se acercan al 50 %. No sabe cómo juegas tú: eso, en una versión siguiente.",
   // v0.73
   "pm.titulo": "Camino al Mundial",
@@ -3249,6 +3256,13 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.76
+  "vm.mas": "Show {n} more",
+  "vm.menos": "Show less",
+  "mull.titulo": "Mulligans",
+  "mull.ninguno": "none",
+  "mull.aria": "{n} mulligans for {nombre}",
+  "mull.pista": "{rival} may draw +{n}",
   // v0.75
   "rc.ev.sin": "There are no matches of yours yet with both decks recorded and outside data to check accuracy. The more you record, the more it learns.",
   "rc.ev.acierto": "Model accuracy: {p} over {n} of your matches",
@@ -3283,7 +3297,7 @@ const EN: Record<I18nKey, string> = {
   "rc.conf.alta": "high",
   "rc.conf.media": "medium",
   "rc.conf.baja": "low",
-  "rc.fuentes": "Data: {t} online tournaments ({p} matches, 30 days), {r} Regionals and {c} City Leagues imported (120 days) and {g} opponents in your tournaments of this type.",
+  "rc.fuentes": "Data: {t} online tournaments ({p} matches, 45 days), {r} Regionals and {c} City Leagues imported (120 days) and {g} opponents in your tournaments of this type.",
   "rc.nota": "An estimate to rank options, not a prediction. “×” compares with an average deck (1.00 = equal). With low reliability, numbers drift towards 50%. It doesn't know how you play: that comes in a later version.",
   // v0.73
   "pm.titulo": "Road to Worlds",

@@ -36,6 +36,8 @@ export type DatosRecomendador = {
   evaluacion: Evaluacion;
   /** Conversión media al corte de los presenciales (base para comparar variantes). */
   tasaCampo: number | null;
+  /** v0.76 — líder → victorias y derrotas en TCG Live (de las fichas de los mazos). */
+  live: Record<string, { w: number; l: number }>;
 };
 
 const KINDS: Record<TipoTorneo, string[]> = {
@@ -61,7 +63,9 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
   const online: Fuente = { id: "online", cuota: {}, cruces: [] };
   let resOnline: DatosRecomendador["resumen"]["online"] = null;
   try {
-    const m = await fetchMatrizMeta({ days: 30, top: 40, minPartidas: 10, apiKey: process.env.LIMITLESS_API_KEY });
+    /* v0.76 — más historia online: 45 días y hasta 40 torneos (cada uno se
+       pide una vez y queda en caché 6 horas). */
+    const m = await fetchMatrizMeta({ days: 45, limit: 40, top: 60, minPartidas: 10, apiKey: process.env.LIMITLESS_API_KEY });
     const lid = (id: string) => {
       const ref = m.acc.mazos.get(id);
       const l = ref?.icons?.[0] || liderDe(ref?.name ?? id);
@@ -147,6 +151,17 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
     grupo[tipo] = f;
   }
 
+  /* --- TCG Live (v0.76): lo apuntado a mano en cada mazo, por líder -------- */
+  const live: Record<string, { w: number; l: number }> = {};
+  for (const d of snap.decks) {
+    if (!d.liveWins && !d.liveLosses) continue;
+    const l = ldArch(snap.archIndex.get(d.id));
+    if (!l) continue;
+    const x = live[l] ?? { w: 0, l: 0 };
+    x.w += d.liveWins ?? 0; x.l += d.liveLosses ?? 0;
+    live[l] = x;
+  }
+
   /* --- consistencia ---------------------------------------------------- */
   const consistencia: DatosRecomendador["consistencia"] = {};
   const teoricos: Record<string, number[]> = {};
@@ -204,5 +219,6 @@ export async function cargarDatosRecomendador(snap: Snapshot): Promise<DatosReco
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,
     tasaCampo: tot.n ? tot.corte / tot.n : null,
+    live,
   };
 }

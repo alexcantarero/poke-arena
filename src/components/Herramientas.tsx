@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MulliganSim } from "@/components/MulliganSim";
+import { Calculator, Gauge, Gift, Layers, Sparkles } from "lucide-react";
 import type { DatosRecomendador } from "@/lib/recomendadorDatos";
 import { mejorVariante, notaConsistencia, recomendar, valorarVariantes, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
 import { spriteUrl } from "@/lib/pokemon";
@@ -48,10 +49,10 @@ export function Herramientas({ mazos, inicial, mazoInicial, datos }: { mazos: Ma
   const [pestana, setPestana] = useState<Pestana>(
     inicial === "suiza" || inicial === "consistencia" || inicial === "premios" || inicial === "manos" ? inicial : mazoInicial ? "manos" : "recomendador");
 
-  const pestanas: Array<[Pestana, string]> = [
-    ["recomendador", tr(lng, "rc.tab")],
-    ["suiza", tr(lng, "hr.tab.suiza")], ["consistencia", tr(lng, "hr.tab.consistencia")],
-    ["premios", tr(lng, "hr.tab.premios")], ["manos", tr(lng, "hr.tab.manos")],
+  const pestanas: Array<[Pestana, string, typeof Sparkles]> = [
+    ["recomendador", tr(lng, "rc.tab"), Sparkles],
+    ["suiza", tr(lng, "hr.tab.suiza"), Calculator], ["consistencia", tr(lng, "hr.tab.consistencia"), Gauge],
+    ["premios", tr(lng, "hr.tab.premios"), Gift], ["manos", tr(lng, "hr.tab.manos"), Layers],
   ];
   const cambiar = (p: Pestana) => {
     setPestana(p);
@@ -60,10 +61,15 @@ export function Herramientas({ mazos, inicial, mazoInicial, datos }: { mazos: Ma
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap gap-1.5" aria-label={tr(lng, "hr.titulo")} data-paso="herramientas-2">
-        {pestanas.map(([k, l]) => (
-          <button key={k} type="button" onClick={() => cambiar(k)} aria-pressed={pestana === k}
-            className={`chip ${pestana === k ? "chip-brand" : ""}`}>{l}</button>
+      {/* v0.76 — pestañas de verdad (`.pestanas`): barra con icono, la activa
+          en relieve con el filo de marca, y en el móvil se desliza sin partirse. */}
+      <nav className="pestanas" role="tablist" aria-label={tr(lng, "hr.titulo")} data-paso="herramientas-2">
+        {pestanas.map(([k, l, Ico]) => (
+          <button key={k} type="button" role="tab" onClick={() => cambiar(k)} aria-selected={pestana === k}
+            className="pestana" data-on={pestana === k}>
+            <Ico className="size-4 flex-none" aria-hidden="true" />
+            <span>{l}</span>
+          </button>
         ))}
       </nav>
       {pestana === "recomendador" && <Recomendador datos={datos ?? null} />}
@@ -388,7 +394,7 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   const res = useMemo(() => {
     if (!datos || !est || !pCorte) return null;
     return recomendar({
-      tipo, objetivo, alfa: datos.evaluacion.alfa,
+      tipo, objetivo, alfa: datos.evaluacion.alfa, live: datos.live,
       fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, datos.grupo[tipo]],
       estructura: {
         rondas: est.total, corte: sinCorte ? 1 : est.topCut, pCorte,

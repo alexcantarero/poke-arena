@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.76.0] — 2026-10-28
+
+Mulligans en las rondas de torneo con diseño propio, pestañas nuevas, perfil ordenado, el
+recomendador afinado por tipo de torneo y el fallo al traer City Leagues. **Sin migración.**
+
+### Corregido
+
+- **Traer Regionales y City Leagues reventaba (error 23503, `meta_entries_event_id_fkey`)**:
+  dos City Leagues de la misma prefectura el mismo día se llamaban igual; el evento no se
+  insertaba (choca con el índice nombre+fecha+división) pero se intentaba guardar sus puestos.
+  Ahora el nombre lleva el número de Limitless y, si un evento no entra, sus puestos tampoco.
+- **Las rondas de torneo no pedían los mulligans**: ahora sí, en cada juego.
+
+### Cambiado
+
+- **Mulligans con diseño propio** (`Mulligans`): misma familia que «Premios cogidos». Por
+  jugador, su mano en abanico con SUS fundas; cada mulligan añade una carta y se baraja, y
+  debajo «el rival puede robar +N». En Registrar partida y en las rondas de torneo.
+- **Pestañas** (`.pestanas`): barra con icono por pestaña, la activa en relieve con filo de
+  marca y deslizable en el móvil. En Herramientas y en las fuentes de Estadísticas.
+- **Perfil**: «Sus mazos» con el cara a cara y los emparejamientos a su derecha (ya no queda
+  media fila vacía). Torneos y últimas partidas enseñan 3 y el resto tras «Ver más».
+- **Recomendador**:
+  - Lo online pesa sobre todo en Challenges (suizo al mejor de 1), poco en Cups y casi nada en
+    Regionales, tanto en el campo como en los emparejamientos (`PESOS_CRUCES`).
+  - Más historia online: 45 días y hasta 40 torneos.
+  - **TCG Live** (las victorias y derrotas apuntadas en cada mazo) cuenta solo para Challenges:
+    es a ciegas y al mejor de 1. Encogido y con un tercio de peso.
+
 ## [0.75.0] — 2026-10-27
 
 El recomendador aprende de vuestras partidas y recomienda la variante concreta. **Sin

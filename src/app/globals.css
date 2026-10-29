@@ -1676,3 +1676,75 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 /* v0.73 — El tutorial de cada página señala lo que explica: el elemento sube
    por encima y el resto de la pantalla se oscurece (una sombra enorme). */
 .tour-luz { z-index: 85; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .5); background-color: var(--surface); }
+
+/* =========================================================================
+   v0.76 — Mulligans: la mano de cada uno, con sus fundas.
+   ========================================================================= */
+.mull-caja {
+  border-color: color-mix(in oklab, var(--info) 30%, var(--line));
+  background: linear-gradient(170deg, color-mix(in oklab, var(--info) 8%, var(--surface)), var(--surface) 60%);
+}
+.mull-lado { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: .25rem; }
+.mull-nombre { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); }
+.mull-control { display: flex; align-items: center; gap: .4rem; }
+.mull-btn {
+  display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 9999px;
+  border: 1px solid var(--line); background: var(--surface-2); font-size: 1.1rem; font-weight: 800; color: var(--ink);
+  transition: background-color .15s, transform .1s;
+}
+.mull-btn:hover:not(:disabled) { background: color-mix(in oklab, var(--funda) 18%, var(--surface-2)); }
+.mull-btn:active:not(:disabled) { transform: scale(.92); }
+.mull-btn:disabled { opacity: .35; }
+/* La mano: hasta 5 cartas en abanico con la funda del jugador. */
+.mull-mano { position: relative; display: grid; place-items: center; width: 4.6rem; height: 3.2rem; }
+.mull-vacia { font-size: 11px; color: var(--muted); }
+.mull-carta {
+  --i: 0; --total: 1;
+  position: absolute; bottom: 0; left: 50%; width: 1.7rem; aspect-ratio: 63 / 88; border-radius: .3rem;
+  translate: -50% 0; transform-origin: 50% 120%;
+  transform: rotate(calc((var(--i) - (var(--total) - 1) / 2) * 13deg));
+  border: 1.5px solid color-mix(in oklab, var(--funda) 55%, black);
+  background:
+    linear-gradient(125deg, rgb(255 255 255 / .35) 0 14%, transparent 26% 62%, rgb(255 255 255 / .15) 70%, transparent 78%),
+    linear-gradient(165deg, color-mix(in oklab, var(--funda) 82%, white), color-mix(in oklab, var(--funda) 70%, black));
+  box-shadow: 0 1px 3px rgb(0 0 0 / .3);
+}
+.mull-mano[data-baraja="true"] .mull-carta { animation: mull-baraja .45s ease-out both; animation-delay: calc(var(--i) * 40ms); }
+@keyframes mull-baraja { from { transform: rotate(0deg) translateY(4px); opacity: .4; } }
+.mull-num {
+  position: absolute; right: -.15rem; top: -.1rem; z-index: 2; min-width: 1.3rem; height: 1.3rem; padding: 0 .25rem;
+  display: grid; place-items: center; border-radius: 9999px; font-family: var(--font-display); font-size: .75rem; font-weight: 900;
+  background: var(--brand); color: var(--on-brand); box-shadow: 0 1px 3px rgb(0 0 0 / .3);
+}
+.mull-pista { font-size: 10px; text-align: center; color: color-mix(in oklab, var(--funda) 70%, var(--ink-2)); }
+@media (prefers-reduced-motion: reduce) { .mull-mano[data-baraja="true"] .mull-carta { animation: none; } }
+
+/* =========================================================================
+   v0.76 — Pestañas comunes (Herramientas, Estadísticas…). Una barra con
+   fondo propio; cada pestaña con su icono; la activa en relieve, con el texto
+   en tinta y un filo de marca abajo. En el móvil se desliza en horizontal y
+   nunca se parte en dos líneas.
+   ========================================================================= */
+.pestanas {
+  display: flex; gap: .25rem; padding: .25rem; overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: none; border-radius: .9rem; border: 1px solid var(--line-soft);
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  scroll-snap-type: x proximity;
+}
+.pestanas::-webkit-scrollbar { display: none; }
+.pestana {
+  position: relative; display: inline-flex; flex: none; align-items: center; gap: .45rem;
+  min-height: 2.5rem; padding: 0 .9rem; border-radius: .65rem; scroll-snap-align: start;
+  font-size: .875rem; font-weight: 600; white-space: nowrap; color: var(--muted);
+  transition: color .15s, background-color .15s, box-shadow .15s;
+}
+.pestana:hover { color: var(--ink); background: color-mix(in oklab, var(--surface) 60%, transparent); }
+.pestana[data-on="true"] {
+  color: var(--ink); background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .12), inset 0 0 0 1px var(--line-soft);
+}
+.pestana[data-on="true"]::after {
+  content: ""; position: absolute; left: .9rem; right: .9rem; bottom: .2rem; height: 2px; border-radius: 2px; background: var(--brand);
+}
+.pestana[data-on="true"] svg { color: var(--brand); }
+.pestana:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }

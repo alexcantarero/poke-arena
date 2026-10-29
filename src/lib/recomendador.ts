@@ -62,11 +62,27 @@ export type Fuente = {
 };
 
 /** Cuánto pesa cada fuente en el campo de cada tipo de torneo. */
+/* v0.76 — lo online pesa sobre todo en las Challenges (suizo al mejor de 1,
+   como casi todo lo online), poco en las Cups (allí solo el top cut es al
+   mejor de 3) y casi nada en los Regionales. */
 export const PESOS_CAMPO: Record<TipoTorneo, Record<string, number>> = {
-  regional: { regionales: 0.6, cityleagues: 0.15, online: 0.2, grupo: 0.05 },
-  league_cup: { grupo: 0.35, cityleagues: 0.3, online: 0.3, regionales: 0.05 },
-  league_challenge: { grupo: 0.45, cityleagues: 0.3, online: 0.2, regionales: 0.05 },
-  city_league: { cityleagues: 0.7, online: 0.2, regionales: 0.1 },
+  regional: { regionales: 0.7, cityleagues: 0.2, online: 0.05, grupo: 0.05 },
+  league_cup: { grupo: 0.45, cityleagues: 0.4, online: 0.1, regionales: 0.05 },
+  league_challenge: { grupo: 0.4, online: 0.35, cityleagues: 0.2, regionales: 0.05 },
+  city_league: { cityleagues: 0.75, online: 0.15, regionales: 0.1 },
+};
+
+/**
+ * v0.76 — Cuánto cuentan los EMPAREJAMIENTOS de cada fuente según el torneo.
+ * Una partida online cuenta entera para una Challenge y bastante menos para
+ * un Regional: sus partidas se multiplican por este peso, así que con menos
+ * peso el % se acerca más al 50 % (menos confianza), sin perder la señal.
+ */
+export const PESOS_CRUCES: Record<TipoTorneo, Record<string, number>> = {
+  regional: { online: 0.15, grupo: 1 },
+  league_cup: { online: 0.3, grupo: 1 },
+  league_challenge: { online: 1, grupo: 1 },
+  city_league: { online: 0.5, grupo: 1 },
 };
 
 /** Al mejor de 3 (Regional, Cup, Challenge) o de 1 (City League, suizo). */
@@ -96,8 +112,8 @@ export function campoDe(tipo: TipoTorneo, fuentes: Fuente[], k = 30): Record<str
 
 export type Tabla = Map<string, Map<string, { w: number; l: number; t: number }>>;
 
-/** Junta los cruces de todas las fuentes, en los dos sentidos. */
-export function tablaCruces(fuentes: Fuente[]): Tabla {
+/** Junta los cruces de todas las fuentes, en los dos sentidos (con su peso, si se da). */
+export function tablaCruces(fuentes: Fuente[], pesos?: Record<string, number>): Tabla {
   const t: Tabla = new Map();
   const sumar = (a: string, b: string, w: number, l: number, e: number) => {
     if (!a || !b || a === b) return;
@@ -107,7 +123,11 @@ export function tablaCruces(fuentes: Fuente[]): Tabla {
     c.w += w; c.l += l; c.t += e;
     fila.set(b, c);
   };
-  for (const f of fuentes) for (const c of f.cruces ?? []) { sumar(c.a, c.b, c.w, c.l, c.t); sumar(c.b, c.a, c.l, c.w, c.t); }
+  for (const f of fuentes) {
+    const k = pesos ? (pesos[f.id] ?? 1) : 1;
+    if (!k) continue;
+    for (const c of f.cruces ?? []) { sumar(c.a, c.b, c.w * k, c.l * k, c.t * k); sumar(c.b, c.a, c.l * k, c.w * k, c.t * k); }
+  }
   return t;
 }
 
@@ -204,13 +224,16 @@ export function recomendar(opts: {
   estructura: Estructura;
   /** v0.75 — calibración aprendida de vuestras rondas (`evaluar`). 1 = sin tocar. */
   alfa?: number;
+  /** v0.76 — victorias y derrotas en Pokémon TCG Live por líder (a ciegas, al
+      mejor de 1). Solo se usan para las Challenges. */
+  live?: Record<string, { w: number; l: number }>;
   /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver. */
   minCuota?: number;
   max?: number;
 }): { filas: FilaRecomendada[]; campo: Record<string, number>; media: number } {
   const { tipo, objetivo, fuentes, estructura } = opts;
   const campo = campoDe(tipo, fuentes);
-  const tabla = tablaCruces(fuentes);
+  const tabla = tablaCruces(fuentes, PESOS_CRUCES[tipo]);
   const bo3 = AL_MEJOR_DE[tipo] === 3;
 
   // Conversión real (Regionales / City Leagues): enCorte/listas del mazo frente a la del campo.
@@ -246,6 +269,14 @@ export function recomendar(opts: {
     if (c && c.n >= 20 && tasaCampo > 0) {
       conversion = c.corte / c.n / tasaCampo;
       pPart += 0.05 * Math.max(-1, Math.min(1, Math.log2(Math.max(conversion, 1e-3))));
+    }
+    /* v0.76 — Challenge: lo que rinde el mazo en TCG Live (a ciegas y al mejor
+       de 1, como una Challenge). Encogido con 30 partidas imaginarias y con
+       un tercio de peso: es ladder, no torneo. */
+    const lv = tipo === "league_challenge" ? opts.live?.[lider] : undefined;
+    if (lv && lv.w + lv.l >= 10) {
+      const wrLive = (lv.w + 15) / (lv.w + lv.l + 30);
+      pPart += (wrLive - 0.5) / 3;
     }
     pPart = Math.min(0.95, Math.max(0.05, calibrar(pPart, opts.alfa ?? 1)));
     const pRonda = bo3 ? alMejorDe3(pPart) : pPart;
