@@ -1,12 +1,11 @@
 import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import Link from "next/link";
-import { currentPlayer, loadCompetitionHeads, loadEvents, loadTournamentHeads } from "@/lib/data";
+import { currentPlayer, loadEvents, loadTournamentHeads } from "@/lib/data";
 import { canManageLeague } from "@/lib/auth";
 // v0.38: ya no se pintan partidas aquí, así que no hace falta leerlas.
 import { CALENDAR_KINDS, alternarTipo, kindsPresent, parseTipos, pasaTipos, tiposAParam, toneOf } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
-import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
 import { tr, trf } from "@/lib/i18n";
@@ -45,13 +44,13 @@ export default async function CalendarPage({
      pantalla solo necesita tres tablas pequeñas y estables. Cargaba el
      snapshot entero —con `matches` y `games`, las dos únicas que crecen sin
      parar— para pintar un mes de calendario. */
-  const [eventos_, tours, comps, me] = await Promise.all([
-    loadEvents(), loadTournamentHeads(), loadCompetitionHeads(), currentPlayer(),
+  const [eventos_, tours, me] = await Promise.all([
+    loadEvents(), loadTournamentHeads(), currentPlayer(),
   ]);
   const toursById = new Map(tours.map((t) => [t.id, t]));
   // Agrupado para no reescribir el cuerpo de la pantalla, pero NO es el
-  // snapshot: son tres consultas sueltas y se llama distinto por eso.
-  const datos = { events: eventos_, tournaments: tours, competitions: comps, toursById };
+  // snapshot: son consultas sueltas y se llama distinto por eso.
+  const datos = { events: eventos_, tournaments: tours, toursById };
   const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
 
@@ -299,12 +298,10 @@ export default async function CalendarPage({
       {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
           importar eventos, para organizadores); la agenda ya NO sale debajo:
           para eso está la vista «Agenda». Y con «Agenda» solo sale la agenda. */}
+      {/* v0.82 — «Añadir al calendario» manual quitado: los torneos creados ya entran
+          solos al calendario, y los oficiales se importan con los botones de abajo. */}
       {vista === "calendario" && manager && (
-          <div className="grid items-start gap-4 lg:grid-cols-3">
-            <section className="card">
-              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.52501db8")}</h2></div>
-              <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
-            </section>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
 
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.4566e25f")}</h2></div>
