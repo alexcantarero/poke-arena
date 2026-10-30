@@ -1,4 +1,4 @@
-import { eloLiga, PROVISIONAL } from "@/lib/eloLiga";
+import { eloLiga, PROVISIONAL, rangoElo } from "@/lib/eloLiga";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageLeague, readSession } from "@/lib/auth";
@@ -170,13 +170,26 @@ export default async function CompetitionPage({
                   <span className="w-6 flex-none text-center font-display text-sm font-black tabular text-muted">{f.provisional ? "–" : i + 1}</span>
                   <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
                   <span className="hidden font-mono text-xs tabular text-muted xs:inline" title={tr(lng, "elo.recordAyuda")}>{f.w}-{f.l}{f.t ? `-${f.t}` : ""}</span>
-                  {f.provisional && <span className="chip text-[10px]" title={trf(lng, "elo.provAyuda", { n: PROVISIONAL })}>{tr(lng, "elo.prov")}</span>}
+                  {/* v0.83 — en colocación (x/5) o su rango, con su color. */}
+                  {f.provisional ? (
+                    <span className="chip text-[10px]" title={trf(lng, "elo.provAyuda", { n: PROVISIONAL })}>
+                      {trf(lng, "elo.colocacion", { n: f.partidas, m: PROVISIONAL })}
+                    </span>
+                  ) : (() => {
+                    const r = rangoElo(f.elo);
+                    return (
+                      <span className={`rango-elo rango-${r.rango.clave}`}
+                        title={r.siguiente ? trf(lng, "elo.siguiente", { r: r.siguiente.nombre, n: r.faltan }) : tr(lng, "elo.maximo")}>
+                        {r.rango.nombre}
+                      </span>
+                    );
+                  })()}
                   {f.ultimo !== 0 && (
                     <span className={`w-10 text-right font-mono text-xs tabular ${f.ultimo > 0 ? "text-win" : "text-loss"}`} title={tr(lng, "elo.ultimoAyuda")}>
                       {f.ultimo > 0 ? "+" : ""}{f.ultimo}
                     </span>
                   )}
-                  <span className="w-14 text-right font-mono text-base font-bold tabular" title={tr(lng, "elo.eloAyuda")}>{f.elo}</span>
+                  <span className="w-14 text-right font-mono text-base font-bold tabular" title={tr(lng, "elo.eloAyuda")}>{f.provisional ? "—" : f.elo}</span>
                 </li>
               ))}
             </ol>

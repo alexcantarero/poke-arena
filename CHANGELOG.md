@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.83.0] — 2026-10-30
+
+Rangos de la Liga Elo libre. **Sin migración.** Lleva la v0.82.
+
+### Cambiado
+
+- **Liga Elo libre: todos empezáis en 0 y el Elo no baja de 0** (escalera que se sube). Las 5
+  primeras partidas son «En colocación x/5»: el Elo ya se mueve, y rápido (K 40), pero el
+  puesto y el rango salen a partir de la 5.ª.
+- **Rangos con su color**: Madera (0), Acero (50), Cobre (100), Plata (150), Oro (225), Mármol
+  (300), Cuarzo (400), Jade (500), Ópalo (625) y Lapislázuli (775). Al pasar el ratón, cuánto
+  falta para el siguiente. `RANGOS_ELO` y `rangoElo` en `lib/eloLiga.ts` (pruebas nuevas).
+
 ## [0.82.0] — 2026-10-29
 
 Recomendador por objetivo con resultados reales, el parche de la revisión, Liga Elo libre,

@@ -1496,6 +1496,10 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.83
+  "elo.colocacion": "En colocación {n}/{m}",
+  "elo.siguiente": "Siguiente: {r} (faltan {n} puntos)",
+  "elo.maximo": "El rango más alto",
   // v0.82
   "rc.obj.sorpresa": "Listas sorpresa (pocas listas, gran resultado)",
   "rc.sinSorpresas": "No hay listas sorpresa: ningún mazo con pocas listas (30 o menos) ha entrado al corte.",
@@ -1518,12 +1522,12 @@ const ES = {
   "rc.ayuda.conversion": "Éxito real en presenciales frente a la media (corte +1, top 4 +1, ganar +2). ×1,00 = como la media.",
   "rc.ayuda.fiabilidad": "Partidas de emparejamiento detrás de la cifra: alta 300+, media 60+, baja menos.",
   "elo.titulo": "Clasificación por Elo",
-  "elo.sub": "Cualquiera contra cualquiera. Ganar a quien tiene más Elo da más; cuantas más partidas, menos se mueve. Provisional hasta {n} partidas.",
+  "elo.sub": "Cualquiera contra cualquiera. Todos empezáis en 0 (Madera) y el Elo no baja de 0. Ganar a quien tiene más Elo da más; cuantas más partidas, menos se mueve. En colocación hasta {n} partidas.",
   "elo.prov": "provisional",
   "elo.provAyuda": "Menos de {n} partidas: su Elo aún se está colocando.",
   "elo.recordAyuda": "Victorias-derrotas(-empates) en esta liga.",
   "elo.ultimoAyuda": "Lo que movió su última partida.",
-  "elo.eloAyuda": "Elo en esta liga (empieza en 1000).",
+  "elo.eloAyuda": "Elo en esta liga (empieza en 0 y no baja de 0).",
   // v0.80
   "pm.prob": "Se consigue ~{p} % de las veces (con {n} resultados vuestros de este tipo)",
   "pm.minimoTitulo": "Lo mínimo, si solo jugaras un tipo de torneo",
@@ -3319,6 +3323,10 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.83
+  "elo.colocacion": "Placement {n}/{m}",
+  "elo.siguiente": "Next: {r} ({n} points to go)",
+  "elo.maximo": "The highest rank",
   // v0.82
   "rc.obj.sorpresa": "Surprise lists (few lists, great results)",
   "rc.sinSorpresas": "No surprise lists: no deck with few lists (30 or fewer) has made the cut.",
@@ -3341,12 +3349,12 @@ const EN: Record<I18nKey, string> = {
   "rc.ayuda.conversion": "Real in-person success vs average (cut +1, top 4 +1, win +2). ×1.00 = average.",
   "rc.ayuda.fiabilidad": "Matchup games behind the number: high 300+, medium 60+, low fewer.",
   "elo.titulo": "Elo standings",
-  "elo.sub": "Anyone vs anyone. Beating higher Elo gives more; the more games, the less it moves. Provisional until {n} games.",
+  "elo.sub": "Anyone vs anyone. Everyone starts at 0 (Wood) and Elo never drops below 0. Beating higher Elo gives more; the more games, the less it moves. Placement until {n} games.",
   "elo.prov": "provisional",
   "elo.provAyuda": "Fewer than {n} games: their Elo is still settling.",
   "elo.recordAyuda": "Wins-losses(-ties) in this league.",
   "elo.ultimoAyuda": "What their last game moved.",
-  "elo.eloAyuda": "Elo in this league (starts at 1000).",
+  "elo.eloAyuda": "Elo in this league (starts at 0, never below 0).",
   // v0.80
   "pm.prob": "Achieved ~{p}% of the time (with {n} of your results of this type)",
   "pm.minimoTitulo": "The minimum, if you only played one tournament type",

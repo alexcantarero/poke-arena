@@ -1756,3 +1756,27 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .ver-mas-css .vm-abierto { display: none; }
 .ver-mas-css:has(> input:checked) .vm-abierto { display: inline; }
 .ver-mas-css:has(> input:checked) .vm-cerrado { display: none; }
+
+/* =========================================================================
+   v0.83 — Rangos de la Liga Elo libre, cada uno con su material.
+   ========================================================================= */
+.rango-elo {
+  display: inline-flex; align-items: center; flex: none; padding: .1rem .55rem; border-radius: 9999px;
+  border: 1px solid transparent; font-size: 11px; font-weight: 800; letter-spacing: .02em; white-space: nowrap;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .25); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35);
+}
+.rango-madera { color: #fff3e0; text-shadow: 0 1px 0 rgb(0 0 0 / .35); border-color: #6b4423;
+  background: repeating-linear-gradient(100deg, #8a5a32 0 6px, #7a4d29 6px 9px, #93633a 9px 14px); }
+.rango-acero { color: #1d2733; border-color: #7e8a96; background: linear-gradient(145deg, #eef2f6, #b8c2cc 45%, #8d99a6); }
+.rango-cobre { color: #3a1606; border-color: #a2532a; background: linear-gradient(145deg, #f6c3a1, #d4804e 45%, #a5562d); }
+.rango-plata { color: #222a33; border-color: #9aa5b1; background: linear-gradient(145deg, #ffffff, #d6dce3 45%, #a9b3bd); }
+.rango-oro { color: #3d2a00; border-color: #c9971c; background: linear-gradient(145deg, #fff1b8, #f3cf5b 40%, #d4a12a 75%, #a8781a); }
+.rango-marmol { color: #2b2b2b; border-color: #b8b2a7;
+  background: linear-gradient(115deg, transparent 40%, rgb(120 110 100 / .35) 42%, transparent 46%), linear-gradient(145deg, #fbfaf7, #e7e2d9 50%, #cfc8bc); }
+.rango-cuarzo { color: #4a1f36; border-color: #e3a3c4; background: linear-gradient(145deg, #fff0f7, #f7c9df 45%, #e7a6c6); }
+.rango-jade { color: #06301f; border-color: #2f8f63; background: linear-gradient(145deg, #c9f2dc, #5fc394 45%, #2e8a5e); }
+.rango-opalo { color: #23224a; border-color: #a9b7e8;
+  background: linear-gradient(120deg, #fdf3ff, #d6f1ff 25%, #fff3d9 50%, #e6dcff 75%, #d9fff4); }
+.rango-lapislazuli { color: #fff6d6; text-shadow: 0 1px 0 rgb(0 0 0 / .4); border-color: #1d2f86;
+  background: radial-gradient(circle at 30% 35%, #f3cf5b 0 1.5px, transparent 2px), radial-gradient(circle at 72% 60%, #f3cf5b 0 1px, transparent 1.5px),
+    linear-gradient(145deg, #3c5bd6, #22379c 50%, #142468); }
