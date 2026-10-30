@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectarCabeceraMes, fechaDe, parseEventosPegados, tipoDe } from "../src/lib/eventosPegados.ts";
+import { datosDeDireccion, detectarCabeceraMes, fechaDe, parseEventosPegados, tipoDe } from "../src/lib/eventosPegados.ts";
 
 test("fechaDe: los formatos habituales", () => {
   assert.equal(fechaDe("Sat, Oct 4, 2026 10:00 AM"), "2026-10-04");
@@ -161,4 +161,67 @@ REGIONAL GDANSK 30-1`;
   const segundaVez = parseEventosPegados(txt, ref);
   assert.equal(segundaVez.eventos.length, 21);
   assert.deepEqual(segundaVez.eventos.map((e) => e.id), eventos.map((e) => e.id));
+});
+
+test("nombres que contienen CUP o Challenge no se confunden con la etiqueta del tipo", () => {
+  const txt = `Copa de Liga
+Mythic L. CUP October
+CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 10:30 a.m.
+
+Desafío de Liga
+Mythic L. Challenge October
+CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 04:30 p.m.`;
+  const { eventos } = parseEventosPegados(txt);
+  assert.equal(eventos.length, 2);
+  const cup = eventos.find((e) => e.kind === "league_cup")!;
+  const ch = eventos.find((e) => e.kind === "league_challenge")!;
+  assert.equal(cup.store, "Mythic L. CUP October");
+  assert.equal(cup.title, "League Cup · Mythic L. CUP October");
+  assert.equal(cup.location, "CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN");
+  assert.equal(cup.date, "2026-10-31");
+  assert.equal(cup.time, "10:30");
+  assert.equal(ch.store, "Mythic L. Challenge October");
+  assert.equal(ch.time, "16:30"); // 04:30 p.m. → 16:30
+});
+
+test("mismo texto sin líneas vacías: se separan igual", () => {
+  const txt = `Copa de Liga
+Mythic L. CUP October
+CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 10:30 a.m.
+Desafío de Liga
+Mythic L. Challenge October
+CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 04:30 p.m.`;
+  const { eventos } = parseEventosPegados(txt);
+  assert.deepEqual(
+    eventos.map((e) => [e.kind, e.store, e.time]).sort(),
+    [["league_challenge", "Mythic L. Challenge October", "16:30"], ["league_cup", "Mythic L. CUP October", "10:30"]],
+  );
+});
+
+test("nombre con «Legue Challenge» y etiqueta «League Challenge - TCG»", () => {
+  const txt = `Desafío de Liga
+Legue Challenge TCG at Infiniti World
+CARRER DE LA MARE DE DÉU DE LORDA, 45, 08913 SANTA COLOMA DE GRAMENET, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 10:00 a.m.
+
+League Challenge - TCG
+LORCANOS - TCG League Challenge October
+CARRER D'IGNASI IGLESIAS, 10, 08912 BADALONA, BARCELONA, SPAIN
+sábado, 31 de octubre de 2026 10:30 a.m.`;
+  const { eventos } = parseEventosPegados(txt);
+  assert.deepEqual(
+    eventos.map((e) => [e.kind, e.store, e.time]).sort(),
+    [["league_challenge", "LORCANOS - TCG League Challenge October", "10:30"],
+     ["league_challenge", "Legue Challenge TCG at Infiniti World", "10:00"]],
+  );
+});
+
+test("datosDeDireccion: ciudad y país de la dirección oficial", () => {
+  assert.deepEqual(datosDeDireccion("CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN"),
+    { city: "Calella", country: "España" });
+  assert.deepEqual(datosDeDireccion("Carrer de Balmes 12, Barcelona"), { city: "", country: "" });
 });

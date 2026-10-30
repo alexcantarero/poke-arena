@@ -7,7 +7,8 @@ import { CALENDAR_KINDS, alternarTipo, kindsPresent, parseTipos, pasaTipos, tipo
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { importEuropeanEvents, importPastedEvents } from "@/actions";
+import { borrarDelCalendario, importEuropeanEvents, importPastedEvents } from "@/actions";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -50,7 +51,8 @@ export default async function CalendarPage({
   const toursById = new Map(tours.map((t) => [t.id, t]));
   // Agrupado para no reescribir el cuerpo de la pantalla, pero NO es el
   // snapshot: son consultas sueltas y se llama distinto por eso.
-  const datos = { events: eventos_, tournaments: tours, toursById };
+  const datos = { events: eventos_, tournaments: tours, toursById };
+
   const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
 
@@ -148,6 +150,7 @@ export default async function CalendarPage({
         href: undefined as string | undefined,
         kind: e.tournamentKind as string | null,
         scope: null as string | null,
+        eventoId: e.id,
       })),
     ...datos.tournaments
       .filter((t) => (t.endDate ?? t.date) >= today)
@@ -161,6 +164,7 @@ export default async function CalendarPage({
         scope: t.scope as string | null,
         url: undefined,
         href: `/torneos/${t.id}`,
+        torneoId: t.id,
       })),
   ].sort(byAgenda(today));
 
@@ -293,7 +297,7 @@ export default async function CalendarPage({
       )}
 
       {/* --------------------------- la agenda grande ------------------------ */}
-      {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} />}
+      {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} puedeBorrar={manager} />}
 
       {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
           importar eventos, para organizadores); la agenda ya NO sale debajo:
@@ -368,9 +372,11 @@ type ItemAgenda = {
   id: string; date: string; endDate: string | null; title: string;
   kindLabel: string; color: string; sub: string; url?: string; href?: string;
   kind?: string | null; scope?: string | null;
+  /** Para poder quitarlo del calendario: el evento o el torneo que es. */
+  eventoId?: string; torneoId?: string;
 };
 
-async function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
+async function AgendaGrande({ agenda, tipo, puedeBorrar }: { agenda: ItemAgenda[]; tipo: string; puedeBorrar: boolean }) {
   const lng = await getLang(); // v0.49
 
   if (!agenda.length) {
@@ -437,14 +443,24 @@ async function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: stri
                     {(e.href || e.url) && <Icon name="back" className="size-5 flex-none rotate-180 text-muted" />}
                   </>
                 );
-                const clase = "flex items-center gap-4 px-4 py-4 hover:bg-surface-2";
+                const clase = "flex min-w-0 flex-1 items-center gap-4 px-4 py-4 hover:bg-surface-2";
                 return (
-                  <li key={e.id}>
+                  <li key={e.id} className="flex items-center">
                     {e.href
                       ? <Link href={e.href} className={clase}>{contenido}</Link>
                       : e.url
                         ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
                         : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
+                    {puedeBorrar && (
+                      <form action={borrarDelCalendario} className="flex-none pr-3">
+                        <input type="hidden" name="eventoId" value={e.eventoId ?? ""} />
+                        <input type="hidden" name="torneoId" value={e.torneoId ?? ""} />
+                        <ConfirmButton message={`¿Quitar «${e.title}» del calendario? Si es un torneo sin resultados, se borra también.`}
+                          title="Quitar del calendario">
+                          Quitar
+                        </ConfirmButton>
+                      </form>
+                    )}
                   </li>
                 );
               })}
