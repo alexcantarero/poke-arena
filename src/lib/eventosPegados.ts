@@ -327,27 +327,57 @@ export function parseEventosCompactos(
 
 const RUIDO = /^(register|registrarse|inscribirse|more info|más información|details|detalles|view|ver|map|mapa|directions|cómo llegar|\d+(\.\d+)?\s*(km|mi))$/i;
 
+/**
+ * Línea que es solo la ETIQUETA del tipo («Copa de Liga», «Desafío de Liga»,
+ * «League Challenge - TCG»), no el nombre del torneo. Ojo: «Mythic L. CUP October»
+ * o «LORCANOS - TCG League Challenge October» NO son etiquetas: son nombres.
+ */
+const ETIQUETA_RE = /^\W*(?:(?:pok[eé]mon\s+)?(?:tcg\s+)?(?:league\s+)?(?:cup|challenge)|copa(?:\s+de\s+liga)?|desaf[ií]o(?:\s+de\s+liga)?|liga|torneo\s+amistoso|prerelease|regional(?:\s+championships?)?|special(?:\s+event)?|internacional|international)(?:\s*[-–·|]\s*(?:tcg|pok[eé]mon|league))?\W*$/i;
+
+function esEtiqueta(linea: string): boolean {
+  return ETIQUETA_RE.test(linea.trim());
+}
+
+/** ¿La línea parece una dirección? (código postal, país, calle, coma…) */
+function esDireccion(linea: string): boolean {
+  return /\b\d{5}\b|\bspain\b|\bspai\b|espa[ñn]a|\bcarrer\b|\bcalle\b|\bc\/|\bavda\b|\bavinguda\b|\bplaza\b|\bplaça\b|,/i.test(linea);
+}
+
+/** Hora en HH:MM: «10:30 a.m.» → 10:30, «04:30 p.m.» → 16:30, «16:30» → 16:30. */
+export function horaDe(texto: string): string | null {
+  const ampm = /\b(1[0-2]|0?[1-9]):([0-5]\d)\s*([ap])\.?\s*m\b\.?/i.exec(texto);
+  if (ampm) {
+    const h = (Number(ampm[1]) % 12) + (ampm[3].toLowerCase() === "p" ? 12 : 0);
+    return `${dos(h)}:${ampm[2]}`;
+  }
+  const h24 = /\b([01]?\d|2[0-3]):([0-5]\d)\b/.exec(texto);
+  return h24 ? `${dos(+h24[1])}:${h24[2]}` : null;
+}
+
 /** Analiza los bloques copiados del Event Locator oficial de Pokémon. */
 export function parseEventosOficiales(texto: string): { eventos: EventoPegado[]; ignorados: number } {
   const lineas = texto.replace(/\r/g, "").split("\n").map((l) => l.trim());
 
+  // Un bloque es un torneo. Se corta en una línea vacía, y también cuando ya hay
+  // fecha y aparece otra fecha o una etiqueta nueva (listas pegadas sin líneas vacías).
   const bloques: string[][] = [];
   let actual: string[] = [];
   let conFecha = false;
+  const cerrar = () => { if (actual.length) bloques.push(actual); actual = []; conFecha = false; };
   for (const l of lineas) {
-    if (!l) { if (actual.length) bloques.push(actual); actual = []; conFecha = false; continue; }
+    if (!l) { cerrar(); continue; }
     const f = fechaDe(l);
-    if (f && conFecha) {
+    if (conFecha && (f || esEtiqueta(l))) {
+      // Si la fecha nueva va precedida de una etiqueta, esa etiqueta es suya.
       const ultima = actual[actual.length - 1];
-      const arrastra = ultima && tipoDe(ultima) && !fechaDe(ultima) ? actual.pop()! : null;
-      bloques.push(actual);
-      actual = arrastra ? [arrastra] : [];
-      conFecha = false;
+      const arrastra = f && ultima && esEtiqueta(ultima) ? actual.pop()! : null;
+      cerrar();
+      if (arrastra) actual = [arrastra];
     }
     if (f) conFecha = true;
     actual.push(l);
   }
-  if (actual.length) bloques.push(actual);
+  cerrar();
 
   const unidos: string[][] = [];
   for (const b of bloques) {
@@ -361,19 +391,26 @@ export function parseEventosOficiales(texto: string): { eventos: EventoPegado[];
   for (const b of unidos) {
     const todo = b.join(" · ");
     const date = b.map(fechaDe).find(Boolean) ?? null;
-    const kind = tipoDe(todo);
+    // El tipo sale de la etiqueta, no del nombre: «Desafío de Liga / Mythic L. CUP» es un Challenge.
+    const kind = b.filter(esEtiqueta).map(tipoDe).find(Boolean) ?? tipoDe(todo);
     if (!date || !kind || deOtroJuego(todo)) { if (date || kind) ignorados++; continue; }
 
-    const time = /\b([01]?\d|2[0-3]):([0-5]\d)\b/.exec(todo);
-    const utiles = b.filter((l) => !fechaDe(l) && !tipoDe(l) && !RUIDO.test(l) && l.length > 2);
-    const store = (utiles[0] ?? "").slice(0, 80);
-    const location = (utiles.slice(1).find((l) => /\d|barcelona|calle|carrer|c\/|avda|avinguda|plaza|plaça/i.test(l)) ?? utiles[1] ?? "").slice(0, 120);
-    const etiqueta = kind === "league_cup" ? "League Cup" : "League Challenge";
-    const id = `pev-${date}-${firma(`${date}|${kind}|${store.toLowerCase()}`)}`;
+    const time = horaDe(todo);
+    const utiles = b.filter((l) => !fechaDe(l) && !esEtiqueta(l) && !RUIDO.test(l) && l.length > 2);
+    // El nombre es la primera línea que no es dirección; la dirección, la que sí lo es.
+    const nombre = (utiles.find((l) => !esDireccion(l)) ?? utiles[0] ?? "").slice(0, 80);
+    const direccion = utiles.find((l) => esDireccion(l) && l !== nombre);
+    const location = (direccion ?? utiles.find((l) => l !== nombre) ?? "").slice(0, 120);
+    const etiqueta = kind === "league_cup" ? "League Cup"
+      : kind === "league_challenge" ? "League Challenge"
+      : kind === "regional" ? "Regional"
+      : kind === "special" ? "Special Event"
+      : "Internacional";
+    const id = `pev-${date}-${firma(`${date}|${kind}|${nombre.toLowerCase()}`)}`;
     eventos.set(id, {
-      id, date, kind, store, location,
-      title: store ? `${etiqueta} · ${store}` : etiqueta,
-      time: time ? `${dos(+time[1])}:${time[2]}` : null,
+      id, date, kind, store: nombre, location,
+      title: nombre ? `${etiqueta} · ${nombre}` : etiqueta,
+      time,
     });
   }
   return { eventos: [...eventos.values()].sort((a, b) => a.date.localeCompare(b.date)), ignorados };
