@@ -2,6 +2,27 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.84.0] — 2026-10-30
+
+Día 2 real con Ciphermaniac, listas sorpresa contra pronóstico, calibración coherente y menos
+cálculo en el recomendador. **Sin migración.** Lleva la v0.82 y la v0.83.
+
+### Cambiado
+
+- **Día 2 desde Ciphermaniac**: las importaciones de Limitless solo traen listas de Día 2, así que
+  no daban conversión. Ciphermaniac publica el evento entero y su «fase 2»; con los dos
+  recuentos sale el % real de listas que pasaron al Día 2 por mazo (hasta 6 eventos de los
+  últimos 120 días). `conversionDia2`, con su prueba. Si su servidor no responde, se sigue sin ello.
+- **Listas sorpresa**: además de «pocas listas» (≤ 30 en el corte), las **contra pronóstico**:
+  mazos que el modelo da por flojos (< 50 % por ronda) o que convierten por debajo de la media y
+  aun así han entrado. Cada una con su etiqueta y explicación.
+- **Calibración coherente** (tarea 3.1): `evaluar()` y el recomendador pasan ahora por el mismo
+  paso (`pModelo`, con `AMPLIF` 1,4) antes de calibrar, así que α corrige exactamente la cifra
+  que se enseña. Antes se aprendía sobre una y se aplicaba sobre otra.
+- **Rendimiento** (tarea 3.5, parte de cliente): el campo «Jugadores» se aplica 400 ms después
+  de dejar de escribir (antes, dos simulaciones por tecla) y las simulaciones del torneo se
+  guardan por estructura para la sesión.
+
 ## [0.83.0] — 2026-10-30
 
 Rangos de la Liga Elo libre. **Sin migración.** Lleva la v0.82.

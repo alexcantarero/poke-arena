@@ -2,12 +2,13 @@ import "server-only";
 import { loadMatchupImports, loadMetaIrl, type Snapshot } from "@/lib/data";
 import { liderDeSlug, type FilaTH } from "@/lib/trainerHill";
 import { estructuraDe } from "@/lib/estructura";
+import { arquetipos as arquetiposCm, catalogo as catalogoCm } from "@/lib/sources/ciphermaniac";
 import { comb } from "@/lib/herramientas";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
 import { deckSizeOf, estimateBasics, mulliganChance } from "@/lib/mulligan";
-import { ajustesPersonales, alMejorDe3, evaluar, type RegistroPersonal, liderDe, pPartida, tablaCruces, type Cruce, type Evaluacion, type Fuente, type Muestra, type TipoTorneo, type Variante } from "@/lib/recomendador";
+import { ajustesPersonales, alMejorDe3, conversionDia2, pModelo, evaluar, type RegistroPersonal, liderDe, pPartida, tablaCruces, type Cruce, type Evaluacion, type Fuente, type Muestra, type TipoTorneo, type Variante } from "@/lib/recomendador";
 
 /* =========================================================================
    v0.74 — Los datos del recomendador, ya agregados por Pokémon líder.
@@ -36,7 +37,7 @@ export type DatosRecomendador = {
   nombres: Record<string, string>;
   /** v0.80 — líder → sprites, para los arquetipos sin Pokémon en el nombre (Basic Box…). */
   iconos: Record<string, string[]>;
-  resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number; trainerHill: number };
+  resumen: { online: { torneos: number; partidas: number } | null; regionales: number; cityleagues: number; trainerHill: number; eventosDia2: number };
   /** v0.75 — líder → sus variantes (líder + compañero), con lo que rinde cada una. */
   variantes: Record<string, Variante[]>;
   /** v0.75 — el acierto del modelo en vuestras partidas y la calibración aprendida. */
@@ -168,6 +169,36 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     nCity = [...evById.values()].filter((e) => e.kind === "city_league").length;
   } catch { /* sin tablas o sin datos: vacías */ }
 
+  /* --- Día 2 desde Ciphermaniac (v0.84) ---------------------------------
+     Limitless y las importaciones de la web solo traen las listas de Día 2.
+     Ciphermaniac publica el evento ENTERO y su «fase 2»: con los dos recuentos
+     sale la conversión real al Día 2 por mazo. Hasta 6 eventos de los últimos
+     120 días; si su servidor no responde, se sigue sin esto. */
+  let eventosDia2 = 0;
+  try {
+    const cat = await catalogoCm();
+    if (cat.ok) {
+      const desde = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+      const evs = cat.datos.filter((n) => /regional|international|special/i.test(n) && n.slice(0, 10) >= desde).slice(0, 6);
+      const aLider = (x: { slug: string; nombre: string; listas: number | null }) => ({
+        lider: liderDeSlug(x.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")).lider,
+        listas: x.listas ?? 0,
+      });
+      for (const ev of evs) {
+        const [todos, fase2] = await Promise.all([arquetiposCm(ev), arquetiposCm(ev, "phase2")]);
+        if (!todos.ok || !fase2.ok) continue;
+        const conv = conversionDia2(todos.datos.map(aLider), fase2.datos.map(aLider));
+        if (!conv) continue;
+        eventosDia2++;
+        for (const [l, x] of Object.entries(conv)) {
+          const y = (regionales.conversion![l] ??= { n: 0, corte: 0, top4: 0, ganados: 0 });
+          y.dia2 = (y.dia2 ?? 0) + x.dia2;
+          y.dia2Base = (y.dia2Base ?? 0) + x.base;
+        }
+      }
+    }
+  } catch { /* Ciphermaniac caído: sin Día 2 */ }
+
   /* --- Trainer Hill (v0.79): los CSV importados ----------------------- */
   const trainerHill: Fuente[] = [];
   let partidasTH = 0;
@@ -291,7 +322,9 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     const { p, n } = pPartida(fuera, la, lb);
     if (n < 5) continue;
     const w = outcome(m).winner;
-    muestras.push({ p: (m.bestOf ?? 1) >= 3 ? alMejorDe3(p) : p, r: w === "a" ? 1 : w === "b" ? 0 : 0.5 });
+    // v0.84 — el mismo paso que usa el recomendador (`pModelo`), para que α sea coherente.
+    const pm = pModelo(p);
+    muestras.push({ p: (m.bestOf ?? 1) >= 3 ? alMejorDe3(pm) : pm, r: w === "a" ? 1 : w === "b" ? 0 : 0.5 });
   }
   const evaluacion = evaluar(muestras);
 
@@ -312,7 +345,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       if (!mio || !suyo) continue;
       const w = outcome(m).winner;
       const r: 0 | 0.5 | 1 = w === "tie" ? 0.5 : w === lado ? 1 : 0;
-      const p0 = pPartida(fuera, mio, suyo).p;
+      const p0 = pModelo(pPartida(fuera, mio, suyo).p);
       registros.push({ lider: mio, p: (m.bestOf ?? 1) >= 3 ? alMejorDe3(p0) : p0, r });
       if (mio !== suyo) {
         const x = cruces.get(`${mio}|${suyo}`) ?? { a: mio, b: suyo, w: 0, l: 0, t: 0 };
@@ -332,7 +365,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
 
   return {
     fuentes: { online, regionales, cityleagues }, trainerHill, grupo, consistencia, nombres, iconos,
-    resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH },
+    resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH, eventosDia2 },
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,
     tasaCampo: tot.n ? tot.corte / tot.n : null,

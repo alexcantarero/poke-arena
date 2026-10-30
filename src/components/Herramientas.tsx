@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MulliganSim } from "@/components/MulliganSim";
 import { Calculator, Gauge, Gift, Layers, Sparkles } from "lucide-react";
 import type { DatosRecomendador } from "@/lib/recomendadorDatos";
@@ -362,6 +362,9 @@ const TIPOS_REC: Array<{ tipo: TipoTorneo; label: string; jugadores: number; kin
 ];
 const OBJETIVOS: Objetivo[] = ["top", "ganar", "dia2", "sorpresa"];
 
+/** v0.84 — simulaciones ya hechas (por estructura), compartidas en la sesión. */
+const CACHE_SUIZO = new Map<string, ReturnType<typeof simularSuizo>>();
+
 const nombreLider = (datos: DatosRecomendador, l: string) =>
   datos.nombres[l] ?? l.split("-").map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ");
 
@@ -379,7 +382,11 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   const tuyo = modo === "tuyo" && yo != null;
 
   const conf = TIPOS_REC.find((t) => t.tipo === tipo)!;
-  const N = Math.max(4, Math.round(n(jugadores, conf.jugadores)));
+  /* v0.84 — el número de jugadores se aplica 400 ms después de dejar de
+     escribir: antes cada tecla relanzaba dos simulaciones del torneo. */
+  const [jugadoresD, setJugadoresD] = useState(jugadores);
+  useEffect(() => { const t = setTimeout(() => setJugadoresD(jugadores), 400); return () => clearTimeout(t); }, [jugadores]);
+  const N = Math.max(4, Math.round(n(jugadoresD, conf.jugadores)));
   const est = estructuraDe(N, conf.kind);
 
   // La línea de corte (puntos → fracción que entra) sale de simular el torneo con todos iguales.
@@ -389,7 +396,10 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   const corte = est ? (est.topCut || Math.min(8, N)) : 0;
   const lineas = useMemo(() => {
     if (!est) return null;
-    const sim = (c: number) => simularSuizo({
+    // v0.84 — memoria entre renders y entre pestañas: la misma estructura no se simula dos veces.
+    const clave = (c: number) => `${N}|${est.total}|${c}|${est.umbral}|${est.fase1}|${est.asimetrico}`;
+    const sim = (c: number) => CACHE_SUIZO.get(clave(c)) ?? (() => { const r = simularSuizoSinCache(c); CACHE_SUIZO.set(clave(c), r); return r; })();
+    const simularSuizoSinCache = (c: number) => simularSuizo({
       jugadores: N, rondas: est.total, corte: c, pEmpate: 0.03,
       fase1: est.umbral != null ? est.fase1 : null, umbralDia2: est.umbral ?? null,
       asimetrico: est.asimetrico, maxCorte: TOP_CUT_MAXIMO_TCG, iteraciones: 120,
@@ -493,7 +503,7 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
 
       {!datos ? <p className="text-sm text-muted">{tr(lng, "rc.sinDatos")}</p>
         : !est ? <p className="text-xs text-loss">{tr(lng, "hr.sz.pocos")}</p>
-        : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, objetivo === "sorpresa" ? "rc.sinSorpresas" : "rc.vacio")}</p>
+        : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, objetivo === "sorpresa" ? "rc.sinSorpresas2" : "rc.vacio")}</p>
         : !objetivoDisponible ? null : (
         <>
           {/* v0.82 — el filtro de fiabilidad y, si no hay resultados reales, el aviso. */}
@@ -522,7 +532,14 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                       ))}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
+                        {f.sorpresa && (
+                          <span className="chip flex-none text-[10px] font-bold" title={tr(lng, `rc.sorpresa.${f.sorpresa}.ayuda`)}>
+                            {tr(lng, `rc.sorpresa.${f.sorpresa}`)}
+                          </span>
+                        )}
+                      </span>
                       <span className="block text-[11px] text-muted">
                         <span title={tr(lng, "rc.ayuda.cuota")}>{trf(lng, "rc.cuota", { p: pct(f.cuota, 1) })}</span>
                         {" · "}<span title={tr(lng, "rc.ayuda.ronda")}>{trf(lng, "rc.ronda", { p: pct(f.pRonda, 0) })}</span>

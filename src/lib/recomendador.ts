@@ -254,6 +254,8 @@ export type FilaRecomendada = {
   evidencia: { n: number; corte: number; ganados: number; dia2: number; dia2Base: number } | null;
   /** v0.82 — la cifra del objetivo sale de resultados reales (true) o solo del modelo (false). */
   conEvidencia: boolean;
+  /** v0.84 — por qué es una lista sorpresa: pocas listas o contra pronóstico. */
+  sorpresa: "pocas" | "pronostico" | null;
 };
 
 /**
@@ -275,6 +277,19 @@ export function wilsonBajo(exitos: number, n: number, z = 1): number {
   const z2 = z * z;
   return Math.max(0, (p + z2 / (2 * n) - z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)) / (1 + z2 / n));
 }
+
+/* =========================================================================
+   v0.84 — UNA SOLA FORMA DE PASAR DE «% DE PARTIDA» A «% QUE USA EL MODELO».
+
+   Antes, `evaluar()` medía el acierto con el % de partida tal cual, pero la
+   calibración α se aplicaba después sobre el % ya amplificado (×1,4) en el
+   recomendador: α se aprendía sobre una cosa y se usaba sobre otra. Ahora las
+   dos partes usan `pModelo`, así que α corrige exactamente lo que se usa.
+   ========================================================================= */
+/** Las desviaciones del 50 % se magnifican ×1,4 para que los buenos mazos destaquen. */
+export const AMPLIF = 1.4;
+/** % de partida → % del modelo (sin calibrar), acotado. */
+export const pModelo = (p: number) => Math.min(0.95, Math.max(0.05, 0.5 + (p - 0.5) * AMPLIF));
 
 /** Cuántos errores típicos se resta para ordenar (1 ≈ 84 % de confianza en el lado bajo). */
 export const Z_BAJO = 1;
@@ -401,7 +416,6 @@ export function recomendar(opts: {
     const ajuste = opts.ajustes?.[lider] ?? 0;
     // v0.82 — amplificar: las desviaciones del 50 % se magnifican ×1.4 para
     // que los buenos mazos destaquen más. acotar() limita a [0.05, 0.95].
-    const AMPLIF = 1.4;
     pPart     = 0.5 + (pPart     - 0.5) * AMPLIF;
     pTopPart  = 0.5 + (pTopPart  - 0.5) * AMPLIF;
     const acotar = (x: number) => Math.min(0.95, Math.max(0.05, calibrar(x, opts.alfa ?? 1) + ajuste));
@@ -427,6 +441,7 @@ export function recomendar(opts: {
     const e = ev[lider];
     const K = 8;
     let pObj = pObjetivo, pBajo = pObjetivoBajo, conEvidencia = false;
+    let sorpresa: FilaRecomendada["sorpresa"] = null;
     const conReal = (exitos: number, base: number, previo: number) => {
       const pp = (exitos + K * previo) / (base + K);
       return { pp, bajo: wilsonBajo(exitos + K * previo, base + K, Z_BAJO) };
@@ -437,14 +452,26 @@ export function recomendar(opts: {
       ({ pp: pObj, bajo: pBajo } = conReal(e.ganados, e.n, r.pGanar)); conEvidencia = true;
     } else if (e && objetivo === "dia2" && e.dia2Base > 0) {
       ({ pp: pObj, bajo: pBajo } = conReal(e.dia2, e.dia2Base, r.pDia2 ?? r.pTop)); conEvidencia = true;
-    } else if (e && objetivo === "sorpresa" && e.n > 0 && e.n <= 30 && e.corte > 0) {
-      pObj = e.corte / e.n; pBajo = pObj * Math.min(1, Math.sqrt(e.corte) / 2); conEvidencia = true;
+    } else if (e && objetivo === "sorpresa" && e.n > 0 && e.corte > 0) {
+      /* v0.84 — dos clases de sorpresa:
+         · pocas listas (≤ 30) que han entrado al corte;
+         · CONTRA PRONÓSTICO: mazos que el modelo da por flojos (menos del 50 %
+           por ronda) o que suelen convertir por debajo de la media, y aun así
+           han entrado. Cuanto más por encima de lo esperado, más arriba. */
+      const esperado = Math.max(0.01, r.pTop) * e.n;
+      const flojo = pPart < 0.5 || (ratio != null && ratio < 1);
+      if (e.n <= 30 || flojo) {
+        pObj = e.corte / e.n;
+        pBajo = Math.min(1, (e.corte / esperado) / 10) * Math.min(1, Math.sqrt(e.corte) / 2);
+        conEvidencia = true;
+        sorpresa = e.n <= 30 ? "pocas" : "pronostico";
+      }
     }
     return {
       lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: pBajo, indice: pObj / objMedia, datos: Math.round(datos),
       confianza: datos >= 300 ? "alta" : datos >= 60 ? "media" : "baja", mejor, peor, conversion,
       evidencia: e ? { n: Math.round(e.n), corte: Math.round(e.corte), ganados: Math.round(e.ganados), dia2: Math.round(e.dia2), dia2Base: Math.round(e.dia2Base) } : null,
-      conEvidencia,
+      conEvidencia, sorpresa,
     };
   });
   // v1.0 — se ordena por el límite inferior: un mazo con muchos datos y un 55 % vale más que uno con 6 partidas y un 60 %.
@@ -591,4 +618,24 @@ export function ajustesPersonales(registros: RegistroPersonal[], k = 15): Record
     ajuste: Math.max(-0.1, Math.min(0.1, (x.s - x.e) / (x.n + k))),
     n: x.n, w: x.w, l: x.l, t: x.t, esperado: x.n ? x.e / x.n : 0.5,
   }]));
+}
+
+/**
+ * v0.84 — Conversión al Día 2 por líder a partir de dos recuentos de un mismo
+ * evento: TODAS las listas (Día 1) y las del Día 2 (p. ej. Ciphermaniac, que
+ * publica el evento entero y la «fase 2»). Si el «total» no es mayor que el
+ * Día 2 (es decir, solo hay listas de Día 2), no dice nada: null.
+ */
+export function conversionDia2(
+  todos: Array<{ lider: string; listas: number }>,
+  dia2: Array<{ lider: string; listas: number }>,
+): Record<string, { dia2: number; base: number }> | null {
+  const sumaT = todos.reduce((s, x) => s + (x.listas || 0), 0);
+  const sumaD = dia2.reduce((s, x) => s + (x.listas || 0), 0);
+  if (!sumaT || sumaD >= sumaT * 0.95) return null;
+  const out: Record<string, { dia2: number; base: number }> = {};
+  for (const x of todos) if (x.lider) (out[x.lider] ??= { dia2: 0, base: 0 }).base += x.listas || 0;
+  for (const x of dia2) if (x.lider && out[x.lider]) out[x.lider].dia2 += x.listas || 0;
+  for (const l of Object.keys(out)) out[l].dia2 = Math.min(out[l].dia2, out[l].base);
+  return out;
 }

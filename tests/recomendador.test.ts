@@ -206,10 +206,39 @@ test("v0.82: cada objetivo usa su resultado real", () => {
   const dia2 = recomendar({ tipo: "regional", objetivo: "dia2", fuentes, estructura: e });
   assert.equal(dia2.filas[0].lider, "b"); // 90 % al Día 2
   const sorpresa = recomendar({ tipo: "regional", objetivo: "sorpresa", fuentes, estructura: e });
-  assert.deepEqual(sorpresa.filas.map((f) => f.lider), ["c"]); // pocas listas, mucho éxito
+  // pocas listas (c) y, desde la v0.84, también «contra pronóstico» (b convierte por debajo de la media); a no.
+  assert.ok(sorpresa.filas.some((f) => f.lider === "c" && f.sorpresa === "pocas"));
+  assert.ok(!sorpresa.filas.some((f) => f.lider === "a"));
 });
 
 test("v0.82: Wilson castiga la muestra pequeña", () => {
   assert.ok(wilsonBajo(60, 100) > wilsonBajo(6, 10));
   assert.equal(wilsonBajo(0, 0), 0);
+});
+
+import { conversionDia2, pModelo, AMPLIF } from "../src/lib/recomendador.ts";
+
+test("v0.84: conversión al Día 2 con el evento entero, y nada si solo hay listas de Día 2", () => {
+  const todos = [{ lider: "a", listas: 100 }, { lider: "b", listas: 50 }];
+  const c = conversionDia2(todos, [{ lider: "a", listas: 30 }, { lider: "b", listas: 25 }])!;
+  assert.equal(c.a.dia2, 30); assert.equal(c.a.base, 100);
+  assert.equal(c.b.dia2 / c.b.base, 0.5);
+  assert.equal(conversionDia2(todos, todos), null); // solo Día 2: no informa
+});
+
+test("v0.84: pModelo es el mismo paso en el acierto y en el recomendador", () => {
+  assert.equal(pModelo(0.5), 0.5);
+  assert.ok(Math.abs(pModelo(0.6) - (0.5 + 0.1 * AMPLIF)) < 1e-12);
+  assert.equal(pModelo(0.99), 0.95);
+});
+
+test("v0.84: lista sorpresa contra pronóstico (mazo flojo que entra al corte)", () => {
+  const fuentes = [{
+    id: "regionales", cuota: { flojo: 100, fuerte: 100 },
+    cruces: [{ a: "fuerte", b: "flojo", w: 70, l: 30, t: 0 }],
+    conversion: { flojo: { n: 80, corte: 6, ganados: 0 }, fuerte: { n: 80, corte: 20, ganados: 2 } },
+  }];
+  const r = recomendar({ tipo: "regional", objetivo: "sorpresa", fuentes, estructura: { rondas: 8, corte: 8, pCorte: { 24: 1, 21: 1, 18: 0.3 } } });
+  assert.ok(r.filas.some((f) => f.lider === "flojo" && f.sorpresa === "pronostico"));
+  assert.ok(!r.filas.some((f) => f.lider === "fuerte"));
 });

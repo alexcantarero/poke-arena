@@ -1496,12 +1496,18 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.84
+  "rc.sorpresa.pocas": "Pocas listas",
+  "rc.sorpresa.pocas.ayuda": "Con 30 listas o menos ha entrado al corte.",
+  "rc.sorpresa.pronostico": "Contra pronóstico",
+  "rc.sorpresa.pronostico.ayuda": "El modelo lo da por flojo (menos del 50 % por ronda) o suele convertir por debajo de la media, y aun así ha entrado al corte.",
+  "rc.sinSorpresas2": "No hay listas sorpresa: ningún mazo con pocas listas, ni ninguno flojo, ha entrado al corte.",
   // v0.83
   "elo.colocacion": "En colocación {n}/{m}",
   "elo.siguiente": "Siguiente: {r} (faltan {n} puntos)",
   "elo.maximo": "El rango más alto",
   // v0.82
-  "rc.obj.sorpresa": "Listas sorpresa (pocas listas, gran resultado)",
+  "rc.obj.sorpresa": "Listas sorpresa (pocas listas o contra pronóstico)",
   "rc.sinSorpresas": "No hay listas sorpresa: ningún mazo con pocas listas (30 o menos) ha entrado al corte.",
   "rc.sinBaja": "Ocultar fiabilidad baja",
   "rc.soloModelo": "Ningún mazo tiene resultados reales para este objetivo: es la estimación del modelo.",
@@ -3323,12 +3329,18 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.84
+  "rc.sorpresa.pocas": "Few lists",
+  "rc.sorpresa.pocas.ayuda": "With 30 lists or fewer it made the cut.",
+  "rc.sorpresa.pronostico": "Against the odds",
+  "rc.sorpresa.pronostico.ayuda": "The model rates it weak (under 50% per round) or it usually converts below average, yet it made the cut.",
+  "rc.sinSorpresas2": "No surprise lists: no deck with few lists, nor any weak one, has made the cut.",
   // v0.83
   "elo.colocacion": "Placement {n}/{m}",
   "elo.siguiente": "Next: {r} ({n} points to go)",
   "elo.maximo": "The highest rank",
   // v0.82
-  "rc.obj.sorpresa": "Surprise lists (few lists, great results)",
+  "rc.obj.sorpresa": "Surprise lists (few lists or against the odds)",
   "rc.sinSorpresas": "No surprise lists: no deck with few lists (30 or fewer) has made the cut.",
   "rc.sinBaja": "Hide low reliability",
   "rc.soloModelo": "No deck has real results for this goal: this is the model's estimate.",
