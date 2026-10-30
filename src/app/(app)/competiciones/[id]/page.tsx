@@ -1,3 +1,4 @@
+import { eloLiga, PROVISIONAL } from "@/lib/eloLiga";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageLeague, readSession } from "@/lib/auth";
@@ -36,7 +37,7 @@ import { createPairings } from "@/actions";
 import { Icon } from "@/components/icons";
 import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export default async function CompetitionPage({
@@ -143,8 +144,48 @@ export default async function CompetitionPage({
         players={snap.players.map((p) => ({ value: p.id, label: p.name }))}
       />
 
+      {/* v0.82 — Liga Elo libre: la clasificación es el Elo de la liga. */}
+      {comp.kind === "elo" && (() => {
+        const filasElo = eloLiga(
+          played.filter((m) => m.playerBId).map((m) => {
+            const w = outcome(m).winner;
+            return { a: m.playerAId, b: m.playerBId!, ganador: (w === "a" || w === "b" ? w : "tie") as "a" | "b" | "tie", fecha: m.date };
+          }),
+          ids,
+        );
+        return (
+          <section className="card mb-4 overflow-hidden">
+            <div className="card-head items-center">
+              <div>
+                <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "elo.titulo")}</h2>
+                <p className="mt-0.5 text-xs text-muted">{trf(lng, "elo.sub", { n: PROVISIONAL })}</p>
+              </div>
+              <span className="flex-none rounded-full bg-surface-2 px-2.5 py-1 font-mono text-[11px] font-semibold tabular text-ink-2">
+                {ids.length} jugadores · {played.length} partidas
+              </span>
+            </div>
+            <ol className="divide-y divide-line-soft">
+              {filasElo.map((f, i) => (
+                <li key={f.id} className={`flex items-center gap-3 px-4 py-2.5 ${f.provisional ? "opacity-70" : ""}`}>
+                  <span className="w-6 flex-none text-center font-display text-sm font-black tabular text-muted">{f.provisional ? "–" : i + 1}</span>
+                  <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 flex-1 font-semibold text-ink" />
+                  <span className="hidden font-mono text-xs tabular text-muted xs:inline" title={tr(lng, "elo.recordAyuda")}>{f.w}-{f.l}{f.t ? `-${f.t}` : ""}</span>
+                  {f.provisional && <span className="chip text-[10px]" title={trf(lng, "elo.provAyuda", { n: PROVISIONAL })}>{tr(lng, "elo.prov")}</span>}
+                  {f.ultimo !== 0 && (
+                    <span className={`w-10 text-right font-mono text-xs tabular ${f.ultimo > 0 ? "text-win" : "text-loss"}`} title={tr(lng, "elo.ultimoAyuda")}>
+                      {f.ultimo > 0 ? "+" : ""}{f.ultimo}
+                    </span>
+                  )}
+                  <span className="w-14 text-right font-mono text-base font-bold tabular" title={tr(lng, "elo.eloAyuda")}>{f.elo}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        );
+      })()}
+
       {/* v0.65 — vuelve la clasificación de la v0.62 (con «Arq.»), a petición. */}
-      <section className="card mb-4 overflow-hidden">
+      {comp.kind !== "elo" && <section className="card mb-4 overflow-hidden">
         <div className="card-head items-center">
           <div>
             <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">{tr(lng, "x.759a2fe7")}</h2>
@@ -243,7 +284,7 @@ export default async function CompetitionPage({
         ) : (
           <Empty title={tr(lng, "x.8d421035")} />
         )}
-      </section>
+      </section>}
 
       {/* v0.19 — gráficos y cifras de esta competición. */}
       <LigaStats
@@ -351,7 +392,8 @@ export default async function CompetitionPage({
           en el móvil la columna implícita se ensanchaba con el contenido (la
           pista «Round robin…», los nombres largos) y la tarjeta se salía de la
           pantalla por la derecha, cortando «Crear partidas» y «Anotar». */}
-      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* v0.82 — la Liga Elo libre no tiene jornadas. */}
+      <div className={`mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 ${comp.kind === "elo" ? "hidden" : ""}`}>
         <section className="card min-w-0">
           <div className="card-head">
             <h2 className="flex-none text-lg font-bold">Jornada {nextRound}</h2>

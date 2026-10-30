@@ -28,7 +28,7 @@ export async function saveCompetition(fd: FormData) {
   const values = {
     name: str(fd, "name").slice(0, 120),
     // v0.19: sin «casual». Los amistosos son partidas sin competición.
-    kind: pick(fd, "kind", ["league", "swiss", "bracket"] as const, "league"),
+    kind: pick(fd, "kind", ["league", "swiss", "bracket", "elo"] as const, "league"),
     bestOf: int(fd, "bestOf", 3, 1, 5),
     status: pick(fd, "status", ["draft", "live", "done"] as const, "live"),
     start: isoDate(fd, "start") ?? todayISO(),

@@ -153,6 +153,8 @@ export const COMPETITION_KINDS = {
   swiss: { name: "Torneo suizo", short: "Suizo", hint: "Rondas suizas + top cut" },
   bracket: { name: "Eliminatoria", short: "Eliminatoria", hint: "Cuadro directo" },
   casual: { name: "Amistosos", short: "Amistosos", hint: "Partidas sueltas" },
+  // v0.82 — sin jornadas: cualquiera contra cualquiera, cuando podáis; manda el Elo.
+  elo: { name: "Liga Elo libre", short: "Elo libre", hint: "Cualquiera contra cualquiera, cuando queráis" },
 } as const;
 
 export type CompetitionKind = keyof typeof COMPETITION_KINDS;

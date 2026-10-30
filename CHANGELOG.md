@@ -2,6 +2,45 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.82.0] — 2026-10-29
+
+Recomendador por objetivo con resultados reales, el parche de la revisión, Liga Elo libre,
+colores en los resultados y ayudas al pasar el ratón. **Sin migración.**
+
+### Corregido (parche de la revisión)
+
+- **Series como partidas**: los cruces de vuestros torneos son resultados de SERIE; antes se
+  trataban como partidas y la pipeline aplicaba el Bo3 otra vez (un 60 % salía 64,8 %).
+  `Fuente.serie`, `porPartidaDeSerie` (inversa de `alMejorDe3`) y `cruceComoPartidas`; la
+  fuente `grupo` va con `serie: true`.
+- **Se ordena por el límite bajo** (`pObjetivoBajo`, `Z_BAJO = 1`): un mazo con muchos datos y
+  un 58 % va por delante de uno con 6 partidas y un 60 %.
+
+### Cambiado
+
+- **Cada objetivo, con lo que ha pasado de verdad** (antes cambiar «Lo que buscas» apenas movía
+  la lista):
+  - **Top cut**: solo mazos que han entrado al corte alguna vez; la cifra es su % real de corte
+    (presenciales y vuestros torneos, pesados por tipo), con el modelo como base; se ordena por
+    el límite bajo de Wilson (más veces, más arriba).
+  - **Ganar**: solo mazos que han ganado algún torneo; su % de ganar.
+  - **Día 2**: % de listas que pasaron al Día 2 (Regionales cuya importación llega más allá del
+    Día 2; el tamaño del Día 2 sale de la estructura oficial).
+  - **«Récord positivo» → «Listas sorpresa»**: pocas listas (30 o menos) que han entrado al corte.
+  - Si ningún mazo tiene resultados reales para el objetivo, se enseña el modelo, avisando.
+- **Filtro «Ocultar fiabilidad baja»** en el recomendador.
+- **Ayudas al pasar el ratón** en cada cifra del recomendador (cuota, % por ronda,
+  consistencia, objetivo, ×, real, mejor/peor, conversión, fiabilidad).
+- **Inicio → Mejores resultados**: la etiqueta del tipo con el color del calendario y los CP con
+  la medalla del perfil (oro, plata, bronce, rangos de Regional).
+
+### Añadido
+
+- **Liga Elo libre** (nuevo tipo de competición): sin jornadas, cualquiera contra cualquiera; la
+  clasificación es el Elo de la liga (K 40 → 24 → 16 según partidas jugadas, provisional hasta
+  5). `lib/eloLiga.ts`, 3 pruebas.
+- Pruebas: 3 del parche, 2 de objetivos y Wilson. Suite: 637.
+
 ## [0.81.0] — 2026-10-29
 
 Camino al Mundial ajustado a la realidad europea. **Sin migración.**

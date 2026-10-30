@@ -360,7 +360,7 @@ const TIPOS_REC: Array<{ tipo: TipoTorneo; label: string; jugadores: number; kin
   { tipo: "regional", label: "hr.sz.regional", jugadores: 1500, kind: "regional" },
   { tipo: "city_league", label: "rc.city", jugadores: 40, kind: "league_cup" },
 ];
-const OBJETIVOS: Objetivo[] = ["top", "ganar", "dia2", "positivo"];
+const OBJETIVOS: Objetivo[] = ["top", "ganar", "dia2", "sorpresa"];
 
 const nombreLider = (datos: DatosRecomendador, l: string) =>
   datos.nombres[l] ?? l.split("-").map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ");
@@ -373,6 +373,8 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
   /* v0.77 — general (el jugador medio) o para ti (tus partidas y tus mazos). */
   const [modo, setModo] = useState<"general" | "tuyo">("general");
   const [soloMios, setSoloMios] = useState(false);
+  // v0.82 — esconder los mazos con fiabilidad baja (pocas partidas o pocas listas).
+  const [sinBaja, setSinBaja] = useState(false);
   const yo = datos?.personal ?? null;
   const tuyo = modo === "tuyo" && yo != null;
 
@@ -491,11 +493,19 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
 
       {!datos ? <p className="text-sm text-muted">{tr(lng, "rc.sinDatos")}</p>
         : !est ? <p className="text-xs text-loss">{tr(lng, "hr.sz.pocos")}</p>
-        : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, "rc.vacio")}</p>
+        : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, objetivo === "sorpresa" ? "rc.sinSorpresas" : "rc.vacio")}</p>
         : !objetivoDisponible ? null : (
         <>
+          {/* v0.82 — el filtro de fiabilidad y, si no hay resultados reales, el aviso. */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <label className="inline-flex items-center gap-2" title={tr(lng, "rc.ayuda.fiabilidad")}>
+              <input type="checkbox" className="size-4" checked={sinBaja} onChange={(e) => setSinBaja(e.target.checked)} />
+              {tr(lng, "rc.sinBaja")}
+            </label>
+            {res.soloModelo && <span className="text-brand-strong">{tr(lng, "rc.soloModelo")}</span>}
+          </div>
           <ol className="flex flex-col gap-2">
-            {res.filas.map((f, i) => {
+            {res.filas.filter((f) => !sinBaja || (f.confianza !== "baja" && (!f.conEvidencia || (f.evidencia?.n ?? 0) >= 5))).map((f, i) => {
               const c = datos.consistencia[f.lider];
               const nota = c ? notaConsistencia(c.teorico, c.juegos ? c.mull : null, c.juegos) : null;
               return (
@@ -514,13 +524,16 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
                       <span className="block text-[11px] text-muted">
-                        {trf(lng, "rc.cuota", { p: pct(f.cuota, 1) })} · {trf(lng, "rc.ronda", { p: pct(f.pRonda, 0) })}
-                        {nota != null && <> · {trf(lng, "rc.consistencia", { n: nota })}</>}
+                        <span title={tr(lng, "rc.ayuda.cuota")}>{trf(lng, "rc.cuota", { p: pct(f.cuota, 1) })}</span>
+                        {" · "}<span title={tr(lng, "rc.ayuda.ronda")}>{trf(lng, "rc.ronda", { p: pct(f.pRonda, 0) })}</span>
+                        {nota != null && <> · <span title={tr(lng, "rc.ayuda.consistencia")}>{trf(lng, "rc.consistencia", { n: nota })}</span></>}
                       </span>
                     </span>
                     <span className="flex-none text-right">
-                      <span className="block font-display text-xl font-black tabular">{pct(f.pObjetivo, f.pObjetivo < 0.1 ? 1 : 0)}</span>
-                      <span className={`block text-[11px] font-semibold tabular ${f.indice >= 1 ? "text-win" : "text-loss"}`}>×{f.indice.toFixed(2)}</span>
+                      <span className="block font-display text-xl font-black tabular" title={tr(lng, f.conEvidencia ? `rc.ayuda.obj.${objetivo}` : "rc.ayuda.modelo")}>
+                        {pct(f.pObjetivo, f.pObjetivo < 0.1 ? 1 : 0)}
+                      </span>
+                      <span className={`block text-[11px] font-semibold tabular ${f.indice >= 1 ? "text-win" : "text-loss"}`} title={tr(lng, "rc.ayuda.indice")}>×{f.indice.toFixed(2)}</span>
                     </span>
                   </div>
                   {(() => {
@@ -567,10 +580,17 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                     );
                   })()}
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-10 text-[11px] text-muted">
-                    {f.mejor && <span>{trf(lng, "rc.mejor", { m: nombreLider(datos, f.mejor.contra), p: pct(f.mejor.p, 0) })}</span>}
-                    {f.peor && <span>{trf(lng, "rc.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</span>}
-                    {f.conversion != null && <span>{trf(lng, "rc.conversion", { x: f.conversion.toFixed(2) })}</span>}
-                    <span className={f.confianza === "alta" ? "text-win" : f.confianza === "media" ? "text-brand-strong" : "text-loss"}>
+                    {/* v0.82 — lo que ha pasado de verdad con este mazo. */}
+                    {f.evidencia && f.evidencia.n > 0 && (
+                      <span className="font-semibold text-ink-2" title={tr(lng, "rc.ayuda.real")}>
+                        {trf(lng, "rc.real", { c: f.evidencia.corte, n: f.evidencia.n, g: f.evidencia.ganados })}
+                        {f.evidencia.dia2Base > 0 && ` · ${trf(lng, "rc.realDia2", { d: f.evidencia.dia2, b: f.evidencia.dia2Base })}`}
+                      </span>
+                    )}
+                    {f.mejor && <span title={tr(lng, "rc.ayuda.mejor")}>{trf(lng, "rc.mejor", { m: nombreLider(datos, f.mejor.contra), p: pct(f.mejor.p, 0) })}</span>}
+                    {f.peor && <span title={tr(lng, "rc.ayuda.peor")}>{trf(lng, "rc.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</span>}
+                    {f.conversion != null && <span title={tr(lng, "rc.ayuda.conversion")}>{trf(lng, "rc.conversion", { x: f.conversion.toFixed(2) })}</span>}
+                    <span className={f.confianza === "alta" ? "text-win" : f.confianza === "media" ? "text-brand-strong" : "text-loss"} title={tr(lng, "rc.ayuda.fiabilidad")}>
                       {trf(lng, "rc.datos", { n: Math.round(f.datos).toLocaleString("es-ES"), c: tr(lng, `rc.conf.${f.confianza}`) })}
                     </span>
                   </div>

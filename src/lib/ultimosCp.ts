@@ -30,6 +30,9 @@ export type ResultadoConCp = {
   puesto: number | null;
   /** CP efectivos, ya calculados por quien llama. */
   cp: number;
+  /** v0.82 — tipo (para el color) y clase de medalla de CP. */
+  kind?: string;
+  clase?: string;
 };
 
 /** Lo mínimo que hace falta de cada resultado para ordenarlo. */
@@ -43,6 +46,10 @@ export type EntradaCp = {
   jugador: string;
   puesto: number | null;
   cp: number;
+  /** v0.82 — el tipo de torneo (para su color, el del calendario) y la clase de
+      medalla de CP (`cp-rank-*`, la misma gama que en el perfil). */
+  kind?: string;
+  clase?: string;
 };
 
 /**

@@ -47,19 +47,25 @@ export function liderDe(nombre: string | null | undefined): string {
 /* ------------------------------------------------------------- tipos -- */
 
 export type TipoTorneo = "league_challenge" | "league_cup" | "regional" | "city_league";
-export type Objetivo = "ganar" | "top" | "dia2" | "positivo";
+/* v0.82 — «positivo» (acabar con récord positivo) se cambia por «sorpresa»:
+   mazos con pocas listas que han dado resultados muy buenos. */
+export type Objetivo = "ganar" | "top" | "dia2" | "sorpresa";
 
 export type Cruce = { a: string; b: string; w: number; l: number; t: number };
 
 export type Fuente = {
   id: string;
+  /** v1.0 — los cruces son RESULTADOS DE SERIE (p. ej. ganar un Bo3), no partidas sueltas.
+      Se convierten a probabilidad por partida antes de mezclar: si no, la conversión
+      al Bo3 que hace la pipeline se aplicaría dos veces. */
+  serie?: boolean;
   /** Lo que se juega: líder → cuántas listas o partidas. */
   cuota: Record<string, number>;
   /** Emparejamientos (de A contra B, por partidas). Opcional. */
   cruces?: Cruce[];
   /** Conversión real, si la fuente tiene puestos: líder → listas, en el corte y
       (v0.80) en top 4 y ganadas. */
-  conversion?: Record<string, { n: number; corte: number; top4?: number; ganados?: number }>;
+  conversion?: Record<string, { n: number; corte: number; top4?: number; ganados?: number; dia2?: number; dia2Base?: number }>;
 };
 
 /** Cuánto pesa cada fuente en el campo de cada tipo de torneo. */
@@ -117,6 +123,25 @@ export function campoDe(tipo: TipoTorneo, fuentes: Fuente[], k = 30): Record<str
 
 export type Tabla = Map<string, Map<string, { w: number; l: number; t: number }>>;
 
+/** Inversa de `alMejorDe3`: la probabilidad por partida que explica una serie con probabilidad `s`. */
+export function porPartidaDeSerie(s: number): number {
+  const objetivo = Math.min(0.999, Math.max(0.001, s));
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (alMejorDe3(mid) < objetivo) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** Un cruce de serie (ganas/pierdes series) como partidas equivalentes, con el mismo número de datos. */
+export function cruceComoPartidas(c: Cruce): Cruce {
+  const n = c.w + c.l + c.t;
+  if (!n) return c;
+  const pg = porPartidaDeSerie((c.w + c.t / 2) / n);
+  return { a: c.a, b: c.b, w: pg * n, l: (1 - pg) * n, t: 0 };
+}
+
 /** Junta los cruces de todas las fuentes, en los dos sentidos (con su peso, si se da). */
 export function tablaCruces(fuentes: Fuente[], pesos?: Record<string, number>): Tabla {
   const t: Tabla = new Map();
@@ -131,7 +156,10 @@ export function tablaCruces(fuentes: Fuente[], pesos?: Record<string, number>): 
   for (const f of fuentes) {
     const k = pesos ? (pesos[f.id] ?? 1) : 1;
     if (!k) continue;
-    for (const c of f.cruces ?? []) { sumar(c.a, c.b, c.w * k, c.l * k, c.t * k); sumar(c.b, c.a, c.l * k, c.w * k, c.t * k); }
+    for (const c0 of f.cruces ?? []) {
+      const c = f.serie ? cruceComoPartidas(c0) : c0;
+      sumar(c.a, c.b, c.w * k, c.l * k, c.t * k); sumar(c.b, c.a, c.l * k, c.w * k, c.t * k);
+    }
   }
   return t;
 }
@@ -212,6 +240,8 @@ export type FilaRecomendada = {
   pPositivo: number;
   /** La del objetivo elegido, y cuántas veces la de un mazo «medio» (p = 0,5). */
   pObjetivo: number;
+  /** v1.0 — límite inferior (≈84 %) de pObjetivo según cuántos datos hay: lo que se ordena. */
+  pObjetivoBajo: number;
   indice: number;
   /** Partidas de emparejamiento que hay detrás. */
   datos: number;
@@ -220,7 +250,34 @@ export type FilaRecomendada = {
   peor: { contra: string; p: number } | null;
   /** Conversión real al corte frente a la media del campo (1 = igual), si hay. */
   conversion: number | null;
+  /** v0.82 — lo que ha pasado de verdad (presenciales y vuestros torneos), pesado por tipo. */
+  evidencia: { n: number; corte: number; ganados: number; dia2: number; dia2Base: number } | null;
+  /** v0.82 — la cifra del objetivo sale de resultados reales (true) o solo del modelo (false). */
+  conEvidencia: boolean;
 };
+
+/**
+ * v0.82 — Cuánto cuentan los RESULTADOS de cada fuente según el torneo: los
+ * Regionales importados para un Regional; las City Leagues y vuestros torneos
+ * para Cups y Challenges.
+ */
+export const PESOS_EVIDENCIA: Record<TipoTorneo, Record<string, number>> = {
+  regional: { regionales: 1, cityleagues: 0.3, grupo: 0.5 },
+  league_cup: { regionales: 0.3, cityleagues: 1, grupo: 1 },
+  league_challenge: { regionales: 0.1, cityleagues: 0.6, grupo: 1 },
+  city_league: { regionales: 0.2, cityleagues: 1, grupo: 0.5 },
+};
+
+/** Límite inferior de Wilson de una proporción (z = Z_BAJO). */
+export function wilsonBajo(exitos: number, n: number, z = 1): number {
+  if (!(n > 0)) return 0;
+  const p = Math.min(1, Math.max(0, exitos / n));
+  const z2 = z * z;
+  return Math.max(0, (p + z2 / (2 * n) - z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)) / (1 + z2 / n));
+}
+
+/** Cuántos errores típicos se resta para ordenar (1 ≈ 84 % de confianza en el lado bajo). */
+export const Z_BAJO = 1;
 
 export function recomendar(opts: {
   tipo: TipoTorneo;
@@ -240,7 +297,7 @@ export function recomendar(opts: {
   /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver. */
   minCuota?: number;
   max?: number;
-}): { filas: FilaRecomendada[]; campo: Record<string, number>; media: number } {
+}): { filas: FilaRecomendada[]; campo: Record<string, number>; media: number; soloModelo: boolean } {
   const { tipo, objetivo, fuentes, estructura } = opts;
   const campo = campoDe(tipo, fuentes);
   const tabla = tablaCruces(fuentes, PESOS_CRUCES[tipo]);
@@ -259,6 +316,17 @@ export function recomendar(opts: {
   }
   const totConv = Object.values(conv).reduce((a, c) => ({ n: a.n + c.n, puntos: a.puntos + c.puntos }), { n: 0, puntos: 0 });
   const mediaExito = totConv.n ? totConv.puntos / totConv.n : 0;
+  /* v0.82 — resultados reales por líder, pesados por tipo de torneo. */
+  const ev: Record<string, { n: number; corte: number; ganados: number; dia2: number; dia2Base: number }> = {};
+  for (const f of fuentes) {
+    const w = PESOS_EVIDENCIA[tipo][f.id] ?? 0;
+    if (!w) continue;
+    for (const [l, c] of Object.entries(f.conversion ?? {})) {
+      const x = (ev[l] ??= { n: 0, corte: 0, ganados: 0, dia2: 0, dia2Base: 0 });
+      x.n += w * c.n; x.corte += w * c.corte; x.ganados += w * (c.ganados ?? 0);
+      x.dia2 += w * (c.dia2 ?? 0); x.dia2Base += w * (c.dia2Base ?? 0);
+    }
+  }
   const PESO_EXITO: Record<TipoTorneo, number> = { regional: 0.1, league_cup: 0.06, city_league: 0.06, league_challenge: 0.03 };
   const ratioExito = (l: string): number | null => {
     const c = conv[l];
@@ -281,7 +349,7 @@ export function recomendar(opts: {
 
   const media = probTorneo(0.5, estructura);
   const objDe = (r: ReturnType<typeof probTorneo>) =>
-    objetivo === "ganar" ? r.pGanar : objetivo === "top" ? r.pTop : objetivo === "dia2" ? (r.pDia2 ?? r.pTop) : r.pPositivo;
+    objetivo === "ganar" ? r.pGanar : objetivo === "top" ? r.pTop : objetivo === "dia2" ? (r.pDia2 ?? r.pTop) : r.pTop;
   const objMedia = objDe(media) || 1e-9;
 
   const solo = opts.soloLideres ? new Set(opts.soloLideres) : null;
@@ -296,11 +364,12 @@ export function recomendar(opts: {
   };
 
   const filas: FilaRecomendada[] = candidatos.map((lider) => {
-    let datos = 0;
+    let datos = 0, neff = 0;
     let mejor: FilaRecomendada["mejor"] = null, peor: FilaRecomendada["peor"] = null;
     for (const [rival, frac] of Object.entries(campo)) {
       const { p, n } = pPartida(tabla, lider, rival);
       datos += n;
+      neff += frac * n;
       if (rival !== lider && frac >= 0.03 && n >= 5) {
         if (!mejor || p > mejor.p) mejor = { contra: rival, p };
         if (!peor || p < peor.p) peor = { contra: rival, p };
@@ -309,7 +378,7 @@ export function recomendar(opts: {
     // v0.82 — el mix campo/arriba depende del objetivo: ganar el torneo exige
     // vencer a los que llegan arriba; acabar con récord solo necesita ganar el
     // campo general. Esto separa los rankings según lo que el jugador busca.
-    const mezclaCampo = objetivo === "positivo" ? 0.90
+    const mezclaCampo = objetivo === "sorpresa" ? 0.90
       : objetivo === "ganar" ? 0.30
       : 0.65; // top y dia2: equilibrado
     let pPart = mezclaCampo * contra(lider, campo) + (1 - mezclaCampo) * contra(lider, campoArriba);
@@ -341,13 +410,51 @@ export function recomendar(opts: {
     const pCorteRonda = alMejorDe3(pTopPart); // el top cut siempre al mejor de 3
     const r = probTorneo(pRonda, estructura, pCorteRonda);
     const pObjetivo = objDe(r);
+    /* v1.0 — incertidumbre: error típico de la probabilidad de partida con los datos
+       efectivos del campo (binomial), y el objetivo recalculado en el extremo bajo. */
+    const eEf = Math.max(1, neff);
+    const se = Math.sqrt((pPart * (1 - pPart)) / eEf);
+    const pPartBajo = Math.max(0.05, pPart - Z_BAJO * se);
+    const rBajo = probTorneo(bo3 ? alMejorDe3(pPartBajo) : pPartBajo, estructura, pCorteRonda);
+    const pObjetivoBajo = objDe(rBajo);
+    /* v0.82 — EL OBJETIVO, CON LO QUE HA PASADO DE VERDAD.
+       · top: solo mazos que han entrado al corte alguna vez; la cifra es su %
+         real de corte, con el modelo como base (8 listas «imaginarias»).
+       · ganar: solo mazos que han ganado algún torneo; la cifra, su % de ganar.
+       · dia2: su % de listas que pasaron al Día 2.
+       · sorpresa: pocas listas (≤ 30) y resultados muy por encima de la media.
+       Se ordena por el límite bajo (Wilson): más veces = más seguro. */
+    const e = ev[lider];
+    const K = 8;
+    let pObj = pObjetivo, pBajo = pObjetivoBajo, conEvidencia = false;
+    const conReal = (exitos: number, base: number, previo: number) => {
+      const pp = (exitos + K * previo) / (base + K);
+      return { pp, bajo: wilsonBajo(exitos + K * previo, base + K, Z_BAJO) };
+    };
+    if (e && objetivo === "top" && e.corte > 0) {
+      ({ pp: pObj, bajo: pBajo } = conReal(e.corte, e.n, r.pTop)); conEvidencia = true;
+    } else if (e && objetivo === "ganar" && e.ganados > 0) {
+      ({ pp: pObj, bajo: pBajo } = conReal(e.ganados, e.n, r.pGanar)); conEvidencia = true;
+    } else if (e && objetivo === "dia2" && e.dia2Base > 0) {
+      ({ pp: pObj, bajo: pBajo } = conReal(e.dia2, e.dia2Base, r.pDia2 ?? r.pTop)); conEvidencia = true;
+    } else if (e && objetivo === "sorpresa" && e.n > 0 && e.n <= 30 && e.corte > 0) {
+      pObj = e.corte / e.n; pBajo = pObj * Math.min(1, Math.sqrt(e.corte) / 2); conEvidencia = true;
+    }
     return {
-      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo, indice: pObjetivo / objMedia, datos: Math.round(datos),
+      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: pBajo, indice: pObj / objMedia, datos: Math.round(datos),
       confianza: datos >= 300 ? "alta" : datos >= 60 ? "media" : "baja", mejor, peor, conversion,
+      evidencia: e ? { n: Math.round(e.n), corte: Math.round(e.corte), ganados: Math.round(e.ganados), dia2: Math.round(e.dia2), dia2Base: Math.round(e.dia2Base) } : null,
+      conEvidencia,
     };
   });
-  filas.sort((a, b) => b.pObjetivo - a.pObjetivo || b.cuota - a.cuota);
-  return { filas: filas.slice(0, opts.max ?? 12), campo, media: objMedia };
+  // v1.0 — se ordena por el límite inferior: un mazo con muchos datos y un 55 % vale más que uno con 6 partidas y un 60 %.
+  filas.sort((a, b) => b.pObjetivoBajo - a.pObjetivoBajo || b.pObjetivo - a.pObjetivo || b.cuota - a.cuota);
+  /* v0.82 — si hay mazos con resultados reales para este objetivo, SOLO esos
+     (lo que pediste: «solo puntúan los que han ganado / entrado al corte»).
+     Si no hay ninguno, el modelo, avisando. */
+  const conReales = filas.filter((f) => f.conEvidencia);
+  const lista = conReales.length ? conReales : objetivo === "sorpresa" ? [] : filas;
+  return { filas: lista.slice(0, opts.max ?? 12), campo, media: objMedia, soloModelo: !conReales.length };
 }
 
 /* -------------------------------------------------------- consistencia -- */

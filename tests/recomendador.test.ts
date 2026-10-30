@@ -149,7 +149,67 @@ test("v0.80: el mazo que gana Regionales y su counter suben", () => {
   const e = { rondas: 8, corte: 8, pCorte: { 24: 1, 21: 1, 18: 0.3 } };
   const r = recomendar({ tipo: "regional", objetivo: "ganar", fuentes, estructura: e });
   const pos = (l: string) => r.filas.findIndex((x) => x.lider === l);
-  assert.ok(pos("a") < pos("b"));   // el que gana Regionales, por delante
-  assert.ok(pos("c") < pos("b"));   // su counter, por delante del que no le gana
+  // v0.82 — «Ganar el torneo» solo lista mazos que han ganado algo: b (0 victorias) fuera.
+  assert.equal(pos("b"), -1);
+  assert.ok(pos("a") >= 0 && pos("c") >= 0);
+  assert.ok(pos("a") < pos("c"));   // 6 torneos ganados frente a 1
   assert.ok(r.filas.every((f) => Number.isInteger(f.datos)));
+});
+
+/* v0.82 — el parche de la revisión: series como partidas y orden por el límite bajo. */
+import { cruceComoPartidas, porPartidaDeSerie, Z_BAJO } from "../src/lib/recomendador.ts";
+
+test("v0.82: porPartidaDeSerie es la inversa de alMejorDe3", () => {
+  for (const p of [0.3, 0.5, 0.6, 0.75]) assert.ok(Math.abs(porPartidaDeSerie(alMejorDe3(p)) - p) < 1e-6);
+});
+
+test("v0.82: una fuente de SERIE no se convierte al Bo3 dos veces", () => {
+  // 60 % de series ganadas: tras la conversión de la pipeline debe volver a ~60 %, no 64,8 %.
+  const serie = [{ id: "grupo", serie: true, cuota: {}, cruces: [{ a: "x", b: "y", w: 600, l: 400, t: 0 }] }];
+  const pg = pPartida(tablaCruces(serie), "x", "y").p;
+  assert.ok(Math.abs(alMejorDe3(pg) - 0.6) < 0.01);
+  const c = cruceComoPartidas({ a: "x", b: "y", w: 6, l: 4, t: 0 });
+  assert.ok(Math.abs(c.w + c.l - 10) < 1e-9);
+});
+
+test("v0.82: se ordena por el límite bajo: muchos datos con 58 % ganan a 6 partidas con 60 %", () => {
+  assert.equal(Z_BAJO, 1);
+  const fuentes = [{
+    id: "online", cuota: { a: 100, b: 100, c: 100 },
+    cruces: [
+      { a: "a", b: "c", w: 174, l: 126, t: 0 }, // 58 % con 300
+      { a: "b", b: "c", w: 4, l: 2, t: 0 },     // 67 % con 6
+    ],
+  }];
+  const r = recomendar({ tipo: "league_cup", objetivo: "top", fuentes, estructura: { rondas: 5, corte: 8, pCorte: { 15: 1, 12: 1, 9: 0.25 } } });
+  const pos = (l: string) => r.filas.findIndex((x) => x.lider === l);
+  assert.ok(pos("a") < pos("b"));
+  assert.ok(r.filas.every((f) => f.pObjetivoBajo <= f.pObjetivo + 1e-12));
+});
+
+import { wilsonBajo } from "../src/lib/recomendador.ts";
+
+test("v0.82: cada objetivo usa su resultado real", () => {
+  const fuentes = [{
+    id: "regionales", cuota: { a: 100, b: 100, c: 10 },
+    conversion: {
+      a: { n: 100, corte: 20, ganados: 0, dia2: 60, dia2Base: 100 },
+      b: { n: 100, corte: 10, ganados: 3, dia2: 90, dia2Base: 100 },
+      c: { n: 6, corte: 2, ganados: 0, dia2: 5, dia2Base: 6 },
+    },
+  }];
+  const e = { rondas: 8, corte: 8, fase1: 6, umbral: 12, pCorte: { 24: 1, 21: 1, 18: 0.3 } };
+  const top = recomendar({ tipo: "regional", objetivo: "top", fuentes, estructura: e });
+  assert.equal(top.filas[0].lider, "a"); // más veces al corte, con base
+  const ganar = recomendar({ tipo: "regional", objetivo: "ganar", fuentes, estructura: e });
+  assert.deepEqual(ganar.filas.map((f) => f.lider), ["b"]); // solo el que ha ganado
+  const dia2 = recomendar({ tipo: "regional", objetivo: "dia2", fuentes, estructura: e });
+  assert.equal(dia2.filas[0].lider, "b"); // 90 % al Día 2
+  const sorpresa = recomendar({ tipo: "regional", objetivo: "sorpresa", fuentes, estructura: e });
+  assert.deepEqual(sorpresa.filas.map((f) => f.lider), ["c"]); // pocas listas, mucho éxito
+});
+
+test("v0.82: Wilson castiga la muestra pequeña", () => {
+  assert.ok(wilsonBajo(60, 100) > wilsonBajo(6, 10));
+  assert.equal(wilsonBajo(0, 0), 0);
 });

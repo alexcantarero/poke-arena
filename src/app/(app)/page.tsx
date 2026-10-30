@@ -13,7 +13,8 @@ import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
 import { byAgenda, fechaCorta, num, pct, shortName, todayISO, wrColor } from "@/lib/format";
-import { toneOf } from "@/lib/calendar";
+import { CALENDAR_KINDS, toneOf } from "@/lib/calendar";
+import { medallaDe } from "@/lib/rangos";
 import {
   Empty, Kpi, PageHead, PlayerTag, TournamentEmblem,
   Record, StreakChip,
@@ -21,7 +22,7 @@ import {
 import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
 import { UltimoRegional, type Vista } from "@/components/UltimoRegional";
-import { cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
+import { cpKindOf, effectiveCp, getSeason, seasonOfDate, tierFor } from "@/lib/cp";
 import { estructuraDe, umbralesDe } from "@/lib/estructura";
 import { conCuotaOnline, resumenGrupo, type ResultadoGrupo } from "@/lib/metaGrupo";
 import { irlMeta, panelDeEvento } from "@/lib/metaIrl";
@@ -182,6 +183,12 @@ export default async function HomePage({
           torneoId: t.id, torneo: t.name, fecha: t.date, tipo: tipoLabel,
           jugadorId: r.playerId, jugador: player.name, puesto: r.placement,
           cp: effectiveCp(temporada, tipo, r, t.playerCount),
+          kind: t.kind,
+          clase: (() => {
+            const m = tierFor(temporada, tipo, r.placement, t.playerCount);
+            const tiers = getSeason(temporada).events[tipo]?.tiers ?? [];
+            return medallaDe(tipo, r.placement, m ? tiers.indexOf(m.tier) : -1).className;
+          })(),
         }];
       });
     });
@@ -664,13 +671,19 @@ export default async function HomePage({
                     {r.torneo}
                   </Link>
                   <span className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className="chip text-[11px]">{r.tipo}</span>
+                    {/* v0.82 — el tipo con su color del calendario. */}
+                    <span className="chip text-[11px] font-semibold" style={r.kind && CALENDAR_KINDS[r.kind] ? {
+                      color: CALENDAR_KINDS[r.kind].color,
+                      borderColor: `color-mix(in oklab, ${CALENDAR_KINDS[r.kind].color} 55%, transparent)`,
+                      background: `color-mix(in oklab, ${CALENDAR_KINDS[r.kind].color} 14%, transparent)`,
+                    } : undefined}>{r.tipo}</span>
                     {r.puesto ? <span className="chip text-[11px] tabular">{trf(lang, "home.place", { n: ordinal(lang, r.puesto) })}</span> : null}
                   </span>
                 </span>
                 {/* Aquí todos tienen CP: los ceros ya no entran en la lista. */}
                 <span className="flex flex-none flex-col items-end">
-                  <span className="font-display text-lg font-extrabold tabular text-brand">+{r.cp}</span>
+                  {/* v0.82 — los CP con la medalla del perfil (oro, plata, bronce, rangos de Regional…). */}
+                  <span className={`cp-rank ${r.clase ?? ""} rounded-md border px-2 py-0.5 font-display text-base font-extrabold tabular`}>+{r.cp}</span>
                   <span className="text-[10px] uppercase tracking-wide text-muted">CP</span>
                 </span>
               </li>

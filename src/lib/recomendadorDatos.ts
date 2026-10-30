@@ -1,6 +1,8 @@
 import "server-only";
 import { loadMatchupImports, loadMetaIrl, type Snapshot } from "@/lib/data";
 import { liderDeSlug, type FilaTH } from "@/lib/trainerHill";
+import { estructuraDe } from "@/lib/estructura";
+import { comb } from "@/lib/herramientas";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
@@ -121,6 +123,22 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     const { events, entries } = await loadMetaIrl();
     const desde = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
     const evById = new Map(events.filter((e) => e.date >= desde).map((e) => [e.id, e]));
+    /* v0.82 — Día 2: cuántos pasan en un Regional de N jugadores (fase 1 de la
+       estructura oficial, todos con la misma fuerza: P(3·V ≥ umbral)). Solo se
+       usa si lo importado llega MÁS ALLÁ del Día 2; si solo están las listas de
+       Día 2, todas «pasarían» y la cifra no diría nada. */
+    const listasPorEvento = new Map<string, number>();
+    for (const en of entries) listasPorEvento.set(en.eventId, (listasPorEvento.get(en.eventId) ?? 0) + 1);
+    const tamDia2 = new Map<string, number>();
+    for (const e of evById.values()) {
+      if (!e.playerCount || !["regional", "special", "international"].includes(e.kind)) continue;
+      const est = estructuraDe(e.playerCount, "regional");
+      if (!est || est.umbral == null) continue;
+      let frac = 0;
+      for (let v = 0; v <= est.fase1; v++) if (3 * v >= est.umbral) frac += comb(est.fase1, v) / 2 ** est.fase1;
+      const tam = Math.round(e.playerCount * frac);
+      if ((listasPorEvento.get(e.id) ?? 0) > tam * 1.05) tamDia2.set(e.id, tam);
+    }
     for (const en of entries) {
       const ev = evById.get(en.eventId);
       if (!ev) continue;
@@ -139,6 +157,8 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
         if (corte && en.placement <= corte) x.corte += 1;
         if (en.placement <= 4) x.top4 = (x.top4 ?? 0) + 1;
         if (en.placement === 1) x.ganados = (x.ganados ?? 0) + 1;
+        const t2 = tamDia2.get(ev.id);
+        if (t2) { x.dia2Base = (x.dia2Base ?? 0) + 1; if (en.placement <= t2) x.dia2 = (x.dia2 ?? 0) + 1; }
         f.conversion![l] = x;
         vv.conPuesto += 1;
         if (corte && en.placement <= corte) vv.corte += 1;
@@ -179,7 +199,8 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   for (const tipo of Object.keys(KINDS) as TipoTorneo[]) {
     const kinds = new Set(KINDS[tipo]);
     const tours = new Set(snap.tournaments.filter((t) => kinds.has(t.kind)).map((t) => t.id));
-    const f: Fuente = { id: "grupo", cuota: {}, cruces: [] };
+    // v1.0 — los cruces de vuestros torneos son resultados de SERIE (ganar la ronda), no partidas.
+    const f: Fuente = { id: "grupo", cuota: {}, cruces: [], serie: true };
     const cruces = new Map<string, Cruce>();
     for (const m of snap.matches) {
       if (!m.tournamentId || !tours.has(m.tournamentId) || !isPlayed(m)) continue;
@@ -194,6 +215,24 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       cruces.set(`${la}|${lb}`, x);
     }
     f.cruces = [...cruces.values()];
+    /* v0.82 — vuestros RESULTADOS en ese tipo de torneo (puesto y mazo): si
+       entrasteis al corte (sin corte, top 8) y si lo ganasteis. */
+    f.conversion = {};
+    for (const t of snap.tournaments) {
+      if (!kinds.has(t.kind)) continue;
+      const corte = t.topCut || 8;
+      for (const r of t.results) {
+        if (r.placement == null) continue;
+        const arch = (r.deckId ? snap.archIndex.get(r.deckId) : undefined) ?? (r.archetypeId ? snap.archById.get(r.archetypeId) : undefined);
+        const l = ldArch(arch);
+        if (!l) continue;
+        const x = (f.conversion[l] ??= { n: 0, corte: 0, top4: 0, ganados: 0 });
+        x.n++;
+        if (r.placement <= corte) x.corte++;
+        if (r.placement <= 4) x.top4 = (x.top4 ?? 0) + 1;
+        if (r.placement === 1) x.ganados = (x.ganados ?? 0) + 1;
+      }
+    }
     grupo[tipo] = f;
   }
 
