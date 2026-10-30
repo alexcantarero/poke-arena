@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectarCabeceraMes, fechaDe, parseEventosPegados, tipoDe } from "../src/lib/eventosPegados.ts";
+import { datosDeDireccion, detectarCabeceraMes, fechaDe, parseEventosPegados, tipoDe } from "../src/lib/eventosPegados.ts";
 
 test("fechaDe: los formatos habituales", () => {
   assert.equal(fechaDe("Sat, Oct 4, 2026 10:00 AM"), "2026-10-04");
@@ -218,4 +218,10 @@ sábado, 31 de octubre de 2026 10:30 a.m.`;
     [["league_challenge", "LORCANOS - TCG League Challenge October", "10:30"],
      ["league_challenge", "Legue Challenge TCG at Infiniti World", "10:00"]],
   );
+});
+
+test("datosDeDireccion: ciudad y país de la dirección oficial", () => {
+  assert.deepEqual(datosDeDireccion("CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN"),
+    { city: "Calella", country: "España" });
+  assert.deepEqual(datosDeDireccion("Carrer de Balmes 12, Barcelona"), { city: "", country: "" });
 });

@@ -343,6 +343,19 @@ function esDireccion(linea: string): boolean {
   return /\b\d{5}\b|\bspain\b|\bspai\b|espa[ñn]a|\bcarrer\b|\bcalle\b|\bc\/|\bavda\b|\bavinguda\b|\bplaza\b|\bplaça\b|,/i.test(linea);
 }
 
+/**
+ * Ciudad y país de una dirección oficial, p. ej.
+ * «CARRER DE LA BRUGUERA, 129, 08370 CALELLA, BARCELONA, SPAIN» → Calella · España.
+ */
+export function datosDeDireccion(direccion: string): { city: string; country: string } {
+  const partes = direccion.split(",").map((p) => p.trim()).filter(Boolean);
+  const i = partes.findIndex((p) => /^\d{5}\b/.test(p));
+  const city = i >= 0 ? capitalizar(partes[i].replace(/^\d{5}\s*/, "")) : "";
+  const pais = partes[partes.length - 1] ?? "";
+  const country = /spain|spai|espa[ñn]a/i.test(pais) ? "España" : "";
+  return { city, country };
+}
+
 /** Hora en HH:MM: «10:30 a.m.» → 10:30, «04:30 p.m.» → 16:30, «16:30» → 16:30. */
 export function horaDe(texto: string): string | null {
   const ampm = /\b(1[0-2]|0?[1-9]):([0-5]\d)\s*([ap])\.?\s*m\b\.?/i.exec(texto);

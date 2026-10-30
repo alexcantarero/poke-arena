@@ -1,0 +1,256 @@
+"use server";
+
+/* Calendario: eventos, importaciones y torneos online previstos.
+   v0.47 — partido de `src/actions/index.ts`. */
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { events, matches, tournamentResults, tournaments } from "@/db/schema";
+import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
+import { newId, todayISO } from "@/lib/format";
+import { withFlash } from "@/lib/flash";
+import { datosDeDireccion, parseEventosPegados } from "@/lib/eventosPegados";
+import { seasonOfDate } from "@/lib/cp";
+import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
+import {
+  str, isoDate, refresh, requireManager, CALENDAR_EVENT_KINDS,
+  msj,
+} from "./_comun";
+
+/* ------------------------------------------------------------- eventos -- */
+
+export async function saveEvent(fd: FormData) {
+  // El calendario lo ve todo el mundo, así que lo escribe el organizador.
+  await requireManager();
+  const editing = str(fd, "id");
+  const id = editing || newId("e");
+  const values = {
+    title: str(fd, "title").slice(0, 120),
+    date: isoDate(fd, "date") ?? todayISO(),
+    endDate: isoDate(fd, "endDate", null),
+    kind: str(fd, "kind") || "round",
+    // Vacío es válido: una jornada de la liga no es ningún tipo de torneo
+    // del circuito. El color del calendario cae entonces al de `kind`.
+    tournamentKind: CALENDAR_EVENT_KINDS.includes(str(fd, "tournamentKind"))
+      ? str(fd, "tournamentKind")
+      : "",
+    location: str(fd, "location").slice(0, 120),
+    url: /^https?:\/\//i.test(str(fd, "url")) ? str(fd, "url").slice(0, 400) : "",
+    competitionId: str(fd, "competitionId") || null,
+    tournamentId: str(fd, "tournamentId") || null,
+    note: str(fd, "note").slice(0, 500),
+  };
+  if (!values.title) return;
+  if (editing) await db.update(events).set(values).where(eq(events.id, id));
+  else await db.insert(events).values({ id, ...values });
+  refresh();
+  redirect(withFlash("/calendario", "ok", editing ? "Evento guardado." : "Evento añadido."));
+}
+
+/**
+ * Meter en el calendario los eventos oficiales de Europa.
+ *
+ * La lista está escrita a mano en `src/data/eventos-europa.ts`, con sus
+ * fuentes y con marca en los que no coinciden entre ellas. **No hay ninguna
+ * llamada automática a ninguna web**: ni hace falta para diez eventos al año
+ * ni sería correcto con las webs de las que salen.
+ *
+ * Es idempotente: cada evento lleva un id fijo, así que volver a pulsarlo
+ * actualiza los que ya están en vez de duplicarlos. Eso permite corregir la
+ * lista del fichero y volver a importar sin limpiar nada antes.
+ *
+ * Lo que NO hace: borrar. Si alguien quitó del calendario un evento que no le
+ * interesaba, volver a importar no se lo devuelve a la cara... bueno, sí se
+ * lo devuelve, porque el id vuelve a no existir y se inserta. Es el precio de
+ * que sea idempotente sin llevar una tabla de «borrados a propósito», y para
+ * diez eventos al año compensa.
+ */
+export async function importEuropeanEvents() {
+  await requireManager();
+
+  const existentes = new Set(
+    (await db.select({ id: events.id }).from(events)
+      .where(inArray(events.id, EVENTOS_EUROPA_2027.map((e) => e.id))))
+      .map((r) => r.id),
+  );
+
+  let nuevos = 0;
+  let actualizados = 0;
+
+  for (const e of EVENTOS_EUROPA_2027) {
+    const values = {
+      title: e.title,
+      date: e.date,
+      endDate: e.endDate ?? null,
+      kind: "tourney",
+      tournamentKind: e.tournamentKind,
+      location: e.location,
+      url: e.url ?? "",
+      competitionId: null,
+      tournamentId: null,
+      note: e.confirmar ? "Fecha por confirmar: las fuentes no coinciden." : "",
+    };
+    if (existentes.has(e.id)) {
+      await db.update(events).set(values).where(eq(events.id, e.id));
+      actualizados++;
+    } else {
+      await db.insert(events).values({ id: e.id, ...values });
+      nuevos++;
+    }
+  }
+
+  refresh();
+  redirect(withFlash(
+    "/calendario",
+    "ok",
+    `Eventos de Europa ${TEMPORADA_EVENTOS}: ${nuevos} nuevo(s) y ${actualizados} actualizado(s).`,
+  ));
+}
+
+export async function deleteEvent(fd: FormData) {
+  await requireManager();
+  await db.delete(events).where(eq(events.id, str(fd, "id")));
+  refresh();
+}
+
+/* ============================================ v0.14 — buscador de eventos ====
+
+   Challenges y Cups pegados desde el Event Locator oficial (ver
+   `lib/eventosPegados.ts`: pokemon.com prohíbe la extracción automatizada,
+   así que se copia a mano y se pega). Idempotente por id: pegar la misma
+   lista otra vez actualiza y no duplica.
+   ========================================================================= */
+
+export async function importPastedEvents(fd: FormData) {
+  const actor = await requireManager();
+  const texto = String(fd.get("texto") ?? "").slice(0, 200_000);
+  const { eventos, ignorados } = parseEventosPegados(texto);
+  if (!eventos.length) {
+    redirect(withFlash("/calendario", "error",
+      "No he reconocido ningún torneo en lo pegado. Puedes pegar la lista del buscador oficial o un listado por meses (CHALLENGE / CUP / REGIONAL)."));
+  }
+  const [yaRegistrados, toursExistentes, evOficiales] = await Promise.all([
+    db.select({ id: events.id }).from(events).where(inArray(events.id, eventos.map((e) => e.id))),
+    db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind }).from(tournaments),
+    db.select({ id: events.id, date: events.date, tournamentKind: events.tournamentKind, title: events.title }).from(events),
+  ]);
+  const ya = new Set(yaRegistrados.map((r) => r.id));
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  let nuevos = 0;
+  let torneosCreados = 0;
+  for (const e of eventos) {
+    // Si ya existe un evento oficial en esa fecha para ese Regional (ej: eu-2027-nice), reutilizamos su id
+    const evCoincidente = evOficiales.find((x) =>
+      x.id === e.id ||
+      (e.kind === "regional" && x.tournamentKind === "regional" && x.date === e.date)
+    );
+    const idAGuardar = evCoincidente ? evCoincidente.id : e.id;
+
+    // Un torneo ya apuntado a mano (mismo día, tipo y nombre) se enlaza en vez de duplicarse.
+    const tourCoincidente = toursExistentes.find((t) =>
+      t.date === e.date && t.kind === e.kind && Boolean(e.store) && (
+        norm(t.name).includes(norm(e.store)) || norm(e.store).includes(norm(t.name))
+      )
+    );
+
+    // El torneo de verdad: aparece en /torneos y se puede abrir. Antes solo se
+    // creaba la entrada del calendario, y la ficha del torneo no existía.
+    let tournamentId = tourCoincidente?.id ?? null;
+    if (!tournamentId) {
+      tournamentId = `tp-${e.id}`;
+      const { city, country } = datosDeDireccion(e.location);
+      await db.insert(tournaments).values({
+        id: tournamentId,
+        name: (e.store || e.title).slice(0, 120),
+        kind: e.kind,
+        status: "draft",
+        scope: "onsite",
+        format: "standard",
+        bestOf: 3,
+        date: e.date,
+        endDate: e.endDate ?? null,
+        startTime: e.time ?? null,
+        venue: e.location.slice(0, 120),
+        city: city.slice(0, 80),
+        country,
+        season: seasonOfDate(e.date),
+        division: "masters",
+        notes: e.note ?? "",
+        createdBy: actor.id,
+      }).onConflictDoNothing();
+      torneosCreados++;
+    }
+
+    const values = {
+      title: e.title.slice(0, 120),
+      date: e.date,
+      endDate: e.endDate ?? null,
+      kind: "tourney",
+      tournamentKind: e.kind,
+      location: e.location,
+      url: "",
+      competitionId: null,
+      tournamentId,
+      note: [e.time ? `Empieza a las ${e.time}` : "", e.note ?? "Del listado pegado"].filter(Boolean).join(" · "),
+    };
+    if (ya.has(idAGuardar) || evCoincidente) {
+      await db.update(events).set(values).where(eq(events.id, idAGuardar));
+    } else {
+      await db.insert(events).values({ id: idAGuardar, ...values });
+      nuevos++;
+    }
+  }
+  refresh();
+  redirect(withFlash("/calendario", "ok",
+    `${nuevos} evento(s) nuevo(s), ${eventos.length - nuevos} actualizado(s), ${torneosCreados} torneo(s) creado(s)${ignorados ? `, ${ignorados} ignorado(s) (otros juegos o tipos)` : ""}.`));
+}
+
+/**
+ * Quitar una entrada del calendario (solo organizadores).
+ *
+ * Una entrada es un evento (`events`) o un torneo (`tournaments`). Al borrar un
+ * torneo se borran también sus eventos enlazados; si no, el evento suelto
+ * volvería a salir en el calendario. Un torneo con resultados o rondas no se
+ * borra desde aquí: eso se hace en su ficha, donde se ve lo que se pierde.
+ */
+export async function borrarDelCalendario(fd: FormData) {
+  await requireManager();
+  const eventoId = str(fd, "eventoId");
+  const torneoId = str(fd, "torneoId");
+
+  if (torneoId) {
+    const [resultados, rondas] = await Promise.all([
+      db.select({ id: tournamentResults.id }).from(tournamentResults)
+        .where(eq(tournamentResults.tournamentId, torneoId)).limit(1),
+      db.select({ id: matches.id }).from(matches)
+        .where(eq(matches.tournamentId, torneoId)).limit(1),
+    ]);
+    if (resultados.length || rondas.length) {
+      redirect(withFlash("/calendario", "error",
+        "Ese torneo ya tiene resultados o rondas: bórralo desde su ficha, que es donde se ve lo que se pierde."));
+    }
+    await db.delete(events).where(eq(events.tournamentId, torneoId));
+    await db.delete(tournaments).where(eq(tournaments.id, torneoId));
+  }
+  if (eventoId) await db.delete(events).where(eq(events.id, eventoId));
+
+  refresh();
+  redirect(withFlash("/calendario", "ok", "Quitado del calendario."));
+}
+
+/* v0.44 — torneos online semanales previstos, a mano (el cron lo hace a diario). */
+export async function sincronizarSeriesAhora() {
+  await requireManager();
+  const r = await sincronizarSeriesOnline();
+  revalidatePath("/", "layout");
+  if (r.sinRespuesta) {
+    redirect(withFlash("/ajustes", "error", await msj("x.d3898ba7")));
+  }
+  redirect(withFlash("/ajustes", "ok",
+    r.series
+      ? `${r.series} serie(s): ${r.creados} evento(s) nuevo(s), ${r.actualizados} actualizado(s), ${r.retirados} pasado(s) retirado(s).`
+      : `Ninguna serie que encaje en las últimas 8 semanas: ni semanal con +100 de media, ni de las que seguís.`));
+}
