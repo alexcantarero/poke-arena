@@ -2,7 +2,8 @@ import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
 import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
-import { loadTorneosPantalla, playerCp } from "@/lib/data";
+import { loadArchetypes, loadTorneosPantalla, playerCp } from "@/lib/data";
+import { apuntarResultadoLocal } from "@/actions";
 import { readSession } from "@/lib/auth";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
@@ -30,6 +31,7 @@ export default async function TournamentsPage({
 }) {
   const lng = await getLang(); // v0.49
   await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
+  const arquetiposLista = await loadArchetypes(); // v0.85 — para apuntar resultados de Cup/Challenge
 
   /* v0.47 — Fase B: `snap` NO es el snapshot entero. Son torneos, resultados,
      jugadores y solo las rondas de torneo (`loadTorneosPantalla`), sin las
@@ -166,6 +168,48 @@ export default async function TournamentsPage({
             </button>
           </form>
         </section>
+      )}
+
+      {/* v0.85 — apuntar un resultado de Cup o Challenge visto en la tienda: puesto
+          y mazo, sin nombres. Alimenta el meta local del recomendador. */}
+      {me && (
+        <details className="card mb-5 p-4">
+          <summary className="cursor-pointer text-sm font-bold">{tr(lng, "loc.titulo")}</summary>
+          <p className="mt-1 text-xs text-muted">{tr(lng, "loc.explica")}</p>
+          <form action={apuntarResultadoLocal} className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span className="label">{tr(lng, "loc.tipo")}</span>
+              <select className="input" name="tipo" defaultValue="league_cup">
+                <option value="league_cup">League Cup</option>
+                <option value="league_challenge">League Challenge</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="label">{tr(lng, "loc.tienda")}</span>
+              <input className="input" name="tienda" required maxLength={80} placeholder={tr(lng, "loc.tiendaEj")} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="label">{tr(lng, "loc.fecha")}</span>
+              <input className="input" type="date" name="fecha" required defaultValue={todayISO()} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="label">{tr(lng, "loc.puesto")}</span>
+              <input className="input" type="number" name="puesto" min={1} max={512} required inputMode="numeric" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="label">{tr(lng, "loc.jugadores")}</span>
+              <input className="input" type="number" name="jugadores" min={2} max={2000} inputMode="numeric" />
+            </label>
+            <label className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+              <span className="label">{tr(lng, "loc.mazo")}</span>
+              <select className="input" name="arquetipo" required defaultValue="">
+                <option value="" disabled>—</option>
+                {[...arquetiposLista].sort((a, b) => a.name.localeCompare(b.name)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <button className="btn btn-brand col-span-2 sm:col-span-3" type="submit">{tr(lng, "loc.guardar")}</button>
+          </form>
+        </details>
       )}
 
       <SectionTitle

@@ -124,3 +124,8 @@ export async function diagnostico(): Promise<{ evento: string | null; lineas: Li
   lineas.push({ fichero: "Online - Last 14 Days/archetypes/index.json", estado: online.ok ? "200" : String(online.estado), forma: online.ok ? forma(online.datos) : "—" });
   return { evento, lineas };
 }
+
+/** v0.85 — los emparejamientos de un evento presencial, tal cual (los lee `ciphermaniacCruces.ts`). */
+export async function matchupProfiles(evento: string): Promise<Respuesta<unknown>> {
+  return leer<unknown>(ruta(evento, "matchupProfiles.json"));
+}

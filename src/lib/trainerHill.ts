@@ -81,3 +81,39 @@ export function parseTrainerHill(texto: string): ResultadoTH {
   }
   return { filas, mazos: [...mazos].sort(), partidas: filas.reduce((s, f) => s + f.w + f.l + f.t, 0), errores };
 }
+
+/* =========================================================================
+   v0.85 — CSV de CONVERSIÓN de Trainer Hill (si su pantalla lo exporta).
+
+   No tenemos aún un ejemplo real, así que se leen las columnas por su nombre,
+   sin depender del orden: una de mazo (deck / archetype / name), una de total
+   (count / players / entries / total / decks) y, si están, Día 2 (day2 /
+   day 2 / phase2) y corte (topcut / top cut / top8 / cut). Lo que no case se
+   dice; nunca se inventa una columna.
+   ========================================================================= */
+export type FilaConversionTH = { deck: string; lider: string; n: number; dia2: number | null; corte: number | null };
+
+export function parseConversionTH(texto: string): { filas: FilaConversionTH[]; errores: string[] } {
+  const lineas = texto.replace(/^\uFEFF/, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lineas.length) return { filas: [], errores: ["El fichero está vacío."] };
+  const cab = lineas[0].toLowerCase().split(",").map((x) => x.trim().replace(/[_\s]+/g, ""));
+  const busca = (...n: string[]) => cab.findIndex((h) => n.includes(h));
+  const iDeck = busca("deck", "archetype", "name", "deck1");
+  const iN = busca("count", "players", "entries", "total", "decks", "day1");
+  const iD2 = busca("day2", "phase2", "dia2");
+  const iC = busca("topcut", "top8", "cut", "top");
+  if (iDeck < 0 || iN < 0 || (iD2 < 0 && iC < 0)) {
+    return { filas: [], errores: ["No parece un CSV de conversión: hace falta una columna de mazo, una de total y otra de Día 2 o de corte."] };
+  }
+  const num = (v: string | undefined) => { const x = Number(v); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const filas: FilaConversionTH[] = [];
+  const errores: string[] = [];
+  for (let k = 1; k < lineas.length; k++) {
+    const c = lineas[k].split(",").map((x) => x.trim());
+    const deck = c[iDeck], n = num(c[iN]);
+    if (!deck || n == null) { errores.push(`Línea ${k + 1}: no se entiende.`); continue; }
+    const dia2 = iD2 >= 0 ? num(c[iD2]) : null, corte = iC >= 0 ? num(c[iC]) : null;
+    filas.push({ deck, lider: liderDeSlug(deck.toLowerCase().replace(/[^a-z0-9]+/g, "-")).lider, n, dia2: dia2 != null ? Math.min(dia2, n) : null, corte: corte != null ? Math.min(corte, n) : null });
+  }
+  return { filas, errores };
+}

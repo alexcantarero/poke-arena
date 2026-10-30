@@ -14,7 +14,7 @@ import "server-only";
    ========================================================================= */
 
 import { sesionVigente } from "@/lib/recuperacion";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -130,6 +130,9 @@ export const pick = <T extends string>(fd: FormData, k: string, allowed: readonl
 
 export function refresh() {
   revalidatePath("/", "layout");
+  // v0.85 — y las cachés entre peticiones: tablas (`loadSnapshot`) y meta.
+  revalidateTag("datos");
+  revalidateTag("meta");
 }
 
 /**

@@ -4,10 +4,11 @@
    v0.47 — partido de `src/actions/index.ts`. */
 
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { archetypes, matchupImports, metaEntries, metaEvents, players } from "@/db/schema";
-import { parseTrainerHill } from "@/lib/trainerHill";
+import { parseConversionTH, parseTrainerHill } from "@/lib/trainerHill";
+import { revalidateTag } from "next/cache";
 import { todayISO } from "@/lib/format";
 import { seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
@@ -18,7 +19,7 @@ import type { MetaImportState } from "@/lib/types";
 import { CALENDAR_KINDS } from "@/lib/calendar";
 import { coverageOf, parseStandings, parseSummary, type PasteMode } from "@/lib/standings";
 import {
-  str, maybeInt, isoDate, refresh, requireManager, firma, resumenImportacion, indiceDeSprites, spritesDe,
+  str, maybeInt, isoDate, refresh, requireManager, requireActor, pick, firma, resumenImportacion, indiceDeSprites, spritesDe,
   msj,
 } from "./_comun";
 
@@ -327,7 +328,7 @@ export async function syncLimitlessIrl(fd: FormData) {
    distinto según el tipo de torneo en el recomendador. Uno por nivel: subir
    otro del mismo nivel sustituye al anterior.
    ========================================================================= */
-const NIVELES_TH = new Set(["majors", "online", "mixto"]);
+const NIVELES_TH = new Set(["majors", "online", "mixto", "conversion"]);
 
 export async function importarTrainerHill(fd: FormData) {
   const actor = await requireManager();
@@ -337,14 +338,28 @@ export async function importarTrainerHill(fd: FormData) {
   if (!NIVELES_TH.has(nivel)) return redirect(withFlash("/ajustes#importar", "error", "Elige de qué eventos es el fichero."));
   if (!fichero || fichero.size === 0) return redirect(withFlash("/ajustes#importar", "error", "Sube el CSV exportado de Trainer Hill."));
   if (fichero.size > 2_000_000) return redirect(withFlash("/ajustes#importar", "error", "El fichero es demasiado grande (más de 2 MB)."));
-  const r = parseTrainerHill(await fichero.text());
+  const texto = await fichero.text();
+  /* v0.85 — «conversion»: el CSV de conversión (Día 2 / corte por mazo). */
+  if (nivel === "conversion") {
+    const cv = parseConversionTH(texto);
+    if (!cv.filas.length) return redirect(withFlash("/ajustes#importar", "error", cv.errores[0] ?? "El fichero no tiene filas de conversión."));
+    await db.delete(matchupImports).where(eq(matchupImports.nivel, nivel));
+    await db.insert(matchupImports).values({
+      id: "th-conversion", fuente: "trainerhill", nivel, nombre: fichero.name.slice(0, 120),
+      filas: cv.filas, partidas: cv.filas.reduce((s, x) => s + x.n, 0), createdBy: actor.id,
+    });
+    refresh(); revalidateTag("meta");
+    return redirect(withFlash("/ajustes#importar", "ok", `Conversión de Trainer Hill: ${cv.filas.length} mazos.`
+      + (cv.errores.length ? ` ${cv.errores.length} línea(s) no se entendieron.` : "")));
+  }
+  const r = parseTrainerHill(texto);
   if (!r.filas.length) redirect(withFlash("/ajustes#importar", "error", r.errores[0] ?? "El fichero no tiene emparejamientos."));
   await db.delete(matchupImports).where(eq(matchupImports.nivel, nivel));
   await db.insert(matchupImports).values({
     id: `th-${nivel}`, fuente: "trainerhill", nivel, nombre: fichero.name.slice(0, 120),
     filas: r.filas, partidas: r.partidas, createdBy: actor.id,
   });
-  refresh();
+  refresh(); revalidateTag("meta");
   redirect(withFlash("/ajustes#importar", "ok",
     `Trainer Hill (${nivel}): ${r.filas.length} emparejamientos de ${r.mazos.length} mazos, ${r.partidas.toLocaleString("es-ES")} partidas.`
     + (r.errores.length ? ` ${r.errores.length} línea(s) no se entendieron.` : "")));
@@ -354,6 +369,51 @@ export async function borrarImportacionCruces(fd: FormData) {
   await requireManager();
   const id = str(fd, "id");
   if (id) await db.delete(matchupImports).where(eq(matchupImports.id, id));
-  refresh();
+  refresh(); revalidateTag("meta");
   redirect(withFlash("/ajustes#importar", "ok", "Importación borrada."));
+}
+
+/* =========================================================================
+   v0.85 — Apuntar un resultado de Cup o Challenge visto en la tienda.
+
+   Cualquiera del grupo (no solo organizadores): puesto y mazo, SIN nombre de
+   jugador (la tabla ni siquiera tiene esa columna). Se guarda como un evento
+   presencial más (`league_cup` / `league_challenge`), uno por tienda y fecha;
+   repetir un puesto lo corrige. Alimenta el meta local del recomendador.
+   ========================================================================= */
+export async function apuntarResultadoLocal(fd: FormData) {
+  const actor = await requireActor();
+  const tipo = pick(fd, "tipo", ["league_cup", "league_challenge"] as const, "league_cup");
+  const tienda = str(fd, "tienda").slice(0, 80);
+  const fecha = isoDate(fd, "fecha");
+  const puesto = maybeInt(fd, "puesto", 1, 512);
+  const jugadores = maybeInt(fd, "jugadores", 2, 2000);
+  const archId = str(fd, "arquetipo");
+  if (!tienda || !fecha || puesto == null || !archId) {
+    return redirect(withFlash("/torneos", "error", "Faltan datos: tienda, fecha, puesto y mazo."));
+  }
+  const arch = (await db.select().from(archetypes).where(eq(archetypes.id, archId)))[0];
+  if (!arch) return redirect(withFlash("/torneos", "error", "Ese mazo no existe."));
+  const slug = tienda.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const nombre = `${tipo === "league_cup" ? "League Cup" : "League Challenge"} ${tienda}`;
+  const id = `loc-${tipo === "league_cup" ? "cup" : "ch"}-${fecha}-${slug}`;
+  // Uno por tienda y fecha: si ya existe (por id o por nombre + fecha), se reutiliza.
+  const ya = (await db.select().from(metaEvents).where(and(eq(metaEvents.name, nombre), eq(metaEvents.date, fecha))))[0];
+  const eventId = ya?.id ?? id;
+  if (!ya) {
+    await db.insert(metaEvents).values({
+      id, name: nombre, date: fecha, kind: tipo, division: "masters", season: seasonOfDate(fecha),
+      playerCount: jugadores, topCut: tipo === "league_cup" ? 8 : null,
+      sourceName: "Apuntado por el grupo", createdBy: actor.id,
+    }).onConflictDoNothing();
+  } else if (jugadores != null) {
+    await db.update(metaEvents).set({ playerCount: jugadores }).where(eq(metaEvents.id, eventId));
+  }
+  await db.delete(metaEntries).where(and(eq(metaEntries.eventId, eventId), eq(metaEntries.placement, puesto)));
+  await db.insert(metaEntries).values({
+    eventId, placement: puesto, copies: 1, archetypeId: arch.id, archetypeName: arch.name,
+    main: arch.main, secondary: arch.secondary ?? "",
+  });
+  refresh(); revalidateTag("meta");
+  redirect(withFlash("/torneos", "ok", `Apuntado: ${puesto}.º con ${arch.name} en ${nombre}.`));
 }

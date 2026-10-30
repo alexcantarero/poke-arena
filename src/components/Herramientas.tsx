@@ -415,7 +415,8 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
       tipo, objetivo, alfa: datos.evaluacion.alfa, live: datos.live,
       ajustes: tuyo ? Object.fromEntries(Object.entries(yo!.porLider).map(([l, x]) => [l, x.ajuste])) : undefined,
       soloLideres: tuyo && soloMios && yo!.misLideres.length ? yo!.misLideres : undefined,
-      fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, ...(datos.trainerHill ?? []), datos.grupo[tipo], ...(tuyo ? [yo!.fuente] : [])],
+      fuentes: [datos.fuentes.online, datos.fuentes.regionales, datos.fuentes.cityleagues, ...(datos.trainerHill ?? []),
+        ...(datos.ciphermaniac ? [datos.ciphermaniac] : []), ...(datos.locales ?? []), datos.grupo[tipo], ...(tuyo ? [yo!.fuente] : [])],
       estructura: {
         rondas: est.total, corte: sinCorte ? 1 : est.topCut, pCorte,
         pPrimero: lineas?.pPrimero ?? undefined,

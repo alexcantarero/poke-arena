@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { sesionVigente } from "@/lib/recuperacion";
 import { leerLogros } from "@/lib/logros";
 import { cache } from "react";
@@ -122,16 +123,37 @@ export const loadArchetypes = cache(async () =>
  *     pueden pedir enteros, a la vez, sin esperar a saber los ids (y sin un
  *     `IN (…)` con cientos de ids, que además era más lento).
  */
-export const loadSnapshot = cache(async () => {
-  const [
-    config, playerRows, archRows, deckRows, compRows, compPlayerRows,
-    matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows,
-  ] = await Promise.all([
-    // v0.28: la misma función que usa el layout. `cache()` la deduplica, así
-    // que pedir las dos cosas en una pantalla sigue siendo una sola consulta.
-    loadConfig(),
-    loadPlayers(),
-    loadArchetypes(),
+/* =========================================================================
+   v0.85 — Caché ENTRE peticiones de las tablas grandes.
+
+   Antes cada página leía de la base TODAS las partidas, juegos, torneos,
+   mazos… en cada visita. Ahora esas lecturas se guardan en la caché de datos
+   de Next (`unstable_cache`) con la etiqueta «datos»:
+     · cualquier escritura que pasa por `refresh()` (todas las acciones) la
+       invalida al momento (`revalidateTag("datos")`), así que nadie ve datos
+       viejos después de guardar;
+     · lo que escribe sin acción (el cron, la limpieza, las series online)
+       también la invalida; y, por si acaso, caduca sola a los 60 segundos.
+   La caché guarda JSON: las fechas vuelven como texto y `revivir` las
+   convierte otra vez en Date (solo las de formato fecha-hora completo; las
+   fechas «2026-10-30» de las columnas `date` siguen siendo texto).
+   Jugadores, ajustes y arquetipos se siguen leyendo en vivo: son pequeños y
+   los usa el layout en cada página.
+   ========================================================================= */
+export const TAG_DATOS = "datos";
+export const TAG_META = "meta";
+const FECHA_HORA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+export function revivir<T>(x: T): T {
+  if (typeof x === "string") return (FECHA_HORA.test(x) ? new Date(x) : x) as T;
+  if (Array.isArray(x)) { for (let i = 0; i < x.length; i++) x[i] = revivir(x[i]); return x; }
+  if (x && typeof x === "object" && !(x instanceof Date)) {
+    for (const k of Object.keys(x)) (x as Record<string, unknown>)[k] = revivir((x as Record<string, unknown>)[k]);
+  }
+  return x;
+}
+
+const leerTablas = unstable_cache(async () => {
+  const [deckRows, compRows, compPlayerRows, matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows] = await Promise.all([
     db.select().from(decks).orderBy(asc(decks.created)),
     db.select().from(competitions).orderBy(asc(competitions.start)),
     db.select().from(competitionPlayers),
@@ -145,6 +167,19 @@ export const loadSnapshot = cache(async () => {
     db.select().from(games).orderBy(asc(games.number)) as Promise<Game[]>,
     db.select().from(tournamentResults) as Promise<TournamentResult[]>,
   ]);
+  return { deckRows, compRows, compPlayerRows, matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows };
+}, ["snapshot-tablas-v1"], { tags: [TAG_DATOS], revalidate: 60 });
+
+export const loadSnapshot = cache(async () => {
+  const [config, playerRows, archRows, tablas] = await Promise.all([
+    // v0.28: la misma función que usa el layout. `cache()` la deduplica, así
+    // que pedir las dos cosas en una pantalla sigue siendo una sola consulta.
+    loadConfig(),
+    loadPlayers(),
+    loadArchetypes(),
+    leerTablas().then(revivir),
+  ]);
+  const { deckRows, compRows, compPlayerRows, matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows } = tablas;
 
   const gamesByMatch = new Map<string, Game[]>();
   for (const g of gameRows) {
@@ -401,13 +436,18 @@ export async function loadPlayerEmails(): Promise<Record<string, string>> {
  * evento crece más deprisa que el resto de la liga. Meterlo en `loadSnapshot`
  * sería pagarlo en todas las páginas para usarlo en dos.
  */
-export async function loadMetaIrl(): Promise<{ events: MetaEvent[]; entries: MetaEntry[] }> {
+/* v0.85 — en caché con la etiqueta «meta» (la invalidan las importaciones). */
+const leerMetaIrl = unstable_cache(async (): Promise<{ events: MetaEvent[]; entries: MetaEntry[] }> => {
   const evs = await db.select().from(metaEvents).orderBy(desc(metaEvents.date));
   if (!evs.length) return { events: [], entries: [] };
   const rows = await db.select().from(metaEntries)
     .where(inArray(metaEntries.eventId, evs.map((e) => e.id)))
     .orderBy(asc(metaEntries.placement));
   return { events: evs, entries: rows };
+}, ["meta-irl-v1"], { tags: [TAG_META], revalidate: 3600 });
+
+export async function loadMetaIrl(): Promise<{ events: MetaEvent[]; entries: MetaEntry[] }> {
+  return revivir(await leerMetaIrl());
 }
 
 /** Solo las cabeceras, para la lista de «lo que ya está importado». */
@@ -852,10 +892,14 @@ export function usoDeJugador(snap: Snapshot, playerId: string) {
  * v0.79 — Los emparejamientos importados (Trainer Hill). Si la tabla aún no
  * existe (no se ha lanzado la migración 0027), lista vacía: nada se rompe.
  */
+const leerMatchupImports = unstable_cache(async () => {
+  const { matchupImports } = await import("@/db/schema");
+  return db.select().from(matchupImports);
+}, ["matchup-imports-v1"], { tags: [TAG_META], revalidate: 3600 });
+
 export async function loadMatchupImports() {
   try {
-    const { matchupImports } = await import("@/db/schema");
-    return await db.select().from(matchupImports);
+    return revivir(await leerMatchupImports());
   } catch {
     return [];
   }

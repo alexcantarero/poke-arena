@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { borrarTorneosAbandonados, cerrarTorneosTerminados } from "@/lib/limpiezaDb";
@@ -42,6 +43,8 @@ export async function GET(req: NextRequest) {
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
   }
   if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
+  // v0.85 — lo que ha escrito el cron, visible ya (sin esperar a que caduque la caché).
+  revalidateTag("datos"); revalidateTag("meta");
   return NextResponse.json({
     borrados: borrados.length, torneos: borrados.map((t) => t.name),
     cerrados: cerrados.length, torneosCerrados: cerrados.map((t) => t.name),

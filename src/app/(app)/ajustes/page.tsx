@@ -385,6 +385,7 @@ export default async function SettingsPage() {
                   <option value="majors">{tr(lng, "th.nivel.majors")}</option>
                   <option value="online">{tr(lng, "th.nivel.online")}</option>
                   <option value="mixto">{tr(lng, "th.nivel.mixto")}</option>
+                  <option value="conversion">{tr(lng, "th.nivel.conversion")}</option>
                 </select>
               </label>
               <button className="btn btn-brand" type="submit">{tr(lng, "th.importar")}</button>

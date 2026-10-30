@@ -75,8 +75,9 @@ export type Fuente = {
 export const PESOS_CAMPO: Record<TipoTorneo, Record<string, number>> = {
   // v0.79 — th_*: Trainer Hill (majors = torneos grandes presenciales).
   regional: { regionales: 0.6, th_majors: 0.2, th_mixto: 0.05, cityleagues: 0.15, online: 0.03, grupo: 0.05 },
-  league_cup: { grupo: 0.45, cityleagues: 0.35, th_majors: 0.05, th_mixto: 0.05, online: 0.1, regionales: 0.05 },
-  league_challenge: { grupo: 0.4, online: 0.3, th_online: 0.1, th_mixto: 0.05, cityleagues: 0.2, regionales: 0.05 },
+  // v0.85 — locales_*: las Cups y Challenges que apunta el grupo (vuestro meta local).
+  league_cup: { grupo: 0.35, locales_cup: 0.35, cityleagues: 0.25, th_majors: 0.05, th_mixto: 0.05, online: 0.1, regionales: 0.05 },
+  league_challenge: { grupo: 0.3, locales_challenge: 0.3, locales_cup: 0.1, online: 0.25, th_online: 0.1, th_mixto: 0.05, cityleagues: 0.15, regionales: 0.05 },
   city_league: { cityleagues: 0.75, online: 0.15, regionales: 0.1 },
 };
 
@@ -90,10 +91,11 @@ export const PESOS_CRUCES: Record<TipoTorneo, Record<string, number>> = {
   // v0.77 — «yo»: tus propias partidas, solo en el modo personalizado, cuentan doble.
   // v0.79 — Trainer Hill: los «majors» (presenciales, mejor de 3) mandan en
   // Regionales; los online, como la API de Limitless; el mezclado, a medias.
-  regional: { online: 0.15, th_majors: 1, th_mixto: 0.4, th_online: 0.15, grupo: 1, yo: 2 },
-  league_cup: { online: 0.3, th_majors: 0.6, th_mixto: 0.4, th_online: 0.3, grupo: 1, yo: 2 },
-  league_challenge: { online: 1, th_majors: 0.3, th_mixto: 0.6, th_online: 1, grupo: 1, yo: 2 },
-  city_league: { online: 0.5, th_majors: 0.4, th_mixto: 0.5, th_online: 0.5, grupo: 1, yo: 2 },
+  // v0.85 — cm_majors: emparejamientos presenciales de Ciphermaniac (como los Majors de Trainer Hill).
+  regional: { online: 0.15, th_majors: 1, cm_majors: 1, th_mixto: 0.4, th_online: 0.15, grupo: 1, yo: 2 },
+  league_cup: { online: 0.3, th_majors: 0.6, cm_majors: 0.6, th_mixto: 0.4, th_online: 0.3, grupo: 1, yo: 2 },
+  league_challenge: { online: 1, th_majors: 0.3, cm_majors: 0.3, th_mixto: 0.6, th_online: 1, grupo: 1, yo: 2 },
+  city_league: { online: 0.5, th_majors: 0.4, cm_majors: 0.4, th_mixto: 0.5, th_online: 0.5, grupo: 1, yo: 2 },
 };
 
 /** Al mejor de 3 (Regional, Cup, Challenge) o de 1 (City League, suizo). */
@@ -265,8 +267,8 @@ export type FilaRecomendada = {
  */
 export const PESOS_EVIDENCIA: Record<TipoTorneo, Record<string, number>> = {
   regional: { regionales: 1, cityleagues: 0.3, grupo: 0.5 },
-  league_cup: { regionales: 0.3, cityleagues: 1, grupo: 1 },
-  league_challenge: { regionales: 0.1, cityleagues: 0.6, grupo: 1 },
+  league_cup: { regionales: 0.3, cityleagues: 1, grupo: 1, locales_cup: 1, locales_challenge: 0.3 },
+  league_challenge: { regionales: 0.1, cityleagues: 0.6, grupo: 1, locales_challenge: 1, locales_cup: 0.5 },
   city_league: { regionales: 0.2, cityleagues: 1, grupo: 0.5 },
 };
 

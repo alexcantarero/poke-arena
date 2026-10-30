@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.85.0] — 2026-10-30
+
+Más datos presenciales y locales, y caché entre peticiones. **Sin migración.** Lleva de la
+v0.82 a la v0.84.
+
+### Añadido
+
+- **Emparejamientos presenciales de Ciphermaniac** (`matchupProfiles.json` de los Regionales
+  recientes) como fuente del recomendador (`cm_majors`, resultados de serie). Pesan como los
+  Majors de Trainer Hill. `lib/ciphermaniacCruces.ts` acepta las dos formas habituales del
+  fichero y descarta lo demás (pruebas).
+- **CSV de conversión de Trainer Hill**: nuevo tipo «Conversión (Día 2 / corte por mazo)» en el
+  importador. Lee las columnas por su nombre (mazo, total, Día 2, corte), en cualquier orden.
+  Pendiente de confirmar con un fichero real (`parseConversionTH`, con pruebas).
+- **Apuntar resultados de Cup y Challenge** (Torneos → «Apuntar un resultado de Cup o
+  Challenge»): cualquiera del grupo, puesto y mazo, sin nombres. Un evento por tienda y fecha;
+  repetir un puesto lo corrige. Alimenta el meta local del recomendador (`locales_cup`,
+  `locales_challenge`) en cuota y en resultados reales.
+
+### Rendimiento
+
+- **Caché entre peticiones** de las tablas grandes (`loadSnapshot`: mazos, competiciones,
+  partidas, juegos, torneos, resultados…) con la etiqueta «datos»: cualquier escritura por
+  acción la invalida al momento (`refresh()`), el cron también, y caduca sola a los 60 s.
+  Jugadores, ajustes y arquetipos se siguen leyendo en vivo.
+- **Caché de las fuentes del recomendador** que vienen de la base (Regionales, City Leagues,
+  importaciones de Trainer Hill) con la etiqueta «meta» (1 hora o hasta la próxima importación).
+- Las fechas de la caché vuelven a ser `Date` (`revivir`).
+
 ## [0.84.0] — 2026-10-30
 
 Día 2 real con Ciphermaniac, listas sorpresa contra pronóstico, calibración coherente y menos

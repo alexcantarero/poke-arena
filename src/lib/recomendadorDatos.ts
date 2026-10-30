@@ -2,7 +2,9 @@ import "server-only";
 import { loadMatchupImports, loadMetaIrl, type Snapshot } from "@/lib/data";
 import { liderDeSlug, type FilaTH } from "@/lib/trainerHill";
 import { estructuraDe } from "@/lib/estructura";
-import { arquetipos as arquetiposCm, catalogo as catalogoCm } from "@/lib/sources/ciphermaniac";
+import { arquetipos as arquetiposCm, catalogo as catalogoCm, matchupProfiles as matchupsCm } from "@/lib/sources/ciphermaniac";
+import { crucesDeMatchupProfiles } from "@/lib/ciphermaniacCruces";
+import type { FilaConversionTH } from "@/lib/trainerHill";
 import { comb } from "@/lib/herramientas";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
@@ -30,6 +32,10 @@ export type DatosRecomendador = {
   fuentes: Record<"online" | "regionales" | "cityleagues", Fuente>;
   /** v0.79 — emparejamientos importados de Trainer Hill, uno por nivel (`th_majors`, `th_online`, `th_mixto`). */
   trainerHill: Fuente[];
+  /** v0.85 — emparejamientos presenciales de Ciphermaniac (series de Regional) y
+      resultados de Cups y Challenges apuntados a mano por el grupo. */
+  ciphermaniac: Fuente;
+  locales: Fuente[];
   grupo: Record<TipoTorneo, Fuente>;
   /** líder → consistencia: mulligan teórico (de las listas) y real (de vuestros juegos). */
   consistencia: Record<string, { teorico: number | null; mull: number; juegos: number }>;
@@ -175,6 +181,8 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
      sale la conversión real al Día 2 por mazo. Hasta 6 eventos de los últimos
      120 días; si su servidor no responde, se sigue sin esto. */
   let eventosDia2 = 0;
+  // v0.85 — y sus emparejamientos (son series de Regional: `serie: true`).
+  const ciphermaniac: Fuente = { id: "cm_majors", serie: true, cuota: {}, cruces: [] };
   try {
     const cat = await catalogoCm();
     if (cat.ok) {
@@ -185,7 +193,11 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
         listas: x.listas ?? 0,
       });
       for (const ev of evs) {
-        const [todos, fase2] = await Promise.all([arquetiposCm(ev), arquetiposCm(ev, "phase2")]);
+        const [todos, fase2, mps] = await Promise.all([arquetiposCm(ev), arquetiposCm(ev, "phase2"), matchupsCm(ev)]);
+        if (mps.ok) {
+          const aL = (nombre: string) => liderDeSlug(nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")).lider;
+          ciphermaniac.cruces!.push(...crucesDeMatchupProfiles(mps.datos, aL));
+        }
         if (!todos.ok || !fase2.ok) continue;
         const conv = conversionDia2(todos.datos.map(aLider), fase2.datos.map(aLider));
         if (!conv) continue;
@@ -203,6 +215,17 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   const trainerHill: Fuente[] = [];
   let partidasTH = 0;
   for (const im of await loadMatchupImports()) {
+    /* v0.85 — el CSV de CONVERSIÓN (Día 2 / corte por mazo) va a la conversión
+       de los presenciales, no a los emparejamientos. */
+    if (im.nivel === "conversion") {
+      for (const x of (Array.isArray(im.filas) ? im.filas : []) as FilaConversionTH[]) {
+        if (!x.lider || !x.n) continue;
+        const y = (regionales.conversion![x.lider] ??= { n: 0, corte: 0, top4: 0, ganados: 0 });
+        if (x.corte != null) { y.n += x.n; y.corte += x.corte; }
+        if (x.dia2 != null) { y.dia2 = (y.dia2 ?? 0) + x.dia2; y.dia2Base = (y.dia2Base ?? 0) + x.n; }
+      }
+      continue;
+    }
     const filas = (Array.isArray(im.filas) ? im.filas : []) as FilaTH[];
     const f: Fuente = { id: `th_${im.nivel}`, cuota: {}, cruces: [] };
     for (const x of filas) {
@@ -312,7 +335,38 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
      Cada partida jugada con los dos mazos conocidos (liga y torneos) es una
      prueba: qué % daba el modelo al de la izquierda y si ganó. Solo cruces con
      al menos 5 partidas de fuera; si no, el modelo diría «50 %» y no enseña nada. */
-  const fuera = tablaCruces([online, regionales, cityleagues, ...trainerHill]);
+  /* --- Cups y Challenges apuntadas por el grupo (v0.85) ----------------
+     Lo que veis en vuestras tiendas: puesto y mazo, sin nombres. Es el meta
+     local de verdad, el que no publica nadie. */
+  const locales: Fuente[] = [];
+  try {
+    const { events, entries } = await loadMetaIrl();
+    const porTipo: Record<string, Fuente> = {
+      league_cup: { id: "locales_cup", cuota: {}, conversion: {} },
+      league_challenge: { id: "locales_challenge", cuota: {}, conversion: {} },
+    };
+    const evs = new Map(events.filter((e) => e.kind === "league_cup" || e.kind === "league_challenge").map((e) => [e.id, e]));
+    for (const en of entries) {
+      const ev = evs.get(en.eventId);
+      if (!ev) continue;
+      const f = porTipo[ev.kind];
+      const l = en.main || liderDe(en.archetypeName);
+      if (!l) continue;
+      nombrar(l, en.archetypeName);
+      f.cuota[l] = (f.cuota[l] ?? 0) + en.copies;
+      if (en.placement != null) {
+        const corte = ev.topCut || 8;
+        const x = (f.conversion![l] ??= { n: 0, corte: 0, top4: 0, ganados: 0 });
+        x.n++;
+        if (en.placement <= corte) x.corte++;
+        if (en.placement <= 4) x.top4 = (x.top4 ?? 0) + 1;
+        if (en.placement === 1) x.ganados = (x.ganados ?? 0) + 1;
+      }
+    }
+    locales.push(porTipo.league_cup, porTipo.league_challenge);
+  } catch { /* sin datos locales */ }
+
+  const fuera = tablaCruces([online, regionales, cityleagues, ciphermaniac, ...trainerHill]);
   const muestras: Muestra[] = [];
   for (const m of snap.matches) {
     if (!isPlayed(m)) continue;
@@ -364,7 +418,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
 
   return {
-    fuentes: { online, regionales, cityleagues }, trainerHill, grupo, consistencia, nombres, iconos,
+    fuentes: { online, regionales, cityleagues }, trainerHill, ciphermaniac, locales, grupo, consistencia, nombres, iconos,
     resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH, eventosDia2 },
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,
