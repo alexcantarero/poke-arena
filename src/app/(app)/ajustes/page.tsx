@@ -137,6 +137,14 @@ export default async function SettingsPage() {
             <span className="tabular">{snap.tournaments.length} {tr(lng, "v63.torneosMin")}</span>
             <span>{snap.config.season}</span>
           </p>
+          {/* v0.86 — uso y límites del plan gratuito (solo organizadores). */}
+          <Link href="/ajustes/uso" className="card mb-4 flex items-center justify-between gap-3 px-4 py-3 text-sm hover:ring-1 hover:ring-info/50">
+            <span>
+              <span className="block font-semibold">{tr(lng, "uso.titulo")}</span>
+              <span className="block text-xs text-muted">{tr(lng, "uso.enlace")}</span>
+            </span>
+            <span aria-hidden="true">→</span>
+          </Link>
 
           <Grupo id="jugadores" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
           <PlayerAdmin

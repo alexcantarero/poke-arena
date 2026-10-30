@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.86.0] — 2026-10-30
+
+Panel de uso y límites del plan gratuito, solo para organizadores. **Sin migración.** Lleva de
+la v0.82 a la v0.85.
+
+### Añadido
+
+- **Ajustes → «Uso y límites del plan gratuito»** (`/ajustes/uso`, solo organizadores):
+  - Jugadores (activos / total), activos en 7 y 30 días (quien ha entrado o apuntado partidas),
+    horas al día con actividad (media de 14 días) y tamaño de la base.
+  - Este mes frente al límite gratuito, con barra y color (verde / ámbar / rojo): ejecuciones y
+    CPU de Vercel; horas de cómputo, tráfico y almacenamiento de Neon. Cada cifra dice si es
+    **real** o **estimada**.
+  - Capacidad: cuántas personas activas cabrían con el mismo uso por persona.
+  - Los supuestos de la estimación, a la vista, y las tablas más grandes.
+  - **Datos reales de Neon** (horas y tráfico) si se ponen `NEON_API_KEY` y `NEON_PROJECT_ID`
+    en Vercel; si no, estimación.
+- `lib/usoLimites.ts` (puro, 3 pruebas) y `lib/usoDb.ts` (lecturas pequeñas: recuentos y tamaños).
+
 ## [0.85.0] — 2026-10-30
 
 Más datos presenciales y locales, y caché entre peticiones. **Sin migración.** Lleva de la
