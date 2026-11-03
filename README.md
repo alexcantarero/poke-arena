@@ -1,6 +1,6 @@
 # Arena — liga privada de Pokémon TCG
 
-**v0.27.0**
+**v0.93.0**
 
 Web para llevar vuestra liga entre amigos: ranking con Elo y resistencia, resultados juego a
 juego, calendario, estadísticas de metagame —las vuestras y las del mundo— con matriz de
@@ -30,6 +30,12 @@ Mazos · Competiciones · Top Decks · Perfil · Ajustes
 
 ## Qué hay de nuevo
 
+- **v0.93.0** — escala de ocho colores para porcentajes de victorias, con cortes cada 15 puntos
+  y contraste adaptado a los temas claro y oscuro.
+- **v0.92.0** — filtro de ciudades registradas en el calendario, combinable con el filtro de tipo
+  y conservado al navegar por meses y vistas.
+- **v0.91.0** — tutoriales ampliados del perfil y de su edición; mejor respuesta a los límites
+  temporales de Limitless al sincronizar torneos online.
 - **v0.11.0** — filtros que se **suman**, orden asc/desc en los gráficos, el camino al corte
   en dos cifras (entrada segura / depende), pestaña **«Último torneo»** con play rate y
   conversión, marcador propio para «Other», y el metagame de Limitless pasa a llamarse

@@ -1,12 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  detectarSeries, idEventoPrevisto, nombreBase, proximasEdiciones, type TorneoOnline,
+  detectarSeries, idEventoPrevisto, motivoHttpLimitless, nombreBase, proximasEdiciones, type TorneoOnline,
 } from "../src/lib/seriesOnline.ts";
 
 const AHORA = new Date("2026-10-15T12:00:00Z");
 const t = (name: string, date: string, players: number, organizerId = 7): TorneoOnline =>
   ({ id: `${name}-${date}`, name, date, players, organizerId });
+
+test("clasifica el límite temporal de Limitless sin confundirlo con otros errores HTTP", () => {
+  assert.equal(motivoHttpLimitless(429), "limite");
+  assert.equal(motivoHttpLimitless(503), "fuente");
+});
 
 /** Una serie semanal: domingo a las 18:00 UTC durante `n` semanas. */
 const semanal = (base: string, n: number, players: number, org = 7) =>

@@ -1,6 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { num, pct } from "../src/lib/format.ts";
+import { num, pct, wrColor } from "../src/lib/format.ts";
+
+test("wrColor: cambia de tono en los ocho cortes de la escala", () => {
+  const tonos = [0, 18, 36, 54, 72, 90, 108, 120];
+  const porcentajes = [0, 15, 30, 45, 60, 75, 90, 100];
+  for (const [indice, porcentaje] of porcentajes.entries()) {
+    assert.equal(wrColor(porcentaje / 100), `hsl(${tonos[indice]} 82% var(--wr-color-lightness))`);
+  }
+});
+
+test("wrColor: conserva el color dentro de cada tramo y limita los extremos", () => {
+  assert.equal(wrColor(0.149), "hsl(0 82% var(--wr-color-lightness))");
+  assert.equal(wrColor(0.999), "hsl(108 82% var(--wr-color-lightness))");
+  assert.equal(wrColor(-1), "hsl(0 82% var(--wr-color-lightness))");
+  assert.equal(wrColor(2), "hsl(120 82% var(--wr-color-lightness))");
+  assert.equal(wrColor(null), "var(--muted)");
+  assert.equal(wrColor(Number.NaN), "var(--muted)");
+  assert.equal(wrColor(Number.POSITIVE_INFINITY), "var(--muted)");
+});
 
 test("pct: coma decimal, que es como se escribe en español", () => {
   assert.equal(pct(0.543), "54,3%");

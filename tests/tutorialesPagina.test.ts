@@ -8,14 +8,23 @@ test("cada página, su tutorial; las rutas concretas antes que las generales", (
   assert.equal(tutorialDe("/torneos/nuevo")?.clave, "torneoNuevo");   // no «torneo»
   assert.equal(tutorialDe("/torneos/abc123")?.clave, "torneo");
   assert.equal(tutorialDe("/ranking?vista=all")?.clave, "ranking");
-  assert.equal(tutorialDe("/perfil/p1")?.clave, "perfil");
-  assert.equal(tutorialDe("/perfil/editar"), null);
+  assert.equal(tutorialDe("/perfil/p1")?.clave, "perfilGuia");
+  assert.equal(tutorialDe("/perfil/editar")?.clave, "editarPerfil");
   assert.equal(tutorialDe("/glosario"), null);
 });
 
 test("cada tutorial tiene dos pasos con sus claves de traducción", () => {
   const t = tutorialDe("/estadisticas")!;
   assert.deepEqual(t.pasos.map((p) => p.titulo), ["tp.estadisticas.t1", "tp.estadisticas.t2"]);
+});
+
+test("perfil y edición tienen guías ampliadas con focos asociados", () => {
+  const perfil = tutorialDe("/perfil/p1")!;
+  const edicion = tutorialDe("/perfil/editar")!;
+  assert.equal(perfil.pasos.length, 7);
+  assert.equal(edicion.pasos.length, 4);
+  assert.equal(perfil.pasos[0].foco, '[data-paso="perfilGuia-1"]');
+  assert.equal(edicion.pasos[1].foco, '[data-paso="editarPerfil-2"]');
 });
 
 test("lo visto se guarda sin repetir y sin colar claves desconocidas", () => {

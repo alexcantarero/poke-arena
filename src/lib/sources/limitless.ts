@@ -88,7 +88,7 @@ export type SyncOptions = {
   onProgress?: (done: number, total: number) => void;
 };
 
-class LimitlessError extends Error {
+export class LimitlessError extends Error {
   constructor(public status: number, public url: string) {
     super(`Limitless respondió ${status} a ${url}`);
     this.name = "LimitlessError";

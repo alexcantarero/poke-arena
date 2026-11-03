@@ -2,11 +2,12 @@ import "server-only";
 import { and, eq, inArray, isNull, like, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { events, tournaments } from "@/db/schema";
-import { fetchTournaments } from "@/lib/sources/limitless";
+import { fetchTournaments, LimitlessError } from "@/lib/sources/limitless";
 import { num } from "@/lib/format";
 import { SERIES_SEGUIDAS } from "@/data/seriesSeguidas";
 import {
-  detectarSeries, diaMadrid, nombreBase, edicionesReales, horaMadrid, idEventoPrevisto, PREFIJO_PREVISTO, proximasEdiciones,
+  detectarSeries, diaMadrid, nombreBase, edicionesReales, horaMadrid, idEventoPrevisto, motivoHttpLimitless,
+  PREFIJO_PREVISTO, proximasEdiciones, type MotivoFalloSeries,
 } from "./seriesOnline";
 
 /* =========================================================================
@@ -28,6 +29,7 @@ export type ResultadoSeries = {
   retirados: number;
   /** La API no contestó: no se ha tocado nada. */
   sinRespuesta: boolean;
+  motivo?: MotivoFalloSeries;
 };
 
 /** v0.73 — el día EN ESPAÑA (antes, en UTC: los de las 23:00 UTC salían un día antes). */
@@ -37,7 +39,19 @@ export async function sincronizarSeriesOnline(
   ahora = new Date(),
   { semanas = 2, minJugadores = 100 } = {},
 ): Promise<ResultadoSeries> {
-  const torneos = await fetchTournaments({ limit: 200 });
+  let torneos: Awaited<ReturnType<typeof fetchTournaments>>;
+  try {
+    torneos = await fetchTournaments({ limit: 200 });
+  } catch (error) {
+    if (error instanceof LimitlessError) {
+      return {
+        series: 0, creados: 0, actualizados: 0, retirados: 0, sinRespuesta: true,
+        motivo: motivoHttpLimitless(error.status),
+      };
+    }
+    console.error("No se pudieron consultar las series online de Limitless.", error);
+    return { series: 0, creados: 0, actualizados: 0, retirados: 0, sinRespuesta: true, motivo: "red" };
+  }
 
   // Si la API no contesta, no se borra lo que ya había: un fallo de red no
   // puede vaciar el calendario.

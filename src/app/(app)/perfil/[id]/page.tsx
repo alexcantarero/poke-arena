@@ -162,7 +162,7 @@ export default async function ProfilePage({
 
   return (
     <>
-      <div className="mb-5 flex flex-wrap items-start gap-4">
+      <div className="mb-5 flex flex-wrap items-start gap-4" data-paso="perfilGuia-1">
         {/* v0.90 — 1 de cada 4.096, tu avatar sale shiny (solo en tu perfil). */}
         {isMe ? <Variocolor><Avatar player={player} size="lg" /></Variocolor> : <Avatar player={player} size="lg" />}
         <div className="min-w-0 flex-1">
@@ -247,12 +247,14 @@ export default async function ProfilePage({
       </section>
 
       {/* ------------------------------ balance ------------------------------ */}
-      <ScopeTabs
-        basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel={tr(lng, "x.fdebf667")}
-        options={Object.entries(SCOPES).map(([value, s]) => ({ value, label: s.label }))}
-      />
+      <div data-paso="perfilGuia-2">
+        <ScopeTabs
+          basePath={`/perfil/${player.id}`} param="ambito" current={scope} allLabel={tr(lng, "x.fdebf667")}
+          options={Object.entries(SCOPES).map(([value, s]) => ({ value, label: s.label }))}
+        />
+      </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5" data-paso="perfilGuia-3">
         {/* v0.25: sus partidas sobre el total de la liga. */}
         <Kpi label={tr(lng, "x.64f94394")}
           value={<>{rec.played}<span className="text-base font-semibold text-muted"> / {posiciones.partidasTotales}</span></>}
@@ -338,7 +340,7 @@ export default async function ProfilePage({
           —que no cambia partida a partida— va después, más abajo, para que el
           perfil abra con lo más visual. */}
 
-      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+      <div className="mb-5 grid gap-4 lg:grid-cols-2" data-paso="perfilGuia-4">
         {/* v0.25: sin gráfica de Elo en el perfil (queda en el Ranking). */}
         <section className="card">
           <div className="card-head">
@@ -424,32 +426,37 @@ export default async function ProfilePage({
 
       {/* ------------------------- torneos: lo que se enseña ------------------------ */}
       {placements.length > 0 && (
-        <BestFinishes
-          rows={mejores}
-          stats={conv}
-          season={cp.season}
-          nameOf={(k) => cpTable.events[k]?.label ?? k}
-          archOf={(a) => (a ? snap.archById.get(a) : undefined)}
-          tournamentOf={(d, k) =>
-            myTours.find((t) => t.date === d && t.kind === k)?.name ?? tr(lng, "x.250eff11")}
-          hrefOf={(d, k) => {
-            const t = myTours.find((x) => x.date === d && x.kind === k);
-            return t ? `/torneos/${t.id}` : undefined;
-          }}
-        />
+        <div data-paso="perfilGuia-5">
+          <BestFinishes
+            rows={mejores}
+            stats={conv}
+            season={cp.season}
+            nameOf={(k) => cpTable.events[k]?.label ?? k}
+            archOf={(a) => (a ? snap.archById.get(a) : undefined)}
+            tournamentOf={(d, k) =>
+              myTours.find((t) => t.date === d && t.kind === k)?.name ?? tr(lng, "x.250eff11")}
+            hrefOf={(d, k) => {
+              const t = myTours.find((x) => x.date === d && x.kind === k);
+              return t ? `/torneos/${t.id}` : undefined;
+            }}
+          />
+        </div>
       )}
 
-      <BadgeCase input={badgeInput} owner={player.name} />
+      <div data-paso="perfilGuia-6">
+        <BadgeCase input={badgeInput} owner={player.name} />
+      </div>
 
       {/* --------------------------- Championship Points --------------------------- */}
-      {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
-      {/* v0.73 — qué te falta para el Mundial (~650 CP), de lo más fácil a lo más difícil. */}
-      <PlanMundial cp={cp} torneos={snap.tournaments.map((t) => ({ kind: t.kind, puestos: t.results.map((r) => r.placement) }))} />
+      <div data-paso="perfilGuia-5">
+        {cp.rows.length > 0 && <CpBreakdown cp={cp} />}
+        <PlanMundial cp={cp} torneos={snap.tournaments.map((t) => ({ kind: t.kind, puestos: t.results.map((r) => r.placement) }))} />
+      </div>
 
       {myTours.length > 0 && (
         <>
           <SectionTitle aside={`${myTours.length}`}>{tr(lng, "x.f02a0f3c")}</SectionTitle>
-          <div className="card mb-5">
+          <div className="card mb-5" data-paso="perfilGuia-7">
             {/* v0.76 — los 3 más recientes; el resto, tras «Ver más». */}
             <VerMas n={3} mas={(k) => trf(lng, "vm.mas", { n: k })} menos={tr(lng, "vm.menos")}
               envolver={(hijos) => <div className="divide-y divide-line-soft">{hijos}</div>}
@@ -475,7 +482,7 @@ export default async function ProfilePage({
                   )}
                 </Link>
               );
-            })} />
+              })} />
           </div>
         </>
       )}
@@ -486,7 +493,7 @@ export default async function ProfilePage({
           pone a mano. Mezclarlos invitaba a confundir el Elo de la liga con el
           rango, que es el primer malentendido que iba a haber. */}
       <SectionTitle aside={tr(lng, "x.e51af110")}>{tr(lng, "x.65c72323")}</SectionTitle>
-      <div className="card mb-6 p-4">
+      <div className="card mb-6 p-4" data-paso="perfilGuia-7">
         {canEditLadder ? (
           <div className="flex flex-col gap-4">
             <LadderEditor

@@ -82,3 +82,37 @@ export const tiposAParam = (tipos: string[]) => tipos.join(",");
 /** ¿Pasa el filtro? Sin tipos elegidos, pasa todo. */
 export const pasaTipos = (tipos: string[], kind: string | null | undefined) =>
   tipos.length === 0 || (kind != null && tipos.includes(kind));
+
+/** Ciudades registradas en eventos o torneos, sin duplicados por mayúsculas/espacios. */
+export function ciudadesPresentes(valores: Array<string | null | undefined>): string[] {
+  const ciudades = new Map<string, string>();
+  for (const valor of valores) {
+    const ciudad = valor?.trim().replace(/\s+/g, " ");
+    if (!ciudad) continue;
+    const clave = ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (!ciudades.has(clave)) ciudades.set(clave, ciudad);
+  }
+  return [...ciudades.values()].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+}
+
+/** Resuelve una ciudad de la URL solo si sigue existiendo en los datos. */
+export function parseCiudad(
+  raw: string | string[] | null | undefined,
+  disponibles: string[],
+): string {
+  const valor = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  if (!valor) return "";
+  const clave = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return disponibles.find((ciudad) =>
+    ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === clave,
+  ) ?? "";
+}
+
+/** Sin ciudad elegida pasa todo; de lo contrario compara sin acentos ni diferencias de caja. */
+export function pasaCiudad(filtro: string, ciudad: string | null | undefined): boolean {
+  if (!filtro) return true;
+  if (!ciudad?.trim()) return false;
+  const clave = (valor: string) =>
+    valor.trim().replace(/\s+/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return clave(filtro) === clave(ciudad);
+}

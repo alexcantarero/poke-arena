@@ -25,6 +25,12 @@ export type TorneoOnline = {
   organizerId?: number;
 };
 
+export type MotivoFalloSeries = "limite" | "fuente" | "red";
+
+export function motivoHttpLimitless(status: number): "limite" | "fuente" {
+  return status === 429 ? "limite" : "fuente";
+}
+
 export type Serie = {
   /** Clave estable: organizador + nombre sin numeración. */
   clave: string;

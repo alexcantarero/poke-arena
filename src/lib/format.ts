@@ -106,13 +106,17 @@ export function shortName(s: string, n = 22) {
 
 /** Color semántico de un porcentaje de victorias. */
 export function wrColor(wp: number | null | undefined) {
-  if (wp == null) return "var(--muted)";
-  if (wp >= 0.6) return "var(--win)";
-  if (wp >= 0.53) return "var(--series-3)";
-  if (wp <= 0.4) return "var(--loss)";
-  if (wp <= 0.47) return "var(--series-2)";
-  // El mismo azul que la matriz de emparejamientos usa para "equilibrado".
-  return "var(--series-1)";
+  if (wp == null || !Number.isFinite(wp)) return "var(--muted)";
+  const porcentaje = clamp(wp * 100, 0, 100);
+  const tono = porcentaje >= 100 ? 120
+    : porcentaje >= 90 ? 108
+    : porcentaje >= 75 ? 90
+    : porcentaje >= 60 ? 72
+    : porcentaje >= 45 ? 54
+    : porcentaje >= 30 ? 36
+    : porcentaje >= 15 ? 18
+    : 0;
+  return `hsl(${tono} 82% var(--wr-color-lightness))`;
 }
 
 let counter = 0;

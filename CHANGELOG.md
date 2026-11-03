@@ -2,6 +2,42 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.93.0] — 2026-11-03
+
+Escala de color más detallada para porcentajes de victorias.
+
+### Cambiado
+
+- Los porcentajes de victorias distinguen ocho tramos con cortes en 0, 15, 30, 45, 60, 75, 90
+  y 100; los colores se adaptan al tema claro y oscuro.
+
+## [0.92.0] — 2026-11-03
+
+Filtro de ciudades en el calendario.
+
+### Añadido
+
+- Selector de ciudad con ubicaciones ya registradas en eventos y torneos; excluye los online.
+- Los filtros de tipo y ciudad se combinan y permanecen al cambiar el mes o la vista. Se aplican
+  tanto a la rejilla mensual como a la agenda y se pueden limpiar juntos.
+
+## [0.91.0] — 2026-11-03
+
+Mejor manejo de límites de Limitless y tutoriales completos del perfil.
+
+### Añadido
+
+- Tutorial de perfil con récord, ámbitos, Elo, clasificación, mazos, cruces, torneos, CP,
+  insignias, logros e historial.
+- Tutorial de edición del perfil: identidad, usuario de Limitless, avatar y guardado.
+
+### Corregido
+
+- Una respuesta HTTP 429 de Limitless ya no provoca una pantalla de error al sincronizar los
+  torneos online previstos. Se informa del límite temporal y se conserva el calendario existente.
+- El perfil aclara que guardar el nick de Limitless no importa resultados por sí solo: un
+  organizador debe ejecutar la importación desde Ajustes.
+
 ## [0.90.0] — 2026-11-03
 
 Probabilidad del cruce, resumen para compartir, siete easter eggs y mejoras del recomendador,

@@ -30,7 +30,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={player.id} />
 
-      <section className="card p-4">
+      <section className="card p-4" data-paso="editarPerfil-1">
         <h2 className="mb-4 text-lg font-bold">{tr(lng, "x.11f1921c")}</h2>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -65,7 +65,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
 
           {/* v0.36 — con esto la app puede buscarte en las clasificaciones de
               Limitless y traerse tus torneos online ya rellenos. */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" data-paso="editarPerfil-2">
             <label className="label" htmlFor="limitlessHandle">{tr(lng, "x.489518db")}</label>
             <input
               className="input" id="limitlessHandle" name="limitlessHandle" maxLength={60}
@@ -79,7 +79,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
         </div>
       </section>
 
-      <section className="card p-4">
+      <section className="card p-4" data-paso="editarPerfil-3">
         <h2 className="mb-1 text-lg font-bold">{tr(lng, "x.5714348c")}</h2>
         <p className="mb-4 text-sm text-muted">{tr(lng, "x.f5ab68ee")}</p>
 
@@ -165,7 +165,7 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
       {state?.error && <p role="alert" className="rounded-lg bg-loss-soft px-3 py-2 text-sm font-medium text-loss">{state.error}</p>}
       {state?.ok && <p className="rounded-lg bg-win-soft px-3 py-2 text-sm font-medium text-win">{state.ok}</p>}
 
-      <button className="btn btn-brand w-full" type="submit" disabled={pending}>
+      <button className="btn btn-brand w-full" type="submit" disabled={pending} data-paso="editarPerfil-4">
         {pending ? "Guardando…" : tr(lng, "x.da7f0ab4")}
       </button>
     </form>

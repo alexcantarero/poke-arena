@@ -247,7 +247,10 @@ export async function sincronizarSeriesAhora() {
   const r = await sincronizarSeriesOnline();
   revalidatePath("/", "layout");
   if (r.sinRespuesta) {
-    redirect(withFlash("/ajustes", "error", await msj("x.d3898ba7")));
+    const aviso = r.motivo === "limite" ? "series.online.limite"
+      : r.motivo === "fuente" ? "series.online.fuente"
+        : r.motivo === "red" ? "series.online.red" : "x.d3898ba7";
+    redirect(withFlash("/ajustes", "error", await msj(aviso)));
   }
   redirect(withFlash("/ajustes", "ok",
     r.series

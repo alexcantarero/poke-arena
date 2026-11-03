@@ -50,6 +50,8 @@
   --win-soft: #d3efe3;
   --loss: #a92f36;
   --loss-soft: #fadadb;
+  /* Luminancia medida para que los ocho tonos sigan siendo legibles. */
+  --wr-color-lightness: 27%;
   --tie: #52607d;
   --tie-soft: #e3e8f1;
   --info: #2a56d8;
@@ -127,6 +129,7 @@
   --win-soft: #0d3527;
   --loss: #f2797e;
   --loss-soft: #3b1417;
+  --wr-color-lightness: 66%;
   --tie: #9aa6c0;
   --tie-soft: #202b45;
   --info: #87a3ff;
