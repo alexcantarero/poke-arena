@@ -1496,6 +1496,10 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.89
+  "v89.buscar": "Buscar torneo por nombre",
+  "v89.resultados": "{n} torneos con «{q}».",
+  "v89.quitar": "Quitar búsqueda",
   // v0.88
   "v88.faltaResultado": "el resultado",
   "v88.faltaMazo": "el mazo del rival",
@@ -3386,6 +3390,10 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.89
+  "v89.buscar": "Search tournaments by name",
+  "v89.resultados": "{n} tournaments matching “{q}”.",
+  "v89.quitar": "Clear search",
   // v0.88
   "v88.faltaResultado": "the result",
   "v88.faltaMazo": "the opponent's deck",

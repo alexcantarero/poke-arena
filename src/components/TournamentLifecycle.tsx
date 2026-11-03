@@ -42,7 +42,8 @@ export async function TournamentLifecycle({
 }) {
   const lng = await getLang(); // v0.49
 
-  const meta = proximo && status === "open" ? ESTADO_VISIBLE.proximo : TOURNAMENT_STATUS[status];
+  // v0.89 — antes de su fecha se enseña «Borrador» aunque esté abierto.
+  const meta = proximo && status === "open" ? ESTADO_VISIBLE.draft : TOURNAMENT_STATUS[status];
   const pending = steps.filter((s) => !s.done);
 
   return (

@@ -17,7 +17,7 @@ import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { AutoSubmitForm } from "@/components/AutoSubmitForm";
 import { toneOf } from "@/lib/calendar";
 import { urlDeObjeto } from "@/lib/objetos";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Torneos" };
@@ -27,7 +27,7 @@ const SCOPE_LABEL: Record<string, string> = { onsite: "Presencial", online: "Onl
 export default async function TournamentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string }>;
+  searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string; q?: string }>;
 }) {
   const lng = await getLang(); // v0.49
   await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
@@ -64,17 +64,19 @@ export default async function TournamentsPage({
   const tiposPresentes = [...new Set(snap.tournaments.map((t) => t.kind))];
   const fTipo = sp.tipo && tiposPresentes.includes(sp.tipo) ? sp.tipo : "";
   const fEstado = sp.estado && sp.estado in ESTADO_VISIBLE ? sp.estado : "";
+  // v0.89 — buscador por nombre (la lupa).
+  const fTexto = (sp.q ?? "").slice(0, 80);
   const fDesde = sp.desde && ISO.test(sp.desde) ? sp.desde : "";
   const fHasta = sp.hasta && ISO.test(sp.hasta) ? sp.hasta : "";
   const conFiltros = Boolean(filterPlayer || fTipo || fEstado || fDesde || fHasta);
 
   /* v0.41 — la URL de un chip: los filtros que ya hay, con uno cambiado.
      Sin esto, pulsar «Regional» borraría la persona y las fechas elegidas. */
-  const urlFiltro = (cambio: Partial<Record<"estado" | "tipo", string>>) => {
+  const urlFiltro = (cambio: Partial<Record<"estado" | "tipo" | "q", string>>) => {
     const q = new URLSearchParams();
     const actual: Record<string, string> = {
       jugador: filterId === "all" ? "" : filterId,
-      tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta,
+      tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta, q: fTexto,
       ...cambio,
     };
     for (const [k, v] of Object.entries(actual)) if (v) q.set(k, v);
@@ -90,6 +92,7 @@ export default async function TournamentsPage({
         .map((t) => t.id))
       : null,
     tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta, hoy: todayISO(),
+    texto: fTexto,
   });
 
   /* --- el orden ---
@@ -234,6 +237,28 @@ export default async function TournamentsPage({
               cambiar (`AutoSubmitForm`), sin botón. Sin JavaScript, ese
               componente ya enseña su propio botón de aplicar. */}
       <div className="card mb-4 flex flex-col gap-3 p-3 sm:p-4">
+        {/* v0.89 — la lupa: buscar torneos por su nombre (todas las palabras,
+            sin importar tildes ni mayúsculas). Formulario normal: va por URL,
+            funciona sin JavaScript y se comparte. */}
+        <form action="/torneos" role="search" className="relative">
+          {filterId !== "all" && <input type="hidden" name="jugador" value={filterId} />}
+          {fTipo && <input type="hidden" name="tipo" value={fTipo} />}
+          {fEstado && <input type="hidden" name="estado" value={fEstado} />}
+          {fDesde && <input type="hidden" name="desde" value={fDesde} />}
+          {fHasta && <input type="hidden" name="hasta" value={fHasta} />}
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <input
+            type="search" name="q" defaultValue={fTexto} enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false}
+            placeholder={tr(lng, "v89.buscar")} aria-label={tr(lng, "v89.buscar")}
+            className="input w-full pl-9"
+          />
+        </form>
+        {fTexto && (
+          <p className="-mt-1 text-xs text-muted">
+            {trf(lng, "v89.resultados", { n: filtered.length, q: fTexto })}{" "}
+            <Link className="text-info underline" href={urlFiltro({ q: "" })} scroll={false}>{tr(lng, "v89.quitar")}</Link>
+          </p>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <span className="label w-14 flex-none">{tr(lng, "x.87cf2a84")}</span>
           <div className="flex min-w-0 flex-wrap gap-1.5">
@@ -281,6 +306,7 @@ export default async function TournamentsPage({
           {/* Lo que ya está puesto con chips viaja oculto: si no, cambiar la
               persona borraría el estado y el tipo elegidos. */}
           {fEstado && <input type="hidden" name="estado" value={fEstado} />}
+          {fTexto && <input type="hidden" name="q" value={fTexto} />}
           {fTipo && <input type="hidden" name="tipo" value={fTipo} />}
           <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
             <span className="label">{tr(lng, "x.05568bf8")}</span>

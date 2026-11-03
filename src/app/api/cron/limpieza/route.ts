@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
-import { borrarTorneosAbandonados, cerrarTorneosTerminados } from "@/lib/limpiezaDb";
+import { borrarTorneosAbandonados, cerrarTorneosTerminados, abrirTorneosDelDia } from "@/lib/limpiezaDb";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
 import { esLunesEnMadrid } from "@/lib/discordMensajes";
@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
   }
   if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
+  // v0.89 — los borradores cuya fecha ha llegado, a «En curso».
+  await abrirTorneosDelDia(ahora.toISOString().slice(0, 10));
   // v0.85 — lo que ha escrito el cron, visible ya (sin esperar a que caduque la caché).
   revalidateTag("datos"); revalidateTag("meta");
   return NextResponse.json({

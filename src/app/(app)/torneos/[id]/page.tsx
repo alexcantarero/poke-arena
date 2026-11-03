@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { tournaments } from "@/db/schema";
 import { notFound } from "next/navigation";
 import { canManageLeague } from "@/lib/auth";
 import {
@@ -68,6 +71,12 @@ export default async function TournamentPage({
   const table = getSeason(season);
   /** El tipo a efectos de CP: un torneo online no da puntos (v0.15). */
   const cpKind = cpKindOf(t);
+  /* v0.89 — un borrador cuya fecha ya ha llegado se abre al entrar: pasa a «En
+     curso» y acepta rondas (el cron y la limpieza lo hacen también para todos). */
+  if (t.status === "draft" && t.date <= todayISO()) {
+    await db.update(tournaments).set({ status: "open" }).where(eq(tournaments.id, t.id));
+    t.status = "open";
+  }
   const status = asStatus(t.status);
   const manager = me ? canManageLeague(me.role) : false;
   // Mover el estado y editar la cabecera: quien lo creó y los organizadores.

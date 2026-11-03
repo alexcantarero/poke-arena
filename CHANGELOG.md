@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.89.0] — 2026-11-03
+
+Buscador de torneos y estados por fechas. **Sin migración.** Lleva de la v0.82 a la v0.88.
+
+### Añadido
+
+- **La lupa en Torneos**: buscar por el nombre del torneo (todas las palabras, sin importar
+  tildes ni mayúsculas). Va por URL (`?q=`), se combina con los demás filtros y dice cuántos
+  hay, con «Quitar búsqueda».
+
+### Cambiado
+
+- **Estados por fechas**: **Borrador** hasta el día en que se juega, **En curso** desde ese día
+  y **Cerrado** al cerrarse (a mano o solo, a los 7 días si tiene datos). Sustituye a
+  «Próximo» de la v0.88. Los borradores cuya fecha ha llegado se abren solos en la base
+  (`abrirTorneosDelDia`: cron diario, limpieza al abrir Torneos/Calendario y al entrar en la
+  ficha), así que aceptan rondas sin pulsar «Empezar».
+
 ## [0.88.0] — 2026-11-03
 
 «En curso» de verdad y rondas con resultado y mazo obligatorios. **Sin migración.** Lleva de la

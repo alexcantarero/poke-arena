@@ -34,24 +34,36 @@ export type FiltroTorneos = {
   estado?: string;
   desde?: string;
   hasta?: string;
-  /** v0.88 — hoy (AAAA-MM-DD), para distinguir «En curso» de «Próximo». */
+  /** v0.88 — hoy (AAAA-MM-DD), para el estado por fechas. */
   hoy?: string;
+  /** v0.89 — texto a buscar en el nombre del torneo (todas las palabras). */
+  texto?: string;
 };
 
 /**
- * v0.88 — El estado que se ENSEÑA. «En curso» solo si ya ha llegado su fecha
- * y no está cerrado; uno abierto con fecha futura es «Próximo». El estado
- * guardado no cambia (sigue aceptando rondas, por si se apuntan antes).
+ * v0.89 — El estado que se ENSEÑA, por fechas:
+ *   · Borrador hasta el día en que se juega;
+ *   · En curso desde ese día (aunque nadie lo haya «empezado» a mano);
+ *   · Cerrado cuando se cierra (a mano o solo, a los 7 días si tiene datos).
+ * Los borradores cuya fecha ya ha llegado se abren también en la base
+ * (`abrirTorneosDelDia`), para que acepten rondas.
  */
-export type EstadoVisible = "draft" | "open" | "closed" | "proximo";
+export type EstadoVisible = "draft" | "open" | "closed";
 export function estadoVisible(t: { status: string; date: string }, hoy: string): EstadoVisible {
   if (t.status === "closed") return "closed";
-  if (t.status === "draft") return "draft";
-  return t.date > hoy ? "proximo" : "open";
+  return t.date > hoy ? "draft" : "open";
 }
 
+/** v0.89 — ¿El nombre del torneo contiene lo buscado? Sin tildes ni mayúsculas. */
+export const normalizarBusqueda = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
 export function filtrarTorneos<T extends TorneoLista>(ts: T[], f: FiltroTorneos): T[] {
+  const palabras = f.texto ? normalizarBusqueda(f.texto).split(" ").filter(Boolean) : [];
   return ts.filter((t) => {
+    if (palabras.length) {
+      const n = normalizarBusqueda(String((t as { name?: unknown }).name ?? ""));
+      if (!palabras.every((p) => n.includes(p))) return false;
+    }
     const fin = t.endDate && t.endDate > t.date ? t.endDate : t.date;
     if (f.dePersona && !f.dePersona.has(t.id)) return false;
     if (f.tipo && t.kind !== f.tipo) return false;

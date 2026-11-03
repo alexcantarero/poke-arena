@@ -1,5 +1,5 @@
 import "server-only";
-import { inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { matches, tournamentResults, tournaments } from "@/db/schema";
 import { torneosAbandonados, torneosParaCerrar } from "./limpieza";
@@ -73,8 +73,21 @@ export async function limpiezaPerezosa(): Promise<void> {
   try {
     await borrarTorneosAbandonados(new Date(ahora));
     await cerrarTorneosTerminados(new Date(ahora));
+    // v0.89 — y los borradores de hoy (o de antes), a «En curso».
+    await abrirTorneosDelDia(new Date(ahora).toISOString().slice(0, 10));
     // Y los torneos online del calendario (que ahora crean su torneo en la app).
     const { sincronizarSeriesOnline } = await import("./seriesOnlineDb");
     await sincronizarSeriesOnline();
   } catch { /* la próxima vez */ }
+}
+
+/**
+ * v0.89 — Los borradores cuya fecha ya ha llegado pasan a «En curso»: así
+ * aceptan rondas sin que nadie tenga que pulsar «Empezar». Devuelve los ids.
+ */
+export async function abrirTorneosDelDia(hoy: string): Promise<string[]> {
+  const r = await db.update(tournaments).set({ status: "open" })
+    .where(and(eq(tournaments.status, "draft"), lte(tournaments.date, hoy)))
+    .returning({ id: tournaments.id });
+  return r.map((x) => x.id);
 }
