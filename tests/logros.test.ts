@@ -28,3 +28,15 @@ test("las etiquetas: solo las ganadas, con su escalón", () => {
   const e = etiquetasDe({ partidas: 60, torneos: 1, logros: CLAVES_LOGRO.length });
   assert.deepEqual(e.map((x) => [x.clave, x.tono]), [["partidas", "plata"], ["torneos", "bronce"], ["todos", "secreto"]]);
 });
+
+import { avanzaKonami, KONAMI, rachaDerrotas } from "../src/lib/logros.ts";
+
+test("v0.90: racha de derrotas y código Konami", () => {
+  assert.equal(rachaDerrotas(["w", "l", "l", "l", "l", "l"]), 5);
+  assert.equal(rachaDerrotas(["l", "l", "w"]), 0);
+  let p = 0;
+  for (const k of KONAMI) p = avanzaKonami(p, k);
+  assert.equal(p, KONAMI.length);
+  assert.equal(avanzaKonami(3, "x"), 0);
+  assert.equal(avanzaKonami(2, "ArrowUp"), 1);
+});

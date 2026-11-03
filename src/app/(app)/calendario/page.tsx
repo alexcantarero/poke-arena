@@ -1,14 +1,15 @@
 import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import Link from "next/link";
-import { currentPlayer, loadEvents, loadTournamentHeads } from "@/lib/data";
+import { currentPlayer, loadCompetitionHeads, loadEvents, loadSnapshot, loadTournamentHeads, playerCp } from "@/lib/data";
+import { getSeason } from "@/lib/cp";
 import { canManageLeague } from "@/lib/auth";
 // v0.38: ya no se pintan partidas aquí, así que no hace falta leerlas.
 import { CALENDAR_KINDS, alternarTipo, kindsPresent, parseTipos, pasaTipos, tiposAParam, toneOf } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
+import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
-import { borrarDelCalendario, importEuropeanEvents, importPastedEvents } from "@/actions";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { importEuropeanEvents, importPastedEvents } from "@/actions";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -45,16 +46,37 @@ export default async function CalendarPage({
      pantalla solo necesita tres tablas pequeñas y estables. Cargaba el
      snapshot entero —con `matches` y `games`, las dos únicas que crecen sin
      parar— para pintar un mes de calendario. */
-  const [eventos_, tours, me] = await Promise.all([
-    loadEvents(), loadTournamentHeads(), currentPlayer(),
+  const [eventos_, tours, comps, me] = await Promise.all([
+    loadEvents(), loadTournamentHeads(), loadCompetitionHeads(), currentPlayer(),
   ]);
   const toursById = new Map(tours.map((t) => [t.id, t]));
   // Agrupado para no reescribir el cuerpo de la pantalla, pero NO es el
-  // snapshot: son consultas sueltas y se llama distinto por eso.
-  const datos = { events: eventos_, tournaments: tours, toursById };
-
+  // snapshot: son tres consultas sueltas y se llama distinto por eso.
+  const datos = { events: eventos_, tournaments: tours, competitions: comps, toursById };
   const manager = me ? canManageLeague(me.role) : false;
   const today = todayISO();
+
+  /* v0.90 — Camino al Mundial en el calendario: los tipos de torneo en los que
+     aún tienes HUECOS LIBRES de CP (Challenges, Cups, Regionales/IC) se marcan
+     con ★ en los próximos días: ahí cualquier puesto con CP te suma entero. */
+  const conviene = new Set<string>();
+  if (me) {
+    try {
+      const snapCp = await loadSnapshot(); // en caché (v0.85)
+      const cp = playerCp(snapCp, me.id);
+      const tabla = getSeason(cp.season);
+      const TIPOS: Record<string, string[]> = {
+        league_challenge: ["league_challenge", "pokemon_challenge"],
+        league_cup: ["league_cup", "pokemon_cup"],
+        regional: ["regional", "international", "special"],
+      };
+      for (const [cubo, kinds] of Object.entries(TIPOS)) {
+        const bfl = tabla.events[cubo]?.bfl ?? 0;
+        const usados = cp.rows.filter((r) => r.bucket === cubo && !r.excluded && r.counted > 0).length;
+        if (bfl && usados < bfl) kinds.forEach((k) => conviene.add(k));
+      }
+    } catch { /* sin CP: sin marcas */ }
+  }
 
   /* v0.63 — varios tipos a la vez (`?tipo=regional,league_cup`). `tipo` es el
      valor tal cual va en la URL; `tipos`, la lista para filtrar. */
@@ -72,7 +94,7 @@ export default async function CalendarPage({
   ]);
 
   /** v0.18: `kind`/`scope` para el emblema (Regional, Challenge, Cup, Online). */
-  type Mark = { text: string; color: string; label: string; url?: string; href?: string; kind?: string | null; scope?: string | null };
+  type Mark = { text: string; color: string; label: string; url?: string; href?: string; kind?: string | null; scope?: string | null; conviene?: boolean };
   const byDay = new Map<string, Mark[]>();
   const push = (date: string, m: Mark) => {
     const list = byDay.get(date);
@@ -99,13 +121,15 @@ export default async function CalendarPage({
   for (const e of eventos) {
     if (!pasaTipos(tipos, e.tournamentKind)) continue;
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
-    pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind });
+    pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind,
+      conviene: e.date >= today && Boolean(e.tournamentKind && conviene.has(e.tournamentKind)) });
   }
   for (const t of datos.tournaments) {
     if (!pasaTipos(tipos, t.kind)) continue;
     const tone = toneOf(t.kind, "event");
     // v0.16: un torneo del calendario lleva a su ficha.
-    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope });
+    pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope,
+      conviene: t.date >= today && conviene.has(t.kind) });
   }
   /* v0.38 — las partidas ya NO salen en el calendario.
 
@@ -150,7 +174,6 @@ export default async function CalendarPage({
         href: undefined as string | undefined,
         kind: e.tournamentKind as string | null,
         scope: null as string | null,
-        eventoId: e.id,
       })),
     ...datos.tournaments
       .filter((t) => (t.endDate ?? t.date) >= today)
@@ -164,7 +187,6 @@ export default async function CalendarPage({
         scope: t.scope as string | null,
         url: undefined,
         href: `/torneos/${t.id}`,
-        torneoId: t.id,
       })),
   ].sort(byAgenda(today));
 
@@ -271,17 +293,17 @@ export default async function CalendarPage({
                   return m.href ? (
                     <Link key={j} href={m.href} title={`${m.label}: ${m.text}`} className={`${clase} hover:brightness-125`} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.text}</span>
+                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
                     </Link>
                   ) : m.url ? (
                     <a key={j} href={m.url} target="_blank" rel="noopener noreferrer" title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.text}</span>
+                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
                     </a>
                   ) : (
                     <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.text}</span>
+                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
                     </span>
                   );
                 })}
@@ -297,15 +319,17 @@ export default async function CalendarPage({
       )}
 
       {/* --------------------------- la agenda grande ------------------------ */}
-      {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} puedeBorrar={manager} />}
+      {vista === "agenda" && <AgendaGrande agenda={agenda} tipo={tipo} />}
 
       {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
           importar eventos, para organizadores); la agenda ya NO sale debajo:
           para eso está la vista «Agenda». Y con «Agenda» solo sale la agenda. */}
-      {/* v0.82 — «Añadir al calendario» manual quitado: los torneos creados ya entran
-          solos al calendario, y los oficiales se importan con los botones de abajo. */}
       {vista === "calendario" && manager && (
-          <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="grid items-start gap-4 lg:grid-cols-3">
+            <section className="card">
+              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.52501db8")}</h2></div>
+              <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
+            </section>
 
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.4566e25f")}</h2></div>
@@ -372,11 +396,9 @@ type ItemAgenda = {
   id: string; date: string; endDate: string | null; title: string;
   kindLabel: string; color: string; sub: string; url?: string; href?: string;
   kind?: string | null; scope?: string | null;
-  /** Para poder quitarlo del calendario: el evento o el torneo que es. */
-  eventoId?: string; torneoId?: string;
 };
 
-async function AgendaGrande({ agenda, tipo, puedeBorrar }: { agenda: ItemAgenda[]; tipo: string; puedeBorrar: boolean }) {
+async function AgendaGrande({ agenda, tipo }: { agenda: ItemAgenda[]; tipo: string }) {
   const lng = await getLang(); // v0.49
 
   if (!agenda.length) {
@@ -443,24 +465,14 @@ async function AgendaGrande({ agenda, tipo, puedeBorrar }: { agenda: ItemAgenda[
                     {(e.href || e.url) && <Icon name="back" className="size-5 flex-none rotate-180 text-muted" />}
                   </>
                 );
-                const clase = "flex min-w-0 flex-1 items-center gap-4 px-4 py-4 hover:bg-surface-2";
+                const clase = "flex items-center gap-4 px-4 py-4 hover:bg-surface-2";
                 return (
-                  <li key={e.id} className="flex items-center">
+                  <li key={e.id}>
                     {e.href
                       ? <Link href={e.href} className={clase}>{contenido}</Link>
                       : e.url
                         ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
                         : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
-                    {puedeBorrar && (
-                      <form action={borrarDelCalendario} className="flex-none pr-3">
-                        <input type="hidden" name="eventoId" value={e.eventoId ?? ""} />
-                        <input type="hidden" name="torneoId" value={e.torneoId ?? ""} />
-                        <ConfirmButton message={`¿Quitar «${e.title}» del calendario? Si es un torneo sin resultados, se borra también.`}
-                          title="Quitar del calendario">
-                          Quitar
-                        </ConfirmButton>
-                      </form>
-                    )}
                   </li>
                 );
               })}

@@ -39,3 +39,12 @@ test("v0.83: los rangos, de Madera a Lapislázuli", () => {
   assert.equal(rangoElo(5000).rango.nombre, "Lapislázuli");
   assert.equal(rangoElo(5000).siguiente, null);
 });
+
+test("v0.90: historia del Elo y rango máximo", () => {
+  const seis = Array.from({ length: 6 }, (_, i) => ({ a: "a", b: "b", ganador: "a" as const, fecha: `2026-10-0${i + 1}` }));
+  const r = eloLiga(seis);
+  const a = r.find((x) => x.id === "a")!;
+  assert.equal(a.historia.length, 7);       // el 0 inicial + 6 partidas
+  assert.equal(a.historia.at(-1), a.elo);
+  assert.ok(a.maximo >= a.elo - 1);
+});

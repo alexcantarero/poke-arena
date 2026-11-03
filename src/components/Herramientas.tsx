@@ -534,7 +534,15 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="truncate font-display font-bold">{nombreLider(datos, f.lider)}</span>
+                        {/* v0.90 — la variante, dentro del propio ranking: «Dragapult · Dragapult Blaziken». */}
+                        <span className="truncate font-display font-bold">
+                          {nombreLider(datos, f.lider)}
+                          {(() => {
+                            const vs = datos.variantes[f.lider] ?? [];
+                            const mv = vs.length >= 2 ? mejorVariante(vs, datos.tasaCampo) : null;
+                            return mv && mv.nombre !== nombreLider(datos, f.lider) ? <span className="font-sans text-xs font-semibold text-muted"> · {mv.nombre}</span> : null;
+                          })()}
+                        </span>
                         {f.sorpresa && (
                           <span className="chip flex-none text-[10px] font-bold" title={tr(lng, `rc.sorpresa.${f.sorpresa}.ayuda`)}>
                             {tr(lng, `rc.sorpresa.${f.sorpresa}`)}
@@ -612,6 +620,21 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                       {trf(lng, "rc.datos", { n: Math.round(f.datos).toLocaleString("es-ES"), c: tr(lng, `rc.conf.${f.confianza}`) })}
                     </span>
                   </div>
+                  {/* v0.90 — «¿Por qué?»: todo lo que pesa en la cifra de este mazo, en un sitio. */}
+                  <details className="mt-2 pl-10 text-[11px]">
+                    <summary className="cursor-pointer text-info underline underline-offset-2">{tr(lng, "v90.porque")}</summary>
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-ink-2">
+                      <li>{trf(lng, "v90.pq.campo", { p: pct(f.cuota, 1) })}</li>
+                      <li>{trf(lng, "v90.pq.ronda", { p: pct(f.pRonda, 0) })}</li>
+                      {f.mejor && <li>{trf(lng, "v90.pq.mejor", { m: nombreLider(datos, f.mejor.contra), p: pct(f.mejor.p, 0) })}</li>}
+                      {f.peor && <li>{trf(lng, "v90.pq.peor", { m: nombreLider(datos, f.peor.contra), p: pct(f.peor.p, 0) })}</li>}
+                      {f.conversion != null && <li>{trf(lng, "v90.pq.conv", { x: f.conversion.toFixed(2) })}</li>}
+                      {f.evidencia && f.evidencia.n > 0 && <li>{trf(lng, "v90.pq.real", { c: f.evidencia.corte, n: f.evidencia.n, g: f.evidencia.ganados })}</li>}
+                      {tipo === "league_challenge" && datos.live[f.lider] && <li>{trf(lng, "v90.pq.live", { w: datos.live[f.lider].w, l: datos.live[f.lider].l })}</li>}
+                      {tuyo && yo!.porLider[f.lider] && <li>{trf(lng, "v90.pq.tuyo", { d: Math.round(yo!.porLider[f.lider].ajuste * 100) })}</li>}
+                      <li>{f.conEvidencia ? tr(lng, "v90.pq.conReal") : tr(lng, "v90.pq.soloModelo")}</li>
+                    </ul>
+                  </details>
                 </li>
               );
             })}

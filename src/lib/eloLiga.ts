@@ -31,6 +31,9 @@ export type FilaElo = {
   id: string; elo: number; partidas: number; w: number; l: number; t: number;
   /** Lo que movió su última partida. */
   ultimo: number;
+  /** v0.90 — su Elo tras cada partida (para la gráfica) y el rango más alto alcanzado. */
+  historia: number[];
+  maximo: number;
   provisional: boolean;
 };
 
@@ -38,7 +41,7 @@ export function eloLiga(partidas: PartidaElo[], jugadores: string[] = [], inicia
   const f = new Map<string, FilaElo>();
   const de = (id: string) => {
     let x = f.get(id);
-    if (!x) f.set(id, (x = { id, elo: inicial, partidas: 0, w: 0, l: 0, t: 0, ultimo: 0, provisional: true }));
+    if (!x) f.set(id, (x = { id, elo: inicial, partidas: 0, w: 0, l: 0, t: 0, ultimo: 0, provisional: true, historia: [inicial], maximo: inicial }));
     return x;
   };
   for (const id of jugadores) de(id);
@@ -54,11 +57,15 @@ export function eloLiga(partidas: PartidaElo[], jugadores: string[] = [], inicia
     const antesA = A.elo, antesB = B.elo;
     A.elo = Math.max(ELO_SUELO, A.elo + da); B.elo = Math.max(ELO_SUELO, B.elo + db);
     A.ultimo = A.elo - antesA; B.ultimo = B.elo - antesB;
+    A.historia.push(Math.round(A.elo)); B.historia.push(Math.round(B.elo));
+    // El máximo cuenta desde que sale de la colocación.
+    if (A.partidas + 1 >= PROVISIONAL) A.maximo = Math.max(A.maximo, A.elo);
+    if (B.partidas + 1 >= PROVISIONAL) B.maximo = Math.max(B.maximo, B.elo);
     A.partidas++; B.partidas++;
     if (sa === 1) { A.w++; B.l++; } else if (sa === 0) { A.l++; B.w++; } else { A.t++; B.t++; }
   }
   return [...f.values()]
-    .map((x) => ({ ...x, elo: Math.round(x.elo), ultimo: Math.round(x.ultimo), provisional: x.partidas < PROVISIONAL }))
+    .map((x) => ({ ...x, elo: Math.round(x.elo), ultimo: Math.round(x.ultimo), maximo: Math.round(x.maximo), provisional: x.partidas < PROVISIONAL }))
     .sort((a, b) => Number(a.provisional) - Number(b.provisional) || b.elo - a.elo || b.partidas - a.partidas);
 }
 

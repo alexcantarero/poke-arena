@@ -189,6 +189,19 @@ export default async function CompetitionPage({
                       {f.ultimo > 0 ? "+" : ""}{f.ultimo}
                     </span>
                   )}
+                  {/* v0.90 — la evolución de su Elo (y el rango más alto alcanzado). */}
+                  {f.historia.length > 2 && (() => {
+                    const h = f.historia, mn = Math.min(...h), mx = Math.max(...h), W = 64, H = 20;
+                    const pts = h.map((v, k) => `${((k / (h.length - 1)) * W).toFixed(1)},${(H - ((v - mn) / Math.max(1, mx - mn)) * H).toFixed(1)}`).join(" ");
+                    const tope = rangoElo(f.maximo).rango;
+                    return (
+                      <span className="hidden flex-none items-center gap-1 sm:flex" title={trf(lng, "elo.historia", { max: f.maximo, r: tope.nombre })}>
+                        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="overflow-visible">
+                          <polyline points={pts} fill="none" stroke="var(--brand)" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                    );
+                  })()}
                   <span className="w-14 text-right font-mono text-base font-bold tabular" title={tr(lng, "elo.eloAyuda")}>{f.provisional ? "—" : f.elo}</span>
                 </li>
               ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { DittoAvatar } from "@/components/Huevos";
 import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
 import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
@@ -412,7 +413,8 @@ export function MatchForm({
           {/* v0.62 — la cinta: qué tipo de partida es. */}
           <span className="vs-cinta">{compId ? tr(lng, "cinta.liga") : tr(lng, "cinta.amistoso")}</span>
           <div className="vs-lado vs-a">
-            <span className="vs-aro"><Avatar player={A} size="lg" /></span>
+            {/* v0.90 — mantener pulsado: Ditto copia al rival. */}
+            <span className="vs-aro"><DittoAvatar yo={<Avatar player={A} size="lg" />} rival={<Avatar player={B} size="lg" />} /></span>
             <span className="vs-nombre" title={A?.name}>{A?.name}</span>
           </div>
           <div className="vs-centro">

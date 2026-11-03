@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { archetypesOfMatch } from "@/lib/stats";
+import { resumenTorneo } from "@/lib/resumenTorneo";
+import { CompartirResumen } from "@/components/CompartirResumen";
+import { cargarDatosRecomendador } from "@/lib/recomendadorDatos";
+import { probsCruce, tipoRecomendador } from "@/lib/recomendador";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tournaments } from "@/db/schema";
@@ -17,7 +22,7 @@ import { primerTurno, textoLado } from "@/lib/primerTurno";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
 import { Avatar, Empty, Kpi, PageHead, TournamentEmblem } from "@/components/ui";
 import { getLang } from "@/lib/lang";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { CaminoAlCorte } from "@/components/CaminoAlCorte";
 import { TournamentLifecycle } from "@/components/TournamentLifecycle";
@@ -83,6 +88,24 @@ export default async function TournamentPage({
   const canManage = Boolean(me && (manager || t.createdBy === me.id));
 
   const myResult = me ? t.results.find((r) => r.playerId === me.id) : undefined;
+  /* v0.90 — tu probabilidad en cada cruce posible, para enseñarla al elegir el
+     mazo del rival en la ronda. Solo si el torneo admite rondas y tienes mazo. */
+  const miLider = (() => {
+    if (!myResult) return "";
+    const a = (myResult.deckId ? snap.archIndex.get(myResult.deckId) : undefined) ?? (myResult.archetypeId ? snap.archById.get(myResult.archetypeId) : undefined);
+    return a?.main ?? "";
+  })();
+  let probCruce: Record<string, { p: number; n: number }> = {};
+  if (me && miLider && t.status !== "closed") {
+    const datosRec = await cargarDatosRecomendador(snap).catch(() => null);
+    if (datosRec) {
+      const tipo = tipoRecomendador(t.kind);
+      const fuentes = [datosRec.fuentes.online, datosRec.fuentes.regionales, datosRec.fuentes.cityleagues,
+        ...datosRec.trainerHill, datosRec.ciphermaniac, ...datosRec.locales, datosRec.grupo[tipo]];
+      const rivales = snap.archetypes.map((a) => a.main).filter(Boolean);
+      probCruce = probsCruce(fuentes, tipo, miLider, rivales, (t.bestOf ?? 1) >= 3);
+    }
+  }
   const ordered = [...t.results].sort(
     (a, b) => (a.placement ?? 9e9) - (b.placement ?? 9e9),
   );
@@ -519,6 +542,7 @@ export default async function TournamentPage({
           lockedDeckId={lockValueOf(myResult)}
           maxRound={maxRonda}
           rivalPlayers={rivalPlayers}
+          probCruce={probCruce}
           jugador={snap.playersById.get(me.id) /* el público, nunca `me`: lleva más campos */}
         />}
       </div>
@@ -593,6 +617,32 @@ export default async function TournamentPage({
           </>
         }
       />
+
+      {/* v0.90 — el resumen de TU torneo cuando está cerrado, para compartir. */}
+      {me && status === "closed" && myRounds.some((r) => r.result) && (() => {
+        const rs = resumenTorneo(myRounds.filter((r) => r.result).map((r) => {
+          const b = archetypesOfMatch(r.match, snap.archIndex, snap.archById).b;
+          return { rival: b?.main ?? "", nombre: b?.name ?? r.match.opponentName ?? "?", r: r.result === "d" ? "t" : r.result! };
+        }));
+        const cpMio = myResult ? effectiveCp(season, cpKindOf(t), myResult, t.playerCount) : 0;
+        const record = `${rs.w}-${rs.l}${rs.t ? `-${rs.t}` : ""}`;
+        const texto = `${t.name}: ${record}${myResult?.placement ? ` · ${myResult.placement}.º` : ""}${cpMio ? ` · +${cpMio} CP` : ""}`;
+        return (
+          <section className="card mb-5 p-4">
+            <h2 className="mb-2 font-display text-lg font-bold">{tr(lng, "v90.resumen")}</h2>
+            <div className="mb-3 flex flex-wrap items-end gap-x-6 gap-y-1">
+              <span className="font-display text-4xl font-black tabular">{record}</span>
+              {myResult?.placement != null && <span className="font-display text-2xl font-extrabold text-brand-strong">{myResult.placement}.º</span>}
+              {cpMio > 0 && <span className="font-display text-2xl font-extrabold text-win">+{cpMio} CP</span>}
+            </div>
+            <ul className="mb-3 text-sm">
+              {rs.mejor && <li>{trf(lng, "v90.mejor", { m: rs.mejor.nombre, r: `${rs.mejor.w}-${rs.mejor.l}` })}</li>}
+              {rs.peor && <li>{trf(lng, "v90.peor", { m: rs.peor.nombre, r: `${rs.peor.w}-${rs.peor.l}` })}</li>}
+            </ul>
+            <CompartirResumen url={`/torneos/${t.id}/resumen`} texto={texto} nombreFichero={`pokearena-${t.id}.png`} />
+          </section>
+        );
+      })()}
 
       <TournamentLifecycle
         id={t.id}

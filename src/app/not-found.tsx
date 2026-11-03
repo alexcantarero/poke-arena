@@ -1,3 +1,4 @@
+import { MissingNo } from "@/components/Huevos";
 import Link from "next/link";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
@@ -13,7 +14,9 @@ export default async function NotFound() {
     <main className="grid min-h-dvh place-items-center px-6 text-center">
       <div className="max-w-sm">
         <p className="label">{tr(lng, "x.1a4ba822")}</p>
-        <h1 className="mt-2 font-display text-6xl font-extrabold leading-none text-muted">404</h1>
+        {/* v0.90 — MissingNo.: la página que no existe sale «glitcheada». */}
+        <MissingNo />
+        <h1 className="missingno-texto mt-2 font-display text-6xl font-extrabold leading-none text-muted" data-texto="404">404</h1>
         <h2 className="mt-3 text-xl font-bold">{tr(lng, "x.2e2919d6")}</h2>
         <p className="mt-2 text-sm text-muted">
           {tr(lng, "x.cffaa262")}

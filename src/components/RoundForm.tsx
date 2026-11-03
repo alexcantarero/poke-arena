@@ -6,6 +6,7 @@
    componente de cliente, eso se llevaba `lib/stats` entero al navegador. El
    componente muerto se ha borrado y este fichero solo tiene lo que se usa. */
 
+import { DittoAvatar } from "@/components/Huevos";
 import { useMemo, useState } from "react";
 import { saveTournamentRound, dropFromTournament } from "@/actions";
 import type { DeckOption, PublicPlayer, Side } from "@/lib/types";
@@ -70,10 +71,12 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo, jugador,
+  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo, jugador, probCruce = {},
 }: {
   /** v0.63 — quien apunta la ronda, para su lado del panel de enfrentamiento. */
   jugador?: PublicPlayer;
+  /** v0.90 — tu probabilidad contra cada líder rival (del recomendador). */
+  probCruce?: Record<string, { p: number; n: number }>;
   /** v0.62 — el tipo del torneo, para vestir la cinta de la ronda. */
   tipoTorneo?: string;
   tournamentId: string;
@@ -329,6 +332,19 @@ export function RoundForm({
           emptyLabel={tr(lng, "x.59787b9a")}
           placeholder={tr(lng, "x.acb9d3fc")}
         />
+        {/* v0.90 — según el meta, cómo te va este cruce. */}
+        {(() => {
+          const op = rivalOptions.find((o) => o.id === mazoRival);
+          const x = op ? probCruce[op.main] : undefined;
+          if (!op || !x) return null;
+          const tono = x.p >= 0.55 ? "text-win" : x.p <= 0.45 ? "text-loss" : "text-ink-2";
+          return (
+            <p className="text-xs" role="status">
+              <span className={`font-semibold ${tono}`}>{trf(lng, "v90.cruce", { p: Math.round(x.p * 100) })}</span>
+              <span className="text-muted"> · {x.n >= 30 ? trf(lng, "v90.cruceDatos", { n: x.n }) : tr(lng, "v90.crucePocos")}</span>
+            </p>
+          );
+        })()}
       </div>
 
       {/* El mazo del torneo: se elige una vez y se queda. También se puede
@@ -360,7 +376,7 @@ export function RoundForm({
         style={{ "--ca": jugador?.color ?? "var(--info)", "--cb": rivalDelGrupo?.color ?? "var(--loss)" } as React.CSSProperties}
       >
         <div className="vs-lado vs-a">
-          <span className="vs-aro"><Avatar player={jugador} size="lg" /></span>
+          <span className="vs-aro"><DittoAvatar yo={<Avatar player={jugador} size="lg" />} rival={<Avatar player={rivalAvatar} size="lg" />} /></span>
           <span className="vs-nombre" title={jugador?.name}>{jugador?.name ?? tr(lng, "v63.tu")}</span>
         </div>
         <div className="vs-centro">

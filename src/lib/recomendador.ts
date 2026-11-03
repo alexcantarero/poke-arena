@@ -641,3 +641,29 @@ export function conversionDia2(
   for (const l of Object.keys(out)) out[l].dia2 = Math.min(out[l].dia2, out[l].base);
   return out;
 }
+
+/* =========================================================================
+   v0.90 — Tu probabilidad en ESTE cruce, al apuntar la ronda.
+
+   Con los mismos emparejamientos del recomendador (pesados por tipo de
+   torneo y encogidos hacia el 50 % cuando hay pocas partidas), la
+   probabilidad de que tu líder le gane al del rival, ya al mejor de 3 si la
+   ronda lo es. `n` son las partidas que hay detrás.
+   ========================================================================= */
+export function probsCruce(fuentes: Fuente[], tipo: TipoTorneo, lider: string, rivales: string[], bo3: boolean): Record<string, { p: number; n: number }> {
+  const tabla = tablaCruces(fuentes, PESOS_CRUCES[tipo]);
+  const out: Record<string, { p: number; n: number }> = {};
+  for (const r of new Set(rivales)) {
+    if (!r || !lider) continue;
+    const { p, n } = pPartida(tabla, lider, r);
+    out[r] = { p: bo3 ? alMejorDe3(p) : p, n: Math.round(n) };
+  }
+  return out;
+}
+
+/** v0.90 — el tipo del recomendador para un tipo de torneo de la app. */
+export function tipoRecomendador(kind: string): TipoTorneo {
+  if (["regional", "international", "special", "worlds"].includes(kind)) return "regional";
+  if (["league_cup", "pokemon_cup"].includes(kind)) return "league_cup";
+  return "league_challenge";
+}

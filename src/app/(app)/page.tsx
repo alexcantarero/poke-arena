@@ -1,3 +1,6 @@
+import { outcome } from "@/lib/stats";
+import { Salpicadura } from "@/components/Huevos";
+import { rachaDerrotas } from "@/lib/logros";
 import { getLang } from "@/lib/lang";
 import { diasRelativos, ordinal, tr, trf } from "@/lib/i18n";
 import { posicionesDe, usoDeJugador } from "@/lib/data";
@@ -79,6 +82,16 @@ export default async function HomePage({
     loadSnapshot(), readSession(), loadMetaIrl(), cuotaOnline(),
   ]);
   const played = snap.matches.filter(isPlayed);
+  /* v0.90 — Salpicadura: tus últimas partidas, por si llevas 5 derrotas seguidas. */
+  const misUltimas = session?.playerId
+    ? played.filter((m) => m.playerAId === session.playerId || m.playerBId === session.playerId)
+        .sort((x, y) => x.date.localeCompare(y.date)).slice(-10)
+    : [];
+  const rachaMala = rachaDerrotas(misUltimas.map((m) => {
+    const w = outcome(m).winner;
+    const lado = m.playerAId === session?.playerId ? "a" : "b";
+    return w === "tie" ? "t" : w === lado ? "w" : "l";
+  }));
   /* v0.68 — la Ball de uso de cada uno, pequeña, junto a su nombre en el ranking. */
   const ballDe = (pid: string) => {
     const n = nivelDeUso(usoDeJugador(snap, pid)).nivel;
@@ -330,6 +343,7 @@ export default async function HomePage({
         title={snap.config.name}
         sub={trf(lang, "home.sub", { season: snap.config.season, players: snap.activePlayerIds.length, matches: played.length })}
       />
+      <Salpicadura racha={rachaMala} clave={misUltimas.at(-1)?.id ?? ""} />
 
       {/* v0.56 — bienvenida para quien se dio de alta hace menos de 30 días. */}
       <Bienvenida nuevo={esNuevo} />

@@ -16,7 +16,7 @@ export function LangToggle({ lang, className = "" }: { lang: Lang; className?: s
     <form action={setLang} className={className}>
       <input type="hidden" name="lang" value={otro} />
       <input type="hidden" name="back" value={path} />
-      <button
+      <button data-huevo="eevee"
         type="submit"
         className="btn btn-ghost btn-sm px-2 font-mono text-xs font-bold"
         title={`${tr(lang, "lang.switch")}: ${tr(lang, "lang.toOther")}`}

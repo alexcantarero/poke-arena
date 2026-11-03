@@ -104,7 +104,7 @@ export function ThemeToggle() {
 
   return (
     <span className="relative inline-flex">
-      <button
+      <button data-huevo="eevee"
         ref={boton} type="button" onClick={toggle}
         className="btn btn-ghost btn-sm px-2"
         aria-label={dark ? "Cambiar a tema claro" : tr(lng, "x.e726125c")}

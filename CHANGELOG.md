@@ -2,6 +2,42 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.90.0] — 2026-11-03
+
+Probabilidad del cruce, resumen para compartir, siete easter eggs y mejoras del recomendador,
+la Liga Elo y el Camino al Mundial. **Sin migración.** Lleva de la v0.82 a la v0.89.
+
+### Añadido
+
+- **Tu probabilidad al apuntar la ronda**: al elegir el mazo del rival, «Según el meta, ganas
+  este cruce el X %», con cuántas partidas hay detrás (o «pocos datos»). Mismos emparejamientos
+  que el recomendador, por tipo de torneo y al mejor de 3 si la ronda lo es (`probsCruce`).
+- **Resumen de tu torneo** al cerrarlo: récord, puesto, CP, mejor y peor cruce, y **Compartir**:
+  en el móvil, el menú del sistema con una **imagen 1080×1080** (WhatsApp incluido); si no se
+  puede, WhatsApp con el texto. La imagen sale de `/torneos/<id>/resumen` (solo con sesión y
+  solo la tuya). `lib/resumenTorneo.ts`, con prueba.
+- **Siete easter eggs, cada uno con su logro**: MissingNo. (la página 404 sale glitcheada),
+  ¡Variocolor! (1 entre 4.096, tu avatar shiny en tu perfil; `?variocolor=1` lo fuerza para
+  probar), Snorlax (de 3 a 5 de la madrugada bloquea la barra hasta tocar la Poké Flauta),
+  Salpicadura (5 derrotas seguidas: Magikarp de consolación), Ditto (mantén pulsado tu avatar en
+  el panel de enfrentamiento), Código Konami (Mew) y Eevee (cambiar tema e idioma 8 veces).
+  Sprites oficiales de PokéAPI.
+
+### Cambiado
+
+- **Recomendador**: panel **«¿Por qué este puesto?»** en cada mazo (campo, % por ronda, mejor y
+  peor cruce, conversión, resultados reales, TCG Live, lo tuyo y si sale de datos reales o del
+  modelo) y la **variante recomendada en el propio título** («Dragapult · Dragapult Blaziken»).
+- **Liga Elo libre**: mini gráfica de la evolución del Elo de cada uno, con su máximo y el rango
+  más alto alcanzado al pasar el ratón.
+- **Calendario**: ★ en los próximos torneos de los tipos en los que aún tienes **huecos libres
+  de CP** (Camino al Mundial).
+
+### Corregido
+
+- **Build de TypeScript**: se restaura el formulario para añadir eventos al calendario y se
+  garantiza una temporada válida al calcular los CP del resumen del torneo.
+
 ## [0.89.0] — 2026-11-03
 
 Buscador de torneos y estados por fechas. **Sin migración.** Lleva de la v0.82 a la v0.88.

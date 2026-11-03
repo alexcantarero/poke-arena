@@ -1,3 +1,4 @@
+import { Variocolor } from "@/components/Huevos";
 import { VerMas } from "@/components/VerMas";
 import { PlanMundial } from "@/components/PlanMundial";
 import Link from "next/link";
@@ -162,7 +163,8 @@ export default async function ProfilePage({
   return (
     <>
       <div className="mb-5 flex flex-wrap items-start gap-4">
-        <Avatar player={player} size="lg" />
+        {/* v0.90 — 1 de cada 4.096, tu avatar sale shiny (solo en tu perfil). */}
+        {isMe ? <Variocolor><Avatar player={player} size="lg" /></Variocolor> : <Avatar player={player} size="lg" />}
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-extrabold leading-none">{player.name}</h1>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">

@@ -18,6 +18,11 @@
    - **Calendario**: ★ en los tipos con huecos libres de CP.
 4. `-SoloSubir`.
 
+## Correcciones de compilación
+
+Se incluye el formulario de eventos del calendario y se corrigen los valores nulos de temporada
+en la ficha y la imagen resumen del torneo. No requiere migración.
+
 ## Deshacer
 
 `git revert HEAD`. No toca el esquema. Los logros ganados se quedan (son texto en `players.logros`).

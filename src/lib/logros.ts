@@ -40,6 +40,14 @@ export const LOGROS: Logro[] = [
   { clave: "voltorb", nombre: "Eso no era una Poké Ball", como: "Le diste demasiadas veces a la Poké Ball de la barra.", pokemon: "voltorb" },
   // v0.72
   { clave: "klinklang", nombre: "Engranaje perfecto", como: "Hiciste girar la rueda de Ajustes hasta que encajaron los engranajes.", pokemon: "klinklang", dex: 601 },
+  // v0.90
+  { clave: "missingno", nombre: "MissingNo.", como: "Te perdiste por una página que no existe.", pokemon: "porygon", dex: 137 },
+  { clave: "variocolor", nombre: "¡Variocolor!", como: "Tu avatar salió shiny: 1 entre 4.096.", pokemon: "pikachu", dex: 25 },
+  { clave: "snorlax", nombre: "Un Snorlax bloquea el camino", como: "Lo despertaste con la Poké Flauta de madrugada.", pokemon: "snorlax", dex: 143 },
+  { clave: "salpicadura", nombre: "Salpicadura", como: "Cinco derrotas seguidas. No tuvo ningún efecto… esta vez.", pokemon: "magikarp", dex: 129 },
+  { clave: "ditto", nombre: "Transformación", como: "Mantuviste pulsado tu avatar y Ditto copió a tu rival.", pokemon: "ditto", dex: 132 },
+  { clave: "mew", nombre: "Código secreto", como: "Tecleaste el código Konami.", pokemon: "mew", dex: 151 },
+  { clave: "eevee", nombre: "Eeveelución", como: "Cambiaste tema e idioma ocho veces.", pokemon: "eevee", dex: 133 },
 ];
 
 export const CLAVES_LOGRO = LOGROS.map((l) => l.clave);
@@ -108,4 +116,23 @@ export function etiquetasDe(u: Uso): Etiqueta[] {
   if (u.logros >= CLAVES_LOGRO.length) out.push({ clave: "todos", nombre: "Lo encontró todo", tono: "secreto" });
   else if (u.logros >= 1) out.push({ clave: "secretos", nombre: "Buscador de secretos", tono: "secreto" });
   return out;
+}
+
+/** v0.90 — el sprite shiny oficial de PokéAPI (para el logro «¡Variocolor!»). */
+export const urlPokeApiShiny = (dex: number) =>
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${Math.max(1, Math.round(dex))}.png`;
+
+/** v0.90 — ¿una racha de `n` derrotas seguidas al final? (de más antigua a más reciente). */
+export function rachaDerrotas(resultados: Array<"w" | "l" | "t">): number {
+  let n = 0;
+  for (let i = resultados.length - 1; i >= 0 && resultados[i] === "l"; i--) n++;
+  return n;
+}
+
+/** v0.90 — el código Konami: ↑↑↓↓←→←→BA. */
+export const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
+export function avanzaKonami(pos: number, tecla: string): number {
+  const t = tecla.length === 1 ? tecla.toLowerCase() : tecla;
+  if (t === KONAMI[pos]) return pos + 1;
+  return t === KONAMI[0] ? 1 : 0;
 }

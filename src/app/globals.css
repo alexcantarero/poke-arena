@@ -1801,3 +1801,51 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 body.hoja-abierta { overscroll-behavior: contain; }
 /* El aspa de borrar de los campos de búsqueda de iOS, sin estilos raros. */
 input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+/* =========================================================================
+   v0.90 — Easter eggs.
+   ========================================================================= */
+.huevo-aparicion {
+  position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+  background: radial-gradient(circle at 50% 45%, rgb(0 0 0 / .55), rgb(0 0 0 / .25) 60%, transparent); cursor: pointer;
+  animation: huevo-fondo .3s ease-out;
+}
+.huevo-sprites { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem; max-width: 92vw; }
+.huevo-sprites img { width: 5.5rem; height: 5.5rem; image-rendering: pixelated; filter: drop-shadow(0 6px 14px rgb(0 0 0 / .5)); animation: huevo-salto .6s cubic-bezier(.2,.9,.3,1.4) both; }
+.huevo-texto { max-width: 90vw; padding: .5rem 1rem; border-radius: 9999px; background: var(--surface); font-weight: 800; text-align: center; box-shadow: var(--shadow-3); }
+@keyframes huevo-fondo { from { opacity: 0; } }
+@keyframes huevo-salto { from { opacity: 0; transform: translateY(30px) scale(.6); } }
+
+.huevo-snorlax {
+  position: fixed; z-index: 95; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem);
+  display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; border-radius: 1rem;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-3);
+}
+@media (min-width: 768px) { .huevo-snorlax { left: auto; width: 26rem; } }
+.huevo-snorlax-img { width: 4.5rem; height: 4.5rem; image-rendering: pixelated; margin: -1.5rem 0 -.5rem; }
+
+/* MissingNo.: bloques de colores rotos detrás del 404 y el número partido. */
+.missingno { position: relative; width: 5.5rem; height: 5.5rem; margin: 0 auto .5rem; animation: missingno-tiembla .35s steps(2) infinite; }
+.missingno span { position: absolute; width: 40%; height: 18%; background: var(--c, #7a5cff); }
+.missingno span:nth-child(1) { --c: #f6f6f6; top: 0; left: 30%; width: 50%; }
+.missingno span:nth-child(2) { --c: #8a8a8a; top: 18%; left: 10%; width: 70%; }
+.missingno span:nth-child(3) { --c: #3b3b3b; top: 36%; left: 40%; }
+.missingno span:nth-child(4) { --c: #b5b5b5; top: 54%; left: 0; width: 60%; }
+.missingno span:nth-child(5) { --c: #6c6c6c; top: 72%; left: 50%; width: 35%; }
+.missingno span:nth-child(6) { --c: #1f1f1f; top: 82%; left: 15%; width: 30%; }
+.missingno-texto { position: relative; }
+.missingno-texto::before, .missingno-texto::after { content: attr(data-texto); position: absolute; inset: 0; }
+.missingno-texto::before { color: #ff2d55; transform: translate(-2px, 0); clip-path: inset(0 0 55% 0); animation: missingno-corte 1.2s steps(3) infinite; }
+.missingno-texto::after { color: #00d1ff; transform: translate(2px, 0); clip-path: inset(50% 0 0 0); animation: missingno-corte 1.6s steps(4) infinite reverse; }
+@keyframes missingno-tiembla { 50% { transform: translate(1px, -1px) skewX(4deg); } }
+@keyframes missingno-corte { 0% { clip-path: inset(0 0 60% 0); } 50% { clip-path: inset(40% 0 20% 0); } 100% { clip-path: inset(70% 0 0 0); } }
+
+/* ¡Variocolor! y Ditto. */
+.variocolor { filter: hue-rotate(160deg) saturate(1.6); }
+.variocolor::after { content: "✦"; position: absolute; right: -.4rem; top: -.4rem; color: #ffe36e; font-size: 1rem; text-shadow: 0 0 6px #fff; animation: huevo-brillo 1.2s ease-in-out infinite; }
+@keyframes huevo-brillo { 50% { opacity: .3; transform: scale(.7) rotate(30deg); } }
+.ditto { filter: hue-rotate(250deg) saturate(.8) brightness(1.1); animation: ditto-blando .5s ease-in-out 3; }
+@keyframes ditto-blando { 50% { transform: scale(1.08, .92); } }
+@media (prefers-reduced-motion: reduce) {
+  .huevo-sprites img, .missingno, .missingno-texto::before, .missingno-texto::after, .ditto, .variocolor::after { animation: none; }
+}

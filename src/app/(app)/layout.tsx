@@ -1,3 +1,4 @@
+import { HuevosGlobales } from "@/components/Huevos";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { FilterMemory } from "@/components/FilterMemory";
@@ -174,6 +175,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <Snackbar />
         <LogroAviso />
+        <HuevosGlobales />
         <AvisoVersion />
         {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}
         <FilterMemory />
