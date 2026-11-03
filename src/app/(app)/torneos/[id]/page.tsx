@@ -8,7 +8,7 @@ import {
   loadSnapshot,
 } from "@/lib/data";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, tierFor } from "@/lib/cp";
-import { fmtDateLong } from "@/lib/format";
+import { fmtDateLong, todayISO } from "@/lib/format";
 import { recordOf, roundsOf } from "@/lib/stats";
 import { primerTurno, textoLado } from "@/lib/primerTurno";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
@@ -588,6 +588,7 @@ export default async function TournamentPage({
       <TournamentLifecycle
         id={t.id}
         status={status}
+        proximo={t.date > todayISO()}
         closedAt={t.closedAt}
         canManage={canManage}
         steps={steps}

@@ -2,6 +2,21 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.88.0] — 2026-11-03
+
+«En curso» de verdad y rondas con resultado y mazo obligatorios. **Sin migración.** Lleva de la
+v0.82 a la v0.87.
+
+### Cambiado
+
+- **«En curso» solo si el torneo ya ha empezado** (ha llegado su fecha) y no está cerrado. Uno
+  abierto con fecha futura sale como **«Próximo»**, en la lista, en el filtro de estado y en la
+  ficha. El estado guardado no cambia (se pueden apuntar rondas antes si hace falta).
+  `estadoVisible` en `lib/torneosLista.ts`, con su prueba.
+- **Apuntar una ronda**: el **resultado** y el **mazo del rival** son obligatorios (el botón no se
+  activa sin ellos y el servidor lo comprueba); el **nombre del rival es opcional**: vacío, la
+  ronda se guarda contra «NPC {número de ronda}».
+
 ## [0.87.0] — 2026-11-03
 
 Arreglos para iPhone (Safari), vistos en los vídeos de las rondas de torneo. **Sin migración.**

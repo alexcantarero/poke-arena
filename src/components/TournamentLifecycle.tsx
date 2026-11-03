@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { setTournamentStatus } from "@/actions";
-import { TOURNAMENT_STATUS, type TournamentStatus } from "@/lib/types";
+import { ESTADO_VISIBLE, TOURNAMENT_STATUS, type TournamentStatus } from "@/lib/types";
 import { fmtDateLong, isoInLeagueTz } from "@/lib/format";
 import { Icon } from "./icons";
 import { tr } from "@/lib/i18n";
@@ -27,10 +27,12 @@ import { getLang } from "@/lib/lang";
 type Step = { label: string; done: boolean; hint?: string; href?: string };
 
 export async function TournamentLifecycle({
-  id, status, closedAt, canManage, steps, roundsDone, totalRounds,
+  id, status, closedAt, canManage, steps, roundsDone, totalRounds, proximo = false,
 }: {
   id: string;
   status: TournamentStatus;
+  /** v0.88 — abierto pero aún no ha llegado su fecha: se enseña «Próximo», no «En curso». */
+  proximo?: boolean;
   closedAt: Date | null;
   /** Solo quien lo creó y los organizadores mueven el estado. */
   canManage: boolean;
@@ -40,7 +42,7 @@ export async function TournamentLifecycle({
 }) {
   const lng = await getLang(); // v0.49
 
-  const meta = TOURNAMENT_STATUS[status];
+  const meta = proximo && status === "open" ? ESTADO_VISIBLE.proximo : TOURNAMENT_STATUS[status];
   const pending = steps.filter((s) => !s.done);
 
   return (

@@ -1496,6 +1496,11 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.88
+  "v88.faltaResultado": "el resultado",
+  "v88.faltaMazo": "el mazo del rival",
+  "v88.falta": "Falta {x} para guardar la ronda.",
+  "v88.npc": "Opcional · si lo dejas vacío, «NPC {n}»",
   // v0.87
   "dp.cerrar": "Cerrar la lista",
   // v0.86
@@ -3381,6 +3386,11 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.88
+  "v88.faltaResultado": "the result",
+  "v88.faltaMazo": "the opponent's deck",
+  "v88.falta": "{x} still needed to save the round.",
+  "v88.npc": "Optional · leave empty for “NPC {n}”",
   // v0.87
   "dp.cerrar": "Close the list",
   // v0.86

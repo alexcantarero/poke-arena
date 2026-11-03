@@ -62,6 +62,12 @@ export const TOURNAMENT_STATUS = {
 
 export type TournamentStatus = keyof typeof TOURNAMENT_STATUS;
 
+/** v0.88 — etiquetas del estado que se enseña (añade «Próximo» a los guardados). */
+export const ESTADO_VISIBLE = {
+  ...TOURNAMENT_STATUS,
+  proximo: { label: "Próximo", short: "Próximo", hint: "Aún no ha llegado su fecha", chip: "chip" },
+} as const;
+
 export const TOURNAMENT_STATUSES = Object.keys(TOURNAMENT_STATUS) as TournamentStatus[];
 
 export const asStatus = (s: string): TournamentStatus =>

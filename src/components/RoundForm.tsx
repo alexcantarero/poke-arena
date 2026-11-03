@@ -205,6 +205,11 @@ export function RoundForm({
   const setPremio = (i: number, patch: Partial<PremiosEnEdicion>) =>
     setPremios((p) => p.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
+  /* v0.88 — el mazo del rival y el resultado son OBLIGATORIOS para guardar la
+     ronda (el nombre no: si se deja vacío, «NPC {ronda}»). */
+  const [mazoRival, setMazoRival] = useState<string>(
+    existing?.match.deckBId ?? (existing?.match.opponentArchetypeId ? archetypeValue(existing.match.opponentArchetypeId) : ""),
+  );
   const setFirst = (i: number, v: Side | "") =>
     setFirsts((prev) => prev.map((x, k) => (k === i ? (x === v ? "" : v) : x)));
 
@@ -255,11 +260,12 @@ export function RoundForm({
           <label className="label" htmlFor={`opp-${round}`}>{tr(lng, "x.dca34e30")}</label>
           {/* v0.87 — el campo visible no se llama «…Name»: Safari lo tomaba por un
               contacto y ofrecía autorrellenarlo. El valor viaja en el oculto. */}
-          <input type="hidden" name="opponentName" value={rivalName} />
+          {/* v0.88 — el nombre no es obligatorio: vacío, la ronda se guarda contra «NPC {ronda}». */}
+          <input type="hidden" name="opponentName" value={rivalName.trim() || `NPC ${round}`} />
           <input
-            className="input" id={`opp-${round}`} required maxLength={60}
+            className="input" id={`opp-${round}`} maxLength={60}
             autoComplete="off" autoCorrect="off" spellCheck={false} data-1p-ignore data-lpignore="true"
-            value={rivalName} placeholder={tr(lng, "x.488edc18")}
+            value={rivalName} placeholder={trf(lng, "v88.npc", { n: round })}
             onChange={(e) => {
               setRivalName(e.target.value);
               const elegido = rivalPlayers.find((p) => p.id === rivalId);
@@ -312,10 +318,11 @@ export function RoundForm({
           sueltos. Es justo para lo que existen los mazos sin dueño: apuntar lo
           que llevaba el rival sin inventarle una cuenta. */}
       <div className="flex flex-col gap-1.5">
-        <label className="label" htmlFor={`arch-${round}`}>{tr(lng, "x.d5d31276")}</label>
+        <label className="label" htmlFor={`arch-${round}`}>{tr(lng, "x.d5d31276")} <span className="text-loss" aria-hidden="true">*</span></label>
         <DeckPicker
           id={`arch-${round}`} name="opponentDeck"
           options={rivalOptions}
+          onChange={setMazoRival}
           defaultValue={
             m?.deckBId ?? (m?.opponentArchetypeId ? archetypeValue(m.opponentArchetypeId) : "")
           }
@@ -512,7 +519,15 @@ export function RoundForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-brand btn-gamer min-w-40 flex-1" type="submit">
+        {(() => {
+          const hayResultado = mode === "games"
+            ? Boolean(settled || decidedByTie || (timeCalled && gameWinners.some(Boolean)))
+            : Boolean(result);
+          const faltan = [!hayResultado && tr(lng, "v88.faltaResultado"), !mazoRival && tr(lng, "v88.faltaMazo")].filter(Boolean);
+          return faltan.length ? <p className="basis-full text-xs text-loss" role="status">{trf(lng, "v88.falta", { x: faltan.join(" y ") })}</p> : null;
+        })()}
+        <button className="btn btn-brand btn-gamer min-w-40 flex-1 disabled:opacity-50" type="submit"
+          disabled={!mazoRival || (mode === "games" ? !(settled || decidedByTie || (timeCalled && gameWinners.some(Boolean))) : !result)}>
           <ObjetoSprite uso="guardar" className="size-5" />
           {existing ? tr(lng, "v63.guardarCambios") : trf(lng, "v63.guardarRonda", { n: round })}
         </button>

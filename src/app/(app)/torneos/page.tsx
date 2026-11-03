@@ -1,14 +1,14 @@
 import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
-import { TOURNAMENT_STATUS, asStatus } from "@/lib/types";
+import { ESTADO_VISIBLE, TOURNAMENT_STATUS, asStatus } from "@/lib/types";
 import { loadArchetypes, loadTorneosPantalla, playerCp } from "@/lib/data";
 import { apuntarResultadoLocal } from "@/actions";
 import { readSession } from "@/lib/auth";
 import { awardsCp, cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
 import { byAgenda, fmtDate, relDays, todayISO } from "@/lib/format";
 import { ArchTag, Avatar, Empty, Kpi, PageHead, SectionTitle, TournamentEmblem } from "@/components/ui";
-import { agruparTorneos, filtrarTorneos } from "@/lib/torneosLista";
+import { agruparTorneos, estadoVisible, filtrarTorneos } from "@/lib/torneosLista";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { canManageLeague } from "@/lib/auth";
@@ -63,7 +63,7 @@ export default async function TournamentsPage({
   const ISO = /^\d{4}-\d{2}-\d{2}$/;
   const tiposPresentes = [...new Set(snap.tournaments.map((t) => t.kind))];
   const fTipo = sp.tipo && tiposPresentes.includes(sp.tipo) ? sp.tipo : "";
-  const fEstado = sp.estado && sp.estado in TOURNAMENT_STATUS ? sp.estado : "";
+  const fEstado = sp.estado && sp.estado in ESTADO_VISIBLE ? sp.estado : "";
   const fDesde = sp.desde && ISO.test(sp.desde) ? sp.desde : "";
   const fHasta = sp.hasta && ISO.test(sp.hasta) ? sp.hasta : "";
   const conFiltros = Boolean(filterPlayer || fTipo || fEstado || fDesde || fHasta);
@@ -89,7 +89,7 @@ export default async function TournamentsPage({
           || snap.matches.some((m) => m.tournamentId === t.id && m.playerAId === filterId))
         .map((t) => t.id))
       : null,
-    tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta,
+    tipo: fTipo, estado: fEstado, desde: fDesde, hasta: fHasta, hoy: todayISO(),
   });
 
   /* --- el orden ---
@@ -237,7 +237,7 @@ export default async function TournamentsPage({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <span className="label w-14 flex-none">{tr(lng, "x.87cf2a84")}</span>
           <div className="flex min-w-0 flex-wrap gap-1.5">
-            {[["", tr(lng, "x.a4114a83")], ...Object.entries(TOURNAMENT_STATUS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
+            {[["", tr(lng, "x.a4114a83")], ...Object.entries(ESTADO_VISIBLE).map(([k, v]) => [k, v.label])].map(([k, label]) => (
               <Link
                 key={k || tr(lng, "x.a9010807")}
                 href={urlFiltro({ estado: k })}
@@ -363,8 +363,9 @@ export default async function TournamentsPage({
                       se veían exactamente igual, y saber si a un torneo sin
                       puesto le falta jugarse o le falta rellenarse es justo
                       para lo que existe el ciclo. */}
-                  <span className={`chip chip-dot ${TOURNAMENT_STATUS[asStatus(t.status)].chip}`}>
-                    {TOURNAMENT_STATUS[asStatus(t.status)].short}
+                  {/* v0.88 — «En curso» solo si ya ha empezado; si no, «Próximo». */}
+                  <span className={`chip chip-dot ${ESTADO_VISIBLE[estadoVisible(t, todayISO())].chip}`}>
+                    {ESTADO_VISIBLE[estadoVisible(t, todayISO())].short}
                   </span>
                   <span className="chip">Bo{t.bestOf}</span>
                   {awardsCp(season, cpKindOf(t)) && <span className="chip chip-brand">CP</span>}

@@ -34,14 +34,28 @@ export type FiltroTorneos = {
   estado?: string;
   desde?: string;
   hasta?: string;
+  /** v0.88 — hoy (AAAA-MM-DD), para distinguir «En curso» de «Próximo». */
+  hoy?: string;
 };
+
+/**
+ * v0.88 — El estado que se ENSEÑA. «En curso» solo si ya ha llegado su fecha
+ * y no está cerrado; uno abierto con fecha futura es «Próximo». El estado
+ * guardado no cambia (sigue aceptando rondas, por si se apuntan antes).
+ */
+export type EstadoVisible = "draft" | "open" | "closed" | "proximo";
+export function estadoVisible(t: { status: string; date: string }, hoy: string): EstadoVisible {
+  if (t.status === "closed") return "closed";
+  if (t.status === "draft") return "draft";
+  return t.date > hoy ? "proximo" : "open";
+}
 
 export function filtrarTorneos<T extends TorneoLista>(ts: T[], f: FiltroTorneos): T[] {
   return ts.filter((t) => {
     const fin = t.endDate && t.endDate > t.date ? t.endDate : t.date;
     if (f.dePersona && !f.dePersona.has(t.id)) return false;
     if (f.tipo && t.kind !== f.tipo) return false;
-    if (f.estado && t.status !== f.estado) return false;
+    if (f.estado && (f.hoy ? estadoVisible(t, f.hoy) : t.status) !== f.estado) return false;
     if (f.desde && fin < f.desde) return false;
     if (f.hasta && t.date > f.hasta) return false;
     return true;

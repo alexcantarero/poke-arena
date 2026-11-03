@@ -416,8 +416,8 @@ export async function saveTournamentRound(fd: FormData) {
     ? (await db.select({ id: players.id, name: players.name }).from(players)
       .where(eq(players.id, rivalPick)))[0]
     : undefined;
-  const opponentName = (str(fd, "opponentName") || rivalPlayer?.name || "").slice(0, 60);
-  if (!opponentName) return;
+  // v0.88 — el nombre ya no es obligatorio: sin él, «NPC {ronda}».
+  const opponentName = (str(fd, "opponentName") || rivalPlayer?.name || `NPC ${round}`).slice(0, 60);
 
   // Quién salió primero en el JUEGO 1. Del resto se encarga `g{i}_first`, que
   // ahora se marca a mano juego por juego: en la mesa no siempre empieza quien
@@ -524,6 +524,14 @@ export async function saveTournamentRound(fd: FormData) {
   const rivalArchId = rival.archetypeId
     ?? deckOrArchetype(fd, "opponentArchetypeId").archetypeId
     ?? deckOrArchetype(fd, "opponentArchetypeId").deckId;
+
+  /* v0.88 — el resultado y el mazo del rival son obligatorios. El formulario ya
+     no deja enviar sin ellos, pero una Server Action es un endpoint público. */
+  const hayResultado = mode === "quick" ? Boolean(seriesResult)
+    : rows.length > 0 && (seriesResult != null
+      || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need);
+  if (!hayResultado) return redirect(withFlash(`/torneos/${tournamentId}`, "error", "Falta el resultado de la ronda."));
+  if (!rivalDeckId && !rivalArchId) return redirect(withFlash(`/torneos/${tournamentId}`, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
 
   const values = {
     competitionId: null,
