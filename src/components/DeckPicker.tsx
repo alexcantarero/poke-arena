@@ -60,10 +60,35 @@ export function DeckPicker({
   /* v0.71 — al abrir la lista, que se vea entera. En el móvil, con el teclado
      abierto y la barra de abajo, el desplegable del tercer mazo quedaba por
      debajo de lo visible y no se podía elegir. */
+  /* v0.87 — en el MÓVIL (pantalla táctil) la lista se abre como una HOJA fija
+     arriba de lo visible, del alto que deja el teclado. En iPhone, con el
+     teclado abierto, la lista que colgaba del botón quedaba tapada por el
+     teclado y por la barra de abajo y no se podía elegir. En escritorio, igual
+     que siempre. */
+  const [hoja, setHoja] = useState(false);
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => listaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
-    return () => clearTimeout(t);
+    const tactil = window.matchMedia("(pointer: coarse)").matches;
+    setHoja(tactil);
+    if (!tactil) {
+      const t = setTimeout(() => listaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+      return () => clearTimeout(t);
+    }
+    const vv = window.visualViewport;
+    const ajustar = () => {
+      const raiz = document.documentElement.style;
+      raiz.setProperty("--vv-h", `${Math.round(vv?.height ?? window.innerHeight)}px`);
+      raiz.setProperty("--vv-top", `${Math.round(vv?.offsetTop ?? 0)}px`);
+    };
+    ajustar();
+    vv?.addEventListener("resize", ajustar);
+    vv?.addEventListener("scroll", ajustar);
+    document.body.classList.add("hoja-abierta");
+    return () => {
+      vv?.removeEventListener("resize", ajustar);
+      vv?.removeEventListener("scroll", ajustar);
+      document.body.classList.remove("hoja-abierta");
+    };
   }, [open]);
 
   const selected = options.find((o) => o.id === value);
@@ -133,9 +158,14 @@ export function DeckPicker({
         <p className="mt-1 text-xs text-muted">{lockedReason}</p>
       )}
 
+      {open && !locked && hoja && (
+        // El fondo de la hoja: tocarlo cierra (está dentro del contenedor, así que no dispara el onBlur).
+        <button type="button" aria-label={tr(lng, "dp.cerrar")} className="deck-hoja-fondo" onClick={() => setOpen(false)} />
+      )}
       {open && !locked && (
         <div
           ref={listaRef}
+          data-hoja={hoja}
           className="deck-lista absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-xl border border-line
                      bg-surface shadow-lg"
           role="listbox"
@@ -143,7 +173,16 @@ export function DeckPicker({
           {showSearch && (
             <div className="border-b border-line-soft p-2">
               {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+              {/* v0.87 — `type="search"` y sin nada que suene a «nombre»: así Safari
+                  (iPhone) no saca la barra «Autorrellenar contacto». */}
               <input
+                type="search"
+                enterKeyHint="search"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
                 className="input h-10 min-h-10 w-full text-sm"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -156,7 +195,7 @@ export function DeckPicker({
             </div>
           )}
 
-          <div className="max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain">
+          <div className="deck-scroll max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain">
             {emptyLabel && !q && (
               <button
                 type="button" role="option" aria-selected={value === ""}

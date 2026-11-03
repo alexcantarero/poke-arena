@@ -253,9 +253,13 @@ export function RoundForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor={`opp-${round}`}>{tr(lng, "x.dca34e30")}</label>
+          {/* v0.87 — el campo visible no se llama «…Name»: Safari lo tomaba por un
+              contacto y ofrecía autorrellenarlo. El valor viaja en el oculto. */}
+          <input type="hidden" name="opponentName" value={rivalName} />
           <input
-            className="input" id={`opp-${round}`} name="opponentName" required maxLength={60}
-            autoComplete="off" value={rivalName} placeholder={tr(lng, "x.488edc18")}
+            className="input" id={`opp-${round}`} required maxLength={60}
+            autoComplete="off" autoCorrect="off" spellCheck={false} data-1p-ignore data-lpignore="true"
+            value={rivalName} placeholder={tr(lng, "x.488edc18")}
             onChange={(e) => {
               setRivalName(e.target.value);
               const elegido = rivalPlayers.find((p) => p.id === rivalId);

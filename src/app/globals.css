@@ -1780,3 +1780,24 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .rango-lapislazuli { color: #fff6d6; text-shadow: 0 1px 0 rgb(0 0 0 / .4); border-color: #1d2f86;
   background: radial-gradient(circle at 30% 35%, #f3cf5b 0 1.5px, transparent 2px), radial-gradient(circle at 72% 60%, #f3cf5b 0 1px, transparent 1.5px),
     linear-gradient(145deg, #3c5bd6, #22379c 50%, #142468); }
+
+/* =========================================================================
+   v0.87 — iPhone / Safari.
+   ========================================================================= */
+/* Con el teclado abierto, la barra de abajo flotaba encima del teclado y
+   tapaba listas y botones. En pantallas táctiles se esconde mientras se
+   escribe en un campo de texto. */
+@media (pointer: coarse) {
+  body:has(:is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"]), textarea):focus) nav.fixed.bottom-0 { display: none; }
+}
+/* La lista de mazos como HOJA fija arriba de lo visible (ver DeckPicker). */
+.deck-lista[data-hoja="true"] {
+  position: fixed; left: .5rem; right: .5rem; margin: 0; z-index: 91;
+  top: calc(var(--vv-top, 0px) + env(safe-area-inset-top, 0px) + .5rem);
+  box-shadow: 0 12px 40px rgb(0 0 0 / .45);
+}
+.deck-lista[data-hoja="true"] .deck-scroll { max-height: calc(var(--vv-h, 70dvh) - 6.5rem); }
+.deck-hoja-fondo { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / .45); border: 0; }
+body.hoja-abierta { overscroll-behavior: contain; }
+/* El aspa de borrar de los campos de búsqueda de iOS, sin estilos raros. */
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }

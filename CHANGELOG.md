@@ -2,6 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.87.0] — 2026-11-03
+
+Arreglos para iPhone (Safari), vistos en los vídeos de las rondas de torneo. **Sin migración.**
+Lleva de la v0.82 a la v0.86.
+
+### Corregido
+
+- **La lista de mazos quedaba tapada por el teclado y la barra de abajo** al buscar un mazo (el
+  rival o el tuyo) en el móvil. En pantallas táctiles la lista se abre ahora como una **hoja fija
+  arriba de lo visible**, del alto que deja el teclado (`visualViewport`), con fondo oscuro que
+  la cierra al tocarlo. En escritorio, como siempre.
+- **La barra de abajo flotaba encima del teclado** y tapaba botones y listas: en pantallas
+  táctiles se esconde mientras se escribe en un campo de texto.
+- **Safari ofrecía «Autorrellenar contacto»** (y tu propio nombre) al escribir el mazo o el rival:
+  la búsqueda de mazos es `type="search"` y el campo del rival ya no se llama «…Name» (el valor
+  viaja en un campo oculto con el nombre de siempre, así que guardar no cambia).
+
 ## [0.86.0] — 2026-10-30
 
 Panel de uso y límites del plan gratuito, solo para organizadores. **Sin migración.** Lleva de

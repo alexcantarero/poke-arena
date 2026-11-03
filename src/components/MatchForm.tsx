@@ -110,6 +110,7 @@ export function MatchForm({
      propósito: importar `lib/stats` desde un componente de cliente se lleva
      el módulo entero al navegador (la lección de la v0.7). */
   const juegosConMazo = (match?.games ?? []).some((g) => g.archetypeAId || g.archetypeBId);
+  const [rivalFuera, setRivalFuera] = useState(match?.opponentName ?? ""); // v0.87
   const [mazoFijo, setMazoFijo] = useState<boolean>(() => {
     if (!juegosConMazo) return true;
     const variaA = new Set((match?.games ?? []).map((g) => g.archetypeAId).filter(Boolean)).size > 1;
@@ -299,10 +300,13 @@ export function MatchForm({
           {external ? (
             <>
               <div className="flex flex-col gap-1.5">
-                <label className="label" htmlFor="opponentName">{tr(lng, "x.dca34e30")}</label>
+                <label className="label" htmlFor="rival-fuera">{tr(lng, "x.dca34e30")}</label>
+                {/* v0.87 — sin «Name» en el campo visible (Safari ofrecía un contacto). */}
+                <input type="hidden" name="opponentName" value={rivalFuera} />
                 <input
-                  className="input" id="opponentName" name="opponentName" required maxLength={60}
-                  defaultValue={match?.opponentName ?? ""} placeholder={tr(lng, "x.e8b90f28")}
+                  className="input" id="rival-fuera" required maxLength={60}
+                  autoComplete="off" autoCorrect="off" spellCheck={false} data-1p-ignore data-lpignore="true"
+                  value={rivalFuera} onChange={(e) => setRivalFuera(e.target.value)} placeholder={tr(lng, "x.e8b90f28")}
                 />
                 <p className="text-xs text-muted">
                   {tr(lng, "x.01ffc556")}

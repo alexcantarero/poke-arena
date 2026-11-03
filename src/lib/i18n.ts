@@ -1496,6 +1496,8 @@ const ES = {
   "cinta.online": "Torneo online",
   "cinta.otro": "Torneo",
   "cinta.ronda": "Ronda {n}",
+  // v0.87
+  "dp.cerrar": "Cerrar la lista",
   // v0.86
   "uso.titulo": "Uso y límites del plan gratuito",
   "uso.enlace": "Cuánta gente hay, cuánto se usa la app y cuánto falta para los límites de Vercel y Neon.",
@@ -3379,6 +3381,8 @@ const EN: Record<I18nKey, string> = {
   "cinta.online": "Online tournament",
   "cinta.otro": "Tournament",
   "cinta.ronda": "Round {n}",
+  // v0.87
+  "dp.cerrar": "Close the list",
   // v0.86
   "uso.titulo": "Usage and free-plan limits",
   "uso.enlace": "How many people there are, how much the app is used and how far from the Vercel and Neon limits.",
