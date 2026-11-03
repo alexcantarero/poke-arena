@@ -125,7 +125,9 @@ export function DeckPicker({
   // Cerrar al tocar fuera. Un listener suelto en `document` sería más caro de
   // limpiar; con onBlur del contenedor basta, porque el panel está dentro.
   const onBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    if (!boxRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);
+    const target = e.relatedTarget as Node | null;
+    // Safari táctil puede no indicar destino al tocar una opción; no desmontar antes de su click.
+    if (target && !boxRef.current?.contains(target)) setOpen(false);
   };
 
   return (
@@ -263,5 +265,4 @@ function DeckSprite({ option }: { option?: DeckOption }) {
     </span>
   );
 }
-
 

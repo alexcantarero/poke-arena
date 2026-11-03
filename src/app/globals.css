@@ -1522,6 +1522,30 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .etiqueta[data-tono="plata"] { border-color: #9aa5b4; color: color-mix(in oklab, #6b7787 80%, var(--ink)); background: color-mix(in oklab, #c7ced8 25%, var(--surface)); }
 .etiqueta[data-tono="oro"] { border-color: var(--brand); color: var(--brand-strong); background: color-mix(in oklab, var(--brand) 14%, var(--surface)); }
 .etiqueta[data-tono="secreto"] { border-color: #8b5cf6; color: color-mix(in oklab, #8b5cf6 75%, var(--ink)); background: color-mix(in oklab, #8b5cf6 12%, var(--surface)); }
+.progreso-ball {
+  height: .75rem; overflow: hidden; border: 1px solid var(--line); border-radius: 9999px;
+  background: linear-gradient(to bottom, #e34f4f 0 42%, #253047 42% 58%, #f8fafc 58% 100%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .2);
+}
+.progreso-ball-relleno {
+  height: 100%; border-right: 2px solid #253047;
+  background: linear-gradient(90deg, #f8c54c, #fff4bb);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .65);
+}
+.perfil-titulo {
+  display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: 9999px;
+  padding: .2rem .65rem; font-size: .75rem; font-weight: 800; line-height: 1.2;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .38), 0 2px 8px rgb(0 0 0 / .12);
+}
+.perfil-titulo[data-tono="base"] { color: #e8f4ff; border-color: #52718d; background: linear-gradient(120deg, #385b78, #253a52); }
+.perfil-titulo[data-tono="bronce"] { color: #fff1df; border-color: #a76d3b; background: linear-gradient(120deg, #bc8351, #704322); }
+.perfil-titulo[data-tono="plata"] { color: #202b38; border-color: #9aa8b7; background: linear-gradient(120deg, #f6f8fb, #aeb9c5); }
+.perfil-titulo[data-tono="oro"] { color: #4a3100; border-color: #d3a32f; background: linear-gradient(120deg, #fff1a8, #e1ad32); }
+.perfil-titulo[data-tono="prisma"] {
+  color: #203047; border-color: #b7a3e8;
+  background: linear-gradient(110deg, #d8f4ff, #fff0c1 35%, #f8d7f0 68%, #d7ddff);
+}
+.perfil-titulo[data-tono="secreto"] { color: #f5eaff; border-color: #8766b8; background: linear-gradient(120deg, #684d91, #35264e); }
 .logro-ficha { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: .9rem;
   border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--line)); background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 8%, var(--surface)), var(--surface)); }
 .logro-ficha img { width: 2.75rem; height: 2.75rem; image-rendering: pixelated; object-fit: contain; flex: none; }

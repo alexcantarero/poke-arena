@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CLAVES_LOGRO, anadirLogro, etiquetasDe, leerLogros, nivelDeUso } from "../src/lib/logros.ts";
+import {
+  CLAVES_LOGRO, anadirLogro, etiquetasDe, leerLogros, nivelDeUso, popularidadLogros,
+  rarezaPorcentaje, tituloDePerfil, tituloValido, titulosDisponibles, type AvanceTitulos,
+} from "../src/lib/logros.ts";
 
 test("los logros guardados: válidos, sin repetir y en orden fijo", () => {
   assert.deepEqual(leerLogros("voltorb,patata,psyduck,voltorb"), ["psyduck", "voltorb"]);
@@ -8,6 +11,61 @@ test("los logros guardados: válidos, sin repetir y en orden fijo", () => {
   assert.equal(anadirLogro("voltorb", "psyduck"), "psyduck,voltorb");
   assert.equal(anadirLogro("psyduck", "psyduck"), "psyduck");
   assert.equal(anadirLogro("", "hackeado"), "");
+});
+
+test("v0.94: la rareza usa porcentajes y límites estrictos", () => {
+  assert.equal(rarezaPorcentaje(0.99), "menos1");
+  assert.equal(rarezaPorcentaje(1), "menos5");
+  assert.equal(rarezaPorcentaje(4.99), "menos5");
+  assert.equal(rarezaPorcentaje(5), "menos10");
+  assert.equal(rarezaPorcentaje(10), "menos25");
+  assert.equal(rarezaPorcentaje(25), "comun");
+  assert.equal(rarezaPorcentaje(null), "sinDatos");
+
+  const popularidad = popularidadLogros(["solrock", "solrock,lunatone", ""]);
+  assert.equal(popularidad.solrock.cantidad, 2);
+  assert.equal(popularidad.solrock.total, 3);
+  assert.ok(Math.abs((popularidad.solrock.porcentaje ?? 0) - 200 / 3) < 1e-10);
+  assert.equal(popularidad.solrock.rareza, "comun");
+  assert.equal(popularidad.lunatone.cantidad, 1);
+  assert.equal(popularidad.missingno.porcentaje, 0);
+  assert.equal(popularidadLogros([]).solrock.rareza, "sinDatos");
+});
+
+test("v0.94: los títulos de logro requieren desbloquear el logro y la Ball base siempre está", () => {
+  const cero: AvanceTitulos = { liga: 0, torneos: 0, cortes: 0, medallas: 0, medallasOro: 0, logros: 0 };
+  const disponibles = titulosDisponibles("solrock", cero);
+  assert.ok(disponibles.some((titulo) => titulo.id === "entrenador"));
+  assert.ok(disponibles.some((titulo) => titulo.id === "logro:solrock"));
+  assert.ok(!disponibles.some((titulo) => titulo.id === "logro:lunatone"));
+  assert.equal(tituloDePerfil("logro:solrock", "solrock", cero)?.clave, "logro.solrock.nombre");
+  assert.equal(tituloDePerfil("logro:lunatone", "solrock", cero), null);
+  assert.equal(tituloValido("", "", cero), true);
+  assert.equal(tituloValido("entrenador", "", cero), true);
+  assert.equal(tituloValido("logro:solrock", "solrock", cero), true);
+  assert.equal(tituloValido("logro:solrock", "", cero), false);
+  assert.equal(tituloValido("titulo-inventado", "", cero), false);
+});
+
+test("v0.94: las rutas de títulos evolucionan al mayor escalón alcanzado", () => {
+  const avance: AvanceTitulos = {
+    liga: 15, torneos: 5, cortes: 1, medallas: 3, medallasOro: 1, logros: 3,
+  };
+  const disponibles = titulosDisponibles("", avance);
+  assert.equal(disponibles.find((titulo) => titulo.id === "liga")?.clave, "perfil.titulo.rivalLiga");
+  assert.equal(disponibles.find((titulo) => titulo.id === "circuito")?.clave, "perfil.titulo.viajeroCircuito");
+  assert.equal(disponibles.find((titulo) => titulo.id === "eventos")?.clave, "perfil.titulo.finalistaEventos");
+  assert.equal(disponibles.find((titulo) => titulo.id === "medallas")?.clave, "perfil.titulo.coleccionistaMedallas");
+  assert.equal(disponibles.find((titulo) => titulo.id === "oro")?.clave, "perfil.titulo.medallistaDorado");
+  assert.equal(disponibles.find((titulo) => titulo.id === "secretos")?.clave, "perfil.titulo.cazadorSecretos");
+
+  const evolucion = { ...avance, liga: 250, torneos: 30, cortes: 20, medallas: 8, medallasOro: 8, logros: CLAVES_LOGRO.length };
+  assert.equal(tituloDePerfil("liga", "", evolucion)?.clave, "perfil.titulo.guardiaLiga");
+  assert.equal(tituloDePerfil("circuito", "", evolucion)?.clave, "perfil.titulo.leyendaCircuito");
+  assert.equal(tituloDePerfil("eventos", "", evolucion)?.clave, "perfil.titulo.leyendaEventos");
+  assert.equal(tituloDePerfil("medallas", "", evolucion)?.clave, "perfil.titulo.leyendaVitrina");
+  assert.equal(tituloDePerfil("oro", "", evolucion)?.clave, "perfil.titulo.leyendaDorada");
+  assert.equal(tituloDePerfil("secretos", "", evolucion)?.clave, "perfil.titulo.leyendaSecretos");
 });
 
 test("la Ball de uso sube de Poké a Master", () => {

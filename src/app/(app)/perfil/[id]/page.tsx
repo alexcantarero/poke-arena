@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { loadSnapshot, playerCp, usoDeJugador } from "@/lib/data";
 import { readSession } from "@/lib/auth";
 import {
-  archetypeStats, headToHead, isPlayed, longestWinStreak, playerMatchups, playerRecord, porRecientes,
+  archetypeStats, headToHead, isPlayed, playerMatchups, playerRecord, porRecientes,
   sideOf,
 } from "@/lib/stats";
 import { cpKindOf, effectiveCp, getSeason, seasonOfDate } from "@/lib/cp";
@@ -31,9 +31,12 @@ import { estadoMundial } from "@/lib/mundial";
 import { getLang } from "@/lib/lang";
 import { tr, trf } from "@/lib/i18n";
 import { SeccionPlegable } from "@/components/SeccionPlegable";
-import { LOGROS, etiquetasDe, leerLogros, nivelDeUso, urlPokeApi } from "@/lib/logros";
+import {
+  LOGROS, etiquetasDe, leerLogros, nivelDeUso, popularidadLogros, tituloDePerfil, urlPokeApi,
+} from "@/lib/logros";
 import { urlDeObjeto } from "@/lib/objetos";
 import { spriteUrl } from "@/lib/pokemon";
+import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 
 /* De dónde salen las cifras de arriba.
    Mezclar la liga, los torneos de fuera y los amistosos da un número que no
@@ -77,6 +80,19 @@ export default async function ProfilePage({
 
   const isMe = session?.playerId === id;
   const all = snap.matches.filter(isPlayed);
+  const jugadoresConActividad = new Set<string>();
+  for (const match of all) {
+    if (match.playerAId) jugadoresConActividad.add(match.playerAId);
+    if (match.playerBId) jugadoresConActividad.add(match.playerBId);
+  }
+  for (const tournament of snap.tournaments) {
+    for (const result of tournament.results) jugadoresConActividad.add(result.playerId);
+  }
+  const cohorteLogros = [...snap.playersById.values()].filter(
+    (candidate) => candidate.active && jugadoresConActividad.has(candidate.id),
+  );
+  const popularidad = popularidadLogros(cohorteLogros.map((candidate) => candidate.logros));
+  const jugadorEnMuestra = player.active && jugadoresConActividad.has(player.id);
   const mine = all.filter((m) => sideOf(m, id));
   // El filtro manda sobre las cifras y sobre el historial. Los cortes por mazo
   // y por rival siguen mirándolo todo: con el ámbito puesto en «amistosos» se
@@ -139,26 +155,11 @@ export default async function ProfilePage({
   const conv = convStats(placements);
   const mejores = bestFinishes(placements, 4);
 
-  /* Las medallas se calculan sobre TODO, no sobre el ámbito elegido: si al
-     tocar la pestaña «Amistosos» se te apagaran las medallas, la vitrina
-     dejaría de significar nada. */
-  const total = playerRecord(mine, id);
-
-  const badgeInput = {
-    played: total.played,
-    wins: total.wins,
-    bestStreak: longestWinStreak(all, id),
-    archetypes: archs.length,
-    tournaments: conv.entries,
-    cuts: conv.cut,
-    bestPlacement: mejores[0]?.placement ?? null,
-    cp: cp.total,
-    winRate: (total.winRate ?? 0) * 100,
-    // `firstTurn` es texto y vacío cuando no se apuntó, no null.
-    roundsWithTurn: snap.matches.filter(
-      (m) => m.tournamentId && m.playerAId === id && Boolean(m.firstTurn),
-    ).length,
-  };
+  /* Medallas y títulos se calculan sobre toda la actividad del perfil, no sobre
+     el ámbito seleccionado en las pestañas. */
+  const badgeInput = entradaMedallasDeJugador(snap, id);
+  const avanceTitulo = avanceTitulosDeJugador(snap, id, badgeInput);
+  const titulo = tituloDePerfil(player.profileTitle, player.logros, avanceTitulo);
 
   return (
     <>
@@ -167,6 +168,11 @@ export default async function ProfilePage({
         {isMe ? <Variocolor><Avatar player={player} size="lg" /></Variocolor> : <Avatar player={player} size="lg" />}
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-extrabold leading-none">{player.name}</h1>
+          {titulo && (
+            <p className="mt-1.5">
+              <span className="perfil-titulo" data-tono={titulo.tono}>{tr(lng, titulo.clave)}</span>
+            </p>
+          )}
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : tr(lng, "x.4e7afebc")}</span>}
             {isMe && <span className="chip chip-info">{tr(lng, "x.4dc2088e")}</span>}
@@ -205,17 +211,21 @@ export default async function ProfilePage({
             <p className="font-display text-lg font-extrabold leading-tight">{ballUso.nivel.nombre}</p>
             {ballUso.siguiente ? (
               <>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar"
+                <div className="progreso-ball mt-1.5" role="progressbar"
                   aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
+                  aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lng, "logro.progreso")}`}
                   aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
-                  <div className="h-full rounded-full bg-brand" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                  <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
                 </div>
-                <p className="mt-1 text-[11px] text-muted">
-                  {ballUso.faltan} {tr(lng, "logro.puntosPara")} {ballUso.siguiente.nombre} · {tr(lng, "logro.comoSube")}
-                </p>
+                <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-[11px]">
+                  <p className="text-muted">
+                    {ballUso.faltan} {tr(lng, "logro.puntosPara")} {ballUso.siguiente.nombre}
+                  </p>
+                  <p className="font-semibold tabular text-brand">{Math.round(ballUso.progreso * 100)}% {tr(lng, "logro.progreso")}</p>
+                </div>
               </>
             ) : (
-              <p className="mt-1 text-[11px] text-muted">{tr(lng, "logro.ballMax")}</p>
+              <p className="mt-1 text-[11px] text-muted">{tr(lng, "logro.ballMax")} · 100%</p>
             )}
           </div>
         </div>
@@ -223,9 +233,15 @@ export default async function ProfilePage({
           <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
             {tr(lng, "logro.titulo")} · {misLogros.length}/{LOGROS.length}
           </p>
+          <p className="mb-1.5 text-[10px] text-muted">
+            {trf(lng, "logro.rarezaMuestra", { n: cohorteLogros.length })}
+          </p>
           {misLogros.length ? (
             <ul className="grid grid-cols-1 gap-1.5 xs:grid-cols-2">
-              {LOGROS.filter((l) => misLogros.includes(l.clave)).map((l) => (
+              {LOGROS.filter((l) => misLogros.includes(l.clave)).map((l) => {
+                const popular = jugadorEnMuestra ? popularidad[l.clave] : null;
+                const rareza = tr(lng, `logro.rareza.${popular?.rareza ?? "sinDatos"}`);
+                return (
                 /* v0.71 — sin la descripción (ni en el título): cómo se gana es
                    parte del secreto. Solo el Pokémon y el nombre. */
                 <li key={l.clave} className="logro-ficha">
@@ -233,9 +249,20 @@ export default async function ProfilePage({
                   <img src={l.dex ? urlPokeApi(l.dex) : spriteUrl(l.pokemon)} alt="" width={44} height={44} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-bold">{tr(lng, `logro.${l.clave}.nombre`)}</span>
+                    <span className="block text-[10px] leading-tight text-muted">
+                      {!popular || popular.porcentaje == null
+                        ? rareza
+                        : trf(lng, "logro.rarezaDato", {
+                            n: popular.cantidad,
+                            total: popular.total,
+                            porcentaje: pct(popular.porcentaje / 100, 1),
+                            rareza,
+                          })}
+                    </span>
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           ) : (
             <p className="text-xs text-muted">{tr(lng, isMe ? "logro.ningunoTu" : "logro.ninguno")}</p>
@@ -277,8 +304,11 @@ export default async function ProfilePage({
       <div className="mt-2.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label="Elo" value={elo}
           note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
-        <Kpi label={`CP ${cp.season}`} value={cp.total}
-          note={cpTable.confirmed ? `${myTours.length} torneos` : tr(lng, "x.b200b9ed")} />
+        <Link href="#cp-desglose" className="block rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          aria-label={tr(lng, "perfil.cpIr")}>
+          <Kpi label={`CP ${cp.season}`} value={cp.total}
+            note={`${cpTable.confirmed ? `${myTours.length} torneos` : tr(lng, "x.b200b9ed")} · ${tr(lng, "perfil.cpIr")}`} />
+        </Link>
         {/* v0.17 — puesto en los leaderboards oficiales, junto a los CP. */}
         <Kpi label={`Top ${tr(lang, "zone.spain")}`}
           value={player.rankSpain != null ? `${player.rankSpain}.º` : "—"}
@@ -426,7 +456,7 @@ export default async function ProfilePage({
 
       {/* ------------------------- torneos: lo que se enseña ------------------------ */}
       {placements.length > 0 && (
-        <div data-paso="perfilGuia-5">
+        <div id="cp-desglose" className="scroll-mt-24" data-paso="perfilGuia-5">
           <BestFinishes
             rows={mejores}
             stats={conv}

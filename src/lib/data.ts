@@ -56,6 +56,7 @@ export const PUBLIC_PLAYER_COLUMNS = {
   joined: players.joined,
   // v0.65: los logros secretos encontrados. Son para enseñarse en el perfil.
   logros: players.logros,
+  profileTitle: players.profileTitle,
   lastSeenAt: players.lastSeenAt,
   createdAt: players.createdAt,
   // El `satisfies` es el candado: exige exactamente las claves de PublicPlayer,

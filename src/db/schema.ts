@@ -150,6 +150,8 @@ export const players = pgTable("players", {
   /** v0.65 — los logros secretos encontrados, por clave y separados por comas
       («psyduck,voltorb»). Públicos: el sentido es enseñarlos en el perfil. */
   logros: text("logros").notNull().default(""),
+  /** v0.94 — título visible elegido por el jugador. */
+  profileTitle: text("profile_title").notNull().default(""),
 
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),

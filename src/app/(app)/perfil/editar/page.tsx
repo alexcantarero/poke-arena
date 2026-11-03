@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth";
-import { currentPlayer, loadArchetypes } from "@/lib/data";
+import { currentPlayer, loadArchetypes, loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
 import { ProfileForm } from "@/components/ProfileForm";
+import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
+import { titulosDisponibles } from "@/lib/logros";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -15,11 +17,14 @@ export default async function EditProfilePage() {
   const [me, archetypes, session] = await Promise.all([currentPlayer(), loadArchetypes(), readSession()]);
   if (!session) redirect("/entrar");
   if (!me) redirect("/entrar");
+  const snap = await loadSnapshot();
+  const badgeInput = entradaMedallasDeJugador(snap, me.id);
+  const titles = titulosDisponibles(me.logros, avanceTitulosDeJugador(snap, me.id, badgeInput));
 
   return (
     <>
       <PageHead title={tr(lng, "x.1524be42")} sub={tr(lng, "x.a9e4c85f")} back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }} />
-      <ProfileForm player={me} archetypes={archetypes} />
+      <ProfileForm player={me} archetypes={archetypes} titles={titles} />
     </>
   );
 }

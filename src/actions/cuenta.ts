@@ -19,7 +19,9 @@ import {
   msj,
 } from "./_comun";
 import { anadirVisto } from "@/lib/tutorialesPagina";
-import { anadirLogro, CLAVES_LOGRO } from "@/lib/logros";
+import { anadirLogro, CLAVES_LOGRO, tituloValido } from "@/lib/logros";
+import { loadSnapshot } from "@/lib/data";
+import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 import { caducidadRecuperacion, limpiarToken, type EstadoEnlace } from "@/lib/recuperacion";
 
 export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
@@ -269,6 +271,17 @@ export async function saveProfile(_prev: FormState, fd: FormData): Promise<FormS
   const name = str(fd, "name");
   if (!name) return { error: await msj("x.e5aebb07") };
 
+  const profileTitle = str(fd, "profileTitle");
+  if (profileTitle) {
+    const snap = await loadSnapshot();
+    const profile = snap.playersById.get(targetId);
+    const badgeInput = profile ? entradaMedallasDeJugador(snap, targetId) : null;
+    const avance = badgeInput ? avanceTitulosDeJugador(snap, targetId, badgeInput) : null;
+    if (!profile || !avance || !tituloValido(profileTitle, profile.logros, avance)) {
+      return { error: await msj("perfil.tituloNoDisponible") };
+    }
+  }
+
   const avatarKind = pick(fd, "avatarKind", ["none", "pokemon", "image"] as const, "none");
   const rawAvatar = str(fd, "avatarValue");
   let avatarValue = "";
@@ -290,6 +303,7 @@ export async function saveProfile(_prev: FormState, fd: FormData): Promise<FormS
     avatarValue,
     bio: str(fd, "bio").slice(0, 280),
     favoriteArchetypeId: str(fd, "favoriteArchetypeId") || null,
+    profileTitle,
     playerTag: str(fd, "playerTag").slice(0, 60) || null,
     // v0.36 — el nick de Limitless. Se guarda tal cual se escribe; la
     // comparación al importar ya es insensible a mayúsculas.

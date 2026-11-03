@@ -58,6 +58,155 @@ export function leerLogros(guardado: string | null | undefined): string[] {
   return CLAVES_LOGRO.filter((c) => set.has(c));
 }
 
+export type RarezaLogro = "menos1" | "menos5" | "menos10" | "menos25" | "comun" | "sinDatos";
+
+export type PopularidadLogro = {
+  cantidad: number;
+  total: number;
+  porcentaje: number | null;
+  rareza: RarezaLogro;
+};
+
+export function rarezaPorcentaje(porcentaje: number | null): RarezaLogro {
+  if (porcentaje == null || !Number.isFinite(porcentaje)) return "sinDatos";
+  if (porcentaje < 1) return "menos1";
+  if (porcentaje < 5) return "menos5";
+  if (porcentaje < 10) return "menos10";
+  if (porcentaje < 25) return "menos25";
+  return "comun";
+}
+
+/** Frecuencia de cada logro dentro de la cohorte elegida por quien llama. */
+export function popularidadLogros(guardados: readonly (string | null | undefined)[]): Record<string, PopularidadLogro> {
+  const conteos = new Map(CLAVES_LOGRO.map((clave) => [clave, 0]));
+  for (const guardado of guardados) {
+    for (const clave of leerLogros(guardado)) conteos.set(clave, (conteos.get(clave) ?? 0) + 1);
+  }
+  return Object.fromEntries(CLAVES_LOGRO.map((clave) => {
+    const cantidad = conteos.get(clave) ?? 0;
+    const porcentaje = guardados.length ? cantidad / guardados.length * 100 : null;
+    return [clave, { cantidad, total: guardados.length, porcentaje, rareza: rarezaPorcentaje(porcentaje) }];
+  }));
+}
+
+export type TonoTitulo = "base" | "bronce" | "plata" | "oro" | "prisma" | "secreto";
+export type GrupoTitulo = "inicio" | "liga" | "circuito" | "eventos" | "medallas" | "logros";
+export type TituloPerfil = { id: string; clave: string; grupo: GrupoTitulo; tono: TonoTitulo };
+
+type HitoTitulo = {
+  desde: number;
+  clave: string;
+  tono: Exclude<TonoTitulo, "base" | "secreto">;
+};
+type RutaTitulo = {
+  id: string;
+  grupo: GrupoTitulo;
+  avance: "liga" | "torneos" | "cortes" | "medallas" | "medallasOro" | "logros";
+  hitos: HitoTitulo[];
+};
+export type AvanceTitulos = Record<RutaTitulo["avance"], number>;
+
+const rutasTitulo: RutaTitulo[] = [
+  {
+    id: "liga", grupo: "liga", avance: "liga",
+    hitos: [
+      { desde: 10, clave: "perfil.titulo.rivalLiga", tono: "bronce" },
+      { desde: 50, clave: "perfil.titulo.veteranoLiga", tono: "plata" },
+      { desde: 100, clave: "perfil.titulo.leyendaLiga", tono: "oro" },
+      { desde: 250, clave: "perfil.titulo.guardiaLiga", tono: "prisma" },
+    ],
+  },
+  {
+    id: "circuito", grupo: "circuito", avance: "torneos",
+    hitos: [
+      { desde: 1, clave: "perfil.titulo.caminanteCircuito", tono: "bronce" },
+      { desde: 5, clave: "perfil.titulo.viajeroCircuito", tono: "plata" },
+      { desde: 15, clave: "perfil.titulo.maestroCircuito", tono: "oro" },
+      { desde: 30, clave: "perfil.titulo.leyendaCircuito", tono: "prisma" },
+    ],
+  },
+  {
+    id: "eventos", grupo: "eventos", avance: "cortes",
+    hitos: [
+      { desde: 1, clave: "perfil.titulo.finalistaEventos", tono: "bronce" },
+      { desde: 5, clave: "perfil.titulo.especialistaEventos", tono: "plata" },
+      { desde: 10, clave: "perfil.titulo.dominadorEventos", tono: "oro" },
+      { desde: 20, clave: "perfil.titulo.leyendaEventos", tono: "prisma" },
+    ],
+  },
+  {
+    id: "medallas", grupo: "medallas", avance: "medallas",
+    hitos: [
+      { desde: 1, clave: "perfil.titulo.medallista", tono: "bronce" },
+      { desde: 3, clave: "perfil.titulo.coleccionistaMedallas", tono: "plata" },
+      { desde: 5, clave: "perfil.titulo.maestroMedallas", tono: "oro" },
+      { desde: 8, clave: "perfil.titulo.leyendaVitrina", tono: "prisma" },
+    ],
+  },
+  {
+    id: "oro", grupo: "medallas", avance: "medallasOro",
+    hitos: [
+      { desde: 1, clave: "perfil.titulo.medallistaDorado", tono: "bronce" },
+      { desde: 3, clave: "perfil.titulo.orfebreMedallas", tono: "plata" },
+      { desde: 5, clave: "perfil.titulo.maestroDorado", tono: "oro" },
+      { desde: 8, clave: "perfil.titulo.leyendaDorada", tono: "prisma" },
+    ],
+  },
+  {
+    id: "secretos", grupo: "logros", avance: "logros",
+    hitos: [
+      { desde: 3, clave: "perfil.titulo.cazadorSecretos", tono: "bronce" },
+      { desde: 7, clave: "perfil.titulo.guardianSecretos", tono: "plata" },
+      { desde: 10, clave: "perfil.titulo.maestroLogros", tono: "oro" },
+      { desde: LOGROS.length, clave: "perfil.titulo.leyendaSecretos", tono: "prisma" },
+    ],
+  },
+];
+
+function mejorHito(ruta: RutaTitulo, avance: AvanceTitulos): HitoTitulo | null {
+  const valor = avance[ruta.avance];
+  return [...ruta.hitos].reverse().find((hito) => valor >= hito.desde) ?? null;
+}
+
+export function titulosDisponibles(
+  guardado: string | null | undefined,
+  avance: AvanceTitulos,
+): TituloPerfil[] {
+  const conseguidos = new Set(leerLogros(guardado));
+  return [
+    { id: "entrenador", clave: "perfil.titulo.entrenador", grupo: "inicio", tono: "base" },
+    ...rutasTitulo.flatMap((ruta) => {
+      const hito = mejorHito(ruta, avance);
+      return hito ? [{ id: ruta.id, clave: hito.clave, grupo: ruta.grupo, tono: hito.tono }] : [];
+    }),
+    ...LOGROS
+      .filter((logro) => conseguidos.has(logro.clave))
+      .map((logro) => ({
+        id: `logro:${logro.clave}`,
+        clave: `logro.${logro.clave}.nombre`,
+        grupo: "logros" as const,
+        tono: "secreto" as const,
+      })),
+  ];
+}
+
+export function tituloDePerfil(
+  id: string | null | undefined,
+  guardado: string | null | undefined,
+  avance: AvanceTitulos,
+): TituloPerfil | null {
+  if (!id) return null;
+  return titulosDisponibles(guardado, avance).find((titulo) => titulo.id === id) ?? null;
+}
+
+export function tituloValido(
+  id: string,
+  guardado: string | null | undefined,
+  avance: AvanceTitulos,
+): boolean {
+  return id === "" || titulosDisponibles(guardado, avance).some((titulo) => titulo.id === id);
+}
+
 /** Lo guardado con un logro más. Una clave desconocida no entra. */
 export function anadirLogro(guardado: string | null | undefined, clave: string): string {
   const actuales = leerLogros(guardado);

@@ -21,6 +21,9 @@ import { TutorialPagina } from "@/components/TutorialPagina";
 import { getLang, inglesDisponible } from "@/lib/lang";
 import { tr } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
+import { urlDeObjeto } from "@/lib/objetos";
+import { nivelDeUso } from "@/lib/logros";
+import { usoLigeroDeJugador } from "@/lib/perfilUso";
 import { Snackbar } from "@/components/Snackbar";
 import { LogroAviso } from "@/components/LogroAviso";
 import { AvisoVersion } from "@/components/AvisoVersion";
@@ -51,6 +54,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const misPendientes = me ? await cargarPendientesDe(me.id) : [];
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   if (!me) redirect("/entrar");
+  const ballUso = nivelDeUso(await usoLigeroDeJugador(me.id, me.logros));
 
   return (
     // v0.49 — el idioma, para que cualquier componente de cliente lo pida con
@@ -86,7 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           {/* v0.68 — la tarjeta del pie con fondo propio (`.barra-pie`) e iconos más grandes. */}
           <div className="barra-pie flex flex-col gap-2 rounded-xl border p-2">
-            <div className="flex items-center gap-2">
+            <Link href={`/perfil/${me.id}`} className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <Avatar player={me} size="sm" />
               <span className="barra-texto min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
@@ -94,6 +98,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
                 </span>
               </span>
+            </Link>
+            <div className="barra-texto flex items-center gap-2 rounded-lg border border-line-soft bg-surface/5 px-2 py-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={32} height={32} className="ball-uso-img size-8 flex-none" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-bold leading-tight">{ballUso.nivel.nombre}</p>
+                {ballUso.siguiente ? (
+                  <>
+                    <div className="progreso-ball mt-1 h-2" role="progressbar"
+                      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
+                      aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lang, "logro.progreso")}`}
+                      aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
+                      <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                    </div>
+                    <p className="mt-0.5 truncate text-[9px] leading-tight text-muted">
+                      {Math.round(ballUso.progreso * 100)}% · {ballUso.faltan} {tr(lang, "logro.puntosPara")} {ballUso.siguiente.nombre}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[9px] leading-tight text-muted">{tr(lang, "logro.ballMax")}</p>
+                )}
+              </div>
             </div>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               {/* v0.50 — versión, rama y commit de ESTE despliegue. En producción, la

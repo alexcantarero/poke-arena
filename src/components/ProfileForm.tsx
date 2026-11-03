@@ -6,6 +6,7 @@ import type { Archetype, PublicPlayer } from "@/lib/types";
 import { pokeSlug, prettyPokemon, spriteUrl } from "@/lib/pokemon";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import type { TituloPerfil } from "@/lib/logros";
 
 const COLORS = ["#f0b429", "#4aa8e8", "#63bd5a", "#e987b8", "#b271c9", "#f0803c", "#9aa6b4", "#c8a94a", "#5c9ea8", "#d4675f"];
 
@@ -16,7 +17,9 @@ const SUGGESTED = [
   "raging-bolt", "ogerpon", "zoroark", "slowking", "alakazam", "excadrill-mega",
 ];
 
-export function ProfileForm({ player, archetypes }: { player: PublicPlayer; archetypes: Archetype[] }) {
+export function ProfileForm({
+  player, archetypes, titles,
+}: { player: PublicPlayer; archetypes: Archetype[]; titles: TituloPerfil[] }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const [state, action, pending] = useActionState(saveProfile, null);
@@ -44,6 +47,24 @@ export function ProfileForm({ player, archetypes }: { player: PublicPlayer; arch
               className="input" id="bio" name="bio" maxLength={140} defaultValue={player.bio}
               placeholder={tr(lng, "x.3937d205")}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="label" htmlFor="profileTitle">{tr(lng, "perfil.titulo.etiqueta")}</label>
+            <select className="input" id="profileTitle" name="profileTitle" defaultValue={player.profileTitle}>
+              <option value="">{tr(lng, "perfil.titulo.sinTitulo")}</option>
+              {(["inicio", "liga", "circuito", "eventos", "medallas", "logros"] as const).map((grupo) => {
+                const opciones = titles.filter((titulo) => titulo.grupo === grupo);
+                return opciones.length ? (
+                  <optgroup key={grupo} label={tr(lng, `perfil.titulo.grupo.${grupo}`)}>
+                    {opciones.map((titulo) => (
+                      <option key={titulo.id} value={titulo.id}>{tr(lng, titulo.clave)}</option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
+            </select>
+            <p className="text-xs text-muted">{tr(lng, "perfil.titulo.ayudaHitos")}</p>
           </div>
 
           <div className="flex flex-col gap-1.5">

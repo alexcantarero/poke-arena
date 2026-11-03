@@ -2,6 +2,30 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.94.0] — 2026-11-04
+
+Mejoras del perfil: títulos, progreso de Ball, rareza de logros y acceso al desglose de CP.
+
+### Añadido
+
+- Títulos generales para elegir y títulos de logros que se desbloquean al conseguirlos; la
+  selección se valida en el servidor. Las rutas de títulos evolucionan con los hitos de Liga,
+  torneos, Top Cut, medallas y logros.
+- Rareza y porcentaje de cada logro obtenido, calculados entre las cuentas activas con partidas
+  o resultados de torneo.
+- El KPI de CP lleva al desglose de la temporada y la Ball muestra su progreso con una escala
+  temática y porcentaje. El pie de la barra lateral muestra la Ball y el progreso, y el nombre
+  lleva al perfil.
+
+### Corregido
+
+- En Safari táctil, un cambio de foco sin destino conocido ya no cierra el selector de mazos antes
+  de registrar la opción tocada.
+
+### Migración
+
+- Añadir `players.profile_title` con `drizzle/0028_v0_94_0.sql`. No se ejecutó sobre ninguna base.
+
 ## [0.93.0] — 2026-11-03
 
 Escala de color más detallada para porcentajes de victorias.
