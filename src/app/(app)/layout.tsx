@@ -121,19 +121,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 )}
               </span>
             </Link>
-            {ballUso.siguiente ? (
-              <div className="barra-texto flex items-center gap-2 px-1" title={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
-                <div className="progreso-ball progreso-ball-lateral flex-1" role="progressbar"
-                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
-                  aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lang, "logro.progreso")}`}
-                  aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
-                  <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
-                </div>
-                <span className="barra-progreso-porcentaje">{Math.round(ballUso.progreso * 100)}%</span>
-              </div>
-            ) : (
-              <p className="barra-texto text-[9px] leading-tight text-muted">{tr(lang, "logro.ballMax")}</p>
-            )}
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />

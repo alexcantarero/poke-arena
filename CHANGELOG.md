@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.101.0] — 2026-11-04
+
+### Cambiado
+
+- **Progreso de Poké Ball**: se elimina de la tarjeta lateral para dejar más espacio. En el perfil
+  vuelve la barra, con un relleno dorado, porcentaje compacto y puntos restantes.
+
 ## [0.100.0] — 2026-11-04
 
 ### Cambiado

@@ -204,16 +204,22 @@ export default async function ProfilePage({
       {/* v0.65 — la Ball de uso y los logros secretos. */}
       <section className="card mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex flex-none flex-col items-center gap-0.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={48} height={48} className="ball-uso-img size-12" />
-            <span className="perfil-ball-porcentaje" aria-label={`${Math.round(ballUso.progreso * 100)}% ${tr(lng, "logro.progreso")}`}>
-              {Math.round(ballUso.progreso * 100)}%
-            </span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={56} height={56} className="ball-uso-img size-14 flex-none" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "logro.ballTitulo")}</p>
             <p className="font-display text-lg font-extrabold leading-tight">{ballUso.nivel.nombre}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="progreso-ball progreso-ball-perfil flex-1" role="progressbar"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
+                aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lng, "logro.progreso")}`}
+                aria-label={`${ballUso.nivel.nombre}${ballUso.siguiente ? ` → ${ballUso.siguiente.nombre}` : ""}`}>
+                <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+              </div>
+              <span className="perfil-ball-porcentaje">
+                {Math.round(ballUso.progreso * 100)}%
+              </span>
+            </div>
             {ballUso.siguiente ? (
               <p className="mt-1 text-[11px] text-muted">
                 {ballUso.faltan} {tr(lng, "logro.puntosPara")} {ballUso.siguiente.nombre}
