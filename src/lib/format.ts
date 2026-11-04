@@ -108,14 +108,21 @@ export function shortName(s: string, n = 22) {
 export function wrColor(wp: number | null | undefined) {
   if (wp == null || !Number.isFinite(wp)) return "var(--muted)";
   const porcentaje = clamp(wp * 100, 0, 100);
-  const tono = porcentaje >= 100 ? 120
-    : porcentaje >= 90 ? 108
-    : porcentaje >= 75 ? 90
-    : porcentaje >= 60 ? 72
-    : porcentaje >= 45 ? 54
-    : porcentaje >= 30 ? 36
-    : porcentaje >= 15 ? 18
-    : 0;
+  const escala = [
+    { valor: 0, tono: 0 },
+    { valor: 45, tono: 0 },
+    { valor: 55, tono: 300 },
+    { valor: 75, tono: 190 },
+    { valor: 100, tono: 145 },
+  ];
+  const indice = escala.findIndex((punto) => porcentaje <= punto.valor);
+  const anterior = escala[Math.max(0, indice - 1)];
+  const siguiente = escala[indice < 0 ? escala.length - 1 : indice];
+  const proporcion = siguiente.valor === anterior.valor
+    ? 0
+    : (porcentaje - anterior.valor) / (siguiente.valor - anterior.valor);
+  const diferencia = ((siguiente.tono - anterior.tono + 540) % 360) - 180;
+  const tono = (Math.round(anterior.tono + diferencia * proporcion) + 360) % 360;
   return `hsl(${tono} 82% var(--wr-color-lightness))`;
 }
 

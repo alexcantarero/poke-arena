@@ -2,19 +2,25 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { num, pct, wrColor } from "../src/lib/format.ts";
 
-test("wrColor: cambia de tono en los ocho cortes de la escala", () => {
-  const tonos = [0, 18, 36, 54, 72, 90, 108, 120];
-  const porcentajes = [0, 15, 30, 45, 60, 75, 90, 100];
-  for (const [indice, porcentaje] of porcentajes.entries()) {
-    assert.equal(wrColor(porcentaje / 100), `hsl(${tonos[indice]} 82% var(--wr-color-lightness))`);
+test("wrColor: usa una escala rojo-violeta-azul-turquesa-verde sin amarillo", () => {
+  const muestras = [
+    [0, 0],
+    [0.45, 0],
+    [0.5, 330],
+    [0.55, 300],
+    [0.65, 245],
+    [0.75, 190],
+    [0.875, 168],
+    [1, 145],
+  ] as const;
+  for (const [porcentaje, tono] of muestras) {
+    assert.equal(wrColor(porcentaje), `hsl(${tono} 82% var(--wr-color-lightness))`);
   }
 });
 
-test("wrColor: conserva el color dentro de cada tramo y limita los extremos", () => {
-  assert.equal(wrColor(0.149), "hsl(0 82% var(--wr-color-lightness))");
-  assert.equal(wrColor(0.999), "hsl(108 82% var(--wr-color-lightness))");
+test("wrColor: limita los extremos y deja los valores inválidos en neutro", () => {
   assert.equal(wrColor(-1), "hsl(0 82% var(--wr-color-lightness))");
-  assert.equal(wrColor(2), "hsl(120 82% var(--wr-color-lightness))");
+  assert.equal(wrColor(2), "hsl(145 82% var(--wr-color-lightness))");
   assert.equal(wrColor(null), "var(--muted)");
   assert.equal(wrColor(Number.NaN), "var(--muted)");
   assert.equal(wrColor(Number.POSITIVE_INFINITY), "var(--muted)");

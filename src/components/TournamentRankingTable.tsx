@@ -136,7 +136,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
                       className="block h-full rounded-full"
                       style={{
                         width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
-                        background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                        background: wrColor(r.winRate),
                       }}
                     />
                   </span>
@@ -194,7 +194,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
                       className="block h-full rounded-full"
                       style={{
                         width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
-                        background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                        background: wrColor(r.winRate),
                       }}
                     />
                   </span>

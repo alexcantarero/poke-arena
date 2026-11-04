@@ -135,7 +135,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                       className="block h-full rounded-full transition-[width,filter] duration-300 group-hover:brightness-125 motion-reduce:transition-none"
                       style={{
                         width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
-                        background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                        background: wrColor(r.winRate),
                       }}
                     />
                   </span>
@@ -234,7 +234,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                         className="block h-full rounded-full"
                         style={{
                           width: `${Math.max(0, Math.min(100, (r.winRate ?? 0) * 100))}%`,
-                          background: r.winRate != null && r.winRate >= 0.5 ? "var(--win)" : "var(--loss)",
+                          background: wrColor(r.winRate),
                         }}
                       />
                     </span>

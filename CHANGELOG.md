@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.105.0] — 2026-11-04
+
+### Cambiado
+
+- **Colores del porcentaje de victorias**: se sustituye el amarillo por una escala rojo, violeta,
+  azul, turquesa y verde. Los números y las barras de las tablas de ranking comparten la escala.
+
 ## [0.104.0] — 2026-11-04
 
 ### Cambiado
