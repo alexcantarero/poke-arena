@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.99.0] — 2026-11-04
+
+### Cambiado
+
+- **Tarjeta de perfil de la barra lateral**: reúne nombre y rango en la primera línea, muestra
+  debajo el papel y el título seleccionado, y sitúa el porcentaje fuera de la barra de progreso.
+  El título se resuelve con consultas limitadas al jugador; no se carga el snapshot completo.
+
 ## [0.98.0] — 2026-11-04
 
 ### Cambiado

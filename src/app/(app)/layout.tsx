@@ -24,6 +24,7 @@ import { Icon } from "@/components/icons";
 import { urlDeObjeto } from "@/lib/objetos";
 import { nivelDeUso } from "@/lib/logros";
 import { usoLigeroDeJugador } from "@/lib/perfilUso";
+import { tituloParaBarra } from "@/lib/perfilTituloBarra";
 import { Snackbar } from "@/components/Snackbar";
 import { LogroAviso } from "@/components/LogroAviso";
 import { AvisoVersion } from "@/components/AvisoVersion";
@@ -53,11 +54,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      (tutorial v0.60, páginas vistas v0.61, pendientes v0.54 y la Ball de la
      v0.94): cuatro viajes seguidos a Neon en CADA página. En paralelo, la espera
      es la del más lento. */
-  const [verTutorial, paginasVistas, misPendientes, usoLigero] = await Promise.all([
+  const [verTutorial, paginasVistas, misPendientes, usoLigero, tituloBarra] = await Promise.all([
     tutorialPendiente(me.id), // v0.60
     tutorialesVistos(me.id), // v0.61
     cargarPendientesDe(me.id), // v0.54 — mis partidas sin resultado: el número del menú.
     usoLigeroDeJugador(me.id, me.logros), // v0.94
+    barraMini ? null : tituloParaBarra(me, cfg),
   ]);
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const ballUso = nivelDeUso(usoLigero);
@@ -96,37 +98,42 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           {/* v0.68 — la tarjeta del pie con fondo propio (`.barra-pie`) e iconos más grandes. */}
           <div className="barra-pie flex flex-col gap-2 rounded-xl border p-2">
-            <Link href={`/perfil/${me.id}`} className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            <Link href={`/perfil/${me.id}`} className="flex items-start gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <Avatar player={me} size="sm" />
               <span className="barra-texto min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold leading-tight">{me.name}</span>
-                <span className="block truncate text-[11px] text-muted">
+                <span className="flex min-w-0 items-center justify-between gap-1">
+                  <span className="truncate text-[13px] font-semibold leading-tight">{me.name}</span>
+                  <span className="flex flex-none items-center gap-1 text-[9px] font-semibold text-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={20} height={20} className="ball-uso-img size-5" />
+                    <span>{ballUso.nivel.nombre}</span>
+                  </span>
+                </span>
+                <span className="block truncate text-[11px] leading-tight text-muted">
                   {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
                 </span>
+                {tituloBarra && (
+                  <span className="mt-1 block min-w-0">
+                    <span className="perfil-titulo max-w-full truncate text-[9px]" data-tono={tituloBarra.tono}>
+                      {tr(lang, tituloBarra.clave)}
+                    </span>
+                  </span>
+                )}
               </span>
             </Link>
-            <div className="barra-texto flex items-center gap-2 rounded-lg border border-line-soft bg-surface/5 px-2 py-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={32} height={32} className="ball-uso-img size-8 flex-none" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-bold leading-tight">{ballUso.nivel.nombre}</p>
-                {ballUso.siguiente ? (
-                  <>
-                    <div className="progreso-ball mt-1 h-3" role="progressbar"
-                      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
-                      aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lang, "logro.progreso")}`}
-                      aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
-                      <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
-                      <span className="progreso-ball-porcentaje" aria-hidden="true">
-                        {Math.round(ballUso.progreso * 100)}%
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-[9px] leading-tight text-muted">{tr(lang, "logro.ballMax")}</p>
-                )}
+            {ballUso.siguiente ? (
+              <div className="barra-texto flex items-center gap-2 px-1" title={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
+                <div className="progreso-ball progreso-ball-lateral flex-1" role="progressbar"
+                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
+                  aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lang, "logro.progreso")}`}
+                  aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
+                  <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                </div>
+                <span className="barra-progreso-porcentaje">{Math.round(ballUso.progreso * 100)}%</span>
               </div>
-            </div>
+            ) : (
+              <p className="barra-texto text-[9px] leading-tight text-muted">{tr(lang, "logro.ballMax")}</p>
+            )}
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
