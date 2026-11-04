@@ -112,15 +112,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <p className="truncate text-[11px] font-bold leading-tight">{ballUso.nivel.nombre}</p>
                 {ballUso.siguiente ? (
                   <>
-                    <div className="progreso-ball mt-1 h-2" role="progressbar"
+                    <div className="progreso-ball mt-1 h-3" role="progressbar"
                       aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
                       aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lang, "logro.progreso")}`}
                       aria-label={`${ballUso.nivel.nombre} → ${ballUso.siguiente.nombre}`}>
                       <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                      <span className="progreso-ball-porcentaje" aria-hidden="true">
+                        {Math.round(ballUso.progreso * 100)}%
+                      </span>
                     </div>
-                    <p className="mt-0.5 truncate text-[9px] leading-tight text-muted">
-                      {Math.round(ballUso.progreso * 100)}% · {ballUso.faltan} {tr(lang, "logro.puntosPara")} {ballUso.siguiente.nombre}
-                    </p>
                   </>
                 ) : (
                   <p className="text-[9px] leading-tight text-muted">{tr(lang, "logro.ballMax")}</p>
@@ -128,17 +128,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </div>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
-              {/* v0.50 — versión, rama y commit de ESTE despliegue. En producción, la
-                  versión y el commit; en una vista previa, también la rama, en ámbar,
-                  para que no se confunda con producción. Toca para ver todo. */}
-              <span
-                className={`barra-texto mr-auto pl-1 text-[10px] font-mono ${process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" ? "text-brand" : "text-muted"}`}
-                title={`v${process.env.NEXT_PUBLIC_APP_VERSION} · ${process.env.NEXT_PUBLIC_DEPLOY_ENV}${process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}${process.env.NEXT_PUBLIC_GIT_SHA ? ` @ ${process.env.NEXT_PUBLIC_GIT_SHA}` : ""}`}
-              >
-                v{process.env.NEXT_PUBLIC_APP_VERSION}
-                {process.env.NEXT_PUBLIC_DEPLOY_ENV === "preview" && process.env.NEXT_PUBLIC_GIT_REF ? ` · ${process.env.NEXT_PUBLIC_GIT_REF}` : ""}
-                {/* v0.68 — sin «@commit» a la vista: sigue en el título (al pasar el ratón). */}
-              </span>
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>

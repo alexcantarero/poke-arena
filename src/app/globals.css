@@ -1523,6 +1523,7 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .etiqueta[data-tono="oro"] { border-color: var(--brand); color: var(--brand-strong); background: color-mix(in oklab, var(--brand) 14%, var(--surface)); }
 .etiqueta[data-tono="secreto"] { border-color: #8b5cf6; color: color-mix(in oklab, #8b5cf6 75%, var(--ink)); background: color-mix(in oklab, #8b5cf6 12%, var(--surface)); }
 .progreso-ball {
+  position: relative;
   height: .75rem; overflow: hidden; border: 1px solid var(--line); border-radius: 9999px;
   background: linear-gradient(to bottom, #e34f4f 0 42%, #253047 42% 58%, #f8fafc 58% 100%);
   box-shadow: inset 0 1px 2px rgb(0 0 0 / .2);
@@ -1531,6 +1532,11 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
   height: 100%; border-right: 2px solid #253047;
   background: linear-gradient(90deg, #f8c54c, #fff4bb);
   box-shadow: inset 0 1px 1px rgb(255 255 255 / .65);
+}
+.progreso-ball-porcentaje {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: #172033; font-size: 8px; font-weight: 800; line-height: 1;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff;
 }
 .perfil-titulo {
   display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: 9999px;

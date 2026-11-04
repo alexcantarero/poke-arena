@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.97.0] — 2026-11-04
+
+### Cambiado
+
+- **Tarjeta de la barra lateral**: el progreso hacia la siguiente Poké Ball muestra el porcentaje
+  dentro de la barra, sin la línea de puntos restantes. Se retira de la tarjeta la versión del
+  despliegue, que sigue disponible en Ajustes.
+
 ## [0.96.0] — 2026-11-04
 
 Que una migración sin aplicar no vuelva a tumbar la app. **Sin migración nueva.** Incluye la
