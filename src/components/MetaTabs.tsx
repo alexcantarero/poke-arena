@@ -21,17 +21,12 @@ export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?
 
   const q = query ? `q=${encodeURIComponent(query)}` : "";
 
-  const base =
-    "tap flex-none rounded-lg border px-3.5 text-sm font-semibold transition-colors";
-  const apagada = "border-line bg-surface text-muted hover:text-ink";
-
   return (
-    <nav className="scroll-x scroll-fade mb-4 flex gap-2" aria-label={tr(lng, "x.3a2db4f1")}>
+    <nav className="pestanas mb-4" aria-label={tr(lng, "x.3a2db4f1")}>
       <Link
         href={`/topdecks${q ? `?${q}` : ""}`}
         aria-current={actual === "online" ? "page" : undefined}
-        className={`${base} ${actual === "online"
-          ? "border-source-global bg-source-global-soft text-source-global" : apagada}`}
+        className="pestana" data-on={actual === "online"}
       >
         <Icon name="globe" className="size-4" />
         Online
@@ -40,8 +35,7 @@ export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?
       <Link
         href={`/topdecks?fuente=presencial${q ? `&${q}` : ""}`}
         aria-current={actual === "presencial" ? "page" : undefined}
-        className={`${base} ${actual === "presencial"
-          ? "border-brand-line bg-brand-soft text-brand" : apagada}`}
+        className="pestana" data-on={actual === "presencial"}
       >
         <Icon name="trophy" className="size-4" />
         {tr(lng, "x.4bb0ddec")}
@@ -54,8 +48,7 @@ export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?
       <Link
         href="/mazos"
         aria-current={actual === "mazos" ? "page" : undefined}
-        className={`${base} ${actual === "mazos"
-          ? "border-series-1 bg-surface-2 text-ink" : apagada}`}
+        className="pestana" data-on={actual === "mazos"}
       >
         <Icon name="deck" className="size-4" />
         {tr(lng, "x.78f2cee5")}

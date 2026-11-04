@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.102.0] — 2026-11-04
+
+### Cambiado
+
+- **Pestañas internas**: se unifica el estilo de navegación de metagame, estadísticas, mazos,
+  ámbitos y fases de torneo con la barra de Herramientas.
+- **Tarjeta lateral del perfil**: se hace más visible el nombre, el rango y su Poké Ball.
+- **Rangos de Poké Ball**: se amplía y ordena la progresión con las Balls principales y sus
+  variantes especiales de Hisui, Paldea y Luminalia.
+
 ## [0.101.0] — 2026-11-04
 
 ### Cambiado

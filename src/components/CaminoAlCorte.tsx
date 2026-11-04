@@ -334,13 +334,10 @@ function Pestanas({
     // Desplazamiento propio y relleno por dentro: `.scroll-x` lleva margen
     // negativo y dentro de una tarjeta con overflow-hidden recorta la primera
     // y la última pestaña. Es el fallo que ya arreglamos en la v0.11.
-    <div className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1"
+    <div className="pestanas mb-4"
       role="tablist" aria-label={tr(lng, "x.6e341850")}>
       {items.map((it) => {
         const on = actual === it.id;
-        const cls = `tap flex-none rounded-lg border px-3 py-1.5 text-left transition-colors
-              ${on ? "border-brand-line bg-brand-soft text-brand"
-                   : "border-line bg-surface text-muted hover:text-ink"}`;
         const cuerpo = (
           <>
             <span className="block text-sm font-semibold">{it.label}</span>
@@ -351,10 +348,10 @@ function Pestanas({
         // abajo y funciona sin JavaScript.
         return href ? (
           <Link key={it.id} href={`${href}${it.id}`} scroll={false} replace role="tab"
-            aria-selected={on} className={cls}>{cuerpo}</Link>
+            aria-selected={on} className="pestana pestana-fase" data-on={on}>{cuerpo}</Link>
         ) : (
           <button key={it.id} type="button" role="tab" aria-selected={on}
-            onClick={() => onPick(it.id)} className={cls}>{cuerpo}</button>
+            onClick={() => onPick(it.id)} className="pestana pestana-fase" data-on={on}>{cuerpo}</button>
         );
       })}
     </div>

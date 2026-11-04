@@ -121,6 +121,8 @@ export default async function ProfilePage({
   const misLogros = leerLogros(player.logros);
   const uso = usoDeJugador(snap, id); // v0.68: sin el filtro de ámbito, igual que en el inicio
   const ballUso = nivelDeUso(uso);
+  const nombreBall = tr(lng, `logro.ball.${ballUso.nivel.ball}`);
+  const siguienteBall = ballUso.siguiente ? tr(lng, `logro.ball.${ballUso.siguiente.ball}`) : null;
   const etiquetas = etiquetasDe(uso);
 
   // El rango del ladder lo cambia cada uno; el de otra persona, un
@@ -208,12 +210,12 @@ export default async function ProfilePage({
           <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={56} height={56} className="ball-uso-img size-14 flex-none" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "logro.ballTitulo")}</p>
-            <p className="font-display text-lg font-extrabold leading-tight">{ballUso.nivel.nombre}</p>
+            <p className="font-display text-lg font-extrabold leading-tight">{nombreBall}</p>
             <div className="mt-2 flex items-center gap-2">
               <div className="progreso-ball progreso-ball-perfil flex-1" role="progressbar"
                 aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
                 aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lng, "logro.progreso")}`}
-                aria-label={`${ballUso.nivel.nombre}${ballUso.siguiente ? ` → ${ballUso.siguiente.nombre}` : ""}`}>
+                aria-label={`${nombreBall}${siguienteBall ? ` → ${siguienteBall}` : ""}`}>
                 <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
               </div>
               <span className="perfil-ball-porcentaje">
@@ -222,7 +224,7 @@ export default async function ProfilePage({
             </div>
             {ballUso.siguiente ? (
               <p className="mt-1 text-[11px] text-muted">
-                {ballUso.faltan} {tr(lng, "logro.puntosPara")} {ballUso.siguiente.nombre}
+                {ballUso.faltan} {tr(lng, "logro.puntosPara")} {siguienteBall}
               </p>
             ) : (
               <p className="mt-1 text-[11px] text-muted">{tr(lng, "logro.ballMax")}</p>

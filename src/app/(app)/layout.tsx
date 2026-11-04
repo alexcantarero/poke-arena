@@ -63,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const ballUso = nivelDeUso(usoLigero);
+  const nombreBall = tr(lang, `logro.ball.${ballUso.nivel.ball}`);
 
   return (
     // v0.49 — el idioma, para que cualquier componente de cliente lo pida con
@@ -101,24 +102,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href={`/perfil/${me.id}`} className="flex items-start gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <Avatar player={me} size="sm" />
               <span className="barra-texto min-w-0 flex-1">
-                <span className="flex min-w-0 items-center justify-between gap-1">
-                  <span className="truncate text-[13px] font-semibold leading-tight">{me.name}</span>
-                  <span className="flex flex-none items-center gap-1 text-[9px] font-semibold text-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={20} height={20} className="ball-uso-img size-5" />
-                    <span>{ballUso.nivel.nombre}</span>
-                  </span>
-                </span>
-                <span className="block truncate text-[11px] leading-tight text-muted">
-                  {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
-                </span>
                 {tituloBarra && (
-                  <span className="mt-1 block min-w-0">
-                    <span className="perfil-titulo max-w-full truncate text-[9px]" data-tono={tituloBarra.tono}>
+                  <span className="mb-1 block min-w-0">
+                    <span className="perfil-titulo max-w-full truncate text-[10px]" data-tono={tituloBarra.tono}>
                       {tr(lang, tituloBarra.clave)}
                     </span>
                   </span>
                 )}
+                <span className="flex min-w-0 items-start justify-between gap-1">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-semibold leading-tight">{me.name}</span>
+                    <span className="block truncate text-[13px] leading-tight text-muted">
+                      {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
+                    </span>
+                  </span>
+                  <span className="flex flex-none items-center"
+                    title={nombreBall} aria-label={nombreBall}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={urlDeObjeto(ballUso.nivel.ball)} alt={nombreBall} width={32} height={32} className="ball-uso-img size-8" />
+                  </span>
+                </span>
               </span>
             </Link>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">

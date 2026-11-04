@@ -95,9 +95,10 @@ export default async function HomePage({
   /* v0.68 — la Ball de uso de cada uno, pequeña, junto a su nombre en el ranking. */
   const ballDe = (pid: string) => {
     const n = nivelDeUso(usoDeJugador(snap, pid)).nivel;
+    const nombre = tr(lang, `logro.ball.${n.ball}`);
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={urlDeObjeto(n.ball)} alt={n.nombre} title={`${tr(lang, "home.ballDe")}: ${n.nombre}`}
+      <img src={urlDeObjeto(n.ball)} alt={nombre} title={`${tr(lang, "home.ballDe")}: ${nombre}`}
         width={20} height={20} className="ball-ranking" loading="lazy" />
     );
   };

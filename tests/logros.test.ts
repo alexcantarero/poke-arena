@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CLAVES_LOGRO, anadirLogro, etiquetasDe, leerLogros, nivelDeUso, popularidadLogros,
-  rarezaPorcentaje, tituloDePerfil, tituloValido, titulosDisponibles, type AvanceTitulos,
+  NIVELES_BALL, rarezaPorcentaje, tituloDePerfil, tituloValido, titulosDisponibles, type AvanceTitulos,
 } from "../src/lib/logros.ts";
 
 test("los logros guardados: válidos, sin repetir y en orden fijo", () => {
@@ -68,17 +68,29 @@ test("v0.94: las rutas de títulos evolucionan al mayor escalón alcanzado", () 
   assert.equal(tituloDePerfil("secretos", "", evolucion)?.clave, "perfil.titulo.leyendaSecretos");
 });
 
-test("la Ball de uso sube de Poké a Master", () => {
+test("las Balls de uso avanzan por rareza, con umbrales ordenados y sin duplicados", () => {
+  assert.equal(NIVELES_BALL.length, 43);
+  assert.equal(new Set(NIVELES_BALL.map((nivel) => nivel.ball)).size, NIVELES_BALL.length);
+  assert.ok(NIVELES_BALL.every((nivel, i) => i === 0 || nivel.desde > NIVELES_BALL[i - 1].desde));
+  assert.deepEqual(
+    NIVELES_BALL.slice(0, 4).map(({ ball }) => ball),
+    ["poke-ball", "great-ball", "ultra-ball", "net-ball"],
+  );
+  assert.equal(NIVELES_BALL.at(-1)?.ball, "laorigin-ball");
+});
+
+test("la Ball de uso progresa de Poké a las variantes más raras", () => {
   assert.equal(nivelDeUso({ partidas: 0, torneos: 0, logros: 0 }).nivel.ball, "poke-ball");
   const casi = nivelDeUso({ partidas: 35, torneos: 1, logros: 0 }); // 38 puntos
   assert.equal(casi.nivel.ball, "poke-ball");
   assert.equal(casi.faltan, 2);
   assert.equal(nivelDeUso({ partidas: 35, torneos: 0, logros: 1 }).nivel.ball, "great-ball");
-  assert.equal(nivelDeUso({ partidas: 300, torneos: 20, logros: 4 }).nivel.ball, "dusk-ball"); // 380 puntos: a 20 de la Lujo
-  const master = nivelDeUso({ partidas: 900, torneos: 50, logros: 7 });
-  assert.equal(master.nivel.ball, "master-ball");
-  assert.equal(master.siguiente, null);
-  assert.equal(master.progreso, 1);
+  assert.equal(nivelDeUso({ partidas: 300, torneos: 20, logros: 4 }).nivel.ball, "repeat-ball"); // 380 puntos
+  assert.equal(nivelDeUso({ partidas: 1520, torneos: 0, logros: 0 }).nivel.ball, "master-ball");
+  const maximo = nivelDeUso({ partidas: 4000, torneos: 0, logros: 0 });
+  assert.equal(maximo.nivel.ball, "laorigin-ball");
+  assert.equal(maximo.siguiente, null);
+  assert.equal(maximo.progreso, 1);
 });
 
 test("las etiquetas: solo las ganadas, con su escalón", () => {

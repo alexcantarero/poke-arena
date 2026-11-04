@@ -31,11 +31,11 @@ export function ScopeTabs({
   };
 
   return (
-    <div className="scroll-x flex gap-2 pb-1">
+    <nav className="pestanas mb-4">
       <Link
         href={href()}
         aria-current={current === "all" ? "page" : undefined}
-        className={`chip flex-none ${current === "all" ? "chip-brand" : ""}`}
+        className="pestana" data-on={current === "all"}
       >
         {allLabel}
       </Link>
@@ -44,11 +44,11 @@ export function ScopeTabs({
           key={o.value}
           href={href(o.value)}
           aria-current={current === o.value ? "page" : undefined}
-          className={`chip flex-none ${current === o.value ? "chip-brand" : ""}`}
+          className="pestana" data-on={current === o.value}
         >
           {shortName(o.label, 22)}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }

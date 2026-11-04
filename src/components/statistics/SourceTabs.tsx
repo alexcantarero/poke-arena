@@ -20,25 +20,21 @@ const OPCIONES = [
     // v0.14: el nombre dice lo que es — solo lo que habéis jugado vosotros.
     label: "Jugadores de la app",
     Icon: Database,
-    on: "border-source-local bg-source-local-soft text-source-local",
   },
   {
     value: "regionales" as const,
     label: "Regionales",
     Icon: Landmark,
-    on: "border-brand-line bg-brand-soft text-brand",
   },
   {
     value: "city" as const,
     label: "City Leagues",
     Icon: MapPin,
-    on: "border-brand-line bg-brand-soft text-brand",
   },
   {
     value: "global" as const,
     label: "Online",
     Icon: Globe,
-    on: "border-source-global bg-source-global-soft text-source-global",
   },
   // v0.58 — fuera «Comparar»: no aportaba lo bastante. El valor «both» sigue
   // existiendo por si alguien llega con un enlace antiguo; solo deja de ofrecerse.
@@ -46,13 +42,11 @@ const OPCIONES = [
     value: "live" as const,
     label: "PTCG Live",
     Icon: Database,
-    on: "border-brand-line bg-brand-soft text-brand",
   },
   {
     value: "evento" as const,
     label: "Último torneo online",
     Icon: Trophy,
-    on: "border-brand-line bg-brand-soft text-brand",
   },
 ];
 
@@ -72,16 +66,14 @@ export async function SourceTabs({
   };
 
   return (
-    /* v0.76 — mismas pestañas que Herramientas (`.pestanas`). */
-    <div className="pestanas mb-4" role="tablist" aria-label={tr(lng, "x.da8315d3")}>
+    <nav className="pestanas mb-4" aria-label={tr(lng, "x.da8315d3")}>
       {OPCIONES.map(({ value, label, Icon }) => {
         const activo = value === current;
         return (
           <Link
             key={value}
             href={href(value)}
-            role="tab"
-            aria-selected={activo}
+            aria-current={activo ? "page" : undefined}
             className="pestana" data-on={activo}
           >
             <Icon className="size-4" aria-hidden="true" />
@@ -89,6 +81,6 @@ export async function SourceTabs({
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

@@ -218,17 +218,52 @@ export function anadirLogro(guardado: string | null | undefined, clave: string):
 
 export type NivelBall = { ball: string; nombre: string; desde: number };
 
-/* v0.73 — más escalones y más separados: subir tiene que costar. Con los
-   puntos de uso (partida 1, torneo 3, logro 5), una temporada normal de liga
-   llega a Ultra; la Master Ball es de quien vive en la app. */
+/* Las Balls avanzan de las más fáciles de conseguir a las más raras o únicas.
+   Los umbrales son orientativos: la disponibilidad cambia entre juegos. */
 export const NIVELES_BALL: NivelBall[] = [
   { ball: "poke-ball", nombre: "Poké Ball", desde: 0 },
   { ball: "great-ball", nombre: "Super Ball", desde: 40 },
   { ball: "ultra-ball", nombre: "Ultra Ball", desde: 120 },
-  { ball: "dusk-ball", nombre: "Ocaso Ball", desde: 240 },
-  { ball: "luxury-ball", nombre: "Lujo Ball", desde: 400 },
-  { ball: "beast-ball", nombre: "Ente Ball", desde: 650 },
-  { ball: "master-ball", nombre: "Master Ball", desde: 1000 },
+  { ball: "net-ball", nombre: "Malla Ball", desde: 180 },
+  { ball: "dive-ball", nombre: "Buceo Ball", desde: 240 },
+  { ball: "nest-ball", nombre: "Nido Ball", desde: 300 },
+  { ball: "repeat-ball", nombre: "Acopio Ball", desde: 360 },
+  { ball: "timer-ball", nombre: "Turno Ball", desde: 420 },
+  { ball: "quick-ball", nombre: "Veloz Ball", desde: 480 },
+  { ball: "heal-ball", nombre: "Sana Ball", desde: 540 },
+  { ball: "dusk-ball", nombre: "Ocaso Ball", desde: 600 },
+  { ball: "luxury-ball", nombre: "Lujo Ball", desde: 660 },
+  { ball: "premier-ball", nombre: "Honor Ball", desde: 720 },
+  { ball: "fast-ball", nombre: "Rapid Ball", desde: 780 },
+  { ball: "level-ball", nombre: "Nivel Ball", desde: 840 },
+  { ball: "lure-ball", nombre: "Cebo Ball", desde: 900 },
+  { ball: "heavy-ball", nombre: "Peso Ball", desde: 960 },
+  { ball: "love-ball", nombre: "Amor Ball", desde: 1020 },
+  { ball: "friend-ball", nombre: "Amigo Ball", desde: 1080 },
+  { ball: "moon-ball", nombre: "Luna Ball", desde: 1140 },
+  { ball: "safari-ball", nombre: "Safari Ball", desde: 1200 },
+  { ball: "sport-ball", nombre: "Competi Ball", desde: 1260 },
+  { ball: "park-ball", nombre: "Parque Ball", desde: 1320 },
+  { ball: "dream-ball", nombre: "Ensueño Ball", desde: 1380 },
+  { ball: "beast-ball", nombre: "Ente Ball", desde: 1440 },
+  { ball: "master-ball", nombre: "Master Ball", desde: 1520 },
+  { ball: "cherish-ball", nombre: "Gloria Ball", desde: 1620 },
+  { ball: "strange-ball", nombre: "Extraña Ball", desde: 1720 },
+  { ball: "academy-ball", nombre: "Pelota Academia", desde: 1820 },
+  { ball: "cyber-ball", nombre: "Pelota Cibernética", desde: 1920 },
+  { ball: "koraidons-poke-ball", nombre: "Poké Ball de Koraidon", desde: 2020 },
+  { ball: "miraidons-poke-ball", nombre: "Poké Ball de Miraidon", desde: 2120 },
+  { ball: "lapoke-ball", nombre: "Poké Ball de Hisui", desde: 2220 },
+  { ball: "lagreat-ball", nombre: "Super Ball de Hisui", desde: 2320 },
+  { ball: "laultra-ball", nombre: "Ultra Ball de Hisui", desde: 2420 },
+  { ball: "lafeather-ball", nombre: "Pluma Ball", desde: 2520 },
+  { ball: "lawing-ball", nombre: "Ala Ball", desde: 2620 },
+  { ball: "lajet-ball", nombre: "Aero Ball", desde: 2720 },
+  { ball: "laheavy-ball", nombre: "Peso Ball de Hisui", desde: 2820 },
+  { ball: "laleaden-ball", nombre: "Kilo Ball", desde: 2920 },
+  { ball: "lagigaton-ball", nombre: "Quintal Ball", desde: 3020 },
+  { ball: "lastrange-ball", nombre: "Extraña Ball de Hisui", desde: 3120 },
+  { ball: "laorigin-ball", nombre: "Origen Ball", desde: 3220 },
 ];
 
 export type Uso = { partidas: number; torneos: number; logros: number };
