@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  alMejorDe3, campoDe, liderDe, notaConsistencia, pPartida, probTorneo, recomendar, tablaCruces, type Fuente,
+  alMejorDe3, campoDe, liderDe, notaConsistencia, pPartida, probTorneo, recomendar,
+  seleccionarRecomendaciones, tablaCruces, type Fuente,
 } from "../src/lib/recomendador.ts";
 
 test("el líder: lo primero que se nombra, sin «ex» ni acompañantes", () => {
@@ -202,7 +203,9 @@ test("v0.82: cada objetivo usa su resultado real", () => {
   const top = recomendar({ tipo: "regional", objetivo: "top", fuentes, estructura: e });
   assert.equal(top.filas[0].lider, "a"); // más veces al corte, con base
   const ganar = recomendar({ tipo: "regional", objetivo: "ganar", fuentes, estructura: e });
-  assert.deepEqual(ganar.filas.map((f) => f.lider), ["b"]); // solo el que ha ganado
+  assert.equal(ganar.filas[0].lider, "b"); // el ganador real sigue primero
+  assert.ok(ganar.filas[0].conEvidencia);
+  assert.ok(ganar.filas.every((f) => f.conEvidencia)); // no mezcla candidatos sin resultados reales
   const dia2 = recomendar({ tipo: "regional", objetivo: "dia2", fuentes, estructura: e });
   assert.equal(dia2.filas[0].lider, "b"); // 90 % al Día 2
   const sorpresa = recomendar({ tipo: "regional", objetivo: "sorpresa", fuentes, estructura: e });
@@ -214,6 +217,59 @@ test("v0.82: cada objetivo usa su resultado real", () => {
 test("v0.82: Wilson castiga la muestra pequeña", () => {
   assert.ok(wilsonBajo(60, 100) > wilsonBajo(6, 10));
   assert.equal(wilsonBajo(0, 0), 0);
+});
+
+test("v0.103: la fiabilidad y la muestra usan el peso del campo esperado", () => {
+  const r = recomendar({
+    tipo: "regional",
+    objetivo: "top",
+    fuentes: [{
+      id: "regionales",
+      cuota: { a: 100, b: 100, marginal: 1 },
+      cruces: [{ a: "a", b: "marginal", w: 1000, l: 0, t: 0 }],
+    }],
+    estructura: { rondas: 8, corte: 8, pCorte: { 24: 1, 21: 1, 18: 0.3 } },
+    minCuota: 0,
+    max: null,
+  });
+  const a = r.filas.find((fila) => fila.lider === "a")!;
+  assert.equal(a.datos, 5);
+  assert.equal(a.confianza, "baja");
+  assert.ok(r.filas.length >= 3);
+});
+
+test("v0.103: el filtro conserva las mejores fiables sin rellenar con las de fiabilidad baja", () => {
+  const filas = Array.from({ length: 14 }, (_, i) => ({
+    lider: `mazo-${i}`,
+    confianza: i < 12 ? "media" as const : "baja" as const,
+    conEvidencia: false,
+    evidencia: null,
+  }));
+
+  assert.deepEqual(seleccionarRecomendaciones(filas, true).map((fila) => fila.lider),
+    Array.from({ length: 10 }, (_, i) => `mazo-${i}`));
+  assert.deepEqual(seleccionarRecomendaciones(filas.slice(0, 6), true).map((fila) => fila.lider),
+    Array.from({ length: 6 }, (_, i) => `mazo-${i}`));
+  assert.equal(seleccionarRecomendaciones(filas, false).length, 10);
+});
+
+test("v0.103: el límite no oculta candidatos antes de seleccionar el top", () => {
+  const fuentes: Fuente[] = [{
+    id: "online",
+    cuota: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`mazo-${i}`, 100])),
+    cruces: Array.from({ length: 13 }, (_, i) => ({
+      a: `mazo-${i}`, b: `mazo-${i + 1}`, w: 300, l: 300, t: 0,
+    })),
+  }];
+  const opciones = {
+    tipo: "league_cup" as const,
+    objetivo: "top" as const,
+    fuentes,
+    estructura: { rondas: 5, corte: 8, pCorte: { 15: 1, 12: 1, 9: 0.25 } },
+    minCuota: 0,
+  };
+  assert.equal(recomendar(opciones).filas.length, 12);
+  assert.equal(recomendar({ ...opciones, max: null }).filas.length, 14);
 });
 
 import { conversionDia2, pModelo, AMPLIF } from "../src/lib/recomendador.ts";

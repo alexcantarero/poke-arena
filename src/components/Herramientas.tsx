@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MulliganSim } from "@/components/MulliganSim";
 import { Calculator, Gauge, Gift, Layers, Sparkles } from "lucide-react";
 import type { DatosRecomendador } from "@/lib/recomendadorDatos";
-import { mejorVariante, notaConsistencia, recomendar, valorarVariantes, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
+import { mejorVariante, notaConsistencia, recomendar, seleccionarRecomendaciones, valorarVariantes, type Objetivo, type TipoTorneo } from "@/lib/recomendador";
 import { spriteUrl } from "@/lib/pokemon";
 import { urlDeObjeto } from "@/lib/objetos";
 import {
@@ -422,9 +422,12 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
         pPrimero: lineas?.pPrimero ?? undefined,
         fase1: est.umbral != null ? est.fase1 : null, umbral: est.umbral ?? null,
       },
+      minCuota: 0,
+      max: null,
     });
   }, [datos, tipo, objetivo, est, pCorte, sinCorte, lineas, tuyo, soloMios, yo]);
 
+  const filasVisibles = res ? seleccionarRecomendaciones(res.filas, sinBaja) : [];
   const objetivoDisponible = objetivo !== "dia2" || est?.umbral != null;
 
   return (
@@ -507,16 +510,23 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
         : !res || !res.filas.length ? <p className="text-sm text-muted">{tr(lng, objetivo === "sorpresa" ? "rc.sinSorpresas2" : "rc.vacio")}</p>
         : !objetivoDisponible ? null : (
         <>
-          {/* v0.82 — el filtro de fiabilidad y, si no hay resultados reales, el aviso. */}
+          {/* El filtro se aplica a todos los candidatos antes de limitar el top 10. */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <label className="inline-flex items-center gap-2" title={tr(lng, "rc.ayuda.fiabilidad")}>
               <input type="checkbox" className="size-4" checked={sinBaja} onChange={(e) => setSinBaja(e.target.checked)} />
               {tr(lng, "rc.sinBaja")}
             </label>
             {res.soloModelo && <span className="text-brand-strong">{tr(lng, "rc.soloModelo")}</span>}
+            {sinBaja && filasVisibles.length < 10 && (
+              <span className="text-muted">
+                {filasVisibles.length
+                  ? trf(lng, "rc.pocasFiables", { n: filasVisibles.length })
+                  : tr(lng, "rc.sinFiables")}
+              </span>
+            )}
           </div>
           <ol className="flex flex-col gap-2">
-            {res.filas.filter((f) => !sinBaja || (f.confianza !== "baja" && (!f.conEvidencia || (f.evidencia?.n ?? 0) >= 5))).map((f, i) => {
+            {filasVisibles.map((f, i) => {
               const c = datos.consistencia[f.lider];
               const nota = c ? notaConsistencia(c.teorico, c.juegos ? c.mull : null, c.juegos) : null;
               return (

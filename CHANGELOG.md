@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.103.0] — 2026-11-04
+
+### Cambiado
+
+- **Recomendador de mazos**: se aplica el filtro de fiabilidad antes de limitar la lista a diez
+  opciones, respetando los resultados reales disponibles para el objetivo.
+- **Fiabilidad**: las categorías y el contador usan la muestra ponderada por la composición
+  esperada del campo. Si hay menos de diez opciones fiables, se muestran todas y se indica cuántas.
+
 ## [0.102.0] — 2026-11-04
 
 ### Cambiado

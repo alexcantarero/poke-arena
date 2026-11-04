@@ -245,7 +245,7 @@ export type FilaRecomendada = {
   /** v1.0 — límite inferior (≈84 %) de pObjetivo según cuántos datos hay: lo que se ordena. */
   pObjetivoBajo: number;
   indice: number;
-  /** Partidas de emparejamiento que hay detrás. */
+  /** Partidas de emparejamiento ponderadas por la cuota de cada rival esperado. */
   datos: number;
   confianza: "alta" | "media" | "baja";
   mejor: { contra: string; p: number } | null;
@@ -311,9 +311,9 @@ export function recomendar(opts: {
   ajustes?: Record<string, number>;
   /** v0.77 — solo estos líderes (p. ej. «los que tengo»). */
   soloLideres?: string[];
-  /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver. */
+  /** Candidatos mínimos de cuota (por defecto 1 %) y cuántos devolver; null devuelve todos. */
   minCuota?: number;
-  max?: number;
+  max?: number | null;
 }): { filas: FilaRecomendada[]; campo: Record<string, number>; media: number; soloModelo: boolean } {
   const { tipo, objetivo, fuentes, estructura } = opts;
   const campo = campoDe(tipo, fuentes);
@@ -381,11 +381,10 @@ export function recomendar(opts: {
   };
 
   const filas: FilaRecomendada[] = candidatos.map((lider) => {
-    let datos = 0, neff = 0;
+    let neff = 0;
     let mejor: FilaRecomendada["mejor"] = null, peor: FilaRecomendada["peor"] = null;
     for (const [rival, frac] of Object.entries(campo)) {
       const { p, n } = pPartida(tabla, lider, rival);
-      datos += n;
       neff += frac * n;
       if (rival !== lider && frac >= 0.03 && n >= 5) {
         if (!mejor || p > mejor.p) mejor = { contra: rival, p };
@@ -470,20 +469,36 @@ export function recomendar(opts: {
       }
     }
     return {
-      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: pBajo, indice: pObj / objMedia, datos: Math.round(datos),
-      confianza: datos >= 300 ? "alta" : datos >= 60 ? "media" : "baja", mejor, peor, conversion,
+      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: pBajo, indice: pObj / objMedia, datos: Math.round(neff),
+      confianza: neff >= 300 ? "alta" : neff >= 60 ? "media" : "baja", mejor, peor, conversion,
       evidencia: e ? { n: Math.round(e.n), corte: Math.round(e.corte), ganados: Math.round(e.ganados), dia2: Math.round(e.dia2), dia2Base: Math.round(e.dia2Base) } : null,
       conEvidencia, sorpresa,
     };
   });
   // v1.0 — se ordena por el límite inferior: un mazo con muchos datos y un 55 % vale más que uno con 6 partidas y un 60 %.
   filas.sort((a, b) => b.pObjetivoBajo - a.pObjetivoBajo || b.pObjetivo - a.pObjetivo || b.cuota - a.cuota);
-  /* v0.82 — si hay mazos con resultados reales para este objetivo, SOLO esos
-     (lo que pediste: «solo puntúan los que han ganado / entrado al corte»).
-     Si no hay ninguno, el modelo, avisando. */
+  /* Si hay resultados reales para el objetivo, solo se muestran esos mazos.
+     El modelo se usa cuando no hay resultados reales; las sorpresas mantienen su filtro propio. */
   const conReales = filas.filter((f) => f.conEvidencia);
-  const lista = conReales.length ? conReales : objetivo === "sorpresa" ? [] : filas;
-  return { filas: lista.slice(0, opts.max ?? 12), campo, media: objMedia, soloModelo: !conReales.length };
+  const lista = objetivo === "sorpresa"
+    ? conReales
+    : conReales.length ? conReales : filas;
+  return {
+    filas: opts.max === null ? lista : lista.slice(0, opts.max ?? 12),
+    campo, media: objMedia, soloModelo: !conReales.length,
+  };
+}
+
+/** Filtra las recomendaciones menos fiables y devuelve las mejores disponibles hasta el límite. */
+export function seleccionarRecomendaciones<T extends Pick<FilaRecomendada, "confianza" | "conEvidencia" | "evidencia">>(
+  filas: T[],
+  ocultarBaja: boolean,
+  limite = 10,
+): T[] {
+  const disponibles = ocultarBaja
+    ? filas.filter((f) => f.confianza !== "baja" && (!f.conEvidencia || (f.evidencia?.n ?? 0) >= 5))
+    : filas;
+  return disponibles.slice(0, Math.max(0, limite));
 }
 
 /* -------------------------------------------------------- consistencia -- */
