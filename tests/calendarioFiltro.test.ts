@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  alternarTipo, ciudadesPresentes, parseCiudad, parseTipos, pasaCiudad, pasaTipos, tiposAParam,
+  alternarTipo, ciudadesPresentes, ciudadDeUbicacion, parseCiudad, parseTipos, pasaCiudad, pasaTipos, tiposAParam,
 } from "../src/lib/calendar.ts";
 
 test("la URL antigua de un solo tipo se sigue leyendo", () => {
@@ -37,12 +37,40 @@ test("las ciudades disponibles solo salen de ubicaciones registradas", () => {
   );
 });
 
-test("la ciudad de URL debe existir y se compara sin acentos ni diferencias de caja", () => {
-  const disponibles = ciudadesPresentes(["Málaga", "Madrid"]);
-  assert.equal(parseCiudad("malaga", disponibles), "Málaga");
-  assert.equal(parseCiudad(["MADRID"], disponibles), "Madrid");
-  assert.equal(parseCiudad("Barcelona", disponibles), "");
-  assert.equal(pasaCiudad("Málaga", "malaga"), true);
+test("extrae ciudades de direcciones con códigos postales, regiones y países", () => {
+  assert.equal(ciudadDeUbicacion("122 CARRER NOU, FIGUERES, CT 17600, ES"), "FIGUERES");
+  assert.equal(ciudadDeUbicacion("16 PG. DE ST. JOAN, BARCELONA, CT 08010, ES"), "BARCELONA");
+  assert.equal(ciudadDeUbicacion("21 AV. EDOUARD VII, 64200 BIARRITZ, FRANCE"), "BIARRITZ");
+  assert.equal(
+    ciudadDeUbicacion("AV. DE FERNANDO ARCE, 4, 39300 TORRELAVEGA, CANTABRIA, SPAIN"),
+    "TORRELAVEGA",
+  );
+  assert.equal(ciudadDeUbicacion("Bologna, Italia"), "Bologna");
+});
+
+test("el filtro agrupa direcciones por la ciudad extraída", () => {
+  const ciudades = ciudadesPresentes([
+    "122 CARRER NOU, FIGUERES, CT 17600, ES",
+    "FIGUERES",
+    "21 AV. EDOUARD VII, 64200 BIARRITZ, FRANCE",
+  ]);
+  assert.deepEqual(ciudades, ["BIARRITZ", "FIGUERES"]);
+  assert.equal(pasaCiudad("Figueres", "122 CARRER NOU, FIGUERES, CT 17600, ES"), true);
+  assert.equal(pasaCiudad("Barcelona", "122 CARRER NOU, FIGUERES, CT 17600, ES"), false);
+});
+
+test("el filtro libre de ciudad conserva el texto escrito y los espacios", () => {
+  assert.equal(parseCiudad("  Barcelona  "), "Barcelona");
+  assert.equal(parseCiudad(["  Barcelona   centro  "]), "Barcelona centro");
+  assert.equal(parseCiudad(undefined), "");
+});
+
+test("el filtro parcial incluye variantes de barrio y no distingue acentos ni caja", () => {
+  assert.equal(pasaCiudad("Barcelona", "Barcelona - La Garriga"), true);
+  assert.equal(pasaCiudad("barcelona", "16 PG. DE ST. JOAN, BARCELONA, CT 08010, ES"), true);
+  assert.equal(pasaCiudad("malaga", "Málaga"), true);
+  assert.equal(pasaCiudad("arcelo", "Barcelona"), true);
+  assert.equal(pasaCiudad("Barcelona", "Badalona"), false);
   assert.equal(pasaCiudad("Málaga", "Madrid"), false);
   assert.equal(pasaCiudad("Málaga", null), false);
   assert.equal(pasaCiudad("", null), true);

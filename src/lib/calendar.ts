@@ -83,36 +83,61 @@ export const tiposAParam = (tipos: string[]) => tipos.join(",");
 export const pasaTipos = (tipos: string[], kind: string | null | undefined) =>
   tipos.length === 0 || (kind != null && tipos.includes(kind));
 
+const PAISES = new Set([
+  "alemania", "australia", "austria", "belgica", "belgium", "belgique", "canada", "china",
+  "corea del sur", "dinamarca", "es", "espana", "estados unidos", "fr", "france", "francia",
+  "gb", "germany", "greece", "holanda", "india", "irlanda", "islandia", "it", "italia",
+  "italy", "japon", "japan", "luxemburgo", "mexico", "netherlands", "noruega", "nueva zelanda",
+  "paises bajos", "poland", "polonia", "portugal", "reino unido", "republica checa", "suecia",
+  "suiza", "spain", "united kingdom", "united states",
+]);
+
+const sinAcentos = (valor: string) =>
+  valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Extrae el nombre de ciudad de los formatos de ubicación habituales. */
+export function ciudadDeUbicacion(valor: string | null | undefined): string {
+  const partes = (valor ?? "").trim().replace(/\s+/g, " ").split(",").map((p) => p.trim()).filter(Boolean);
+  if (!partes.length) return "";
+
+  const final = sinAcentos(partes.at(-1)!);
+  if (PAISES.has(final)) partes.pop();
+
+  for (const parte of partes) {
+    const conCodigoPostal = parte.match(/^\d{4,6}\s+(.+)$/);
+    if (conCodigoPostal) return conCodigoPostal[1].trim();
+  }
+
+  const indicePostal = partes.findIndex((parte) => /^\d{4,6}$/.test(parte) || /^[A-Z]{1,3}\s+\d{4,6}$/i.test(parte));
+  if (indicePostal > 0) return partes[indicePostal - 1];
+
+  return partes.at(-1) ?? "";
+}
+
 /** Ciudades registradas en eventos o torneos, sin duplicados por mayúsculas/espacios. */
 export function ciudadesPresentes(valores: Array<string | null | undefined>): string[] {
   const ciudades = new Map<string, string>();
   for (const valor of valores) {
-    const ciudad = valor?.trim().replace(/\s+/g, " ");
+    const ciudad = ciudadDeUbicacion(valor);
     if (!ciudad) continue;
-    const clave = ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const clave = sinAcentos(ciudad);
     if (!ciudades.has(clave)) ciudades.set(clave, ciudad);
   }
   return [...ciudades.values()].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 }
 
-/** Resuelve una ciudad de la URL solo si sigue existiendo en los datos. */
+/** Conserva el texto de búsqueda libre de la URL, normalizando espacios. */
 export function parseCiudad(
   raw: string | string[] | null | undefined,
-  disponibles: string[],
 ): string {
   const valor = (Array.isArray(raw) ? raw[0] : raw)?.trim();
-  if (!valor) return "";
-  const clave = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return disponibles.find((ciudad) =>
-    ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === clave,
-  ) ?? "";
+  return valor?.replace(/\s+/g, " ") ?? "";
 }
 
-/** Sin ciudad elegida pasa todo; de lo contrario compara sin acentos ni diferencias de caja. */
+/** Filtra por texto contenido en la ciudad; no distingue acentos ni mayúsculas. */
 export function pasaCiudad(filtro: string, ciudad: string | null | undefined): boolean {
-  if (!filtro) return true;
-  if (!ciudad?.trim()) return false;
-  const clave = (valor: string) =>
-    valor.trim().replace(/\s+/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return clave(filtro) === clave(ciudad);
+  const busqueda = sinAcentos(filtro.trim().replace(/\s+/g, " "));
+  if (!busqueda) return true;
+  const normalizada = ciudadDeUbicacion(ciudad);
+  return Boolean(normalizada) && sinAcentos(normalizada).includes(busqueda);
 }

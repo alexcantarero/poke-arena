@@ -10,6 +10,7 @@ import {
 } from "@/lib/calendar";
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
+import { CityPicker } from "@/components/CityPicker";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
@@ -89,7 +90,7 @@ export default async function CalendarPage({
     ...datos.events.filter((e) => e.tournamentKind !== "online").map((e) => e.location),
     ...datos.tournaments.filter((t) => t.kind !== "online" && t.scope !== "online").map((t) => t.city),
   ]);
-  const ciudad = parseCiudad(q.ciudad, ciudades);
+  const ciudad = parseCiudad(q.ciudad);
   /** v0.16 — Calendario (rejilla del mes) o Agenda (lista grande de lo que viene). */
   const vista: "calendario" | "agenda" = q.vista === "agenda" ? "agenda" : "calendario";
 
@@ -299,10 +300,7 @@ export default async function CalendarPage({
               {vista === "agenda" && <input type="hidden" name="vista" value="agenda" />}
               <label className="flex min-w-48 flex-col gap-1">
                 <span className="label">{tr(lng, "cal.ciudad")}</span>
-                <select className="input" name="ciudad" defaultValue={ciudad}>
-                  <option value="">{tr(lng, "cal.todasCiudades")}</option>
-                  {ciudades.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
-                </select>
+                <CityPicker name="ciudad" options={ciudades} defaultValue={ciudad} />
               </label>
               <button className="btn btn-sm" type="submit">{tr(lng, "cal.aplicarFiltro")}</button>
             </form>

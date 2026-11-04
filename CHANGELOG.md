@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.98.0] — 2026-11-04
+
+### Cambiado
+
+- **Filtro de ciudad del calendario**: se puede escribir para buscar y elegir entre las ciudades
+  presentes en los eventos, o escribir cualquier término para incluir las ubicaciones cuya ciudad
+  lo contenga. La búsqueda no distingue mayúsculas ni acentos.
+
 ## [0.97.0] — 2026-11-04
 
 ### Cambiado
