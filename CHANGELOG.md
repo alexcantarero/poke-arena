@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.100.0] — 2026-11-04
+
+### Cambiado
+
+- **Progreso de Poké Ball en el perfil**: se sustituye la barra y el porcentaje separado por un
+  porcentaje compacto debajo del icono. Se mantienen los puntos que faltan para el siguiente nivel.
+
 ## [0.99.0] — 2026-11-04
 
 ### Cambiado
