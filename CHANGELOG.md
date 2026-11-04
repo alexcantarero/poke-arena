@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.104.0] — 2026-11-04
+
+### Cambiado
+
+- **Ranking**: Camino al Mundial y Ladder muestran cinco personas inicialmente, con opción para
+  desplegar el resto.
+- **Gráficas de evolución**: los selectores priorizan las series visibles, indican cuántas hay
+  activas y reducen los puntos para facilitar la lectura cuando se muestran muchas personas.
+
 ## [0.103.0] — 2026-11-04
 
 ### Cambiado

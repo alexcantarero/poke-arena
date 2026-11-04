@@ -21,6 +21,7 @@ import { TournamentRankingTable, type TourRankRow } from "@/components/Tournamen
 import { RankingTodoTable, type TodoRow } from "@/components/RankingTodoTable";
 import { H2HHeatmap } from "@/components/H2HHeatmap";
 import { Avatar, PageHead, PlayerTag, Sparkline } from "@/components/ui";
+import { VerMas } from "@/components/VerMas";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
 import { LadderTable } from "@/components/Ladder";
 import { ladderStandings } from "@/lib/rank";
@@ -505,8 +506,8 @@ export default async function RankingPage({
           )}
         </div>
         {zona.length ? (
-          <ol className="divide-y divide-line-soft">
-            {zona.map((p, i) => {
+          <VerMas
+            items={zona.map((p, i) => {
               const e = estadoMundial(p.rankEurope, plazas);
               /* La línea se dibuja entre el último que está dentro y el
                  primero que está fuera (o sin puesto). */
@@ -559,7 +560,11 @@ export default async function RankingPage({
                 </li>
               );
             })}
-          </ol>
+            n={5}
+            mas={(n) => trf(lang, "vm.mas", { n })}
+            menos={tr(lang, "vm.menos")}
+            envolver={(items) => <ol className="divide-y divide-line-soft">{items}</ol>}
+          />
         ) : (
           <p className="px-4 py-6 text-center text-sm text-muted">{tr(lang, "fav.empty")}</p>
         )}

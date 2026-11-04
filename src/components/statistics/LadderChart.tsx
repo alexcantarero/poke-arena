@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
@@ -65,6 +65,11 @@ export function LadderChart({
       return n;
     });
 
+  const seriesOrdenadas = [...series].sort((a, b) =>
+    Number(elegidos.has(b.id)) - Number(elegidos.has(a.id))
+    || (b.actual ?? -1) - (a.actual ?? -1)
+    || a.name.localeCompare(b.name, lng === "en" ? "en" : "es"),
+  );
   const visiblesBase = series.filter((s) => elegidos.has(s.id));
   // Eje por orden de partida: la etiqueta es la fecha de esa partida.
   const fechaDe = useMemo(() => new Map(fechas ?? []), [fechas]);
@@ -140,18 +145,22 @@ export function LadderChart({
 
   return (
     <div className="px-3 pb-3 pt-2 xs:px-4">
-      <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
-        {series.map((s) => {
+      <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
+        {seriesOrdenadas.map((s) => {
           const on = elegidos.has(s.id);
           return (
             <button key={s.id} type="button" onClick={() => alternar(s.id)} aria-pressed={on}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity
-                ${on ? "border-line bg-surface-2" : "border-line-soft opacity-50"}`}>
+              className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity
+                ${on ? "bg-surface-2 text-ink shadow-xs" : "border-line-soft text-muted opacity-60"}`}
+              style={on ? { borderColor: s.color } : undefined}>
               <span className="size-2.5 flex-none rounded-full" style={{ background: s.color }} />
               {s.name}
             </button>
           );
         })}
+        <span className="ml-auto text-[11px] text-muted tabular">
+          {trf(lng, "elo.seleccionadas", { n: visiblesBase.length, total: series.length })}
+        </span>
         <button type="button" className="text-xs font-semibold text-info hover:underline"
           onClick={() => setElegidos(new Set(series.map((s) => s.id)))}>{tr(lng, "x.a4114a83")}</button>
         <button type="button" className="text-xs font-semibold text-muted hover:underline"
@@ -209,7 +218,7 @@ export function LadderChart({
               ))}
               {visibles.map((s) => (
                 <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "stepAfter"} /* v0.51: un rango se mantiene hasta que se cambia; la curva suavizada se inventaba una caída gradual */
-                  stroke={s.color} strokeWidth={2.25} dot={{ r: 3 }} activeDot={{ r: 5 }}
+                  stroke={s.color} strokeWidth={2.5} dot={visibles.length <= 3 ? { r: 2 } : false} activeDot={{ r: 4 }}
                   connectNulls={false} isAnimationActive={false} />
               ))}
             </LineChart>
@@ -223,4 +232,3 @@ export function LadderChart({
     </div>
   );
 }
-

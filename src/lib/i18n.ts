@@ -1763,6 +1763,7 @@ const ES = {
   // v0.76
   "vm.mas": "Ver {n} más",
   "vm.menos": "Ver menos",
+  "elo.seleccionadas": "{n} de {total} personas visibles",
   "mull.titulo": "Mulligans",
   "mull.ninguno": "ninguno",
   "mull.aria": "{n} mulligans de {nombre}",
@@ -3903,6 +3904,7 @@ const EN: Record<I18nKey, string> = {
   // v0.76
   "vm.mas": "Show {n} more",
   "vm.menos": "Show less",
+  "elo.seleccionadas": "{n} of {total} players shown",
   "mull.titulo": "Mulligans",
   "mull.ninguno": "none",
   "mull.aria": "{n} mulligans for {nombre}",

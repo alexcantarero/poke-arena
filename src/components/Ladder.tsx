@@ -8,8 +8,9 @@ import {
 } from "@/lib/rank";
 import type { PublicPlayer } from "@/lib/types";
 import { Avatar } from "./ui";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { VerMas } from "@/components/VerMas";
 
 /* =========================================================================
    El ladder manual: el rango que cada uno se pone a mano para picarse.
@@ -181,30 +182,35 @@ export function LadderTable({
       </p>
     );
   }
+  const items = rows.map(({ player, rank, position }) => (
+    <li
+      key={player.id}
+      data-tier={rank.tier.id}
+      className={`tier-row flex items-center gap-3 border-l-[3px] px-4 py-2.5
+        ${player.id === meId ? "bg-surface-2" : ""}`}
+    >
+      <span className="w-5 flex-none text-center font-display text-lg font-extrabold tabular text-muted">
+        {position}
+      </span>
+      <Link href={`/perfil/${player.id}`} className="flex min-w-0 flex-1 items-center gap-3 hover:text-info">
+        <Avatar player={player} size="sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{player.name}</span>
+          {player.ladderNote && (
+            <span className="block truncate text-[11px] text-muted">{player.ladderNote}</span>
+          )}
+        </span>
+      </Link>
+      <RankBadge elo={rank.elo} size="sm" />
+    </li>
+  ));
   return (
-    <ol className="divide-y divide-line-soft">
-      {rows.map(({ player, rank, position }) => (
-        <li
-          key={player.id}
-          data-tier={rank.tier.id}
-          className={`tier-row flex items-center gap-3 border-l-[3px] px-4 py-2.5
-            ${player.id === meId ? "bg-surface-2" : ""}`}
-        >
-          <span className="w-5 flex-none text-center font-display text-lg font-extrabold tabular text-muted">
-            {position}
-          </span>
-          <Link href={`/perfil/${player.id}`} className="flex min-w-0 flex-1 items-center gap-3 hover:text-info">
-          <Avatar player={player} size="sm" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold">{player.name}</span>
-            {player.ladderNote && (
-              <span className="block truncate text-[11px] text-muted">{player.ladderNote}</span>
-            )}
-          </span>
-          </Link>
-          <RankBadge elo={rank.elo} size="sm" />
-        </li>
-      ))}
-    </ol>
+    <VerMas
+      items={items}
+      n={5}
+      mas={(n) => trf(lng, "vm.mas", { n })}
+      menos={tr(lng, "vm.menos")}
+      envolver={(children) => <ol className="divide-y divide-line-soft">{children}</ol>}
+    />
   );
 }
