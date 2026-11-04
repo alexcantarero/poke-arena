@@ -429,7 +429,7 @@ export default async function TournamentPage({
              esa ronda. Misma acción y mismos permisos que en la liga. */
           resultadoRapido: canEditPlayerRounds && r.match.games.length === 0 && r.match.seriesResult == null ? (
             <form action={resultadoRapido} className="flex flex-wrap items-center gap-1.5">
-              <input type="hidden" name="id" value={r.match.id} />
+              <input type="hidden" name="partida" value={r.match.id} />
               <input type="hidden" name="volver" value={`/torneos/${t.id}`} />
               {marcadoresDe(r.match.bestOf).map(([a, b]) => (
                 <button key={`${a}-${b}`} type="submit" name="marcador" value={`${a}-${b}`}

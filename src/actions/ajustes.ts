@@ -16,6 +16,8 @@ import {
   msj,
 } from "./_comun";
 import { notificarAgendaSemana, notificarPendientesLiga, probarCanal } from "@/lib/discord";
+import { leerCifra } from "@/lib/usoLimites";
+import { guardarLectura } from "@/lib/usoDb";
 
 /**
  * Empezar el Elo de cero desde hoy.
@@ -256,3 +258,32 @@ export async function probarDiscord(fd: FormData) {
     : false;
   redirect(withFlash("/ajustes#discord", ok ? "ok" : "error", await msj(ok ? "dc.enviado" : "dc.noEnviado")));
 }
+
+/**
+ * v0.95 — Apuntar las cifras del panel Usage de Vercel (Ajustes → Uso).
+ *
+ * Vercel Hobby no tiene API de uso, así que la cifra real se copia a mano una
+ * vez al mes (o cuando se quiera). Se guarda como lectura del día: apuntar dos
+ * veces el mismo día sustituye la anterior. Solo organizadores, y solo
+ * números: lo que no se entienda como cifra se queda vacío, no a cero.
+ */
+export async function guardarLecturaVercel(fd: FormData) {
+  const actor = await requireManager();
+  const datos = {
+    invocaciones: leerCifra(str(fd, "invocaciones"), true),
+    cpuHoras: leerCifra(str(fd, "cpuHoras")),
+    memoriaGBh: leerCifra(str(fd, "memoriaGBh")),
+    transferenciaGB: leerCifra(str(fd, "transferenciaGB")),
+  };
+  if (Object.values(datos).every((v) => v == null)) {
+    redirect(withFlash("/ajustes/uso#vercel", "error", await msj("uso.v.vacio")));
+  }
+  const fecha = isoDate(fd, "fecha") ?? todayISO();
+  try {
+    await guardarLectura(fecha, "vercel", datos, actor.id);
+  } catch {
+    redirect(withFlash("/ajustes/uso#vercel", "error", await msj("uso.v.sinTabla")));
+  }
+  redirect(withFlash("/ajustes/uso", "ok", await msj("uso.v.guardado")));
+}
+

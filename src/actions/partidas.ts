@@ -6,7 +6,7 @@
 import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, competitions, games, matches } from "@/db/schema";
+import { archetypes, competitions, games, matches, tournaments } from "@/db/schema";
 import { validarMazosPorJuego } from "@/lib/juegosMazos";
 import { asModalidad } from "@/lib/modalidades";
 import { canManageLeague } from "@/lib/auth";
@@ -234,12 +234,24 @@ export async function deleteMatch(fd: FormData) {
  */
 export async function resultadoRapido(fd: FormData) {
   const actor = await requireActor();
-  const id = str(fd, "id");
+  /* v0.95 — el id de la partida viaja como «partida», NO como «id». Un campo
+     llamado `id` tapa la propiedad `form.id` del formulario, y React 19 usa
+     `form.id` al copiar el botón pulsado: el `marcador` no llegaba nunca y todo
+     toque acababa en «Falta el resultado». «id» se sigue leyendo por si queda
+     una pestaña abierta con la versión anterior. */
+  const id = str(fd, "partida") || str(fd, "id");
   const volver = str(fd, "volver").startsWith("/") ? str(fd, "volver") : "/resultados";
   const m = (await db.select().from(matches).where(eq(matches.id, id)))[0];
   if (!m) redirect(withFlash(volver, "error", await msj("rr.noExiste")));
   const suya = m.playerAId === actor.id || m.playerBId === actor.id || m.createdBy === actor.id;
   if (!suya && !canManageLeague(actor.role)) redirect(withFlash(volver, "error", await msj("rr.sinPermiso")));
+  /* v0.95 — la misma puerta que borrar o apuntar una ronda: en un torneo
+     cerrado solo corrige un organizador. La ficha ya escondía los botones,
+     pero una Server Action es un endpoint público. */
+  if (m.tournamentId && !canManageLeague(actor.role)) {
+    const tour = (await db.select({ status: tournaments.status }).from(tournaments).where(eq(tournaments.id, m.tournamentId)))[0];
+    if (!tour || tour.status !== "open") redirect(withFlash(volver, "error", await msj("rr.sinPermiso")));
+  }
   const r = leerMarcador(str(fd, "marcador"), m.bestOf);
   if (!r) {
     /* v0.71 — diagnóstico: qué llegó (solo los NOMBRES de los campos y el
@@ -249,7 +261,11 @@ export async function resultadoRapido(fd: FormData) {
     redirect(withFlash(volver, "error", await msj("rr.faltaResultado")));
   }
 
-  const correccion = m.status === "done";
+  /* v0.95 — «corrección» es que YA tuviera resultado. Las rondas de torneo se
+     guardan siempre como `done`, aunque estén sin resultado: con el criterio
+     viejo, la primera vez salía «Resultado corregido». */
+  const yaJuegos = (await db.select({ n: games.matchId }).from(games).where(eq(games.matchId, id)).limit(1)).length > 0;
+  const correccion = m.status === "done" && (yaJuegos || m.seriesResult != null);
   await db.delete(games).where(eq(games.matchId, id));
   if (r !== "empate") {
     await db.insert(games).values(secuenciaDe(r.a, r.b).map((winner, i) => ({

@@ -15,6 +15,7 @@
 | **12** | [Antigravity y entornos dev/prod](12-antigravity.md) | Quien desarrolle con un agente |
 | **13** | [Plan de rendimiento](13-plan-rendimiento.md) | **Obligatorio antes de tocar `data.ts`** |
 | **14** | [Datos y visualización](14-datos-y-visualizacion.md) | Qué capturar y con qué pintarlo |
+| **15** | [Uso real de Vercel y Neon](15-uso-vercel-neon.md) | De dónde sale cada cifra del panel de uso y cómo configurarlo |
 
 ---
 

@@ -30,6 +30,7 @@ import type { MetaPreview, MetaPreviewRow } from "@/lib/types";
 import { coverageOf, type ParseResult, type PasteMode } from "@/lib/standings";
 import { getLang } from "@/lib/lang";
 import { tr, trf, type I18nKey } from "@/lib/i18n";
+import { columnasPlayers, conReservaDeColumnas, type ModoColumnas } from "@/lib/esquemaDb";
 
 /* =========================================================================
    Server Actions.
@@ -157,7 +158,10 @@ export function safeBack(fd: FormData, dflt: string): string {
 export async function requireActor() {
   const session = await readSession();
   if (!session) redirect("/entrar");
-  const rows = await db.select().from(players).where(eq(players.id, session.playerId));
+  // v0.96 — con reserva de columnas: una migración pendiente no impide actuar.
+  const { playerId } = session;
+  const consulta = (modo: ModoColumnas) => db.select(columnasPlayers(modo)).from(players).where(eq(players.id, playerId));
+  const rows = await conReservaDeColumnas<Awaited<ReturnType<typeof consulta>>[number]>(consulta);
   const actor = rows[0];
   // v0.67 — y que la sesión no sea de antes de un cambio de contraseña.
   if (!actor || !actor.active || !sesionVigente(session.version, actor.sessionVersion)) {

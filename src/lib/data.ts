@@ -20,6 +20,7 @@ import { deckArchetypeIndex, eloTable, isPlayed, standings } from "./stats";
 import { filasAPedir, planDeConsulta, TOPE_SIN_PAGINAR, type FiltroConsultable, type PlanDeConsulta } from "./matchQuery";
 import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
+import { columnasSegun, conReservaDeColumnas, type ModoColumnas } from "./esquemaDb";
 
 export type Snapshot = Awaited<ReturnType<typeof loadSnapshot>>;
 
@@ -98,7 +99,9 @@ export const loadConfig = cache(async (): Promise<Settings> => {
  * ni `email` ni `passwordHash` salen de aquí.
  */
 export const loadPlayers = cache(async (): Promise<PublicPlayer[]> =>
-  db.select(PUBLIC_PLAYER_COLUMNS).from(players).orderBy(asc(players.name)));
+  // v0.96 — si falta una columna nueva (migración sin aplicar), sin ella.
+  conReservaDeColumnas<PublicPlayer>((modo) =>
+    db.select(columnasSegun(PUBLIC_PLAYER_COLUMNS, modo)).from(players).orderBy(asc(players.name))));
 
 /** Solo los arquetipos, por nombre. */
 export const loadArchetypes = cache(async () =>
@@ -405,8 +408,12 @@ export function playerCp(snap: DatosCp, playerId: string, season?: number): CpTo
 export const currentPlayer = cache(async (): Promise<PublicPlayer | null> => {
   const session = await readSession();
   if (!session) return null;
-  const rows = await db.select({ ...PUBLIC_PLAYER_COLUMNS, versionSesion: players.sessionVersion }).from(players)
-    .where(eq(players.id, session.playerId));
+  // v0.96 — con reserva: el 4/11 una columna sin migrar tumbaba TODA la app aquí.
+  const { playerId } = session;
+  const consulta = (modo: ModoColumnas) =>
+    db.select({ ...columnasSegun(PUBLIC_PLAYER_COLUMNS, modo), versionSesion: players.sessionVersion }).from(players)
+      .where(eq(players.id, playerId));
+  const rows = await conReservaDeColumnas<Awaited<ReturnType<typeof consulta>>[number]>(consulta);
   const fila = rows[0];
   if (!fila?.active) return null;
   /* v0.67 — una sesión emitida antes de cambiar o recuperar la contraseña ya

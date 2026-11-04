@@ -788,3 +788,24 @@ export const matchupImports = pgTable("matchup_imports", {
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * v0.95 — Lecturas de uso del plan gratuito, una por día y fuente.
+ *
+ *   · `neon`: la escribe el cron diario si hay NEON_API_KEY y NEON_PROJECT_ID
+ *     (cómputo, tráfico y almacenamiento del periodo). Neon no guarda historia
+ *     en el plan gratuito: sin esta tabla no habría con qué dibujar el mes.
+ *   · `vercel`: la apunta a mano un organizador copiando el panel Usage de
+ *     Vercel. El plan Hobby no tiene API de uso.
+ *
+ * `datos` son métricas sueltas (números); el día manda: apuntar dos veces el
+ * mismo día sustituye la lectura. Ningún dato personal.
+ */
+export const usoLecturas = pgTable("uso_lecturas", {
+  id: text("id").primaryKey(),
+  fecha: date("fecha").notNull(),
+  fuente: text("fuente").notNull(),
+  datos: jsonb("datos").$type<Record<string, number | string | null>>().notNull().default({}),
+  createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("uso_lecturas_dia_fuente_idx").on(t.fecha, t.fuente)]);

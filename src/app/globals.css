@@ -1876,3 +1876,9 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 @media (prefers-reduced-motion: reduce) {
   .huevo-sprites img, .missingno, .missingno-texto::before, .missingno-texto::after, .ditto, .variocolor::after { animation: none; }
 }
+
+/* v0.95 — Los Rotom del panel de uso flotan un poco (el movimiento global ya
+   respeta «reducir movimiento» y el ajuste de animaciones). */
+.rotom-flota { animation: rotom-flota 3.2s ease-in-out infinite; }
+.rotom-flota-2 { animation: rotom-flota 3.2s ease-in-out -1.6s infinite; }
+@keyframes rotom-flota { 50% { transform: translateY(-4px) rotate(-3deg); } }

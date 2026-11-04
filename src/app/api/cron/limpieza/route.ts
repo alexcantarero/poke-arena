@@ -5,6 +5,7 @@ import { borrarTorneosAbandonados, cerrarTorneosTerminados, abrirTorneosDelDia }
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
 import { esLunesEnMadrid } from "@/lib/discordMensajes";
+import { guardarLecturaNeonDeHoy } from "@/lib/usoDb";
 
 /* =========================================================================
    GET /api/cron/limpieza — v0.19.
@@ -45,6 +46,11 @@ export async function GET(req: NextRequest) {
   if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
   // v0.89 — los borradores cuya fecha ha llegado, a «En curso».
   await abrirTorneosDelDia(ahora.toISOString().slice(0, 10));
+  /* v0.95 — la foto diaria de Neon para el panel de uso (Ajustes → Uso). Neon
+     no guarda historia en el plan gratuito; así se puede dibujar el mes. Es la
+     API de control: no despierta la base. Sin las variables, no hace nada. */
+  let usoNeon = false;
+  try { usoNeon = await guardarLecturaNeonDeHoy(); } catch { /* sin la migración 0029 o Neon caído: mañana */ }
   // v0.85 — lo que ha escrito el cron, visible ya (sin esperar a que caduque la caché).
   revalidateTag("datos"); revalidateTag("meta");
   return NextResponse.json({
@@ -52,5 +58,6 @@ export async function GET(req: NextRequest) {
     cerrados: cerrados.length, torneosCerrados: cerrados.map((t) => t.name),
     series,
     discord,
+    usoNeon,
   });
 }

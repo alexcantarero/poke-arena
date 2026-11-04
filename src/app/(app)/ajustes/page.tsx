@@ -29,6 +29,7 @@ import { type Lang, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { estadoDiscord } from "@/lib/discord";
 import { probarDiscord } from "@/actions/ajustes";
+import { AccesoUso } from "@/components/uso/AccesoUso";
 
 export const metadata = { title: "Ajustes" };
 
@@ -137,14 +138,9 @@ export default async function SettingsPage() {
             <span className="tabular">{snap.tournaments.length} {tr(lng, "v63.torneosMin")}</span>
             <span>{snap.config.season}</span>
           </p>
-          {/* v0.86 — uso y límites del plan gratuito (solo organizadores). */}
-          <Link href="/ajustes/uso" className="card mb-4 flex items-center justify-between gap-3 px-4 py-3 text-sm hover:ring-1 hover:ring-info/50">
-            <span>
-              <span className="block font-semibold">{tr(lng, "uso.titulo")}</span>
-              <span className="block text-xs text-muted">{tr(lng, "uso.enlace")}</span>
-            </span>
-            <span aria-hidden="true">→</span>
-          </Link>
+          {/* v0.86 — uso y límites del plan gratuito (solo organizadores).
+              v0.95 — tarjeta grande con los Rotom y los medidores. */}
+          <AccesoUso lng={lng} />
 
           <Grupo id="jugadores" titulo={tr(lng, "x.b5291b8d")} aside={`${snap.players.length} en total`}>
           <PlayerAdmin
@@ -728,6 +724,8 @@ function AjustesMenu({ manager, owner, lng }: { manager: boolean; owner: boolean
         <a href="/glosario" className="chip flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-2 lg:py-1.5 lg:hover:bg-surface-2">{tr(lng, "glo.enlace")}</a>
         {organizar.length > 0 && <span className="label hidden lg:mb-1 lg:mt-4 lg:block">{tr(lng, "aj.bloqueOrganizar")}</span>}
         {organizar.map(enlace)}
+        {/* v0.95 — el panel de uso, también desde el menú de secciones. */}
+        {manager && <a href="/ajustes/uso" className="chip chip-brand flex-none whitespace-nowrap lg:w-full lg:justify-start lg:whitespace-normal lg:text-left lg:leading-snug lg:rounded-lg lg:px-2 lg:py-1.5">{tr(lng, "uso.menu")}</a>}
       </div>
     </nav>
   );

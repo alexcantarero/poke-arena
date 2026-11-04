@@ -138,6 +138,10 @@ const TRADUCIDAS = [
   "src/components/statistics/LastEvent.tsx",
   "src/components/statistics/SortToggle.tsx",
   "src/components/statistics/SourceTabs.tsx",
+  // v0.95 — el panel de uso, traducido entero.
+  "src/app/(app)/ajustes/uso/page.tsx",
+  "src/components/uso/AccesoUso.tsx",
+  "src/components/uso/GraficosUso.tsx",
 ];
 
 /* Lo que no es texto que traducir: nombres de marca, siglas, símbolos. */

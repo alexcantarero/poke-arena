@@ -48,13 +48,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const conIngles = inglesDisponible();
   // v0.56 — la barra lateral plegada o no: la cookie se lee aquí para que la página llegue ya bien, sin parpadeo.
   const barraMini = (await cookies()).get("arena-barra")?.value === "mini";
-  const verTutorial = me ? await tutorialPendiente(me.id) : false; // v0.60
-  const paginasVistas = me ? await tutorialesVistos(me.id) : []; // v0.61
-  // v0.54 — mis partidas sin resultado: el número del menú.
-  const misPendientes = me ? await cargarPendientesDe(me.id) : [];
-  const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   if (!me) redirect("/entrar");
-  const ballUso = nivelDeUso(await usoLigeroDeJugador(me.id, me.logros));
+  /* v0.95 — las cuatro lecturas del jugador, A LA VEZ. Iban una detrás de otra
+     (tutorial v0.60, páginas vistas v0.61, pendientes v0.54 y la Ball de la
+     v0.94): cuatro viajes seguidos a Neon en CADA página. En paralelo, la espera
+     es la del más lento. */
+  const [verTutorial, paginasVistas, misPendientes, usoLigero] = await Promise.all([
+    tutorialPendiente(me.id), // v0.60
+    tutorialesVistos(me.id), // v0.61
+    cargarPendientesDe(me.id), // v0.54 — mis partidas sin resultado: el número del menú.
+    usoLigeroDeJugador(me.id, me.logros), // v0.94
+  ]);
+  const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
+  const ballUso = nivelDeUso(usoLigero);
 
   return (
     // v0.49 — el idioma, para que cualquier componente de cliente lo pida con

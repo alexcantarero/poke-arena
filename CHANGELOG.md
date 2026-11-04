@@ -2,6 +2,79 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.96.0] — 2026-11-04
+
+Que una migración sin aplicar no vuelva a tumbar la app. **Sin migración nueva.** Incluye la
+v0.95 (que lleva la `0029`).
+
+### Contexto
+
+El 4/11 producción (v0.94) daba error 500 en **todas** las pantallas con sesión: el código leía
+`players.profile_title` y la migración `0028` no estaba aplicada en la rama de producción de
+Neon. Ni los tests, ni `tsc`, ni el build pueden verlo.
+
+### Cambiado
+
+- **Lecturas del jugador con reserva** (`lib/esquemaDb.ts`): la sesión (`currentPlayer`),
+  entrar (`login`), `requireActor` y la lista de jugadores reconocen el error 42703 («la columna
+  no existe»), repiten la consulta sin las columnas nuevas y les ponen su valor por defecto. La
+  app sigue en pie; lo nuevo no se ve hasta migrar, y queda un aviso en el log de Vercel.
+
+### Añadido
+
+- **Estado de la base** en *Ajustes → Uso y límites*: compara lo que espera el código con lo
+  que hay en ESTA base (`information_schema`) y dice qué fichero de migración falta. La tarjeta
+  de Ajustes lo avisa en rojo.
+- `lib/esquemaEsperado.ts` (puro): la lista de columnas y tablas de las migraciones recientes,
+  `faltantes()`, `esColumnaQueFalta()` y `sinClaves()`. 6 pruebas, incluida «EL CASO DEL 4/11».
+  Suite: 682.
+
+## [0.95.0] — 2026-11-04
+
+Arreglo del resultado rápido, panel de uso rehecho con datos reales de Neon y Vercel, y un
+ajuste de rendimiento en el layout. **Con migración** (`drizzle/0029_v0_95_0.sql`).
+
+### Corregido
+
+- **Resultado rápido («1–0 / 0–1 / Empate por tiempo») siempre daba «Falta el resultado».** El
+  formulario llevaba un campo oculto `name="id"`, que en el DOM tapa la propiedad `form.id`;
+  React 19 usa `form.id` al copiar el botón pulsado y el `marcador` no llegaba. Pasaba en Inicio
+  (pendientes), en la ficha del torneo y en la de la liga. El campo se llama ahora `partida`; la
+  acción acepta los dos nombres por si queda una pestaña abierta con la versión anterior.
+  `tests/formularios.test.ts` impide que vuelva: ningún `<form>` con botones con `name` puede
+  llevar un campo que pise una propiedad del formulario.
+- El resultado rápido de una ronda de torneo decía «Resultado corregido» la primera vez (las
+  rondas se guardan siempre como `done`). Ahora solo es corrección si ya tenía resultado.
+- El resultado rápido no comprobaba que el torneo siguiera abierto (la ficha escondía los botones,
+  pero la acción es un endpoint público). Misma puerta que borrar una ronda.
+
+### Cambiado
+
+- **Layout**: las cuatro lecturas del jugador (tutorial, páginas vistas, pendientes y la Ball de la
+  v0.94) van en paralelo. Antes eran cuatro viajes seguidos a Neon en cada página.
+- **Límites del plan gratuito puestos al día**: Neon da **1 GB** de almacenamiento por proyecto
+  (era 0,5) y cuenta en GB decimales; se añade la **memoria provisionada de Vercel (360 GB·h)**.
+
+### Añadido
+
+- **Panel de uso rehecho** (`/ajustes/uso`): medidores circulares por límite con su Rotom (Calor
+  para la CPU, Lavado para el cómputo de Neon, Ventilador para el tráfico, Frío para el
+  almacenamiento, Corte para las invocaciones), curva del periodo de Neon con proyección a fin de
+  mes, actividad de 30 días por día y por hora, tablas en barras, despliegues de Vercel y qué
+  fuentes están conectadas. SVG pintado en el servidor, con resumen para lectores de pantalla.
+- **Lecturas guardadas** (`uso_lecturas`): el cron guarda cada noche la foto de Neon (cómputo,
+  horas encendida, tráfico, almacenamiento de las ramas e inicio del periodo); un formulario
+  guarda las cifras del panel *Usage* de Vercel, que en Hobby no tiene API.
+- **Acceso visible desde Ajustes**: tarjeta grande con tres Rotom y los medidores de la última
+  lectura, más un enlace en el menú de secciones. No llama a Neon ni a Vercel al abrir Ajustes.
+- `docs/15-uso-vercel-neon.md`: de dónde sale cada cifra y cómo configurar las variables.
+- Pruebas: `usoLimites` (11), `rotom` (2) y `formularios` (1). Suite: 676.
+
+### Migración
+
+- `drizzle/0029_v0_95_0.sql` (tabla `uso_lecturas`). Sin ella la app funciona; el panel no tiene
+  historia y guardar la lectura de Vercel avisa de que falta.
+
 ## [0.94.0] — 2026-11-04
 
 Mejoras del perfil: títulos, progreso de Ball, rareza de logros y acceso al desglose de CP.

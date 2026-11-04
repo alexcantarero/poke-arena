@@ -372,7 +372,7 @@ export default async function HomePage({
                       <span className="btn btn-brand btn-sm flex-none px-3">{tr(lang, "rr.apuntar")}</span>
                     </summary>
                     <form action={resultadoRapido} className="mt-2 flex flex-col gap-2 pb-1">
-                      <input type="hidden" name="id" value={m.id} />
+                      <input type="hidden" name="partida" value={m.id} />
                       <input type="hidden" name="volver" value="/" />
                       <div className="grid grid-cols-2 gap-2 xs:grid-cols-4">
                         {marcadoresDe(m.bestOf).map(([a, b]) => (

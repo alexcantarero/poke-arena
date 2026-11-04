@@ -21,6 +21,7 @@ import {
 import { anadirVisto } from "@/lib/tutorialesPagina";
 import { anadirLogro, CLAVES_LOGRO, tituloValido } from "@/lib/logros";
 import { loadSnapshot } from "@/lib/data";
+import { columnasPlayers, conReservaDeColumnas, type ModoColumnas } from "@/lib/esquemaDb";
 import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 import { caducidadRecuperacion, limpiarToken, type EstadoEnlace } from "@/lib/recuperacion";
 
@@ -32,7 +33,9 @@ export async function login(_prev: FormState, fd: FormData): Promise<FormState> 
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { email, password } = parsed.data;
 
-  const rows = await db.select().from(players).where(eq(players.email, email));
+  // v0.96 — con reserva de columnas: sin esto, una migración pendiente impedía hasta entrar.
+  const consulta = (modo: ModoColumnas) => db.select(columnasPlayers(modo)).from(players).where(eq(players.email, email));
+  const rows = await conReservaDeColumnas<Awaited<ReturnType<typeof consulta>>[number]>(consulta);
   const player = rows[0];
   const bad = { error: await msj("x.a38d41f7") };
 
