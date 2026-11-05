@@ -71,12 +71,14 @@ const RESULTS = [
 
 export function RoundForm({
   tournamentId, playerId, round, bestOf, rivalDecks, archetypeOptions, myDecks,
-  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo, jugador, probCruce = {},
+  lockedDeckId, existing, onCancel, maxRound, rivalPlayers = [], tipoTorneo, jugador, probCruce = {}, directo = false,
 }: {
   /** v0.63 — quien apunta la ronda, para su lado del panel de enfrentamiento. */
   jugador?: PublicPlayer;
   /** v0.90 — tu probabilidad contra cada líder rival (del recomendador). */
   probCruce?: Record<string, { p: number; n: number }>;
+  /** v0.108 — en el modo directo, al guardar se vuelve al modo directo. */
+  directo?: boolean;
   /** v0.62 — el tipo del torneo, para vestir la cinta de la ronda. */
   tipoTorneo?: string;
   tournamentId: string;
@@ -241,6 +243,7 @@ export function RoundForm({
         <span className="ml-auto flex-none tabular opacity-90">{trf(lng, "cinta.ronda", { n: round })} · Bo{bestOf}</span>
       </div>
       <input type="hidden" name="tournamentId" value={tournamentId} />
+      {directo && <input type="hidden" name="directo" value="1" />}
       <input type="hidden" name="playerId" value={playerId} />
       <input type="hidden" name="mode" value={mode} />
       {/* v0.34 — la lista de rivales era un muro: con 21 personas ocupaba siete

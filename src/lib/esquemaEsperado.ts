@@ -40,6 +40,7 @@ export const ESQUEMA_ESPERADO: readonly Requisito[] = [
   { tabla: "matchup_imports", columna: "id", migracion: "drizzle/0027_v0_79_0.sql", version: "0.79" },
   { tabla: "players", columna: "profile_title", migracion: "drizzle/0028_v0_94_0.sql", version: "0.94" },
   { tabla: "uso_lecturas", columna: "id", migracion: "drizzle/0029_v0_95_0.sql", version: "0.95" },
+  { tabla: "asistencias", columna: "estado", migracion: "drizzle/0030_v0_106_0.sql", version: "0.106" },
 ];
 
 /**

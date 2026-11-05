@@ -18,11 +18,14 @@ import { useLang } from "@/components/LangProvider";
    desde un Server Component, por eso este fichero existe.
    ========================================================================= */
 
-const Hueco = ({ alto = "h-64" }: { alto?: string }) => (
-  <div role="status" aria-label="Cargando gráfica">
-    <Skeleton className={`${alto} w-full`} />
-  </div>
-);
+function Hueco({ alto = "h-64" }: { alto?: string }) {
+  const lng = useLang(); // v0.108: traducido
+  return (
+    <div role="status" aria-label={tr(lng, "ui.cargandoGrafica")}>
+      <Skeleton className={`${alto} w-full`} />
+    </div>
+  );
+}
 
 export const LadderChartLazy = dynamic(
   () => import("./LadderChart").then((m) => m.LadderChart),

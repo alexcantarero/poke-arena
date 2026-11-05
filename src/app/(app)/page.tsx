@@ -8,6 +8,9 @@ import Link from "next/link";
 import { urlDeObjeto } from "@/lib/objetos";
 import { nivelDeUso } from "@/lib/logros";
 import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
+import { CelebrarNuevos } from "@/components/CelebrarNuevos";
+import { novedadesDeJugador } from "@/lib/novedadesJugador";
+import { TorneosEnDirecto } from "@/components/TorneosEnDirecto";
 import { readSession } from "@/lib/auth";
 import { resultadoRapido } from "@/actions";
 import { Bienvenida } from "@/components/Bienvenida";
@@ -337,8 +340,15 @@ export default async function HomePage({
     };
   }
 
+  /* v0.107 — medallas y títulos nuevos: celebración también desde el Inicio,
+     que es donde más se entra. Mismas claves que el perfil: no se repiten. */
+  const jugadorSesion = session?.playerId ? snap.playersById.get(session.playerId) : undefined;
+  const novedades = jugadorSesion ? novedadesDeJugador(snap, jugadorSesion, lang) : null;
+
   return (
     <>
+      {novedades && jugadorSesion && <CelebrarNuevos ambito={`medallas:${jugadorSesion.id}`} items={novedades.medallas} />}
+      {novedades && jugadorSesion && <CelebrarNuevos ambito={`titulos:${jugadorSesion.id}`} items={novedades.titulos} />}
       <PageHead
         gradient
         title={snap.config.name}
@@ -462,6 +472,10 @@ export default async function HomePage({
       </div>
 
 
+
+      {/* v0.108 — torneos que se juegan HOY y cómo va el grupo (ranking IRL).
+          Antes que el último Regional: un día de torneo es lo que se viene a mirar. */}
+      <TorneosEnDirecto snap={snap} meId={session?.playerId ?? null} lang={lang} />
 
       {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
       <UltimoRegional {...panel} lang={lang} />

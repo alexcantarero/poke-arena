@@ -35,6 +35,10 @@ import {
   LOGROS, etiquetasDe, leerLogros, nivelDeUso, popularidadLogros, tituloDePerfil, urlPokeApi,
 } from "@/lib/logros";
 import { urlDeObjeto } from "@/lib/objetos";
+import { BallConInfo } from "@/components/BallConInfo";
+import { CelebrarNuevos } from "@/components/CelebrarNuevos";
+import { novedadesDeJugador } from "@/lib/novedadesJugador";
+import type { CSSProperties } from "react";
 import { spriteUrl } from "@/lib/pokemon";
 import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 
@@ -163,6 +167,10 @@ export default async function ProfilePage({
   const avanceTitulo = avanceTitulosDeJugador(snap, id, badgeInput);
   const titulo = tituloDePerfil(player.profileTitle, player.logros, avanceTitulo);
 
+  /* v0.107 — medallas y títulos NUEVOS desde la última visita: celebración en
+     el cliente. Solo en tu perfil. */
+  const novedades = isMe ? novedadesDeJugador(snap, player, lng) : null;
+
   return (
     <>
       <div className="mb-5 flex flex-wrap items-start gap-4" data-paso="perfilGuia-1">
@@ -203,24 +211,33 @@ export default async function ProfilePage({
         ) : null}
       </div>
 
+      {novedades && <CelebrarNuevos ambito={`medallas:${player.id}`} items={novedades.medallas} />}
+      {novedades && <CelebrarNuevos ambito={`titulos:${player.id}`} items={novedades.titulos} />}
+
       {/* v0.65 — la Ball de uso y los logros secretos. */}
       <section className="card mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={urlDeObjeto(ballUso.nivel.ball)} alt="" width={56} height={56} className="ball-uso-img size-14 flex-none" />
+          {/* v0.106 — la Ball con su botón «i»: la escalera entera de Balls. */}
+          <BallConInfo ball={ballUso.nivel.ball} puntos={ballUso.puntos} alt={nombreBall} size={56} />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "logro.ballTitulo")}</p>
             <p className="font-display text-lg font-extrabold leading-tight">{nombreBall}</p>
+            {/* v0.106 — barra clara, gruesa, que se llena al entrar y brilla; el
+                porcentaje va DENTRO y la siguiente Ball en silueta al final. */}
             <div className="mt-2 flex items-center gap-2">
-              <div className="progreso-ball progreso-ball-perfil flex-1" role="progressbar"
+              <div className="progreso-ball-claro flex-1" role="progressbar"
                 aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ballUso.progreso * 100)}
                 aria-valuetext={`${Math.round(ballUso.progreso * 100)}% ${tr(lng, "logro.progreso")}`}
-                aria-label={`${nombreBall}${siguienteBall ? ` → ${siguienteBall}` : ""}`}>
-                <div className="progreso-ball-relleno" style={{ width: `${(ballUso.progreso * 100).toFixed(1)}%` }} />
+                aria-label={`${nombreBall}${siguienteBall ? ` → ${siguienteBall}` : ""}`}
+                style={{ "--p": `${(Math.max(0.03, ballUso.progreso) * 100).toFixed(1)}%` } as CSSProperties}>
+                <div className="relleno" />
+                <div className="marcas" aria-hidden="true" />
+                <span className="texto" aria-hidden="true">{Math.round(ballUso.progreso * 100)}%</span>
               </div>
-              <span className="perfil-ball-porcentaje">
-                {Math.round(ballUso.progreso * 100)}%
-              </span>
+              {ballUso.siguiente && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={urlDeObjeto(ballUso.siguiente.ball)} alt="" width={32} height={32} className="progreso-ball-siguiente" title={siguienteBall ?? undefined} />
+              )}
             </div>
             {ballUso.siguiente ? (
               <p className="mt-1 text-[11px] text-muted">

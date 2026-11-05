@@ -1895,3 +1895,130 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .rotom-flota { animation: rotom-flota 3.2s ease-in-out infinite; }
 .rotom-flota-2 { animation: rotom-flota 3.2s ease-in-out -1.6s infinite; }
 @keyframes rotom-flota { 50% { transform: translateY(-4px) rotate(-3deg); } }
+
+/* v0.106 — La celebración de logros: en medio, brillando, con fuegos. */
+.celebra {
+  position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 1.5rem;
+  background: radial-gradient(circle at 50% 45%, rgb(0 0 0 / .35), rgb(0 0 0 / .62));
+  animation: celebra-fondo .3s ease-out;
+}
+.celebra-lienzo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.celebra-tarjeta {
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
+  width: min(22rem, 100%); padding: 1.6rem 1.4rem 1.2rem; border-radius: 1.5rem; overflow: hidden;
+  background: radial-gradient(circle at 50% 0%, color-mix(in oklab, var(--brand) 26%, var(--surface)), var(--surface) 70%);
+  border: 2px solid color-mix(in oklab, var(--brand) 70%, white);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--brand) 18%, transparent), 0 0 60px 8px color-mix(in oklab, var(--brand) 45%, transparent), var(--shadow-3);
+  animation: celebra-entra .6s cubic-bezier(.2, .9, .3, 1.35), celebra-brillo 1.8s ease-in-out .6s infinite;
+}
+.celebra-rayos {
+  position: absolute; left: 50%; top: 3.6rem; width: 26rem; height: 26rem; translate: -50% -50%; z-index: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, color-mix(in oklab, var(--brand) 30%, transparent) 0 8deg, transparent 8deg 22deg);
+  mask-image: radial-gradient(circle, black 0 28%, transparent 62%);
+  animation: celebra-giro 9s linear infinite;
+}
+.celebra-img {
+  position: relative; z-index: 1; width: 6.5rem; height: 6.5rem; object-fit: contain; image-rendering: pixelated;
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--brand) 70%, transparent));
+  animation: celebra-salto 1.2s ease-in-out .5s infinite;
+}
+.celebra-etiqueta { position: relative; z-index: 1; margin-top: .5rem; font-size: .7rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--brand-strong); }
+.celebra-nombre { position: relative; z-index: 1; margin-top: .2rem; font-family: var(--font-display, inherit); font-size: 1.6rem; font-weight: 900; line-height: 1.1; color: var(--ink); }
+.celebra-tarjeta .btn { position: relative; z-index: 1; }
+.celebra[data-mov="false"] .celebra-tarjeta,
+.celebra[data-mov="false"] .celebra-rayos,
+.celebra[data-mov="false"] .celebra-img { animation: none; }
+@keyframes celebra-fondo { from { opacity: 0; } }
+@keyframes celebra-entra { 0% { opacity: 0; transform: scale(.4) rotate(-6deg); } 70% { opacity: 1; transform: scale(1.06) rotate(1deg); } 100% { transform: none; } }
+@keyframes celebra-brillo { 50% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--brand) 26%, transparent), 0 0 90px 18px color-mix(in oklab, var(--brand) 60%, transparent), var(--shadow-3); } }
+@keyframes celebra-giro { to { rotate: 360deg; } }
+@keyframes celebra-salto { 50% { transform: translateY(-6px) scale(1.04); } }
+
+/* v0.106 — La barra de progreso de la Ball: clara, gruesa, que se llena al
+   entrar y con un brillo que la recorre. `--p` es el porcentaje. */
+.progreso-ball-claro {
+  position: relative; height: 1.15rem; overflow: hidden; border-radius: 9999px;
+  background: color-mix(in oklab, var(--brand) 10%, var(--surface-2));
+  border: 1px solid color-mix(in oklab, var(--brand) 40%, var(--line));
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / .12);
+}
+.progreso-ball-claro .relleno {
+  position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); border-radius: inherit; overflow: hidden;
+  background: linear-gradient(90deg, #f7b733, #ffd86b 60%, #fff3c4);
+  box-shadow: 0 0 10px rgb(247 183 51 / .55), inset 0 1px 0 rgb(255 255 255 / .7);
+  animation: progreso-llena 1.4s cubic-bezier(.2, .8, .2, 1) both;
+}
+.progreso-ball-claro .relleno::after {
+  content: ""; position: absolute; inset: 0; translate: -100% 0;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / .75) 50%, transparent 80%);
+  animation: progreso-brillo 2.6s ease-in-out 1.4s infinite;
+}
+.progreso-ball-claro .marcas {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), color-mix(in oklab, var(--ink) 12%, transparent) calc(10% - 1px) 10%);
+}
+.progreso-ball-claro .texto {
+  position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 900;
+  letter-spacing: .04em; color: #3a2a00; text-shadow: 0 1px 0 rgb(255 255 255 / .6); font-variant-numeric: tabular-nums;
+}
+.progreso-ball-siguiente { width: 2rem; height: 2rem; flex: none; image-rendering: pixelated; object-fit: contain; opacity: .55; filter: grayscale(.6); }
+@keyframes progreso-llena { from { width: 0; } }
+@keyframes progreso-brillo { 0% { translate: -100% 0; } 60%, 100% { translate: 100% 0; } }
+
+/* v0.106 — Info de la Poké Ball en el perfil y la escalera de Balls. */
+.ball-info { position: relative; flex: none; }
+.ball-info-boton {
+  position: absolute; right: -.35rem; bottom: -.35rem; display: grid; place-items: center;
+  width: 1.6rem; height: 1.6rem; border-radius: 9999px; font-size: .8rem; font-weight: 900;
+  background: var(--surface); color: var(--info); border: 1px solid color-mix(in oklab, var(--info) 55%, var(--line));
+  box-shadow: var(--shadow-2); opacity: 0; scale: .7; transition: opacity .18s, scale .18s;
+}
+.ball-info:hover .ball-info-boton, .ball-info:focus-within .ball-info-boton, .ball-info[data-abierto="true"] .ball-info-boton { opacity: 1; scale: 1; }
+@media (pointer: coarse) { .ball-info-boton { opacity: 1; scale: 1; } }
+.balls-dialogo {
+  width: min(40rem, calc(100vw - 1.5rem)); max-height: calc(100dvh - 2rem); padding: 0; border: 0; border-radius: 1.4rem;
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-3);
+}
+.balls-dialogo::backdrop { background: rgb(0 0 0 / .6); backdrop-filter: blur(3px); }
+.balls-dialogo[open] { animation: celebra-entra .45s cubic-bezier(.2, .9, .3, 1.2); }
+.balls-cabecera {
+  position: sticky; top: 0; z-index: 2; padding: 1.1rem 1.2rem .9rem; text-align: center;
+  background: radial-gradient(circle at 50% -20%, color-mix(in oklab, var(--brand) 35%, var(--surface)), var(--surface) 75%);
+  border-bottom: 1px solid var(--line-soft);
+}
+.balls-lista { position: relative; display: grid; gap: .35rem; padding: 1rem 1rem 1.2rem 2.4rem; }
+.balls-lista::before {
+  content: ""; position: absolute; left: 1.35rem; top: 1.4rem; bottom: 1.6rem; width: 3px; border-radius: 3px;
+  background: linear-gradient(to bottom, var(--color-win), var(--brand) var(--hasta, 0%), var(--line) var(--hasta, 0%));
+}
+.balls-fila {
+  position: relative; display: flex; align-items: center; gap: .7rem; padding: .35rem .6rem; border-radius: .9rem;
+  border: 1px solid transparent; opacity: 0; animation: balls-aparece .35s ease-out both; animation-delay: calc(var(--i) * 28ms);
+}
+.balls-fila::before {
+  content: ""; position: absolute; left: -1.33rem; top: 50%; width: .7rem; height: .7rem; translate: 0 -50%; border-radius: 9999px;
+  background: var(--line); border: 2px solid var(--surface);
+}
+.balls-fila[data-estado="hecha"]::before { background: var(--color-win); }
+.balls-fila[data-estado="actual"] {
+  background: color-mix(in oklab, var(--brand) 14%, var(--surface)); border-color: color-mix(in oklab, var(--brand) 60%, var(--line));
+  box-shadow: 0 0 22px color-mix(in oklab, var(--brand) 35%, transparent);
+}
+.balls-fila[data-estado="actual"]::before { background: var(--brand); width: .95rem; height: .95rem; left: -1.45rem; box-shadow: 0 0 10px var(--brand); }
+.balls-fila[data-estado="bloqueada"] .balls-img { filter: brightness(0) opacity(.35); }
+.balls-fila[data-estado="bloqueada"] .balls-nombre { color: var(--muted); }
+.balls-img { width: 2.6rem; height: 2.6rem; flex: none; image-rendering: pixelated; object-fit: contain; }
+.balls-fila[data-estado="actual"] .balls-img { width: 3.2rem; height: 3.2rem; animation: celebra-salto 1.4s ease-in-out infinite; }
+.balls-nombre { font-weight: 800; line-height: 1.15; }
+@keyframes balls-aparece { from { opacity: 0; translate: -10px 0; } to { opacity: 1; translate: 0 0; } }
+
+/* v0.108 — «En directo»: el punto rojo que late, y el modo directo del
+   torneo con los controles grandes (para el pulgar, entre ronda y ronda). */
+.directo-punto { display: inline-block; width: .6rem; height: .6rem; border-radius: 9999px; background: var(--loss);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--loss) 60%, transparent); animation: directo-late 1.6s ease-out infinite; }
+@keyframes directo-late { 70% { box-shadow: 0 0 0 .5rem transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.modo-directo .btn { min-height: 3.25rem; font-size: 1rem; }
+.modo-directo .chip { min-height: 2.75rem; padding-inline: .9rem; font-size: .9rem; }
+.modo-directo input, .modo-directo select, .modo-directo textarea { min-height: 3rem; font-size: 1rem; }
+.modo-directo .seg > * { min-height: 3rem; }
+

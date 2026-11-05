@@ -6,6 +6,7 @@ import { pct, wrColor } from "@/lib/format";
 import { num } from "@/lib/format";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { TOP_RANKING, VerTodosRanking } from "@/components/RankingVerMas";
 
 /* =========================================================================
    v0.15 — Ranking de torneos: torneos jugados, V–D–E, conversión al top cut,
@@ -54,6 +55,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 }>({ key: "cp", dir: -1 });
+  const [todos, setTodos] = useState(false); // v0.106 — top 10 y «ver más»
 
   const val = (r: TourRankRow, k: Key): number => {
     const v = r[k];
@@ -109,7 +111,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
 
       {/* -------- móvil -------- */}
       <ol className="card divide-y divide-line-soft md:hidden">
-        {sorted.map((r, i) => {
+        {(todos ? sorted : sorted.slice(0, TOP_RANKING)).map((r, i) => {
           const d = destacado(r);
           const podio = i === 0 ? "bg-brand-soft/50 border-l-4 border-l-brand"
             : i === 1 ? "bg-surface-2 border-l-4 border-l-line"
@@ -170,7 +172,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r, i) => (
+            {(todos ? sorted : sorted.slice(0, TOP_RANKING)).map((r, i) => (
               <tr key={r.playerId} className={i === 0 ? "bg-brand-soft/40 border-l-4 border-l-brand" : i === 1 ? "bg-surface-2/70 border-l-4 border-l-line" : i === 2 ? "bg-tier-bronce/10 border-l-4 border-l-tier-bronce" : "border-l-4 border-l-transparent hover:bg-surface-2"}>
                 <td className="text-center">
                   <span className={`inline-grid size-6 place-items-center rounded-full font-display text-xs font-black tabular ${i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>{i + 1}</span>
@@ -217,6 +219,7 @@ export function TournamentRankingTable({ rows, cpLabel }: { rows: TourRankRow[];
           </tbody>
         </table>
       </div>
+      <VerTodosRanking total={sorted.length} abierto={todos} onToggle={() => setTodos((v) => !v)} />
     </>
   );
 }

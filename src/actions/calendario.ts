@@ -5,17 +5,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { events, matches, tournamentResults, tournaments } from "@/db/schema";
+import { asistencias, events, matches, tournamentResults, tournaments } from "@/db/schema";
 import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
 import { newId, todayISO } from "@/lib/format";
 import { withFlash } from "@/lib/flash";
 import { datosDeDireccion, parseEventosPegados } from "@/lib/eventosPegados";
 import { seasonOfDate } from "@/lib/cp";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
+import { alternarEstado, esEstado, type EstadoAsistencia } from "@/lib/asistencia";
 import {
-  str, isoDate, refresh, requireManager, CALENDAR_EVENT_KINDS,
+  str, isoDate, refresh, requireManager, requireActor, safeBack, CALENDAR_EVENT_KINDS,
   msj,
 } from "./_comun";
 
@@ -257,3 +258,34 @@ export async function sincronizarSeriesAhora() {
       ? `${r.series} serie(s): ${r.creados} evento(s) nuevo(s), ${r.actualizados} actualizado(s), ${r.retirados} pasado(s) retirado(s).`
       : `Ninguna serie que encaje en las últimas 8 semanas: ni semanal con +100 de media, ni de las que seguís.`));
 }
+
+/* ---------------------------------------------------------- asistencia -- */
+
+/**
+ * v0.106 — «Iré / Quizá / No iré» para un evento o torneo del calendario.
+ *
+ * Cada uno marca lo suyo (no hay forma de marcar por otro). Pulsar el estado
+ * que ya tenía lo desmarca. El elemento viaja como «elemento» y el estado en el
+ * botón pulsado («estado»): en este formulario NO hay ningún campo llamado
+ * `id` (ver tests/formularios.test.ts y el fallo del resultado rápido, v0.95).
+ */
+export async function marcarAsistencia(fd: FormData) {
+  const actor = await requireActor();
+  const elemento = str(fd, "elemento");
+  const pulsado = str(fd, "estado");
+  const volver = safeBack(fd, "/calendario");
+  if (!/^(evento|torneo):[\w.-]{1,120}$/.test(elemento) || !esEstado(pulsado)) {
+    redirect(withFlash(volver, "error", await msj("asis.error")));
+  }
+  const donde = and(eq(asistencias.playerId, actor.id), eq(asistencias.item, elemento));
+  const actual = (await db.select({ estado: asistencias.estado }).from(asistencias).where(donde))[0]?.estado;
+  const nuevo = alternarEstado(esEstado(actual) ? actual : null, pulsado as EstadoAsistencia); // validado arriba
+  if (nuevo == null) {
+    await db.delete(asistencias).where(donde);
+  } else {
+    await db.insert(asistencias).values({ playerId: actor.id, item: elemento, estado: nuevo, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: [asistencias.playerId, asistencias.item], set: { estado: nuevo, updatedAt: new Date() } });
+  }
+  redirect(withFlash(volver, "ok", await msj(nuevo ? `asis.ok.${nuevo}` : "asis.ok.quitado")));
+}
+

@@ -18,6 +18,7 @@ import {
 import { awardsCp, cpKindOf, effectiveCp, getSeason, tierFor } from "@/lib/cp";
 import { fmtDateLong, todayISO } from "@/lib/format";
 import { recordOf, roundsOf } from "@/lib/stats";
+import { clasificacionDirecto, recordTexto } from "@/lib/enDirecto";
 import { primerTurno, textoLado } from "@/lib/primerTurno";
 import { TOURNAMENT_FORMATS, archetypeValue, asStatus } from "@/lib/types";
 import { Avatar, Empty, Kpi, PageHead, TournamentEmblem } from "@/components/ui";
@@ -62,7 +63,7 @@ export default async function TournamentPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ fase?: string; anadir?: string }>;
+  searchParams: Promise<{ fase?: string; anadir?: string; directo?: string }>;
 }) {
   const lng = await getLang(); // v0.49
 
@@ -544,6 +545,7 @@ export default async function TournamentPage({
           rivalPlayers={rivalPlayers}
           probCruce={probCruce}
           jugador={snap.playersById.get(me.id) /* el público, nunca `me`: lleva más campos */}
+          directo={q.directo === "1" /* v0.108: al guardar, de vuelta al modo directo */}
         />}
       </div>
       )
@@ -582,6 +584,106 @@ export default async function TournamentPage({
     },
   ];
 
+  /* ===================================================================
+     v0.108 — MODO DIRECTO (`?directo=1`): la pantalla del día del torneo.
+     Solo lo que se mira entre ronda y ronda, con controles grandes:
+       1. Tu récord y tus puntos, en grande, y qué ronda toca.
+       2. El formulario de la ronda (el mismo de siempre, más grande).
+       3. El camino al corte, siempre a la vista.
+       4. Cómo va el grupo (ranking IRL), con enlace a cada perfil.
+     Todo lo demás (resultado final, CP, gestión) sigue en la ficha normal.
+     =================================================================== */
+  if (q.directo === "1" && me && status === "open") {
+    const tablaGrupo = clasificacionDirecto([...participantIds].map((pid) => ({
+      playerId: pid,
+      rondas: roundsOf(snap.matches, t.id, pid).map((r) => (r.result === "d" ? "t" : r.result)),
+      dropped: Boolean(t.results.find((r) => r.playerId === pid)?.dropped),
+    })));
+    const yo = tablaGrupo.find((f) => f.playerId === me.id);
+    return (
+      <div className="modo-directo">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="directo-punto" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-loss">{tr(lng, "dir.enDirecto")}</span>
+          <Link href={`/torneos/${t.id}`} className="btn btn-ghost btn-sm ml-auto">{tr(lng, "dir.salir")}</Link>
+        </div>
+        <h1 className="mb-3 flex items-center gap-2 font-display text-2xl font-black leading-tight">
+          <TournamentEmblem kind={t.kind} scope={t.scope} size="sm" /> <span className="min-w-0">{t.name}</span>
+        </h1>
+
+        <section className="card mb-4 grid grid-cols-3 divide-x divide-line-soft text-center" aria-label={tr(lng, "dir.tuRecord")}>
+          <div className="p-3">
+            <p className="label">{tr(lng, "dir.record")}</p>
+            <p className="font-display text-3xl font-black tabular">
+              <span className="text-win">{myRecord.wins}</span>-<span className="text-loss">{myRecord.losses}</span>-<span className="text-tie">{myRecord.ties}</span>
+            </p>
+          </div>
+          <div className="p-3">
+            <p className="label">{tr(lng, "dir.puntos")}</p>
+            <p className="font-display text-3xl font-black tabular">{myRecord.points}</p>
+          </div>
+          <div className="p-3">
+            <p className="label">{tr(lng, "dir.toca")}</p>
+            <p className="font-display text-3xl font-black tabular">{topeAlcanzado ? "—" : `R${nextRound}`}</p>
+          </div>
+        </section>
+
+        {roundFormNode && (
+          <section className="card mb-4 p-4" aria-labelledby="dir-ronda">
+            <h2 id="dir-ronda" className="mb-3 font-display text-xl font-bold">{trf(lng, "dir.apuntarRonda", { n: nextRound })}</h2>
+            {roundFormNode}
+          </section>
+        )}
+
+        <CaminoAlCorte
+          kind={t.kind}
+          playerCount={t.playerCount}
+          rondasTotales={t.rounds}
+          topCut={t.topCut}
+          rondasFase2={t.roundsPhase2}
+          paso2Puntos={t.phase2Points}
+          paso2Top={t.phase2Top}
+          cortePuntos={t.cutPoints}
+          storageKey={`torneo-${t.id}`}
+          pestana={fase}
+          hrefFase={`/torneos/${t.id}?directo=1&fase=`}
+          rondas={myRounds.flatMap((m) =>
+            m.result ? [{ round: m.round, result: m.result === "d" ? "t" : m.result }] : [],
+          )}
+        />
+
+        <section className="card mb-4 overflow-hidden" aria-labelledby="dir-grupo">
+          <div className="card-head">
+            <h2 id="dir-grupo" className="text-lg font-bold">{tr(lng, "dir.grupo")}</h2>
+            {yo && <span className="chip chip-brand">{trf(lng, "dir.vasPuesto", { n: yo.puesto, total: tablaGrupo.length })}</span>}
+          </div>
+          <ol className="divide-y divide-line-soft">
+            {tablaGrupo.map((f) => {
+              const p = snap.playersById.get(f.playerId);
+              return (
+                <li key={f.playerId}>
+                  <Link href={`/perfil/${f.playerId}`}
+                    className={`flex min-h-14 items-center gap-3 px-4 py-2 hover:bg-surface-2 ${f.playerId === me.id ? "bg-brand-soft/40" : ""} ${f.dropped ? "opacity-60" : ""}`}>
+                    <span className="w-6 flex-none text-center font-display text-base font-black tabular text-muted">{f.puesto}</span>
+                    {p && <Avatar player={p} size="sm" />}
+                    <span className="min-w-0 flex-1 truncate font-semibold">{p?.name ?? "?"}</span>
+                    <span className="flex flex-none gap-0.5" aria-hidden="true">
+                      {f.rondas.map((r, i) => (
+                        <i key={i} className={`size-2.5 rounded-full ${r === "w" ? "bg-win" : r === "l" ? "bg-loss" : r === "t" ? "bg-tie" : "bg-surface-3"}`} />
+                      ))}
+                    </span>
+                    <span className="flex-none font-mono text-sm tabular">{recordTexto(f)}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+        <Link href={`/torneos/${t.id}`} className="btn mb-6 w-full">{tr(lng, "dir.fichaCompleta")}</Link>
+      </div>
+    );
+  }
+
   return (
     <>
       <PageHead
@@ -610,6 +712,12 @@ export default async function TournamentPage({
               <a className="btn btn-brand btn-sm" href={t.url} target="_blank" rel="noopener noreferrer">
                 <Icon name="share" className="size-4" /> {tr(lng, "v78.abrirWeb")}
               </a>
+            )}
+            {/* v0.108 — el modo directo, a un toque, mientras el torneo está en curso. */}
+            {me && status === "open" && (
+              <Link className="btn btn-brand btn-sm" href={`/torneos/${t.id}?directo=1`}>
+                <span className="directo-punto" aria-hidden="true" /> {tr(lng, "dir.modo")}
+              </Link>
             )}
             <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
               <Icon name="back" className="size-4" /> {tr(lng, "x.f02a0f3c")}

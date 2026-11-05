@@ -1,6 +1,6 @@
 import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import Link from "next/link";
-import { currentPlayer, loadCompetitionHeads, loadEvents, loadSnapshot, loadTournamentHeads, playerCp } from "@/lib/data";
+import { cargarAsistenciaGrupo, cargarAsistencias, cargarDatosCpDe, currentPlayer, loadCompetitionHeads, loadEvents, loadTournamentHeads, playerCp } from "@/lib/data";
 import { getSeason } from "@/lib/cp";
 import { canManageLeague } from "@/lib/auth";
 // v0.38: ya no se pintan partidas aquí, así que no hace falta leerlas.
@@ -13,7 +13,11 @@ import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { CityPicker } from "@/components/CityPicker";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
-import { importEuropeanEvents, importPastedEvents } from "@/actions";
+import { importEuropeanEvents, importPastedEvents, marcarAsistencia } from "@/actions";
+import {
+  claveAsistencia, contarAsistencia, parseFiltroAsistencia, pasaAsistencia, FILTROS_ASISTENCIA,
+  type EstadoAsistencia, type FiltroAsistencia,
+} from "@/lib/asistencia";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -37,7 +41,7 @@ export const metadata = { title: "Calendario" };
 
 export default async function CalendarPage({
   searchParams,
-}: { searchParams: Promise<{ y?: string; m?: string; tipo?: string; ciudad?: string | string[]; vista?: string }> }) {
+}: { searchParams: Promise<{ y?: string; m?: string; tipo?: string; ciudad?: string | string[]; vista?: string; asist?: string }> }) {
   const lng = await getLang(); // v0.49
   await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
 
@@ -58,6 +62,14 @@ export default async function CalendarPage({
   // snapshot: son tres consultas sueltas y se llama distinto por eso.
   const datos = { events: eventos_, tournaments: tours, competitions: comps, toursById };
   const manager = me ? canManageLeague(me.role) : false;
+  /* v0.106 — «Iré / Quizá / No iré»: mis marcas y el filtro (`?asist=`). Sin
+     sesión no hay marcas y el filtro no se ofrece. */
+  const [asis, grupo] = me ? await Promise.all([cargarAsistencias(me.id), cargarAsistenciaGrupo()]) : [null, new Map<string, { si: number; quiza: number }>()];
+  /** v0.108 — cuántos del grupo van (sin nombres). */
+  const grupoDe = (tipo: "evento" | "torneo", id: string) => grupo.get(claveAsistencia(tipo, id)) ?? null;
+  const marcas = asis?.marcas ?? new Map<string, EstadoAsistencia>();
+  const filtroAsis: FiltroAsistencia = me ? parseFiltroAsistencia(q.asist) : "todo";
+  const asisDe = (tipo: "evento" | "torneo", id: string) => marcas.get(claveAsistencia(tipo, id)) ?? null;
   const today = todayISO();
 
   /* v0.90 — Camino al Mundial en el calendario: los tipos de torneo en los que
@@ -66,8 +78,8 @@ export default async function CalendarPage({
   const conviene = new Set<string>();
   if (me) {
     try {
-      const snapCp = await loadSnapshot(); // en caché (v0.85)
-      const cp = playerCp(snapCp, me.id);
+      // v0.108 — rendimiento: solo mis resultados, no el snapshot entero.
+      const cp = playerCp(await cargarDatosCpDe(me.id), me.id);
       const tabla = getSeason(cp.season);
       const TIPOS: Record<string, string[]> = {
         league_challenge: ["league_challenge", "pokemon_challenge"],
@@ -108,7 +120,7 @@ export default async function CalendarPage({
     t.city?.trim() || ubicacionEventoPorTorneo.get(t.id) || "";
 
   /** v0.18: `kind`/`scope` para el emblema (Regional, Challenge, Cup, Online). */
-  type Mark = { text: string; color: string; label: string; url?: string; href?: string; kind?: string | null; scope?: string | null; conviene?: boolean };
+  type Mark = { text: string; color: string; label: string; url?: string; href?: string; kind?: string | null; scope?: string | null; conviene?: boolean; asis?: EstadoAsistencia | null; van?: number };
   const byDay = new Map<string, Mark[]>();
   const push = (date: string, m: Mark) => {
     const list = byDay.get(date);
@@ -134,16 +146,18 @@ export default async function CalendarPage({
 
   for (const e of eventos) {
     if (!pasaTipos(tipos, e.tournamentKind) || !pasaCiudad(ciudad, e.location)) continue;
+    if (!pasaAsistencia(filtroAsis, asisDe("evento", e.id))) continue; // v0.106
     const t = toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : e.kind === "round" ? "round" : "event");
     pushRange(e.date, e.endDate, { text: e.title, color: t.color, label: t.label, url: e.url || undefined, kind: e.tournamentKind,
-      conviene: e.date >= today && Boolean(e.tournamentKind && conviene.has(e.tournamentKind)) });
+      conviene: e.date >= today && Boolean(e.tournamentKind && conviene.has(e.tournamentKind)), asis: asisDe("evento", e.id), van: grupoDe("evento", e.id)?.si ?? 0 });
   }
   for (const t of datos.tournaments) {
     if (!pasaTipos(tipos, t.kind) || !pasaCiudad(ciudad, ciudadTorneo(t))) continue;
+    if (!pasaAsistencia(filtroAsis, asisDe("torneo", t.id))) continue; // v0.106
     const tone = toneOf(t.kind, "event");
     // v0.16: un torneo del calendario lleva a su ficha.
     pushRange(t.date, t.endDate, { text: t.name, color: tone.color, label: tone.label, href: `/torneos/${t.id}`, kind: t.kind, scope: t.scope,
-      conviene: t.date >= today && conviene.has(t.kind) });
+      conviene: t.date >= today && conviene.has(t.kind), asis: asisDe("torneo", t.id), van: grupoDe("torneo", t.id)?.si ?? 0 });
   }
   /* v0.38 — las partidas ya NO salen en el calendario.
 
@@ -167,6 +181,7 @@ export default async function CalendarPage({
     if (tipo) params.set("tipo", tipo);
     if (ciudad) params.set("ciudad", ciudad);
     if (v === "agenda") params.set("vista", "agenda");
+    if (filtroAsis !== "todo") params.set("asist", filtroAsis); // v0.106
     return `/calendario?${params.toString()}`;
   };
   const mesHref = (y: number, m: number) => filtrosHref(y, m);
@@ -177,6 +192,16 @@ export default async function CalendarPage({
     if (seleccion) params.set("tipo", seleccion);
     if (ciudad) params.set("ciudad", ciudad);
     if (vista === "agenda") params.set("vista", "agenda");
+    if (filtroAsis !== "todo") params.set("asist", filtroAsis); // v0.106
+    return `/calendario?${params.toString()}`;
+  };
+  /** v0.106 — la URL de un chip de asistencia: el resto de filtros se conserva. */
+  const asisHref = (fa: FiltroAsistencia) => {
+    const params = new URLSearchParams({ y: String(year), m: String(month) });
+    if (tipo) params.set("tipo", tipo);
+    if (ciudad) params.set("ciudad", ciudad);
+    if (vista === "agenda") params.set("vista", "agenda");
+    if (fa !== "todo") params.set("asist", fa);
     return `/calendario?${params.toString()}`;
   };
   const vistaHref = (v: "calendario" | "agenda") =>
@@ -195,7 +220,9 @@ export default async function CalendarPage({
       .filter((e) => (e.endDate ?? e.date) >= today)
       .filter((e) => pasaTipos(tipos, e.tournamentKind))
       .filter((e) => pasaCiudad(ciudad, e.location))
+      .filter((e) => pasaAsistencia(filtroAsis, asisDe("evento", e.id)))
       .map((e) => ({
+        clave: claveAsistencia("evento", e.id), asis: asisDe("evento", e.id), grupo: grupoDe("evento", e.id),
         id: e.id, date: e.date, endDate: e.endDate, title: e.title,
         kindLabel: toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : "event").label,
         color: toneOf(e.tournamentKind, e.kind === "deadline" ? "deadline" : "event").color,
@@ -209,7 +236,9 @@ export default async function CalendarPage({
       .filter((t) => (t.endDate ?? t.date) >= today)
       .filter((t) => pasaTipos(tipos, t.kind))
       .filter((t) => pasaCiudad(ciudad, ciudadTorneo(t)))
+      .filter((t) => pasaAsistencia(filtroAsis, asisDe("torneo", t.id)))
       .map((t) => ({
+        clave: claveAsistencia("torneo", t.id), asis: asisDe("torneo", t.id), grupo: grupoDe("torneo", t.id),
         id: t.id, date: t.date, endDate: t.endDate, title: t.name,
         kindLabel: toneOf(t.kind, "event").label,
         color: toneOf(t.kind, "event").color,
@@ -220,6 +249,20 @@ export default async function CalendarPage({
         href: `/torneos/${t.id}`,
       })),
   ].sort(byAgenda(today));
+
+  /* v0.106 — recuento de lo que viene (con los filtros de tipo y ciudad, sin
+     el de asistencia) para los números de los chips. */
+  const porVenir = [
+    ...eventos.filter((e) => (e.endDate ?? e.date) >= today && pasaTipos(tipos, e.tournamentKind) && pasaCiudad(ciudad, e.location))
+      .map((e) => claveAsistencia("evento", e.id)),
+    ...datos.tournaments.filter((t) => (t.endDate ?? t.date) >= today && pasaTipos(tipos, t.kind) && pasaCiudad(ciudad, ciudadTorneo(t)))
+      .map((t) => claveAsistencia("torneo", t.id)),
+  ];
+  const cuenta = contarAsistencia(porVenir, marcas);
+  const cuantos: Record<FiltroAsistencia, number> = {
+    todo: porVenir.length, "sin-no": porVenir.length - cuenta.no, mios: cuenta.si + cuenta.quiza, si: cuenta.si, no: cuenta.no,
+  };
+  const backActual = filtrosHref(year, month);
 
   return (
     <>
@@ -258,7 +301,7 @@ export default async function CalendarPage({
       />
 
       {/* ------------------------------ filtros ------------------------------ */}
-      {(disponibles.length > 0 || ciudades.length > 0) && (
+      {(disponibles.length > 0 || ciudades.length > 0 || me) && (
         <div className="card mb-4 flex flex-col gap-3 p-3 sm:p-4" data-paso="calendario-2">
           {disponibles.length > 0 && (
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "v63.calFiltro")}>
@@ -292,12 +335,29 @@ export default async function CalendarPage({
             </div>
           )}
 
+          {/* v0.106 — «Iré / Quizá / No iré»: quitar lo descartado y ver lo demás. */}
+          {me && (
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "asis.filtro")}>
+              <span className="label mr-1">{tr(lng, "asis.filtro")}</span>
+              {FILTROS_ASISTENCIA.map((fa) => (
+                <Link key={fa} href={asisHref(fa)} aria-current={filtroAsis === fa ? "page" : undefined}
+                  className={`chip flex-none ${filtroAsis === fa ? "chip-brand" : ""}`}>
+                  {tr(lng, `asis.f.${fa}`)}
+                  <span className="font-mono text-[10px] tabular opacity-70">{cuantos[fa]}</span>
+                </Link>
+              ))}
+              <span className="text-[11px] text-muted">{tr(lng, vista === "agenda" ? "asis.pistaAgenda" : "asis.pista")}</span>
+              {asis && !asis.tabla && <span className="text-[11px] font-semibold text-loss">{tr(lng, "asis.sinTabla")}</span>}
+            </div>
+          )}
+
           {ciudades.length > 0 && (
             <form method="get" action="/calendario" className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="y" value={year} />
               <input type="hidden" name="m" value={month} />
               {tipo && <input type="hidden" name="tipo" value={tipo} />}
               {vista === "agenda" && <input type="hidden" name="vista" value="agenda" />}
+              {filtroAsis !== "todo" && <input type="hidden" name="asist" value={filtroAsis} />}
               <label className="flex min-w-48 flex-col gap-1">
                 <span className="label">{tr(lng, "cal.ciudad")}</span>
                 <CityPicker name="ciudad" options={ciudades} defaultValue={ciudad} />
@@ -305,7 +365,7 @@ export default async function CalendarPage({
               <button className="btn btn-sm" type="submit">{tr(lng, "cal.aplicarFiltro")}</button>
             </form>
           )}
-          {(tipo || ciudad) && (
+          {(tipo || ciudad || filtroAsis !== "todo") && (
             <Link className="btn btn-ghost btn-sm self-start" href={sinFiltrosHref}>
               {tr(lng, "cal.limpiarFiltros")}
             </Link>
@@ -348,17 +408,17 @@ export default async function CalendarPage({
                   return m.href ? (
                     <Link key={j} href={m.href} title={`${m.label}: ${m.text}`} className={`${clase} hover:brightness-125`} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
+                      <span className={`truncate ${m.asis === "no" ? "line-through opacity-60" : ""}`}><MarcaAsis estado={m.asis} lng={lng} />{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>{m.van ? <span className="ml-0.5 flex-none rounded bg-surface-2 px-0.5 font-mono text-[9px] tabular text-ink-2" title={trf(lng, "asis.grupo.van", { n: m.van })}>{m.van}</span> : null}
                     </Link>
                   ) : m.url ? (
                     <a key={j} href={m.url} target="_blank" rel="noopener noreferrer" title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
+                      <span className={`truncate ${m.asis === "no" ? "line-through opacity-60" : ""}`}><MarcaAsis estado={m.asis} lng={lng} />{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>{m.van ? <span className="ml-0.5 flex-none rounded bg-surface-2 px-0.5 font-mono text-[9px] tabular text-ink-2" title={trf(lng, "asis.grupo.van", { n: m.van })}>{m.van}</span> : null}
                     </a>
                   ) : (
                     <span key={j} title={`${m.label}: ${m.text}`} className={clase} style={estilo}>
                       <TournamentEmblem kind={m.kind} scope={m.scope} size="xs" />
-                      <span className="truncate">{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>
+                      <span className={`truncate ${m.asis === "no" ? "line-through opacity-60" : ""}`}><MarcaAsis estado={m.asis} lng={lng} />{m.conviene && <span title={tr(lng, "v90.conviene")} className="mr-0.5 text-brand">★</span>}{m.text}</span>{m.van ? <span className="ml-0.5 flex-none rounded bg-surface-2 px-0.5 font-mono text-[9px] tabular text-ink-2" title={trf(lng, "asis.grupo.van", { n: m.van })}>{m.van}</span> : null}
                     </span>
                   );
                 })}
@@ -374,7 +434,7 @@ export default async function CalendarPage({
       )}
 
       {/* --------------------------- la agenda grande ------------------------ */}
-      {vista === "agenda" && <AgendaGrande agenda={agenda} filtroActivo={Boolean(tipo || ciudad)} />}
+      {vista === "agenda" && <AgendaGrande agenda={agenda} filtroActivo={Boolean(tipo || ciudad || filtroAsis !== "todo")} marcar={me && asis?.tabla ? backActual : null} />}
 
       {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
           importar eventos, para organizadores); la agenda ya NO sale debajo:
@@ -448,12 +508,20 @@ export default async function CalendarPage({
    Va agrupada por mes, y respeta el filtro de tipo de arriba.
    ========================================================================= */
 type ItemAgenda = {
+  /** v0.106 — `evento:<id>` o `torneo:<id>`, y mi marca. */
+  clave: string; asis: EstadoAsistencia | null;
+  /** v0.108 — cuántos del grupo van / quizá (sin nombres). */
+  grupo: { si: number; quiza: number } | null;
   id: string; date: string; endDate: string | null; title: string;
   kindLabel: string; color: string; sub: string; url?: string; href?: string;
   kind?: string | null; scope?: string | null;
 };
 
-async function AgendaGrande({ agenda, filtroActivo }: { agenda: ItemAgenda[]; filtroActivo: boolean }) {
+async function AgendaGrande({ agenda, filtroActivo, marcar }: {
+  agenda: ItemAgenda[]; filtroActivo: boolean;
+  /** v0.106 — la URL de vuelta si se puede marcar asistencia (con sesión y con la tabla); null si no. */
+  marcar: string | null;
+}) {
   const lng = await getLang(); // v0.49
 
   if (!agenda.length) {
@@ -514,6 +582,14 @@ async function AgendaGrande({ agenda, filtroActivo }: { agenda: ItemAgenda[]; fi
                           {e.kindLabel}
                         </span>
                         <span>{relDays(e.date)}</span>
+                        {e.grupo && (e.grupo.si > 0 || e.grupo.quiza > 0) && (
+                          <span className="chip chip-win" title={tr(lng, "asis.grupo.ayuda")}>
+                            <Icon name="user" className="size-3.5" />
+                            {e.grupo.si > 0 ? trf(lng, "asis.grupo.van", { n: e.grupo.si }) : null}
+                            {e.grupo.si > 0 && e.grupo.quiza > 0 ? " · " : null}
+                            {e.grupo.quiza > 0 ? trf(lng, "asis.grupo.quiza", { n: e.grupo.quiza }) : null}
+                          </span>
+                        )}
                         {e.sub && <span className="truncate">· {e.sub}</span>}
                       </span>
                     </span>
@@ -522,12 +598,13 @@ async function AgendaGrande({ agenda, filtroActivo }: { agenda: ItemAgenda[]; fi
                 );
                 const clase = "flex items-center gap-4 px-4 py-4 hover:bg-surface-2";
                 return (
-                  <li key={e.id}>
+                  <li key={e.id} className={e.asis === "no" ? "opacity-60" : ""}>
                     {e.href
                       ? <Link href={e.href} className={clase}>{contenido}</Link>
                       : e.url
                         ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
                         : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
+                    {marcar && <BotonesAsistencia elemento={e.clave} estado={e.asis} back={marcar} lng={lng} />}
                   </li>
                 );
               })}
@@ -538,3 +615,48 @@ async function AgendaGrande({ agenda, filtroActivo }: { agenda: ItemAgenda[]; fi
     </div>
   );
 }
+
+/* =========================================================================
+   v0.106 — «Iré / Quizá / No iré».
+   ========================================================================= */
+
+const TONO_ASIS: Record<EstadoAsistencia, { color: string; simbolo: string }> = {
+  si: { color: "var(--color-win)", simbolo: "✓" },
+  quiza: { color: "var(--color-brand)", simbolo: "?" },
+  no: { color: "var(--color-loss)", simbolo: "✕" },
+};
+
+/** El símbolo de mi marca delante del nombre, en la rejilla. */
+function MarcaAsis({ estado, lng }: { estado?: EstadoAsistencia | null; lng: Awaited<ReturnType<typeof getLang>> }) {
+  if (!estado) return null;
+  const t = TONO_ASIS[estado];
+  return <span title={tr(lng, `asis.e.${estado}`)} aria-label={tr(lng, `asis.e.${estado}`)} className="mr-0.5 font-black" style={{ color: t.color }}>{t.simbolo}</span>;
+}
+
+/**
+ * Tres botones por evento de la agenda. Un formulario por evento: el elemento
+ * va oculto y el estado en el botón pulsado. Pulsar el que ya está puesto lo
+ * quita. Objetivos táctiles de 36px de alto, que caben tres en un móvil de 320.
+ */
+function BotonesAsistencia({ elemento, estado, back, lng }: {
+  elemento: string; estado: EstadoAsistencia | null; back: string; lng: Awaited<ReturnType<typeof getLang>>;
+}) {
+  return (
+    <form action={marcarAsistencia} className="flex flex-wrap items-center gap-1.5 px-4 pb-3 sm:pl-28">
+      <input type="hidden" name="elemento" value={elemento} />
+      <input type="hidden" name="back" value={back} />
+      {(["si", "quiza", "no"] as const).map((e) => {
+        const on = estado === e;
+        const t = TONO_ASIS[e];
+        return (
+          <button key={e} type="submit" name="estado" value={e} aria-pressed={on}
+            className="chip min-h-9 px-3 text-xs font-semibold"
+            style={on ? { background: t.color, color: "var(--ground)", borderColor: "transparent" } : { borderColor: `color-mix(in oklab, ${t.color} 45%, transparent)`, color: t.color }}>
+            <span aria-hidden="true">{t.simbolo}</span> {tr(lng, `asis.b.${e}`)}
+          </button>
+        );
+      })}
+    </form>
+  );
+}
+

@@ -27,6 +27,7 @@ import { usoLigeroDeJugador } from "@/lib/perfilUso";
 import { tituloParaBarra } from "@/lib/perfilTituloBarra";
 import { Snackbar } from "@/components/Snackbar";
 import { LogroAviso } from "@/components/LogroAviso";
+import { CelebrarBall } from "@/components/CelebrarBall";
 import { AvisoVersion } from "@/components/AvisoVersion";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
@@ -99,30 +100,32 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           {/* v0.68 — la tarjeta del pie con fondo propio (`.barra-pie`) e iconos más grandes. */}
           <div className="barra-pie flex flex-col gap-2 rounded-xl border p-2">
-            <Link href={`/perfil/${me.id}`} className="flex items-start gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
-              <Avatar player={me} size="sm" />
-              <span className="barra-texto min-w-0 flex-1">
-                {tituloBarra && (
-                  <span className="mb-1 block min-w-0">
-                    <span className="perfil-titulo max-w-full truncate text-[10px]" data-tono={tituloBarra.tono}>
-                      {tr(lang, tituloBarra.clave)}
-                    </span>
-                  </span>
-                )}
-                <span className="flex min-w-0 items-start justify-between gap-1">
+            {/* v0.106 — orden pedido: el avatar a la izquierda con el nombre y el
+                rol a su derecha, la Poké Ball (más grande) al final de esa fila,
+                y la etiqueta del título DEBAJO del avatar, en su propia línea. */}
+            <Link href={`/perfil/${me.id}`} className="flex flex-col gap-1.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <span className="flex min-w-0 items-center gap-2">
+                <Avatar player={me} size="sm" />
+                <span className="barra-texto flex min-w-0 flex-1 items-center gap-1">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base font-semibold leading-tight">{me.name}</span>
                     <span className="block truncate text-[13px] leading-tight text-muted">
                       {tr(lang, me.role === "owner" ? "role.owner" : me.role === "admin" ? "role.admin" : "role.player")}
                     </span>
                   </span>
-                  <span className="flex flex-none items-center"
-                    title={nombreBall} aria-label={nombreBall}>
+                  <span className="flex flex-none items-center" title={nombreBall} aria-label={nombreBall}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={urlDeObjeto(ballUso.nivel.ball)} alt={nombreBall} width={32} height={32} className="ball-uso-img size-8" />
+                    <img src={urlDeObjeto(ballUso.nivel.ball)} alt={nombreBall} width={44} height={44} className="ball-uso-img size-11" />
                   </span>
                 </span>
               </span>
+              {tituloBarra && (
+                <span className="barra-texto block min-w-0">
+                  <span className="perfil-titulo max-w-full truncate text-[10px]" data-tono={tituloBarra.tono}>
+                    {tr(lang, tituloBarra.clave)}
+                  </span>
+                </span>
+              )}
             </Link>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
               {conIngles && <LangToggle lang={lang} />}
@@ -193,6 +196,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <Snackbar />
         <LogroAviso />
+        {/* v0.106 — si has subido de Ball desde la última visita, ¡fiesta! */}
+        <CelebrarBall ball={ballUso.nivel.ball} nombre={nombreBall} etiqueta={tr(lang, "cel.nuevaBall")} img={urlDeObjeto(ballUso.nivel.ball)} />
         <HuevosGlobales />
         <AvisoVersion />
         {/* v0.21: recuerda los filtros de Ranking, Estadísticas y Resultados. */}

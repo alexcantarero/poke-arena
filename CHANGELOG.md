@@ -2,6 +2,96 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.108.0] — 2026-11-05
+
+**Sin migración nueva** (lleva la `0030` de la v0.106 si aún no está aplicada).
+
+### Añadido
+
+- **Modo torneo en directo** (`/torneos/<id>?directo=1`, botón «Modo directo» en la ficha
+  mientras está en curso): tu récord, tus puntos y la ronda que toca en grande; el formulario de
+  ronda con controles grandes (al guardar vuelves al modo directo); el camino al corte siempre a la
+  vista; y cómo va el grupo, con su récord ronda a ronda.
+- **«En directo» en el Inicio**: los torneos que se juegan hoy (y el día siguiente, para el top
+  cut) con la clasificación del grupo (ranking IRL). Cada fila lleva al torneo; «Apuntar mi ronda»
+  abre el modo directo. `lib/enDirecto.ts` (2 pruebas).
+- **Matrices interactivas**: tocar una celda abre debajo las partidas concretas de ese cruce —
+  jugador contra jugador en Ranking, arquetipo contra arquetipo en Estadísticas— con fecha,
+  contexto, mazos, resultado y enlace. Por URL (`?cruce=a~b`). `lib/cruces.ts` (3 pruebas).
+- **Elo con marcas de torneo**: las rondas de Regional, Internacional, Special, Cup y Challenge
+  son un rombo del color de su tipo, con el torneo en el tooltip. Leyenda e interruptor.
+- **Asistencia del grupo** en el calendario: «Van 4 · 2 quizá» en la Agenda y un número en la
+  rejilla. Solo recuentos, nunca nombres.
+
+### Cambiado
+
+- **Gráficas de Estadísticas** («Seguimiento de jugadores» y «Evolución de la conversión»):
+  colores sin choques, nombre al final de cada línea y foco al pasar, como el Elo.
+- **Rendimiento**:
+  - Registrar y editar partida mandaban al navegador todos los mazos con su lista entera y todos
+    los torneos con sus resultados. Ahora viajan sin listas y solo los 40 torneos más recientes
+    (`lib/aligerar.ts`, 2 pruebas).
+  - El calendario ya no carga el snapshot entero para las estrellas de CP: dos consultas pequeñas
+    (`cargarDatosCpDe`).
+  - `loadSnapshot()` deja en el log de Vercel cuánto tarda cuando pasa de 500 ms, con el desglose.
+- **Traducción**: los últimos textos fijos (ui.tsx, carga de gráficas, conversión) pasan al
+  diccionario; `npm run verificar:i18n` marca 0 pendientes. Los nombres oficiales de eventos,
+  rutas de fichero y siglas se ignoran a propósito.
+
+## [0.107.0] — 2026-11-05
+
+**Sin migración nueva** (lleva la `0030` de la v0.106 si aún no está aplicada).
+
+### Añadido
+
+- **Celebración de medallas y títulos**: al conseguir una medalla (o subirla de bronce a plata
+  u oro) o desbloquear un título, sale la celebración de la v0.106 la próxima vez que entres en
+  el Inicio o en tu perfil. El navegador recuerda lo que ya vio; la primera vez solo se guarda,
+  para no celebrar lo que ya tenías. `lib/novedades.ts` (3 pruebas) y `lib/novedadesJugador.ts`.
+- **Cola de celebraciones**: si llegan varias a la vez, salen de una en una con un «+N».
+
+### Cambiado
+
+- **Evolución del Elo** (Ranking y perfil), mismo Recharts 3.10.1:
+  - Colores distintos entre las líneas visibles: si dos personas tienen colores parecidos, la
+    segunda toma uno libre de la paleta de series (`lib/coloresSeries.ts`, 4 pruebas, incluido
+    «EL CASO DEL 4/11» con Rol/Niccolo y Cristina/Ibai).
+  - Nombre y Elo actual al final de cada línea.
+  - Al pasar por un chip o una línea, las demás se apagan.
+  - Puntos en cada partida con hasta 6 líneas; la línea se corta tras 10 días sin jugar (antes 14).
+  - El tooltip ordena de mayor a menor Elo, y la línea entra animada.
+
+## [0.106.0] — 2026-11-04
+
+**Con migración** (`drizzle/0030_v0_106_0.sql`, tabla `asistencias`).
+
+### Añadido
+
+- **«Iré / Quizá / No iré» en el calendario.** En la vista Agenda, cada evento y torneo lleva tres
+  botones; pulsar el que ya está puesto lo quita. En la rejilla se ve la marca delante del nombre
+  (✓ iré, ? quizá, ✕ tachado si no voy). Nuevo filtro «Mi asistencia»: Todo · Sin los que no voy ·
+  Mis planes (iré + quizá) · Iré · Descartados, con el recuento de lo que viene. Va por URL
+  (`?asist=`) y convive con tipo y ciudad. Las marcas son de cada uno. `lib/asistencia.ts` con
+  5 pruebas.
+- **Celebración de logros**: el aviso de abajo pasa a ser una tarjeta en medio de la pantalla que
+  brilla, con rayos girando y cohetes que estallan en fuegos artificiales (canvas, ~4 s). Se
+  cierra tocando, con Escape o sola. Sale también al **subir de Poké Ball** (se compara con la
+  última que vio ese navegador; la primera vez solo se guarda). Con «reducir movimiento» o
+  Animaciones: No, solo la tarjeta.
+- **Escalera de Poké Balls** en el perfil: botón «i» al pasar por la Ball (siempre visible en
+  táctil; mantenerla pulsada también lo abre). Todas las Balls de la peor a la mejor, las
+  conseguidas en color, la tuya brillando y las que faltan en silueta.
+
+### Cambiado
+
+- **Ranking**: las tres tablas (Todo, Liga, Torneos) enseñan el top 10 del orden elegido y el
+  resto tras «Ver los N restantes».
+- **Barra de progreso de la Ball**: clara y más gruesa, se llena al entrar, un brillo la recorre,
+  el porcentaje va dentro y la siguiente Ball en silueta al final.
+- **Tarjeta de la barra lateral**: avatar con nombre y rol a su derecha, la Poké Ball más grande
+  (44 px) al final de la fila y la etiqueta del título debajo del avatar.
+- `lib/esquemaEsperado.ts` y `npm run db:migrar` conocen la 0030.
+
 ## [0.105.0] — 2026-11-04
 
 ### Cambiado

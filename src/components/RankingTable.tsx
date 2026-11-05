@@ -5,6 +5,7 @@ import Link from "next/link";
 import { pct, wrColor } from "@/lib/format";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { TOP_RANKING, VerTodosRanking } from "@/components/RankingVerMas";
 
 export type RankRow = {
   playerId: string;
@@ -68,6 +69,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 }>({ key: "points", dir: -1 });
+  const [todos, setTodos] = useState(false); // v0.106 — top 10 y «ver más»
 
   const val = (r: RankRow, k: Key) => (r[k] == null ? -1 : (r[k] as number));
   const sorted = [...rows].sort((a, b) => sort.dir * (val(a, sort.key) - val(b, sort.key)) || a.name.localeCompare(b.name));
@@ -90,7 +92,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
 
       {/* -------- móvil: tarjetas -------- */}
       <ol className="card divide-y divide-line-soft md:hidden">
-        {sorted.map((r, i) => {
+        {(todos ? sorted : sorted.slice(0, TOP_RANKING)).map((r, i) => {
           const isTop1 = i === 0;
           const isTop2 = i === 1;
           const isTop3 = i === 2;
@@ -184,7 +186,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r, i) => {
+            {(todos ? sorted : sorted.slice(0, TOP_RANKING)).map((r, i) => {
               const isTop1 = i === 0;
               const isTop2 = i === 1;
               const isTop3 = i === 2;
@@ -251,6 +253,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
           </tbody>
         </table>
       </div>
+      <VerTodosRanking total={sorted.length} abierto={todos} onToggle={() => setTodos((v) => !v)} />
       <LeyendaRanking />
     </>
   );

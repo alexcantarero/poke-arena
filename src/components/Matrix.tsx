@@ -6,6 +6,7 @@ import { clamp } from "@/lib/format";
 import { wilsonScore } from "@/lib/stats";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import Link from "next/link";
 
 /**
  * Matriz de emparejamientos: % de victorias de la fila contra la columna.
@@ -22,8 +23,13 @@ import { getLang } from "@/lib/lang";
  * con un lector de pantalla.
  */
 export async function Matrix({
-  data, byId, limit = 10,
-}: { data: MatrixData; byId: Map<string, Archetype>; limit?: number }) {
+  data, byId, limit = 10, hrefCelda, activo,
+}: {
+  data: MatrixData; byId: Map<string, Archetype>; limit?: number;
+  /** v0.108 — si viene, cada celda con partidas lleva a su cruce. */
+  hrefCelda?: (fila: string, col: string) => string;
+  activo?: [string, string] | null;
+}) {
   const lng = await getLang(); // v0.49
 
   const ids = data.ids.slice(0, limit);
@@ -116,6 +122,15 @@ export async function Matrix({
                       className="border border-line-soft p-0"
                       title={`${rowArch?.name} contra ${byId.get(colId)?.name}: ${Math.round(displayRate * 100)}% en ${v.n} partida${v.n === 1 ? "" : "s"}`}
                     >
+                      {(() => {
+                        const href = hrefCelda?.(rowId, colId);
+                        const on = activo && activo[0] === rowId && activo[1] === colId;
+                        const clase = `relative grid h-9 place-items-center font-mono sm:h-10 text-[11px] tabular transition-transform duration-150 hover:z-10 hover:scale-105 hover:shadow-md focus-visible:z-10 focus-visible:scale-105 focus-visible:outline-2 focus-visible:outline-info motion-reduce:transition-none ${on ? "ring-2 ring-info" : ""}`;
+                        const estilo = { background: `color-mix(in srgb, ${base} ${(alpha * 100).toFixed(0)}%, transparent)` };
+                        const etiqueta = `${rowArch?.name ?? rowId} contra ${byId.get(colId)?.name ?? colId}: ${Math.round(displayRate * 100)}% de victorias en ${v.n} partidas`;
+                        return href ? (
+                          <Link href={href} scroll={false} aria-label={etiqueta} className={clase} style={estilo}>{Math.round(displayRate * 100)}</Link>
+                        ) : (
                       <div
                         tabIndex={0}
                         role="img"
@@ -126,6 +141,8 @@ export async function Matrix({
                       >
                         {Math.round(displayRate * 100)}
                       </div>
+                        );
+                      })()}
                     </td>
                   );
                 })}

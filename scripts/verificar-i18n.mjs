@@ -148,6 +148,8 @@ const TRADUCIDAS = [
 const IGNORAR = new Set([
   "PokeArena TCG", "PokeArena", "TCG", "CP", "Elo", "Bo1", "Bo3", "Bo5", "vs", "VS",
   "Top Decks", "Limitless", "Play! Pokémon", "Pokémon", "PTCG Live", "Online", "—", "·",
+  // v0.108 — nombres oficiales de eventos, siglas y nombres técnicos: no se traducen.
+  "League Cup", "League Challenge", "Regional Championships", "POKEARENA TCG", "V–D–E", "%V", "CRON_SECRET",
 ]);
 
 // Texto entre etiquetas, también si ocupa varias líneas (v0.48: antes se
@@ -172,6 +174,8 @@ function revisa(ruta) {
   const encontrados = [];
   for (const m of s.matchAll(TXT)) {
     const t = m[1].replace(/\s+/g, " ").trim();
+    // v0.108 — rutas de fichero («src/lib/cp.ts») y restos de código («, avatarSm:», «Promise»).
+    if (/^src\//.test(t) || /^,/.test(t) || t === "Promise") continue;
     if (t.length > 1 && !IGNORAR.has(t) && !ES_CODIGO.test(t) && !/["]|\/\//.test(t) && !RASGOS_DE_CODIGO.test(t)) encontrados.push(t);
   }
   for (const m of s.matchAll(ATR)) {

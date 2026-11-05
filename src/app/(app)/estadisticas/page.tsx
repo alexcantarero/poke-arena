@@ -2,6 +2,8 @@ import Link from "next/link";
 import { loadMetaIrl, loadSnapshot } from "@/lib/data";
 import { irlMeta } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
+import { CrucePanel } from "@/components/CrucePanel";
+import { hrefConParam, parseCruce, valorCruce, type PartidaCruce } from "@/lib/cruces";
 import {
   activityByMonth, archetypeStats, archetypesOfMatch, firstTurnSeriesStats, firstTurnStats,
   isInternal, isPlayed, matchupMatrix, outcome, seriesShapes,
@@ -34,7 +36,7 @@ import type { SerieConv } from "@/components/statistics/ConversionEvolucion";
 import { agruparFilas, crearAgrupador } from "@/lib/arquetipos";
 import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Estadísticas" };
@@ -226,6 +228,39 @@ export default async function StatsPage({
     for (const id of matrix.ids) {
       const archetype = agr.arquetipo(id);
       if (archetype) matrixArchById.set(id, archetype);
+    }
+  }
+  /* v0.108 — la celda abierta de la matriz (`?cruce=arqA~arqB`): las partidas
+     de ese emparejamiento, desde el lado del arquetipo de la fila. A nivel de
+     SERIE (la matriz cuenta juego a juego cuando hay mazo por juego: puede
+     haber más partidas aquí que en la cuenta de la celda o al revés). */
+  const cruceArq = parseCruce(q.cruce);
+  const hrefCruceArq = (a: string, b: string) => hrefConParam("/estadisticas", q, "cruce", valorCruce(a, b), "cruce");
+  const cerrarCruceArq = hrefConParam("/estadisticas", q, "cruce", null, "matriz");
+  const filasCruceArq: PartidaCruce[] = [];
+  if (cruceArq) {
+    const [fa, fb] = cruceArq;
+    for (const m of rows) {
+      if (!isPlayed(m)) continue;
+      const { a: A, b: B } = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      if (!A || !B) continue;
+      const ra = raiz(A.id), rb = raiz(B.id);
+      const desdeA = ra === fa && rb === fb;
+      const desdeB = ra === fb && rb === fa;
+      if (!desdeA && !desdeB) continue;
+      const o = outcome(m);
+      const lado = desdeA ? "a" : "b";
+      const resultado = m.games.length || o.declared ? (o.winner === "tie" ? "t" : o.winner === lado ? "w" : "l") : null;
+      const pa = snap.playersById.get(m.playerAId)?.name ?? "?";
+      const pb = m.playerBId ? snap.playersById.get(m.playerBId)?.name ?? "?" : m.opponentName || tr(lng, "cruce.rival");
+      const t = m.tournamentId ? snap.toursById.get(m.tournamentId) : undefined;
+      filasCruceArq.push({
+        id: m.id, fecha: m.date, resultado: resultado as PartidaCruce["resultado"],
+        marcador: m.games.length ? (desdeA ? `${o.ga}–${o.gb}` : `${o.gb}–${o.ga}`) : "",
+        contexto: desdeA ? `${pa} vs ${pb}` : `${pb} vs ${pa}`,
+        detalle: t ? `${t.name}${m.round ? ` · R${m.round}` : ""}` : undefined,
+        href: t ? `/torneos/${t.id}` : `/partidas/${m.id}`,
+      });
     }
   }
   const totalGames = rows.reduce((a, m) => a + m.games.length, 0);
@@ -582,20 +617,26 @@ export default async function StatsPage({
       </div>
 
       {fuente !== "live" && (
-        <section className="card mt-4">
+        <section id="matriz" className="card mt-4 scroll-mt-20 overflow-hidden">
           <div className="card-head">
             <h2 className="text-lg font-bold">{tr(lng, "x.f0c24bc6")}</h2>
             <span className="text-xs text-muted">{tr(lng, "x.41b20a92")}</span>
           </div>
           <div className="p-4">
-            <Matrix data={matrix} byId={matrixArchById} />
+            <Matrix data={matrix} byId={matrixArchById} hrefCelda={hrefCruceArq} activo={cruceArq} />
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-win" />{tr(lng, "x.8acc75fa")}</span>
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-series-1" />{tr(lng, "x.84ea39ca")}</span>
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-loss" />{tr(lng, "x.c8d5d524")}</span>
               <span>{tr(lng, "x.341ee503")}</span>
+              <span className="font-semibold text-info">{tr(lng, "cruce.pista")}</span>
             </div>
           </div>
+          {cruceArq && (
+            <CrucePanel
+              titulo={trf(lng, "cruce.tituloArq", { a: snap.archById.get(cruceArq[0])?.name ?? agr.arquetipo(cruceArq[0])?.name ?? "?", b: snap.archById.get(cruceArq[1])?.name ?? agr.arquetipo(cruceArq[1])?.name ?? "?" })}
+              filas={filasCruceArq} cerrar={cerrarCruceArq} />
+          )}
         </section>
       )}
       <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.torneos")}</h2>

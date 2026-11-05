@@ -5,6 +5,7 @@ import { prettyPokemon, spriteUrl, typeOf } from "@/lib/pokemon";
 import { outcome } from "@/lib/stats";
 import { clamp, pct } from "@/lib/format";
 import { Icon } from "./icons";
+import { SpanT, T } from "./Textos";
 import { KindEmblem, emblemKindOf } from "./Emblems";
 
 /* `Kpi` y los esqueletos viven en `primitives.tsx` y se reexportan aquí.
@@ -61,7 +62,7 @@ export function PlayerTag({
   player, size = "md", className = "",
 }: { player?: PublicPlayer | null; size?: keyof typeof AV_SIZES; className?: string }) {
   if (!player) {
-    return <span className="text-muted">Jugador borrado</span>;
+    return <span className="text-muted"><T k="ui.jugadorBorrado" /></span>;
   }
   return (
     <Link
@@ -124,10 +125,8 @@ export function OtherMark({ size = "md" }: { size?: keyof typeof SPRITE_SIZES })
 /** El marcador de cartas apiladas: el respaldo de `OtherMark`. */
 function OtherCartas({ size = "md" }: { size?: keyof typeof SPRITE_SIZES }) {
   return (
-    <span
+    <SpanT k="ui.otrosMazos" aria
       className={`inline-grid flex-none place-items-center rounded-full border border-dashed border-line text-muted ${SPRITE_SIZES[size]}`}
-      title="Otros mazos"
-      aria-label="Otros mazos"
     >
       <svg viewBox="0 0 24 24" className="size-[62%]" fill="none" stroke="currentColor"
         strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
@@ -135,7 +134,7 @@ function OtherCartas({ size = "md" }: { size?: keyof typeof SPRITE_SIZES }) {
         <path d="M8 4.5h8.2a1.6 1.6 0 0 1 1.6 1.6V18" />
         <path d="M12.5 2.5h7.4a1.6 1.6 0 0 1 1.6 1.6v11.2" />
       </svg>
-    </span>
+    </SpanT>
   );
 }
 
@@ -179,7 +178,7 @@ export function Sprites({
 export function ArchTag({
   archetype, size = "sm", className = "",
 }: { archetype?: Archetype | null; size?: keyof typeof SPRITE_SIZES; className?: string }) {
-  if (!archetype) return <span className="text-sm text-muted">Sin mazo</span>;
+  if (!archetype) return <span className="text-sm text-muted"><T k="ui.sinMazo" /></span>;
   return (
     <Link
       href={`/estadisticas?arch=${archetype.id}`}
@@ -197,7 +196,7 @@ export function ArchTag({
 /** Los juegos de la serie, como puntos. Se lee de un vistazo. */
 export function Pips({ match, from }: { match: MatchFull; from: Side }) {
   return (
-    <span className="inline-flex items-center gap-1" title="Juego a juego">
+    <SpanT k="ui.juegoAJuego" className="inline-flex items-center gap-1">
       {Array.from({ length: match.bestOf || 1 }, (_, i) => {
         const g = match.games[i];
         const cls = !g
@@ -207,7 +206,7 @@ export function Pips({ match, from }: { match: MatchFull; from: Side }) {
           : "border-loss bg-loss";
         return <i key={i} className={`size-2 rounded-full border-2 ${cls}`} />;
       })}
-    </span>
+    </SpanT>
   );
 }
 
@@ -224,11 +223,11 @@ export function Pips({ match, from }: { match: MatchFull; from: Side }) {
  */
 export function Record({ w, d, l }: { w: number; d: number; l: number }) {
   return (
-    <span className="font-mono text-[13px] font-medium whitespace-nowrap" title="Victorias–derrotas–empates">
+    <SpanT k="ui.vde" className="font-mono text-[13px] font-medium whitespace-nowrap">
       <b className="text-win">{w}</b>
       –<span className="text-loss">{l}</span>
       {d > 0 && <>–<span className="text-tie">{d}</span></>}
-    </span>
+    </SpanT>
   );
 }
 
@@ -345,7 +344,7 @@ export function Bars({ rows, max }: { rows: BarRow[]; max?: number }) {
 export function Sparkline({
   values, width = 260, height = 46,
 }: { values: number[]; width?: number; height?: number }) {
-  if (values.length < 2) return <p className="text-sm text-muted">Sin datos suficientes</p>;
+  if (values.length < 2) return <p className="text-sm text-muted"><T k="ui.sinDatos" /></p>;
   const mn = Math.min(...values), mx = Math.max(...values);
   const pad = 4, span = mx - mn || 1;
   const x = (i: number) => pad + (i * (width - pad * 2)) / (values.length - 1);
@@ -355,7 +354,8 @@ export function Sparkline({
   const last = values[values.length - 1];
   const color = last >= values[0] ? "var(--win)" : "var(--loss)";
   return (
-    <svg className="block h-auto w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Evolución">
+    <svg className="block h-auto w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img">
+      <title><T k="ui.evolucion" /></title>
       <path d={area} fill={color} opacity="0.14" />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
       <circle cx={x(values.length - 1).toFixed(1)} cy={y(last).toFixed(1)} r="2.8" fill={color} />
@@ -403,7 +403,7 @@ export function MatchCard({ match, playerA, playerB, archA, archB, context }: Ma
       className="tile-status relative block border-b border-line-soft px-4 py-3 transition-colors last:border-b-0 hover:bg-surface-2 active:bg-surface-2"
       style={{ ["--status" as string]: wA ? "var(--win)" : wB ? "var(--loss)" : "var(--tie)" }}
     >
-      <Link href={`/partidas/${match.id}`} className="absolute inset-0" aria-label="Ver la partida" />
+      <Link href={`/partidas/${match.id}`} className="absolute inset-0"><span className="sr-only"><T k="ui.verPartida" /></span></Link>
       <div className="mb-2 flex items-center gap-2 text-[11px] text-muted">
         <span className="font-mono">{match.date}</span>
         {context && <><span aria-hidden="true">·</span><span className="truncate">{context}</span></>}

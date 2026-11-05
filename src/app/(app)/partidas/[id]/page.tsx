@@ -1,3 +1,4 @@
+import { mazosLigeros, torneosLigeros } from "@/lib/aligerar";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { archetypeOptions, currentPlayer, deckOptions, loadSnapshot } from "@/lib/data";
@@ -304,10 +305,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <MatchForm
             match={match}
             players={snap.players}
-            decks={snap.decks}
+            decks={mazosLigeros(snap.decks) /* v0.108: sin listas, ver lib/aligerar.ts */}
             archetypes={snap.archetypes}
             competitions={snap.competitions}
-            tournaments={snap.tournaments}
+            tournaments={torneosLigeros(snap.tournaments)}
             meId={me?.id}
             canPickPlayer={me ? canManageLeague(me.role) : false}
           />

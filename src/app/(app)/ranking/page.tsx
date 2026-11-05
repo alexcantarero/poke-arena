@@ -5,7 +5,7 @@ import type { SerieLadder } from "@/components/statistics/LadderChart";
 import { LadderChartLazy } from "@/components/statistics/lazy";
 import { seriesLadder } from "@/lib/ladderSeries";
 import { RankBadge } from "@/components/Ladder";
-import { archetypeStats, formaReciente, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings } from "@/lib/stats";
+import { archetypesOfMatch, archetypeStats, formaReciente, isPlayed, outcome, playerRecord, recordOf, roundResult, roundsOf, standings } from "@/lib/stats";
 import { awardsCp, computeCp, cpKindOf, getSeason, seasonOfDate, type CpResultInput } from "@/lib/cp";
 import { estadoMundial, porPuestoZona } from "@/lib/mundial";
 import { FECHAS_RANKING, dentroDeRango, filtroAQuery, parseFiltroRanking, rangoDeFechas } from "@/lib/rankingFiltro";
@@ -20,6 +20,8 @@ import { claveRonda, matrizH2H, type Encuentro } from "@/lib/h2h";
 import { TournamentRankingTable, type TourRankRow } from "@/components/TournamentRankingTable";
 import { RankingTodoTable, type TodoRow } from "@/components/RankingTodoTable";
 import { H2HHeatmap } from "@/components/H2HHeatmap";
+import { CrucePanel } from "@/components/CrucePanel";
+import { hrefConParam, parseCruce, valorCruce, type PartidaCruce } from "@/lib/cruces";
 import { Avatar, PageHead, PlayerTag, Sparkline } from "@/components/ui";
 import { VerMas } from "@/components/VerMas";
 import { RankingTable, type RankRow } from "@/components/RankingTable";
@@ -263,6 +265,53 @@ export default async function RankingPage({
     }
   }
   const h2h = matrizH2H(encuentros);
+
+  /* v0.108 — la celda abierta (`?cruce=a~b`): sus partidas concretas, desde
+     el lado de la fila. Mismas partidas que la matriz (las del ámbito), y una
+     ronda apuntada por los dos jugadores cuenta una vez, igual que en la matriz. */
+  const cruce = parseCruce(q.cruce);
+  const hrefCruce = (a: string, b: string) => hrefConParam("/ranking", q, "cruce", valorCruce(a, b), "cruce");
+  const cerrarCruce = hrefConParam("/ranking", q, "cruce", null, "h2h");
+  const filasCruce: PartidaCruce[] = [];
+  if (cruce) {
+    const [ca, cb] = cruce;
+    const vistas = new Set<string>();
+    const nombreArq = (x?: { name?: string | null }) => x?.name ?? "?";
+    for (const m of scoped) {
+      const rival = m.playerBId ?? (m.tournamentId ? m.opponentPlayerId : null);
+      if (!rival) continue;
+      const par = (m.playerAId === ca && rival === cb) || (m.playerAId === cb && rival === ca);
+      if (!par) continue;
+      const desdeA = m.playerAId === ca;
+      let resultado: PartidaCruce["resultado"] = null;
+      let marcador = "";
+      if (m.playerBId) {
+        const o = outcome(m);
+        if (m.games.length || o.declared) {
+          const lado = desdeA ? "a" : "b";
+          resultado = o.winner === "tie" ? "t" : o.winner === lado ? "w" : "l";
+        }
+        if (m.games.length) marcador = desdeA ? `${o.ga}–${o.gb}` : `${o.gb}–${o.ga}`;
+      } else {
+        const k = claveRonda(m.tournamentId!, m.round, m.playerAId, rival);
+        if (vistas.has(k)) continue;
+        vistas.add(k);
+        const r = roundResult(m);
+        const r2 = r === "w" ? "w" : r === "l" ? "l" : r === "d" ? "t" : null;
+        resultado = desdeA || !r2 ? r2 : r2 === "w" ? "l" : r2 === "l" ? "w" : "t";
+      }
+      const t = m.tournamentId ? snap.toursById.get(m.tournamentId) : undefined;
+      const comp = m.competitionId ? snap.compsById.get(m.competitionId) : undefined;
+      const contexto = t ? `${t.name}${m.round ? ` · R${m.round}` : ""}` : comp ? comp.name : tr(lng, "cruce.amistoso");
+      const arq = archetypesOfMatch(m, snap.archIndex, snap.archById);
+      const [mio, suyo] = desdeA ? [arq.a, arq.b] : [arq.b, arq.a];
+      filasCruce.push({
+        id: m.id, fecha: m.date, contexto, resultado, marcador,
+        detalle: mio || suyo ? `${nombreArq(mio)} vs ${nombreArq(suyo)}` : undefined,
+        href: t ? `/torneos/${t.id}` : `/partidas/${m.id}`,
+      });
+    }
+  }
   const h2hJugadores = snap.players
     .filter((p) => visible(p.id))
     .map((p) => ({ id: p.id, name: p.name, avatar: <Avatar player={p} size="sm" /> }));
@@ -480,14 +529,19 @@ export default async function RankingPage({
 
       {/* v0.60 — los enfrentamientos directos, con lo de la liga (tabla y Elo);
           lo del circuito oficial (Mundial y Ladder), detrás. */}
-      <section className="card mt-5 min-w-0 overflow-hidden">
+      <section id="h2h" className="card mt-5 min-w-0 scroll-mt-20 overflow-hidden">
         <div className="card-head">
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{tr(lng, "x.55125239")}</h2>
             <p className="text-xs text-muted">{tr(lng, "x.acd50f5b")}</p>
           </div>
         </div>
-        <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} />
+        <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} hrefCelda={hrefCruce} activo={cruce} />
+        {cruce && (
+          <CrucePanel
+            titulo={trf(lng, "cruce.tituloJugadores", { a: snap.playersById.get(cruce[0])?.name ?? "?", b: snap.playersById.get(cruce[1])?.name ?? "?" })}
+            filas={filasCruce} cerrar={cerrarCruce} />
+        )}
       </section>
 
       {/* ---------------------- v0.17: camino al Mundial ---------------------- */}

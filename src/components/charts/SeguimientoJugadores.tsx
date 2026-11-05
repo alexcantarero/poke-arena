@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { coloresDistintos } from "@/lib/coloresSeries";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -56,6 +57,15 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
     [filas, elegidos, tipos, arquetipo, gran],
   );
   const porId = useMemo(() => new Map(jugadores.map((j) => [j.id, j])), [jugadores]);
+  /* v0.108 — colores sin choques entre los elegidos, foco al pasar y nombre al
+     final de cada línea: lo mismo que la Evolución del Elo (v0.107). */
+  const colores = useMemo(
+    () => coloresDistintos(elegidos.map((id) => ({ id, color: porId.get(id)?.color }))),
+    [elegidos, porId],
+  );
+  const colorDe = (id: string) => colores.get(id) ?? porId.get(id)?.color ?? "var(--info)";
+  const [foco, setFoco] = useState<string | null>(null);
+  const opacidad = (id: string) => (foco && foco !== id ? 0.15 : 1);
 
   const etiqueta = (p: string) => {
     if (gran === "mes") return new Intl.DateTimeFormat(loc, { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(`${p}-01T00:00:00Z`));
@@ -128,8 +138,9 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr(lng, "seg.jugadores")}>
           {porActividad.map((j) => (
             <button key={j.id} type="button" aria-pressed={elegidos.includes(j.id)} onClick={() => setElegidos((x) => alterna(x, j.id))}
+              onMouseEnter={() => elegidos.includes(j.id) && setFoco(j.id)} onMouseLeave={() => setFoco(null)}
               className={`chip inline-flex items-center gap-1.5 ${elegidos.includes(j.id) ? "" : "opacity-50"}`}>
-              <span className="size-2.5 rounded-full" style={{ background: j.color }} aria-hidden="true" />
+              <span className="size-2.5 rounded-full" style={{ background: elegidos.includes(j.id) ? colorDe(j.id) : j.color }} aria-hidden="true" />
               {j.name}
             </button>
           ))}
@@ -140,7 +151,7 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
         {periodos.length && elegidos.length ? (
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={datos} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+              <LineChart data={datos} margin={{ top: 6, right: 52, left: -18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line-soft)" />
                 <XAxis dataKey="periodo" tickFormatter={etiqueta} tick={{ fontSize: 11, fill: "var(--muted)" }} tickLine={false} minTickGap={18} />
                 <YAxis allowDecimals={false} domain={metrica === "pct" ? [0, 100] : [0, "auto"]}
@@ -160,7 +171,7 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
                         {filasT.length ? filasT.map(({ id, c }) => (
                           <div key={id} className="mb-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="size-2 rounded-full" style={{ background: porId.get(id)?.color }} />
+                              <span className="size-2 rounded-full" style={{ background: colorDe(id) }} />
                               <b>{porId.get(id)?.name}</b>
                               <span className="ml-auto tabular text-muted">{c!.w}–{c!.l}{c!.t ? `–${c!.t}` : ""} · {pct(c!.pct, 0)}</span>
                             </div>
@@ -175,8 +186,19 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
                 />
                 {elegidos.map((id) => (
                   <Line key={id} type="linear" dataKey={id} name={porId.get(id)?.name ?? id}
-                    stroke={porId.get(id)?.color ?? "var(--info)"} strokeWidth={2}
-                    dot={{ r: 2.5 }} activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />
+                    stroke={colorDe(id)} strokeWidth={foco === id ? 3.25 : 2} strokeOpacity={opacidad(id)}
+                    dot={{ r: 2.5, fillOpacity: opacidad(id), strokeOpacity: opacidad(id) }} activeDot={{ r: 5 }}
+                    onMouseEnter={() => setFoco(id)} onMouseLeave={() => setFoco(null)}
+                    label={(p: { index?: number; x?: number | string; y?: number | string; value?: unknown }) => {
+                      let ultimo = -1;
+                      datos.forEach((d, i) => { if (d[id] != null) ultimo = i; });
+                      return p.index === ultimo && elegidos.length <= 8 && p.x != null && p.y != null ? (
+                        <text x={Number(p.x) + 5} y={Number(p.y) + 3.5} fontSize={10} fontWeight={700} fill={colorDe(id)} opacity={opacidad(id)}>
+                          {(porId.get(id)?.name ?? "").split(" ")[0]}
+                        </text>
+                      ) : <g />;
+                    }}
+                    connectNulls={false} isAnimationActive animationDuration={600} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -203,7 +225,7 @@ export function SeguimientoJugadores({ filas, jugadores }: Props) {
                   <tr key={t.id}>
                     <td className="py-1.5 pr-2">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full" style={{ background: porId.get(t.id)?.color }} />
+                        <span className="size-2 rounded-full" style={{ background: colorDe(t.id) }} />
                         {porId.get(t.id)?.name}
                       </span>
                     </td>

@@ -1,3 +1,5 @@
+[REDACTADO: token de Vercel revocado]
+
 # 15 · Uso real de Vercel y Neon: cómo se recoge cada dato
 
 > v0.95.0 · 4 de noviembre de 2026. Límites y endpoints comprobados ese día en la

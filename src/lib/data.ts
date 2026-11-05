@@ -8,10 +8,11 @@ import { db } from "@/db";
 import {
   archetypes, competitionPlayers, competitions, deckFavorites, decks, events, games, invites,
   competitionTeams, ladderEntries, leagueDecks, matches, seasonResets, metaEntries, metaEvents, playerFavorites, players, settings, tournamentResults,
-  tournaments,
+  tournaments, asistencias,
 } from "@/db/schema";
 import { ARCHETYPE_PREFIX } from "./types";
-import { seriesElo } from "./ladderSeries";
+import { esEstado, type EstadoAsistencia } from "./asistencia";
+import { seriesElo, type PuntoSerie } from "./ladderSeries";
 import type {
   Archetype, DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
   TournamentResult,
@@ -175,13 +176,17 @@ const leerTablas = unstable_cache(async () => {
 }, ["snapshot-tablas-v1"], { tags: [TAG_DATOS], revalidate: 60 });
 
 export const loadSnapshot = cache(async () => {
+  /* v0.108 — medir antes de optimizar a ciegas: si cargar el snapshot pasa de
+     medio segundo, queda en el log de Vercel con su desglose (caché fría o no). */
+  const t0 = Date.now();
+  let tTablas = 0;
   const [config, playerRows, archRows, tablas] = await Promise.all([
     // v0.28: la misma función que usa el layout. `cache()` la deduplica, así
     // que pedir las dos cosas en una pantalla sigue siendo una sola consulta.
     loadConfig(),
     loadPlayers(),
     loadArchetypes(),
-    leerTablas().then(revivir),
+    leerTablas().then((x) => { tTablas = Date.now() - t0; return revivir(x); }),
   ]);
   const { deckRows, compRows, compPlayerRows, matchRows, eventRows, tourRows, favRows, playerFavRows, gameRows, resultRows } = tablas;
 
@@ -253,6 +258,8 @@ export const loadSnapshot = cache(async () => {
   // eso dispara el getter y pierdes el ahorro.
   const tourWeights = new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }]));
   let eloCache: ReturnType<typeof eloTable> | null = null;
+  const total = Date.now() - t0;
+  if (total > 500) console.warn(`[rendimiento] loadSnapshot ${total} ms (tablas ${tTablas} ms · ${matchRows.length} partidas · ${gameRows.length} juegos)`);
 
   return {
     config,
@@ -362,6 +369,26 @@ export function compPlayers(snap: Snapshot, compId: string) {
 /** Lo único que necesita `playerCp`. v0.47: antes pedía el snapshot entero,
     y eso obligaba a cargar las 13 tablas en cualquier pantalla con CP. */
 export type DatosCp = Pick<Snapshot, "config" | "resultsByPlayer" | "toursById">;
+
+/**
+ * v0.108 — Rendimiento: lo justo para `playerCp` de UNA persona, sin cargar
+ * el snapshot entero (todas las partidas y juegos). Dos consultas pequeñas:
+ * sus resultados y los torneos de esos resultados. Lo usa el calendario para
+ * las estrellas de CP, que antes pedía `loadSnapshot()` solo para esto.
+ */
+export async function cargarDatosCpDe(playerId: string): Promise<DatosCp> {
+  const [config, mios] = await Promise.all([
+    loadConfig(),
+    db.select().from(tournamentResults).where(eq(tournamentResults.playerId, playerId)) as Promise<TournamentResult[]>,
+  ]);
+  const ids = [...new Set(mios.map((r) => r.tournamentId))];
+  const tours = ids.length ? await db.select().from(tournaments).where(inArray(tournaments.id, ids)) : [];
+  return {
+    config,
+    resultsByPlayer: new Map([[playerId, mios]]),
+    toursById: new Map(tours.map((t) => [t.id, { ...t, results: [] }] as const)),
+  } as DatosCp;
+}
 
 export function playerCp(snap: DatosCp, playerId: string, season?: number): CpTotals {
   const target = season ?? snap.config.cpSeason;
@@ -549,6 +576,17 @@ export async function ladderChartData() {
  */
 export function eloChartData(snap: Snapshot) {
   const { series: por, fechas } = seriesElo(snap.elo.history);
+  /* v0.108 — cada punto que es una ronda de torneo lleva el nombre y el tipo
+     del torneo: la gráfica los marca para ver dónde subiste o bajaste por un
+     Regional o una Cup. */
+  const torneoDe = new Map<string, { torneo: string; tipo: string }>();
+  for (const m of snap.matches) {
+    if (!m.tournamentId) continue;
+    const t = snap.toursById.get(m.tournamentId);
+    if (t) torneoDe.set(m.id, { torneo: t.name, tipo: t.kind });
+  }
+  const conTorneo = (ps: PuntoSerie[]) =>
+    ps.map((p) => (p.matchId && torneoDe.has(p.matchId) ? { ...p, ...torneoDe.get(p.matchId)! } : p));
   const series = snap.players
     .filter((p) => p.active && por.has(p.id))
     .map((p, i) => ({
@@ -556,7 +594,7 @@ export function eloChartData(snap: Snapshot) {
       name: p.name,
       color: p.color || `var(--series-${(i % 7) + 1})`,
       actual: snap.elo.rating[p.id] ?? null,
-      puntos: por.get(p.id)!,
+      puntos: conTorneo(por.get(p.id)!),
     }));
   // Con el eje en nº de partida, el corte del Elo ya está fuera (las partidas
   // anteriores no cuentan): no hay línea de reset que pintar.
@@ -791,6 +829,44 @@ export const loadCompetitionHeads = cache(async () =>
    las necesita y las carga igual tiene un coste que sube con el historial
    aunque la pantalla no cambie nunca. Eso es lo que se corta aquí.
    ========================================================================= */
+
+/**
+ * v0.106 — Mis marcas de «Iré / Quizá / No iré». Una consulta pequeña (solo las
+ * mías). Sin la migración 0030 la tabla no existe: el calendario sale igual,
+ * sin marcas, y `tabla` lo dice para enseñar el aviso.
+ */
+export async function cargarAsistencias(playerId: string): Promise<{ marcas: Map<string, EstadoAsistencia>; tabla: boolean }> {
+  try {
+    const filas = await db.select({ item: asistencias.item, estado: asistencias.estado }).from(asistencias)
+      .where(eq(asistencias.playerId, playerId));
+    const marcas = new Map<string, EstadoAsistencia>();
+    for (const f of filas) if (esEstado(f.estado)) marcas.set(f.item, f.estado);
+    return { marcas, tabla: true };
+  } catch {
+    return { marcas: new Map(), tabla: false };
+  }
+}
+
+/**
+ * v0.108 — Cuántos del grupo van (y cuántos «quizá») a cada evento o torneo.
+ * SOLO recuentos: nunca quién. Una consulta agrupada; sin la tabla, vacío.
+ */
+export async function cargarAsistenciaGrupo(): Promise<Map<string, { si: number; quiza: number }>> {
+  try {
+    const filas = await db.select({ item: asistencias.item, estado: asistencias.estado, n: sql<number>`count(*)::int` })
+      .from(asistencias).groupBy(asistencias.item, asistencias.estado);
+    const out = new Map<string, { si: number; quiza: number }>();
+    for (const f of filas) {
+      if (f.estado !== "si" && f.estado !== "quiza") continue;
+      const c = out.get(f.item) ?? { si: 0, quiza: 0 };
+      c[f.estado as "si" | "quiza"] = Number(f.n) || 0;
+      out.set(f.item, c);
+    }
+    return out;
+  } catch {
+    return new Map();
+  }
+}
 
 /** Las jornadas y fechas señaladas de la liga. Tabla pequeña y estable. */
 export const loadEvents = cache(async () =>

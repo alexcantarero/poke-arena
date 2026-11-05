@@ -1,3 +1,4 @@
+import { mazosLigeros, torneosLigeros } from "@/lib/aligerar";
 import { canManageLeague } from "@/lib/auth";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
 import { PageHead } from "@/components/ui";
@@ -34,10 +35,10 @@ export default async function NewMatchPage({
       <PageHead title={tr(lng, "x.84699856")} sub={tr(lng, "x.cc942d93")} back={{ href: "/resultados", label: tr(lng, "x.b164a1ab") }} />
       <MatchForm
         players={snap.players}
-        decks={snap.decks}
+        decks={mazosLigeros(snap.decks) /* v0.108: sin listas, ver lib/aligerar.ts */}
         archetypes={snap.archetypes}
         competitions={snap.competitions}
-        tournaments={snap.tournaments}
+        tournaments={torneosLigeros(snap.tournaments)}
         meId={me?.id}
         canPickPlayer={me ? canManageLeague(me.role) : false}
         initialP1={p1}

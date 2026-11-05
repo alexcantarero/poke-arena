@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { coloresDistintos } from "@/lib/coloresSeries";
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -60,13 +61,23 @@ export function ConversionEvolucion({
     });
   }, [series, metrica]);
 
+  /* v0.108 — colores sin choques entre las líneas visibles, foco y etiqueta al
+     final, como la Evolución del Elo. */
+  const visibles = series.filter((s) => !ocultos.has(s.id));
+  const colores = useMemo(() => coloresDistintos(visibles.map((s) => ({ id: s.id, color: s.color }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, ocultos]);
+  const colorDe = (s: SerieConv) => colores.get(s.id) ?? s.color;
+  const [foco, setFoco] = useState<string | null>(null);
+  const opacidad = (id: string) => (foco && foco !== id ? 0.15 : 1);
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="seg text-xs" role="tablist" aria-label={tr(lng, "x.8fdb824b")}>
           {(["grupo", "jugadores", "mazos"] as const).map((v) => (
             <button key={v} type="button" data-on={vista === v} onClick={() => { setVista(v); setOcultos(new Set()); }}>
-              {v === "grupo" ? "Grupo" : v === "jugadores" ? "Jugadores" : tr(lng, "x.78f2cee5")}
+              {v === "grupo" ? tr(lng, "conv.grupo") : v === "jugadores" ? tr(lng, "conv.jugadores") : tr(lng, "x.78f2cee5")}
             </button>
           ))}
         </div>
@@ -83,9 +94,10 @@ export function ConversionEvolucion({
             const on = !ocultos.has(s.id);
             return (
               <button key={s.id} type="button" aria-pressed={on}
+                onMouseEnter={() => on && setFoco(s.id)} onMouseLeave={() => setFoco(null)}
                 onClick={() => setOcultos((o) => { const n = new Set(o); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; })}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${on ? "border-line bg-surface-2" : "border-line-soft opacity-50"}`}>
-                <span className="size-2.5 rounded-full" style={{ background: s.color }} />{s.name}
+                <span className="size-2.5 rounded-full" style={{ background: on ? colorDe(s) : s.color }} />{s.name}
               </button>
             );
           })}
@@ -97,7 +109,7 @@ export function ConversionEvolucion({
       ) : (
         <div className="h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={datos} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
+            <LineChart data={datos} margin={{ top: 8, right: vista === "grupo" ? 8 : 52, left: -14, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
               <XAxis dataKey="key" tickFormatter={etiqueta} tick={EJE} minTickGap={16} />
               <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} tick={EJE} width={44} />
@@ -105,21 +117,35 @@ export function ConversionEvolucion({
                 labelFormatter={(k) => etiqueta(String(k))}
                 formatter={(v, name, item) => {
                   const n = (item?.payload as Record<string, number> | undefined)?.[`${String(item?.dataKey)}__n`] ?? 0;
-                  return [v == null ? "sin dato" : `${Math.round(Number(v) * 100)}% · ${n} res.`, name as string];
+                  return [v == null ? tr(lng, "conv.sinDato") : `${Math.round(Number(v) * 100)}% · ${n} res.`, name as string];
                 }}
                 contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 8, fontSize: 12 }}
               />
               {vista === "grupo" && <Legend wrapperStyle={{ fontSize: 12 }} />}
-              {series.filter((s) => !ocultos.has(s.id)).map((s) => (
-                <Line key={s.id} dataKey={s.id} name={s.name} type="monotone" stroke={s.color} strokeWidth={2.25}
-                  dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />
-              ))}
+              {visibles.map((s) => {
+                let ultimo = -1;
+                datos.forEach((d, i) => { if (d[s.id] != null) ultimo = i; });
+                const c = colorDe(s);
+                return (
+                  <Line key={s.id} dataKey={s.id} name={s.name} type="monotone" stroke={c}
+                    strokeWidth={foco === s.id ? 3.25 : 2.25} strokeOpacity={opacidad(s.id)}
+                    dot={{ r: 3, fillOpacity: opacidad(s.id), strokeOpacity: opacidad(s.id) }} activeDot={{ r: 5 }}
+                    onMouseEnter={() => setFoco(s.id)} onMouseLeave={() => setFoco(null)}
+                    label={vista === "grupo" ? undefined : (p: { index?: number; x?: number | string; y?: number | string }) =>
+                      p.index === ultimo && visibles.length <= 8 && p.x != null && p.y != null ? (
+                        <text x={Number(p.x) + 5} y={Number(p.y) + 3.5} fontSize={10} fontWeight={700} fill={c} opacity={opacidad(s.id)}>
+                          {s.name.split(" ")[0]}
+                        </text>
+                      ) : <g />}
+                    connectNulls={false} isAnimationActive animationDuration={600} />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
       <p className="mt-1 text-[11px] text-muted">
-        Cada punto es un mes; pasa el dedo para ver cuántos resultados hay detrás. Un hueco es un mes sin torneos, no un 0%.
+        {tr(lng, "conv.pie")}
       </p>
     </div>
   );

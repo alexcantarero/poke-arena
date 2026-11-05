@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex,
+  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex, primaryKey,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
@@ -809,3 +809,15 @@ export const usoLecturas = pgTable("uso_lecturas", {
   createdBy: text("created_by").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("uso_lecturas_dia_fuente_idx").on(t.fecha, t.fuente)]);
+
+/**
+ * v0.106 — «Iré / Quizá / No iré» de cada persona para cada evento o torneo
+ * del calendario. `item` es `evento:<id>` o `torneo:<id>` (dos tablas, ids que
+ * podrían chocar). Sin fila = sin marcar. Privado de cada uno.
+ */
+export const asistencias = pgTable("asistencias", {
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  item: text("item").notNull(),
+  estado: text("estado").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.playerId, t.item] })]);

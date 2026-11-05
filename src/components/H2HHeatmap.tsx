@@ -24,11 +24,15 @@ import { getLang } from "@/lib/lang";
 export type JugadorH2H = { id: string; name: string; avatar: ReactNode };
 
 export async function H2HHeatmap({
-  matriz, jugadores, colorMode = "volume",
+  matriz, jugadores, colorMode = "volume", hrefCelda, activo,
 }: {
   matriz: MatrizH2H;
   jugadores: JugadorH2H[];
   colorMode?: "volume" | "winRate";
+  /** v0.108 — si viene, cada celda con partidas es un enlace a su cruce. */
+  hrefCelda?: (fila: string, col: string) => string;
+  /** v0.108 — la celda abierta ahora (se marca). */
+  activo?: [string, string] | null;
 }) {
   const lng = await getLang(); // v0.49
 
@@ -94,7 +98,7 @@ export async function H2HHeatmap({
                     <td
                       key={col}
                       title={titulo}
-                      className="size-13 rounded-lg border border-line-soft align-middle"
+                      className={`size-13 rounded-lg border border-line-soft p-0 align-middle ${activo && activo[0] === fila && activo[1] === col ? "ring-2 ring-info" : ""}`}
                       /* v0.56 — contraste: el tinte llevaba TOPE y el texto se perdía
                          sobre los colores fuertes. Ahora el relleno no pasa del 40 %
                          (el texto siempre gana) y un borde del mismo color marca la
@@ -105,7 +109,7 @@ export async function H2HHeatmap({
                       } : undefined}
                     >
                       {c.partidas ? (
-                        <>
+                        <CeldaEnlace href={hrefCelda?.(fila, col)}>
                           <span className="block font-display text-lg font-extrabold tabular leading-none text-ink">
                             {colorMode === "winRate" ? (winRate == null ? "—" : `${Math.round(winRate * 100)}%`) : c.partidas}
                           </span>
@@ -120,7 +124,7 @@ export async function H2HHeatmap({
                           <span className="block whitespace-nowrap text-[11px] font-semibold tabular tracking-tighter text-ink-2">
                             {colorMode === "winRate" ? `${c.gana}–${c.pierde} · ${c.partidas}` : `${c.gana}–${c.pierde}${c.empata ? `–${c.empata}` : ""}`}
                           </span>
-                        </>
+                        </CeldaEnlace>
                       ) : (
                         <span className="text-xs text-muted/60">·</span>
                       )}
@@ -139,5 +143,15 @@ export async function H2HHeatmap({
           : <>{matriz.total} enfrentamiento{matriz.total === 1 ? "" : "s"}. Cada celda: veces que os habéis cruzado y el récord V–D de la fila contra la columna. Más oscuro, más cruces.</>}
       </p>
     </>
+  );
+}
+
+/** v0.108 — el contenido de una celda, como enlace a su cruce si se puede. */
+function CeldaEnlace({ href, children }: { href?: string; children?: ReactNode }) {
+  if (!href) return <>{children}</>;
+  return (
+    <Link href={href} scroll={false} className="grid size-full min-h-13 place-items-center rounded-lg px-1 py-1.5 hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-info">
+      <span>{children}</span>
+    </Link>
   );
 }

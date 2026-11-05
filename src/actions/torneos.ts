@@ -373,6 +373,8 @@ export async function saveTournamentRound(fd: FormData) {
   const actor = await requireActor();
 
   const tournamentId = str(fd, "tournamentId");
+  /* v0.108 — desde el modo directo, se vuelve al modo directo. */
+  const destinoRonda = str(fd, "directo") === "1" ? `/torneos/${tournamentId}?directo=1` : `/torneos/${tournamentId}`;
   if (!tournamentId) return;
   const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
   if (!tour) return;
@@ -399,7 +401,7 @@ export async function saveTournamentRound(fd: FormData) {
     kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut,
   });
   if (tope != null && round > tope) {
-    redirect(withFlash(`/torneos/${tournamentId}`, "error",
+    redirect(withFlash(destinoRonda, "error",
       familiaDe(tour.kind) === "challenge"
         ? `Este Challenge tiene ${tope} rondas y no hay top cut: la ronda ${round} no existe.`
         : `Este torneo admite como mucho ${tope} rondas (suizo + top cut).`));
@@ -530,8 +532,8 @@ export async function saveTournamentRound(fd: FormData) {
   const hayResultado = mode === "quick" ? Boolean(seriesResult)
     : rows.length > 0 && (seriesResult != null
       || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need);
-  if (!hayResultado) return redirect(withFlash(`/torneos/${tournamentId}`, "error", "Falta el resultado de la ronda."));
-  if (!rivalDeckId && !rivalArchId) return redirect(withFlash(`/torneos/${tournamentId}`, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
+  if (!hayResultado) return redirect(withFlash(destinoRonda, "error", "Falta el resultado de la ronda."));
+  if (!rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
 
   const values = {
     competitionId: null,
@@ -586,7 +588,7 @@ export async function saveTournamentRound(fd: FormData) {
      rondas NUEVAS; corregir las que ya estaban sí. La ficha ya no enseña el
      formulario, pero esto es la comprobación de verdad. */
   if (!existing && existingResult?.dropped) {
-    redirect(withFlash(`/torneos/${tournamentId}`, "error",
+    redirect(withFlash(destinoRonda, "error",
       await msj("x.85f12362")));
   }
 
@@ -652,7 +654,7 @@ export async function saveTournamentRound(fd: FormData) {
     justLocked ? archetypeAId : null,
   );
   refresh();
-  redirect(withFlash(`/torneos/${tournamentId}`, "ok", `Ronda ${round} guardada.`));
+  redirect(withFlash(destinoRonda, "ok", `Ronda ${round} guardada.`));
 }
 
 /**

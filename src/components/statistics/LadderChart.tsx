@@ -6,6 +6,13 @@ import {
 } from "recharts";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { coloresDistintos } from "@/lib/coloresSeries";
+import { CALENDAR_KINDS } from "@/lib/calendar";
+
+/* v0.108 — los torneos que se marcan en la línea del Elo (los que mueven el
+   ranking de verdad). Las rondas de tienda u online no se marcan: serían
+   puntos por todas partes. */
+const TIPOS_MARCADOS = ["worlds", "international", "regional", "special", "league_cup", "league_challenge"];
 
 /* =========================================================================
    v0.19 — Evolución del ladder: una línea por jugador, un punto por cada vez
@@ -23,7 +30,7 @@ export type SerieLadder = {
   color: string;
   /** Rango actual (null si no tiene: p. ej. tras un reset). */
   actual: number | null;
-  puntos: Array<{ t: number; elo: number | null; matchId?: string | null; delta?: number | null }>;
+  puntos: Array<{ t: number; elo: number | null; matchId?: string | null; delta?: number | null; torneo?: string; tipo?: string }>;
 };
 
 const EJE = { fontSize: 11, fill: "var(--muted)" } as const;
@@ -71,6 +78,20 @@ export function LadderChart({
     || a.name.localeCompare(b.name, lng === "en" ? "en" : "es"),
   );
   const visiblesBase = series.filter((s) => elegidos.has(s.id));
+  /* v0.107 — colores que no se confunden ENTRE LAS LÍNEAS VISIBLES (ver
+     `lib/coloresSeries.ts`): Rol y Niccolo salían los dos en rosa. Los chips
+     apagados conservan el color de su perfil. */
+  const colores = useMemo(
+    () => coloresDistintos(seriesOrdenadas.filter((s) => elegidos.has(s.id)).map((s) => ({ id: s.id, color: s.color }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, elegidos],
+  );
+  const colorDe = (s: SerieLadder) => colores.get(s.id) ?? s.color;
+  /* v0.107 — foco: al pasar por un chip o una línea, las demás se apagan. */
+  const [foco, setFoco] = useState<string | null>(null);
+  /* v0.108 — marcas de torneo en la línea (rombo del color del tipo). */
+  const [marcarTorneos, setMarcarTorneos] = useState(true);
+  const opacidad = (id: string) => (foco && foco !== id ? 0.15 : 1);
   // Eje por orden de partida: la etiqueta es la fecha de esa partida.
   const fechaDe = useMemo(() => new Map(fechas ?? []), [fechas]);
   const porOrden = Boolean(fechas);
@@ -86,7 +107,7 @@ export function LadderChart({
     ? new Date(Date.parse(`${ultimoDato}T00:00:00Z`) - periodo * 86400000).toISOString().slice(0, 10)
     : null;
   /** Días sin jugar a partir de los cuales la línea se corta en vez de unir los puntos. */
-  const HUECO_DIAS = 14;
+  const HUECO_DIAS = 10; // v0.107: 14 → 10, menos rayas largas entre partidas sueltas
   const visibles = visiblesBase.map((s) => {
     const pts = s.puntos.filter((p) => !corte || (fechaPunto(p.t) ?? "") >= corte);
     if (!porOrden) return { ...s, puntos: pts };
@@ -150,10 +171,12 @@ export function LadderChart({
           const on = elegidos.has(s.id);
           return (
             <button key={s.id} type="button" onClick={() => alternar(s.id)} aria-pressed={on}
+              onMouseEnter={() => on && setFoco(s.id)} onMouseLeave={() => setFoco(null)}
+              onFocus={() => on && setFoco(s.id)} onBlur={() => setFoco(null)}
               className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity
                 ${on ? "bg-surface-2 text-ink shadow-xs" : "border-line-soft text-muted opacity-60"}`}
-              style={on ? { borderColor: s.color } : undefined}>
-              <span className="size-2.5 flex-none rounded-full" style={{ background: s.color }} />
+              style={on ? { borderColor: colorDe(s) } : undefined}>
+              <span className="size-2.5 flex-none rounded-full" style={{ background: on ? colorDe(s) : s.color }} />
               {s.name}
             </button>
           );
@@ -174,12 +197,25 @@ export function LadderChart({
             className={`chip ${periodo === d ? "chip-brand" : ""}`}>{tr(lng, k)}</button>
         ))}
       </div>
+      {/* v0.108 — leyenda de las marcas de torneo, con interruptor. */}
+      {porOrden && (
+        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+          <button type="button" aria-pressed={marcarTorneos} onClick={() => setMarcarTorneos((v) => !v)}
+            className={`chip ${marcarTorneos ? "chip-brand" : ""}`}>◆ {tr(lng, "elo.marcarTorneos")}</button>
+          {marcarTorneos && TIPOS_MARCADOS.filter((k) => visibles.some((s) => s.puntos.some((p) => p.tipo === k))).map((k) => (
+            <span key={k} className="inline-flex items-center gap-1">
+              <i className="inline-block size-2.5 rotate-45" style={{ background: CALENDAR_KINDS[k].color }} aria-hidden="true" />
+              {CALENDAR_KINDS[k].label}
+            </span>
+          ))}
+        </div>
+      )}
       {visibles.length === 0 ? (
         <p className="grid h-48 place-items-center text-sm text-muted">{tr(lng, "x.923fbcf6")}</p>
       ) : (
         <div className="h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+            <LineChart margin={{ top: 8, right: 64, left: -12, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
               <XAxis
                 dataKey="t" type="number" scale={porOrden ? "linear" : "time"}
@@ -196,9 +232,12 @@ export function LadderChart({
                     return (
                       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: 10, fontSize: 12 }}>
                         <p style={{ margin: 0, fontWeight: "bold", marginBottom: 4 }}>{title}</p>
-                        {payload.map((p: any, i: number) => (
+                        {[...payload].sort((a: any, b: any) => (b.value ?? 0) - (a.value ?? 0)).map((p: any, i: number) => (
                           <div key={i} style={{ color: p.color }}>
                             {p.name}: {p.value}
+                            {p.payload.torneo && (
+                              <span className="ml-1 text-[11px] text-muted">· {p.payload.torneo}</span>
+                            )}
                             {p.payload.delta != null && (
                               <span className={p.payload.delta > 0 ? "text-win" : p.payload.delta < 0 ? "text-loss" : "text-muted"}>
                                 {" "}{p.payload.delta > 0 ? `+${p.payload.delta}` : p.payload.delta}
@@ -216,11 +255,41 @@ export function LadderChart({
                 <ReferenceLine key={r} x={r} stroke="var(--loss)" strokeWidth={2}
                   label={{ value: etiquetaReset, position: "insideTopRight", fill: "var(--loss)", fontSize: 10 }} />
               ))}
-              {visibles.map((s) => (
-                <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "stepAfter"} /* v0.51: un rango se mantiene hasta que se cambia; la curva suavizada se inventaba una caída gradual */
-                  stroke={s.color} strokeWidth={2.5} dot={visibles.length <= 3 ? { r: 2 } : false} activeDot={{ r: 4 }}
-                  connectNulls={false} isAnimationActive={false} />
-              ))}
+              {visibles.map((s) => {
+                /* v0.107 — al final de cada línea, su nombre y su Elo de ahora:
+                   sin ir a la leyenda a buscar de quién es cada color. */
+                let ultimo = -1;
+                s.puntos.forEach((p, i) => { if (p.elo != null) ultimo = i; });
+                const c = colorDe(s);
+                return (
+                  <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "stepAfter"} /* v0.51: un rango se mantiene hasta que se cambia; la curva suavizada se inventaba una caída gradual */
+                    stroke={c} strokeWidth={foco === s.id ? 3.5 : 2.5} strokeOpacity={opacidad(s.id)}
+                    dot={(d: { cx?: number; cy?: number; index?: number; payload?: { tipo?: string; elo?: number | null } }) => {
+                      const k = `${s.id}-${d.index}`;
+                      if (d.cx == null || d.cy == null || d.payload?.elo == null) return <g key={k} />;
+                      const tipo = d.payload.tipo;
+                      if (marcarTorneos && tipo && TIPOS_MARCADOS.includes(tipo)) {
+                        const r = tipo === "regional" || tipo === "international" || tipo === "worlds" || tipo === "special" ? 6 : 4.5;
+                        return (
+                          <path key={k} d={`M${d.cx},${d.cy - r} L${d.cx + r},${d.cy} L${d.cx},${d.cy + r} L${d.cx - r},${d.cy} Z`}
+                            fill={CALENDAR_KINDS[tipo]?.color ?? c} stroke="var(--surface)" strokeWidth={1.5} opacity={opacidad(s.id)} />
+                        );
+                      }
+                      return visibles.length <= 6
+                        ? <circle key={k} cx={d.cx} cy={d.cy} r={1.6} fill={c} fillOpacity={opacidad(s.id)} />
+                        : <g key={k} />;
+                    }}
+                    activeDot={{ r: 4.5 }}
+                    onMouseEnter={() => setFoco(s.id)} onMouseLeave={() => setFoco(null)}
+                    label={(p: { index?: number; x?: number | string; y?: number | string; value?: unknown }) =>
+                      p.index === ultimo && visibles.length <= 8 && p.x != null && p.y != null ? (
+                        <text x={Number(p.x) + 5} y={Number(p.y) + 3.5} fontSize={10} fontWeight={700} fill={c} opacity={opacidad(s.id)}>
+                          {`${s.name.split(" ")[0]} ${p.value}`}
+                        </text>
+                      ) : <g />}
+                    connectNulls={false} isAnimationActive animationDuration={700} />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </div>

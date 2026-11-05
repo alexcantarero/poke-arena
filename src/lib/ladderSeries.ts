@@ -9,7 +9,8 @@
    Sin imports: lo cargan los tests.
    ========================================================================= */
 
-export type PuntoSerie = { t: number; elo: number | null; matchId?: string; delta?: number };
+/** v0.108 — `torneo`/`tipo`: si la partida era una ronda de torneo (para marcarla en la gráfica). */
+export type PuntoSerie = { t: number; elo: number | null; matchId?: string; delta?: number; torneo?: string; tipo?: string };
 
 export function seriesLadder(
   entries: Array<{ playerId: string; elo: number; at: Date | string }>,
