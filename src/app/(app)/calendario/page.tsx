@@ -13,7 +13,9 @@ import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { CityPicker } from "@/components/CityPicker";
 import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
-import { importEuropeanEvents, importPastedEvents, marcarAsistencia } from "@/actions";
+import { AsistenciaBotones } from "@/components/AsistenciaBotones";
+import { FiltroAsistencia as FiltroAsistenciaSelect } from "@/components/FiltroAsistencia";
+import { importEuropeanEvents, importPastedEvents } from "@/actions";
 import {
   claveAsistencia, contarAsistencia, parseFiltroAsistencia, pasaAsistencia, FILTROS_ASISTENCIA,
   type EstadoAsistencia, type FiltroAsistencia,
@@ -262,8 +264,6 @@ export default async function CalendarPage({
   const cuantos: Record<FiltroAsistencia, number> = {
     todo: porVenir.length, "sin-no": porVenir.length - cuenta.no, mios: cuenta.si + cuenta.quiza, si: cuenta.si, no: cuenta.no,
   };
-  const backActual = filtrosHref(year, month);
-
   return (
     <>
       <PageHead
@@ -338,15 +338,16 @@ export default async function CalendarPage({
           {/* v0.106 — «Iré / Quizá / No iré»: quitar lo descartado y ver lo demás. */}
           {me && (
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tr(lng, "asis.filtro")}>
-              <span className="label mr-1">{tr(lng, "asis.filtro")}</span>
-              {FILTROS_ASISTENCIA.map((fa) => (
-                <Link key={fa} href={asisHref(fa)} aria-current={filtroAsis === fa ? "page" : undefined}
-                  className={`chip flex-none ${filtroAsis === fa ? "chip-brand" : ""}`}>
-                  {tr(lng, `asis.f.${fa}`)}
-                  <span className="font-mono text-[10px] tabular opacity-70">{cuantos[fa]}</span>
-                </Link>
-              ))}
-              <span className="text-[11px] text-muted">{tr(lng, vista === "agenda" ? "asis.pistaAgenda" : "asis.pista")}</span>
+              <FiltroAsistenciaSelect
+                etiqueta={tr(lng, "asis.filtro")}
+                valor={filtroAsis}
+                opciones={FILTROS_ASISTENCIA.map((fa) => ({
+                  value: fa,
+                  label: `${tr(lng, `asis.f.${fa}`)} · ${cuantos[fa]}`,
+                  href: asisHref(fa),
+                }))}
+                ayuda={tr(lng, vista === "agenda" ? "asis.pistaAgenda" : "asis.pista")}
+              />
               {asis && !asis.tabla && <span className="text-[11px] font-semibold text-loss">{tr(lng, "asis.sinTabla")}</span>}
             </div>
           )}
@@ -434,7 +435,7 @@ export default async function CalendarPage({
       )}
 
       {/* --------------------------- la agenda grande ------------------------ */}
-      {vista === "agenda" && <AgendaGrande agenda={agenda} filtroActivo={Boolean(tipo || ciudad || filtroAsis !== "todo")} marcar={me && asis?.tabla ? backActual : null} />}
+      {vista === "agenda" && <AgendaGrande agenda={agenda} filtroActivo={Boolean(tipo || ciudad || filtroAsis !== "todo")} puedeMarcar={Boolean(me && asis?.tabla)} />}
 
       {/* v0.17 — con «Calendario» se ve la rejilla y lo suyo (añadir e
           importar eventos, para organizadores); la agenda ya NO sale debajo:
@@ -517,10 +518,8 @@ type ItemAgenda = {
   kind?: string | null; scope?: string | null;
 };
 
-async function AgendaGrande({ agenda, filtroActivo, marcar }: {
-  agenda: ItemAgenda[]; filtroActivo: boolean;
-  /** v0.106 — la URL de vuelta si se puede marcar asistencia (con sesión y con la tabla); null si no. */
-  marcar: string | null;
+async function AgendaGrande({ agenda, filtroActivo, puedeMarcar }: {
+  agenda: ItemAgenda[]; filtroActivo: boolean; puedeMarcar: boolean;
 }) {
   const lng = await getLang(); // v0.49
 
@@ -604,7 +603,7 @@ async function AgendaGrande({ agenda, filtroActivo, marcar }: {
                       : e.url
                         ? <a href={e.url} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
                         : <div className={`${clase} hover:bg-transparent`}>{contenido}</div>}
-                    {marcar && <BotonesAsistencia elemento={e.clave} estado={e.asis} back={marcar} lng={lng} />}
+                    {puedeMarcar && <AsistenciaBotones elemento={e.clave} estado={e.asis} />}
                   </li>
                 );
               })}
@@ -632,31 +631,3 @@ function MarcaAsis({ estado, lng }: { estado?: EstadoAsistencia | null; lng: Awa
   const t = TONO_ASIS[estado];
   return <span title={tr(lng, `asis.e.${estado}`)} aria-label={tr(lng, `asis.e.${estado}`)} className="mr-0.5 font-black" style={{ color: t.color }}>{t.simbolo}</span>;
 }
-
-/**
- * Tres botones por evento de la agenda. Un formulario por evento: el elemento
- * va oculto y el estado en el botón pulsado. Pulsar el que ya está puesto lo
- * quita. Objetivos táctiles de 36px de alto, que caben tres en un móvil de 320.
- */
-function BotonesAsistencia({ elemento, estado, back, lng }: {
-  elemento: string; estado: EstadoAsistencia | null; back: string; lng: Awaited<ReturnType<typeof getLang>>;
-}) {
-  return (
-    <form action={marcarAsistencia} className="flex flex-wrap items-center gap-1.5 px-4 pb-3 sm:pl-28">
-      <input type="hidden" name="elemento" value={elemento} />
-      <input type="hidden" name="back" value={back} />
-      {(["si", "quiza", "no"] as const).map((e) => {
-        const on = estado === e;
-        const t = TONO_ASIS[e];
-        return (
-          <button key={e} type="submit" name="estado" value={e} aria-pressed={on}
-            className="chip min-h-9 px-3 text-xs font-semibold"
-            style={on ? { background: t.color, color: "var(--ground)", borderColor: "transparent" } : { borderColor: `color-mix(in oklab, ${t.color} 45%, transparent)`, color: t.color }}>
-            <span aria-hidden="true">{t.simbolo}</span> {tr(lng, `asis.b.${e}`)}
-          </button>
-        );
-      })}
-    </form>
-  );
-}
-

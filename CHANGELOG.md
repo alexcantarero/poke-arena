@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.109.0] — 2026-11-05
+
+**Sin migración nueva.**
+
+### Cambiado
+
+- **Asistencia del calendario**: «Iré», «Quizá» y «No iré» se guardan al instante y actualizan
+  su botón sin redirigir ni recargar la página. Si falla el guardado, se restaura la selección
+  anterior y se muestra el aviso.
+- **Filtro de asistencia**: los filtros con sus recuentos pasan a un desplegable compacto; cambiar
+  la opción conserva la posición de desplazamiento.
+
 ## [0.108.0] — 2026-11-05
 
 **Sin migración nueva** (lleva la `0030` de la v0.106 si aún no está aplicada).
