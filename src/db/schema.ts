@@ -114,6 +114,8 @@ export const players = pgTable("players", {
   favoriteArchetypeId: text("favorite_archetype_id"),
   /** Nombre de jugador en Play! Pokémon, para casar resultados oficiales. */
   playerTag: text("player_tag"),
+  /** Titular actual del Cinturón; se mantiene en la misma transacción que su estado. */
+  beltHolder: boolean("belt_holder").notNull().default(false),
   /**
    * v0.36 — el nick con el que juega en play.limitlesstcg.com.
    *
@@ -156,7 +158,10 @@ export const players = pgTable("players", {
   joined: date("joined").notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("players_email_idx").on(t.email)]);
+}, (t) => [
+  uniqueIndex("players_email_idx").on(t.email),
+  uniqueIndex("players_belt_holder_idx").on(t.beltHolder).where(sql`${t.beltHolder}`),
+]);
 
 /**
  * Invitaciones. El token es la parte secreta del enlace
@@ -319,6 +324,37 @@ export const beltRegistrations = pgTable("belt_registrations", {
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
   registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.eventId, t.playerId] })]);
+
+export const beltState = pgTable("belt_state", {
+  id: text("id").primaryKey(),
+  currentEventId: text("current_event_id").references(() => competitions.id, { onDelete: "set null" }),
+  lastDefendedAt: timestamp("last_defended_at", { withTimezone: true }),
+  vacantSince: timestamp("vacant_since", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const beltChallenges = pgTable("belt_challenges", {
+  id: text("id").primaryKey(),
+  challengerId: text("challenger_id").notNull().references(() => players.id),
+  championId: text("champion_id").notNull().references(() => players.id),
+  status: text("status").notNull().default("pending"),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  resultWinnerId: text("result_winner_id").references(() => players.id),
+  resultReportedBy: text("result_reported_by").references(() => players.id),
+  resultReportedAt: timestamp("result_reported_at", { withTimezone: true }),
+  resultConfirmedBy: text("result_confirmed_by").references(() => players.id),
+  resultConfirmedAt: timestamp("result_confirmed_at", { withTimezone: true }),
+  resultDisputedBy: text("result_disputed_by").references(() => players.id),
+  resultDisputedAt: timestamp("result_disputed_at", { withTimezone: true }),
+}, (t) => [
+  index("belt_challenges_status_requested_idx").on(t.status, t.requestedAt),
+  uniqueIndex("belt_challenges_holder_open_idx").on(t.championId)
+    .where(sql`${t.status} in ('pending', 'accepted', 'result_pending')`),
+  uniqueIndex("belt_challenges_challenger_open_idx").on(t.challengerId)
+    .where(sql`${t.status} in ('pending', 'accepted', 'result_pending')`),
+]);
 
 /**
  * v0.19 — Historial de resets de temporada del ladder. `settings.ladder_since`
@@ -766,6 +802,8 @@ export type Archetype = typeof archetypes.$inferSelect;
 export type Deck = typeof decks.$inferSelect;
 export type DeckFavorite = typeof deckFavorites.$inferSelect;
 export type Competition = typeof competitions.$inferSelect;
+export type BeltState = typeof beltState.$inferSelect;
+export type BeltChallenge = typeof beltChallenges.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type Game = typeof games.$inferSelect;
 export type Tournament = typeof tournaments.$inferSelect;

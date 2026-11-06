@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.113.0] — 2026-11-06
+
+### Añadido
+
+- **Titularidad y retos del Cinturón**: el campeón aparece destacado en oro en perfiles, ranking,
+  listas y avisos de Discord. Los jugadores activos pueden retar si están en el top 5 de la liga
+  o tienen Elo ≥1100. El poseedor acepta o rechaza; si no responde en diez días, pierde el título.
+- **Duelo de defensa Bo3** con resultado propuesto por uno de los dos jugadores y confirmación del
+  rival antes de cambiar la titularidad. Un desacuerdo devuelve el duelo al estado aceptado para
+  volver a presentar el resultado.
+- Enfriamiento de 30 días para que quien pierda no rete de nuevo al mismo poseedor. Tras seis
+  semanas sin defensa, el Cinturón queda vacante; un organizador puede abrir un nuevo suizo Bo3.
+- Procesamiento diario de plazos del Cinturón en el cron existente y avisos de cambios en Discord.
+
+### Requiere intervención manual
+
+- Revisa y aplica primero `drizzle/0031_v0_112_0.sql` y después `drizzle/0032_v0_113_0.sql`,
+  **solo en la rama dev de Neon**. No se han ejecutado migraciones.
+
 ## [0.112.0] — 2026-11-06
 
 ### Añadido

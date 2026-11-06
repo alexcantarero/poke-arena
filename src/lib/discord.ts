@@ -3,8 +3,8 @@ import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { archetypes, competitions, decks, events, matches, players, tournamentResults, tournaments } from "@/db/schema";
 import {
-  embedAgenda, embedPendientes, embedTorneo, semanaDe,
-  type Embed, type EventoAgenda, type Pendiente, type ResultadoTorneo,
+  embedAgenda, embedEventoCinturon, embedPendientes, embedTorneo, semanaDe,
+  type Embed, type EventoAgenda, type EventoCinturon, type Pendiente, type ResultadoTorneo,
 } from "./discordMensajes";
 import { motivoDeEstado, normalizarWebhook, type MotivoDiscord } from "./discordWebhook";
 
@@ -112,7 +112,7 @@ export async function notificarResultadosTorneo(torneoId: string): Promise<boole
     if (!filas.length) return false;
     const ids = (xs: Array<string | null>) => [...new Set(xs.filter((x): x is string => Boolean(x)))];
     const [jug, mz, ar] = await Promise.all([
-      db.select({ id: players.id, name: players.name }).from(players).where(inArray(players.id, ids(filas.map((f) => f.playerId)))),
+      db.select({ id: players.id, name: players.name, beltHolder: players.beltHolder }).from(players).where(inArray(players.id, ids(filas.map((f) => f.playerId)))),
       ids(filas.map((f) => f.deckId)).length ? db.select({ id: decks.id, name: decks.name, arch: decks.archetypeId }).from(decks).where(inArray(decks.id, ids(filas.map((f) => f.deckId)))) : Promise.resolve([]),
       db.select({ id: archetypes.id, name: archetypes.name }).from(archetypes),
     ]);
@@ -123,6 +123,7 @@ export async function notificarResultadosTorneo(torneoId: string): Promise<boole
       const d = f.deckId ? mazo.get(f.deckId) : undefined;
       return {
         jugador: nombre.get(f.playerId) ?? "?",
+        cinturon: jug.some((p) => p.id === f.playerId && p.beltHolder),
         puesto: f.placement ?? null,
         mazo: (f.archetypeId && arq.get(f.archetypeId)) || (d?.arch && arq.get(d.arch)) || d?.name || null,
         wins: f.wins ?? 0, losses: f.losses ?? 0, ties: f.ties ?? 0, drop: Boolean(f.dropped),
@@ -144,20 +145,26 @@ export async function notificarPendientesLiga(): Promise<boolean> {
     }).from(matches).where(eq(matches.status, "pending"));
     if (!filas.length) return false;
     const [jug, comps] = await Promise.all([
-      db.select({ id: players.id, name: players.name }).from(players),
+      db.select({ id: players.id, name: players.name, beltHolder: players.beltHolder }).from(players),
       db.select({ id: competitions.id, name: competitions.name }).from(competitions),
     ]);
     const n = new Map(jug.map((p) => [p.id, p.name]));
+    const titular = new Set(jug.filter((p) => p.beltHolder).map((p) => p.id));
     const c = new Map(comps.map((x) => [x.id, x.name]));
     const p: Pendiente[] = filas.map((f) => ({
       liga: (f.comp && c.get(f.comp)) || "Liga", jornada: f.round ?? null,
       a: n.get(f.a) ?? "?", b: (f.b && n.get(f.b)) || f.rival || "?",
+      aCinturon: titular.has(f.a), bCinturon: f.b ? titular.has(f.b) : false,
     }));
     const e = embedPendientes(p, urlApp());
     return e ? enviar("liga", e) : false;
   } catch {
     return false;
   }
+}
+
+export async function notificarCambioCinturon(evento: EventoCinturon): Promise<boolean> {
+  return enviar("resultados", embedEventoCinturon(evento, urlApp()));
 }
 
 /** La agenda de la semana: eventos del calendario y torneos apuntados. */

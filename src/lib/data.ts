@@ -43,6 +43,7 @@ export const PUBLIC_PLAYER_COLUMNS = {
   avatarValue: players.avatarValue,
   bio: players.bio,
   favoriteArchetypeId: players.favoriteArchetypeId,
+  beltHolder: players.beltHolder,
   playerTag: players.playerTag,
   // v0.36: el nick de Limitless. Cada uno lo pone en su perfil y es su
   // nombre en una web pública, así que no hay nada que esconder.

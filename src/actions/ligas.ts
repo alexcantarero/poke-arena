@@ -6,15 +6,14 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { beltRegistrations, competitionPlayers, competitions, competitionTeams, leagueDecks, matches } from "@/db/schema";
+import { competitionPlayers, competitions, competitionTeams, leagueDecks, matches } from "@/db/schema";
 import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
 import { canManageLeague } from "@/lib/auth";
 import { newId, todayISO } from "@/lib/format";
-import { CINTURON_BYE, CINTURON_COMPETITION_ID, CINTURON_EVENT_ID, CINTURON_FECHA, incluirDescansosEnClasificacion, iniciarCinturonPermitido, inscripcionCinturonAbierta } from "@/lib/cinturon";
+import { CINTURON_BYE, CINTURON_COMPETITION_ID, CINTURON_FECHA, esCompeticionCinturon, incluirDescansosEnClasificacion, iniciarCinturonPermitido } from "@/lib/cinturon";
 import { withFlash } from "@/lib/flash";
 import { pairRound } from "@/lib/stats";
 import { loadSnapshot } from "@/lib/data";
-import { iniciarSuizoCinturon } from "@/lib/cinturonDb";
 import {
   str, int, isoDate, deckOrArchetype, pick, refresh, requireActor, requireManager, owns,
   msj,
@@ -26,7 +25,7 @@ export async function saveCompetition(fd: FormData) {
   // Una competición es de la liga entera: la organiza quien la organiza.
   await requireManager();
   const editing = str(fd, "id");
-  if (editing === CINTURON_COMPETITION_ID) {
+  if (esCompeticionCinturon(editing)) {
     redirect("/cinturon");
   }
   const id = editing || newId("c");
@@ -63,7 +62,7 @@ export async function saveCompetition(fd: FormData) {
 export async function deleteCompetition(fd: FormData) {
   await requireManager();
   const id = str(fd, "id");
-  if (id === CINTURON_COMPETITION_ID) redirect("/cinturon");
+  if (esCompeticionCinturon(id)) redirect("/cinturon");
   const comp = (await db.select({ name: competitions.name }).from(competitions)
     .where(eq(competitions.id, id)))[0];
   await db.delete(competitions).where(eq(competitions.id, id));
@@ -80,13 +79,14 @@ export async function createPairings(fd: FormData) {
   const snap = await loadSnapshot();
   const comp = snap.compsById.get(compId);
   if (!comp || comp.status === "done") return;
+  const esCinturon = esCompeticionCinturon(compId);
   if (compId === CINTURON_COMPETITION_ID && !iniciarCinturonPermitido(new Date())) {
     redirect(withFlash("/cinturon", "error", await msj("belt.tooEarly")));
   }
 
   const ids = snap.playersOfComp.get(compId) ?? snap.activePlayerIds;
   const inComp = snap.matches.filter((m) => m.competitionId === compId);
-  if (compId === CINTURON_COMPETITION_ID && inComp.some((m) => m.status === "scheduled")) {
+  if (esCinturon && inComp.some((m) => m.status === "scheduled")) {
     redirect(withFlash(`/competiciones/${compId}`, "error", await msj("belt.finishRound")));
   }
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
@@ -108,12 +108,12 @@ export async function createPairings(fd: FormData) {
     pairs = jornadaEquipos(equipos.map((e) => e.id), nextRound).cruces
       .flatMap(([a, b]) => partidasDeDuelo(byId.get(a)!, byId.get(b)!));
   } else {
-    const previous = compId === CINTURON_COMPETITION_ID
+    const previous = esCinturon
       ? incluirDescansosEnClasificacion(inComp)
       : inComp;
     const result = pairRound(comp.kind, ids, previous, snap.elo.rating, snap.config);
     pairs = result.pairs;
-    if (compId === CINTURON_COMPETITION_ID) bye = result.bye;
+    if (esCinturon) bye = result.bye;
   }
   if (!pairs.length && !bye) return;
 
@@ -132,7 +132,7 @@ export async function createPairings(fd: FormData) {
       id: newId("m"),
       competitionId: compId,
       round: nextRound,
-      date: CINTURON_FECHA,
+      date: compId === CINTURON_COMPETITION_ID ? CINTURON_FECHA : todayISO(),
       playerAId: bye,
       playerBId: null,
       opponentName: CINTURON_BYE,
@@ -144,72 +144,6 @@ export async function createPairings(fd: FormData) {
   await db.insert(matches).values(rows);
   refresh();
   redirect(`/competiciones/${compId}`);
-}
-
-export async function registerForBeltTournament() {
-  const actor = await requireActor();
-  if (!inscripcionCinturonAbierta(new Date())) {
-    redirect(withFlash("/cinturon", "error", await msj("belt.registrationClosed")));
-  }
-
-  const result = await db.transaction(async (tx) => {
-    if (!inscripcionCinturonAbierta(new Date())) return "closed" as const;
-    await tx.insert(competitions).values({
-      id: CINTURON_COMPETITION_ID,
-      name: "Torneo por el primer Cinturón",
-      kind: "swiss",
-      bestOf: 3,
-      status: "draft",
-      start: CINTURON_FECHA,
-      rounds: 0,
-      topCut: 0,
-      modality: "mazo_fijo",
-    }).onConflictDoNothing();
-    const inserted = await tx.insert(beltRegistrations).values({
-      eventId: CINTURON_EVENT_ID,
-      playerId: actor.id,
-    }).onConflictDoNothing().returning({ playerId: beltRegistrations.playerId });
-    return inserted.length ? "registered" as const : "already" as const;
-  });
-
-  if (result === "closed") {
-    redirect(withFlash("/cinturon", "error", await msj("belt.registrationClosed")));
-  }
-  refresh();
-  redirect(withFlash(
-    "/cinturon",
-    result === "registered" ? "ok" : "error",
-    await msj(result === "registered" ? "belt.registeredFlash" : "belt.alreadyRegistered"),
-  ));
-}
-
-export async function startBeltTournament() {
-  await requireManager();
-  const result = await iniciarSuizoCinturon();
-  if (result === "before") {
-    redirect(withFlash("/cinturon", "error", await msj("belt.tooEarly")));
-  }
-  if (result === "few" || result === "missing") {
-    redirect(withFlash("/cinturon", "error", await msj("belt.needsTwo")));
-  }
-  refresh();
-  redirect(`/competiciones/${CINTURON_COMPETITION_ID}`);
-}
-
-export async function finishBeltTournament() {
-  await requireManager();
-  const snap = await loadSnapshot();
-  const competition = snap.compsById.get(CINTURON_COMPETITION_ID);
-  const matches = snap.matches.filter((match) => match.competitionId === CINTURON_COMPETITION_ID);
-  const roundsPlayed = Math.max(0, ...matches.map((match) => match.round));
-  if (!competition || competition.status !== "live" || roundsPlayed < competition.rounds
-      || matches.some((match) => match.status === "scheduled")) {
-    redirect(withFlash("/cinturon", "error", await msj("belt.incomplete")));
-  }
-  await db.update(competitions).set({ status: "done" })
-    .where(eq(competitions.id, CINTURON_COMPETITION_ID));
-  refresh();
-  redirect(withFlash("/cinturon", "ok", await msj("belt.finished")));
 }
 
 /* ================================================================ v0.18 -- */

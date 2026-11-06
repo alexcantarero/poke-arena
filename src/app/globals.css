@@ -1561,6 +1561,22 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 .logro-ficha { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: .9rem;
   border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--line)); background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 8%, var(--surface)), var(--surface)); }
 .logro-ficha img { width: 2.75rem; height: 2.75rem; image-rendering: pixelated; object-fit: contain; flex: none; }
+.cinturon-nombre {
+  color: #754c00;
+  background: linear-gradient(105deg, #754c00 12%, #91620a 38%, #684400 54%, #91620a 68%, #754c00 88%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: cinturon-brillo 3.5s linear infinite;
+  filter: drop-shadow(0 0 4px rgb(160 112 20 / 30%));
+}
+[data-theme="dark"] .cinturon-nombre {
+  color: #e5bd5d;
+  background: linear-gradient(105deg, #e5bd5d 12%, #c99a31 38%, #f0d47a 54%, #b88724 68%, #e5bd5d 88%);
+}
+@keyframes cinturon-brillo { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) { .cinturon-nombre { animation: none; } }
+
 @media (prefers-reduced-motion: reduce) { .barra-voltorb, .logro-aviso { animation: none; } .barra-ball, .barra-ball-img { transition: none; } }
 
 /* v0.65 — Mulligans: la Poké Ball en vez del dado. Se zarandea como en una

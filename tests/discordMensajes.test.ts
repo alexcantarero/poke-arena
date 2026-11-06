@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { embedAgenda, embedPendientes, embedTorneo, esLunesEnMadrid, semanaDe } from "../src/lib/discordMensajes.ts";
+import {
+  embedAgenda, embedEventoCinturon, embedPendientes, embedTorneo, esLunesEnMadrid, semanaDe,
+} from "../src/lib/discordMensajes.ts";
 
 const URL = "https://app.example";
 const R = (jugador: string, puesto: number | null, extra = {}) =>
@@ -26,6 +28,22 @@ test("pendientes: agrupadas por liga y por jornada; sin pendientes, sin mensaje"
   ], URL)!;
   assert.match(e.title, /^⏳ 2 partidas/);
   assert.ok(e.description!.indexOf("J3") < e.description!.indexOf("J4"));
+});
+
+test("las publicaciones de Discord distinguen al poseedor del Cinturón", () => {
+  const torneo = embedTorneo(
+    { id: "t1", nombre: "Cup Kanto", fecha: "2026-10-20", jugadores: 40, topCut: 8 },
+    [R("Alex", 1, { cinturon: true })],
+    URL,
+  );
+  assert.match(torneo.description!, /🏆 Alex/);
+  const pendientes = embedPendientes([
+    { liga: "Liga", jornada: 1, a: "Alex", b: "Javi", aCinturon: true },
+  ], URL)!;
+  assert.match(pendientes.description!, /🏆 Alex vs Javi/);
+  const evento = embedEventoCinturon({ tipo: "defensa", poseedor: "Alex" }, URL);
+  assert.match(evento.description!, /Alex.*ha defendido el Cinturón/);
+  assert.equal(evento.url, `${URL}/cinturon`);
 });
 
 test("agenda: en orden, con fechas cortas y enlaces", () => {

@@ -39,7 +39,9 @@ import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
-import { CINTURON_COMPETITION_ID, incluirDescansosEnClasificacion } from "@/lib/cinturon";
+import {
+  esCompeticionCinturon, esDescansoCinturon, incluirDescansosEnClasificacion,
+} from "@/lib/cinturon";
 
 export default async function CompetitionPage({
   params,
@@ -61,7 +63,8 @@ export default async function CompetitionPage({
 
   const ids = compPlayers(snap, id);
   const inComp = snap.matches.filter((m) => m.competitionId === id);
-  const playedAll = inComp.filter(isPlayed);
+  const esCinturon = esCompeticionCinturon(id);
+  const playedAll = inComp.filter((match) => isPlayed(match) || (esCinturon && esDescansoCinturon(match)));
   
   const index: FilterIndex = {
     tournamentKind: new Map(snap.tournaments.map((t) => [t.id, t.kind])),
@@ -77,7 +80,7 @@ export default async function CompetitionPage({
   const played = applyMatchFilter(playedAll, filter, index);
 
   const pending = inComp.filter((m) => m.status === "scheduled");
-  const partidasClasificacion = id === CINTURON_COMPETITION_ID
+  const partidasClasificacion = esCinturon
     ? incluirDescansosEnClasificacion(played)
     : played;
   const table = standings(partidasClasificacion, ids, snap.elo.rating, snap.config);
@@ -97,14 +100,14 @@ export default async function CompetitionPage({
     }
   }
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
-  const cinturonSinRondas = id === CINTURON_COMPETITION_ID && comp.rounds > 0 && nextRound > comp.rounds;
+  const cinturonSinRondas = esCinturon && comp.rounds > 0 && nextRound > comp.rounds;
   /* v0.44 — `inComp` y no `played`: la acción que crea la jornada recibe
      todas las partidas de la competición, y la vista previa recibía solo las
      jugadas. Lo que se enseñaba podía no ser lo que se creaba al pulsar. */
   const previewLiga = pairRound(
     comp.kind,
     ids,
-    id === CINTURON_COMPETITION_ID ? incluirDescansosEnClasificacion(inComp) : inComp,
+    esCinturon ? incluirDescansosEnClasificacion(inComp) : inComp,
     snap.elo.rating,
     snap.config,
   );
@@ -496,7 +499,7 @@ export default async function CompetitionPage({
                     {preview.repetidos === 1 ? "enfrentamiento" : "enfrentamientos"}. Es la segunda vuelta.
                   </p>
                 )}
-                {manager && !cinturonSinRondas && !(id === CINTURON_COMPETITION_ID && pending.length > 0) ? (
+                {manager && !cinturonSinRondas && !(esCinturon && pending.length > 0) ? (
                   <form action={createPairings}>
                     <input type="hidden" name="competitionId" value={comp.id} />
                     <button className="btn btn-brand w-full" type="submit">

@@ -6,7 +6,11 @@ import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
 import { esLunesEnMadrid } from "@/lib/discordMensajes";
 import { guardarLecturaNeonDeHoy } from "@/lib/usoDb";
-import { iniciarSuizoCinturon } from "@/lib/cinturonDb";
+import { iniciarSuizoCinturon, procesarPlazosCinturon } from "@/lib/cinturonDb";
+import { notificarCambioCinturon } from "@/lib/discord";
+import { db } from "@/db";
+import { players } from "@/db/schema";
+import { inArray } from "drizzle-orm";
 
 /* =========================================================================
    GET /api/cron/limpieza — v0.19.
@@ -27,6 +31,17 @@ export async function GET(req: NextRequest) {
   const ahora = new Date();
   const fechaMadrid = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(ahora);
   const cinturon = fechaMadrid === "2026-11-20" ? await iniciarSuizoCinturon(ahora) : null;
+  const plazoCinturon = await procesarPlazosCinturon(ahora);
+  if (plazoCinturon) {
+    const ids = [plazoCinturon.oldHolderId, plazoCinturon.newHolderId].filter((id): id is string => Boolean(id));
+    const nombres = await db.select({ id: players.id, name: players.name }).from(players).where(inArray(players.id, ids));
+    const nombre = new Map(nombres.map((row) => [row.id, row.name]));
+    await notificarCambioCinturon({
+      tipo: plazoCinturon.kind === "vacant" ? "vacante" : "forfeit",
+      poseedor: plazoCinturon.newHolderId ? nombre.get(plazoCinturon.newHolderId) ?? null : null,
+      anterior: nombre.get(plazoCinturon.oldHolderId) ?? null,
+    });
+  }
   const borrados = await borrarTorneosAbandonados();
   // v0.45 — y los que se quedaron abiertos más de una semana con datos dentro.
   const cerrados = await cerrarTorneosTerminados();
@@ -46,7 +61,7 @@ export async function GET(req: NextRequest) {
     discord.pendientes = await notificarPendientesLiga();
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
   }
-  if (cinturon === "started" || borrados.length || cerrados.length || series?.creados || series?.retirados) {
+  if (cinturon === "started" || plazoCinturon || borrados.length || cerrados.length || series?.creados || series?.retirados) {
     revalidatePath("/", "layout");
   }
   // v0.89 — los borradores cuya fecha ha llegado, a «En curso».
@@ -65,5 +80,6 @@ export async function GET(req: NextRequest) {
     discord,
     usoNeon,
     cinturon,
+    plazoCinturon: plazoCinturon?.kind ?? null,
   });
 }

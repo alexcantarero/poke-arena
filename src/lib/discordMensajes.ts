@@ -23,7 +23,7 @@ const recortar = (t: string) => (t.length > LIMITE_DESC ? `${t.slice(0, LIMITE_D
 const record = (w: number, l: number, t: number) => `${w}-${l}${t ? `-${t}` : ""}`;
 
 export type ResultadoTorneo = {
-  jugador: string; puesto: number | null; mazo: string | null;
+  jugador: string; puesto: number | null; mazo: string | null; cinturon?: boolean;
   wins: number; losses: number; ties: number; drop: boolean;
 };
 
@@ -36,7 +36,7 @@ export function embedTorneo(t: { id: string; nombre: string; fecha: string; juga
     const enCorte = r.puesto != null && t.topCut != null && t.topCut > 0 && r.puesto <= t.topCut;
     const puesto = r.puesto != null ? `**#${r.puesto}**` : "—";
     const mazo = r.mazo ? ` · ${r.mazo}` : "";
-    return `${enCorte ? medalla(r.puesto) : "▫️"} ${puesto} ${r.jugador}${mazo} · ${record(r.wins, r.losses, r.ties)}${r.drop ? " · drop" : ""}`;
+    return `${enCorte ? medalla(r.puesto) : "▫️"} ${puesto} ${r.cinturon ? "🏆 " : ""}${r.jugador}${mazo} · ${record(r.wins, r.losses, r.ties)}${r.drop ? " · drop" : ""}`;
   });
   const enCorte = orden.filter((r) => r.puesto != null && t.topCut && r.puesto <= t.topCut).length;
   return {
@@ -53,7 +53,10 @@ export function embedTorneo(t: { id: string; nombre: string; fecha: string; juga
   };
 }
 
-export type Pendiente = { liga: string; jornada: number | null; a: string; b: string };
+export type Pendiente = {
+  liga: string; jornada: number | null; a: string; b: string;
+  aCinturon?: boolean; bCinturon?: boolean;
+};
 
 /** Partidas de liga sin resultado, agrupadas por liga. */
 export function embedPendientes(p: readonly Pendiente[], urlApp: string): Embed | null {
@@ -62,7 +65,7 @@ export function embedPendientes(p: readonly Pendiente[], urlApp: string): Embed 
   for (const x of p) porLiga.set(x.liga, [...(porLiga.get(x.liga) ?? []), x]);
   const bloques = [...porLiga.entries()].map(([liga, xs]) =>
     `**${liga}**\n${xs.sort((a, b) => (a.jornada ?? 0) - (b.jornada ?? 0))
-      .map((x) => `• J${x.jornada ?? "?"} · ${x.a} vs ${x.b}`).join("\n")}`);
+      .map((x) => `• J${x.jornada ?? "?"} · ${x.aCinturon ? "🏆 " : ""}${x.a} vs ${x.bCinturon ? "🏆 " : ""}${x.b}`).join("\n")}`);
   return {
     title: `⏳ ${p.length} partida${p.length === 1 ? "" : "s"} de liga sin resultado`,
     url: `${urlApp}/competiciones`,
@@ -73,6 +76,32 @@ export function embedPendientes(p: readonly Pendiente[], urlApp: string): Embed 
 }
 
 export type EventoAgenda = { fecha: string; fin: string | null; titulo: string; lugar: string | null; url: string | null };
+
+export type EventoCinturon = {
+  tipo: "coronacion" | "defensa" | "cambio" | "forfeit" | "vacante";
+  poseedor: string | null;
+  anterior?: string | null;
+};
+
+export function embedEventoCinturon(evento: EventoCinturon, urlApp: string): Embed {
+  const texto = evento.tipo === "coronacion"
+    ? `🏆 **${evento.poseedor ?? "?"}** ha ganado el torneo y es el primer poseedor del Cinturón.`
+    : evento.tipo === "defensa"
+      ? `🏆 **${evento.poseedor ?? "?"}** ha defendido el Cinturón.`
+      : evento.tipo === "forfeit"
+        ? `⏱️ **${evento.poseedor ?? "?"}** recibe el Cinturón por falta de respuesta de **${evento.anterior ?? "?"}**.`
+        : evento.tipo === "vacante"
+          ? `⚪ El Cinturón queda vacante tras seis semanas sin defensa de **${evento.anterior ?? "?"}**.`
+          : `🏆 **${evento.poseedor ?? "?"}** es el nuevo poseedor del Cinturón.`;
+  return {
+    title: "El Cinturón de PokeArena",
+    url: `${urlApp}/cinturon`,
+    description: texto,
+    color: 0xfacc15,
+    footer: { text: "PokeArena TCG · Cinturón" },
+    timestamp: new Date().toISOString(),
+  };
+}
 
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const diaCorto = (iso: string) => {

@@ -41,13 +41,16 @@ export const ESQUEMA_ESPERADO: readonly Requisito[] = [
   { tabla: "players", columna: "profile_title", migracion: "drizzle/0028_v0_94_0.sql", version: "0.94" },
   { tabla: "uso_lecturas", columna: "id", migracion: "drizzle/0029_v0_95_0.sql", version: "0.95" },
   { tabla: "asistencias", columna: "estado", migracion: "drizzle/0030_v0_106_0.sql", version: "0.106" },
+  { tabla: "players", columna: "belt_holder", migracion: "drizzle/0032_v0_113_0.sql", version: "0.113" },
+  { tabla: "belt_state", columna: "id", migracion: "drizzle/0032_v0_113_0.sql", version: "0.113" },
+  { tabla: "belt_challenges", columna: "id", migracion: "drizzle/0032_v0_113_0.sql", version: "0.113" },
 ];
 
 /**
  * Columnas de `players` que pueden faltar en una base sin migrar, con el valor
  * que se usa mientras tanto. La clave es el nombre en el CÓDIGO (Drizzle).
  */
-export const COLUMNAS_NUEVAS_PLAYERS = { profileTitle: "" } as const;
+export const COLUMNAS_NUEVAS_PLAYERS = { profileTitle: "", beltHolder: false } as const;
 
 /**
  * Qué falta. `existentes` son pares «tabla.columna» tal y como los devuelve

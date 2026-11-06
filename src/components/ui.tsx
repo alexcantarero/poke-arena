@@ -70,7 +70,11 @@ export function PlayerTag({
       className={`inline-flex min-w-0 items-center gap-2 hover:text-info ${className}`}
     >
       <Avatar player={player} size={size} />
-      <span className="truncate font-semibold">{player.name}</span>
+      <span className="inline-flex min-w-0 items-center gap-1 truncate">
+        {player.beltHolder && <span aria-hidden="true">🏆</span>}
+        <span className={`truncate font-semibold${player.beltHolder ? " cinturon-nombre" : ""}`}>{player.name}</span>
+        {player.beltHolder && <span className="sr-only"><T k="belt.holderLabel" /></span>}
+      </span>
     </Link>
   );
 }

@@ -14,7 +14,7 @@ test("EL CASO DEL 4/11: sin la 0028 en producción, se dice qué migración falt
 });
 
 test("una tabla que falta se nombra como tabla, y sin distinguir mayúsculas", () => {
-  const f = faltantes(TODO.filter((c) => !c.startsWith("uso_lecturas")).map((c) => c.toUpperCase()));
+  const f = faltantes(TODO.filter((c) => c !== "uso_lecturas.id").map((c) => c.toUpperCase()));
   assert.deepEqual(f.map((x) => x.que), [["tabla uso_lecturas"]]);
 });
 

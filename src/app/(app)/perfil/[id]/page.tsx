@@ -177,7 +177,11 @@ export default async function ProfilePage({
         {/* v0.90 — 1 de cada 4.096, tu avatar sale shiny (solo en tu perfil). */}
         {isMe ? <Variocolor><Avatar player={player} size="lg" /></Variocolor> : <Avatar player={player} size="lg" />}
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-extrabold leading-none">{player.name}</h1>
+          <h1 className="text-3xl font-extrabold leading-none">
+            {player.beltHolder && <span aria-hidden="true">🏆 </span>}
+            <span className={player.beltHolder ? "cinturon-nombre" : ""}>{player.name}</span>
+            {player.beltHolder && <span className="sr-only"> · {tr(lng, "belt.holderLabel")}</span>}
+          </h1>
           {titulo && (
             <p className="mt-1.5">
               <span className="perfil-titulo" data-tono={titulo.tono}>{tr(lng, titulo.clave)}</span>
