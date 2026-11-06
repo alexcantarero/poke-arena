@@ -20,6 +20,8 @@ export type NavItem = {
 /** `key` es la clave de traducción del título del grupo (`lib/i18n.ts`). */
 export type NavGroup = { key: string; title: string; items: NavItem[] };
 
+export const DISCORD_INVITATION_URL = "https://discord.gg/U92TdcBVmX";
+
 /* =========================================================================
    v0.16 — El menú, agrupado.
 

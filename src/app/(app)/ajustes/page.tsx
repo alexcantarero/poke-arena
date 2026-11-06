@@ -30,6 +30,7 @@ import { getLang } from "@/lib/lang";
 import { estadoDiscord } from "@/lib/discord";
 import { probarDiscord } from "@/actions/ajustes";
 import { AccesoUso } from "@/components/uso/AccesoUso";
+import { DISCORD_INVITATION_URL } from "@/lib/nav";
 
 export const metadata = { title: "Ajustes" };
 
@@ -86,6 +87,15 @@ export default async function SettingsPage() {
       />
 
       <AbrirAncla />
+      <Link
+        href={DISCORD_INVITATION_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-ghost mb-4 md:hidden"
+      >
+        <Icon name="globe" className="size-4" />
+        {tr(lng, "dc.join")}
+      </Link>
       {/* v0.55 — menú de secciones a la izquierda (en el móvil, una tira arriba)
           y paneles a la derecha. Lo de cada uno primero; lo de organizar, después. */}
       <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-6">

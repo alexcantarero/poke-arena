@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.111.0] — 2026-11-06
+
+### Añadido
+
+- **Acceso directo a Discord**: enlace a la invitación en el pie de la barra lateral, junto al
+  selector de idioma en escritorio, y en Ajustes en móvil.
+
+## [0.110.1] — 2026-11-06
+
+### Cambiado
+
+- **Formato Estándar** se muestra en Top Decks, tanto Online como Presencial, y deja de aparecer
+  en Herramientas.
+
 ## [0.110.0] — 2026-11-06
 
 **Sin migración ni dependencias nuevas.**

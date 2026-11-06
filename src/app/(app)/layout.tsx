@@ -8,6 +8,7 @@ import { estacionDe } from "@/lib/estacion";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav, Sidebar } from "@/components/Nav";
+import { DISCORD_INVITATION_URL } from "@/lib/nav";
 import { Wordmark } from "@/components/Wordmark";
 import { subtituloLiga } from "@/lib/marca";
 import { Avatar } from "@/components/ui";
@@ -128,6 +129,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               )}
             </Link>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
+              <Link
+                href={DISCORD_INVITATION_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={tr(lang, "dc.discord")}
+                className="btn btn-ghost btn-sm px-2 text-xs font-bold"
+              >
+                <Icon name="globe" className="size-4" />
+                <span className="barra-texto">{tr(lang, "dc.discord")}</span>
+              </Link>
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>

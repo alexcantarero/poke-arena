@@ -1372,6 +1372,8 @@ const ES = {
   "rr.derrota": "Derrota",
   // v0.59 — Discord.
   "dc.menu": "Discord",
+  "dc.discord": "Discord",
+  "dc.join": "Unirse al Discord",
   "dc.aside": "avisos automáticos",
   "dc.explica": "Tres avisos, cada uno a su canal: los resultados al cerrar un torneo, y los lunes por la mañana, las partidas de liga pendientes y la agenda de la semana. Cada uno se activa poniendo su webhook en Vercel.",
   "dc.resultados": "Resultados de torneos",
@@ -3649,6 +3651,8 @@ const EN: Record<I18nKey, string> = {
   "rr.derrota": "Loss",
   // v0.59 — Discord.
   "dc.menu": "Discord",
+  "dc.discord": "Discord",
+  "dc.join": "Join Discord",
   "dc.aside": "automatic notices",
   "dc.explica": "Three notices, each to its own channel: results when a tournament closes, and on Monday mornings, pending league matches and the week's agenda. Each is turned on by setting its webhook in Vercel.",
   "dc.resultados": "Tournament results",
