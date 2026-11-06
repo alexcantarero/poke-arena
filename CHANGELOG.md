@@ -2,6 +2,39 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.110.0] — 2026-11-06
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Ranking de Poké Ball en el Inicio**: el selector pasa a ser Elo · CP · Ball. Cada fila enseña
+  la Ball de uso, los puntos y una barra hasta la siguiente; seis a la vista y el resto plegado.
+  Sale la pestaña Liga (se ve en la propia liga); un `?rk=liga` antiguo abre el Elo.
+- **Formato Estándar** arriba de Top Decks (las dos pestañas) y de Herramientas: la expansión que
+  vale hoy en torneos, la que ya está a la venta pero aún no es legal (con su fecha y cuenta
+  atrás), la siguiente, las marcas legales (H · I · J), la próxima rotación y el fin de temporada.
+  Datos escritos a mano en `src/data/formatoEstandar.ts`, revisados el 6/11/2026; lo calculado o no
+  oficial lo dice al lado. Plegable. `lib/formato.ts` (7 pruebas).
+- **Configura la partida** en Registrar partida: formato (Bo1/Bo3/Bo5), mismo mazo o uno por juego,
+  y rápido o juego a juego, como tarjetas grandes arriba del todo. El resultado lleva un resumen de
+  la configuración que vuelve arriba al tocarlo.
+
+### Cambiado
+
+- **Recomendador de mazos: lo reciente pesa más.** Cada Regional, City League y evento de
+  Ciphermaniac cuenta según su antigüedad, con vida media de 30 días (a los 60, un cuarto). Los pesos
+  se normalizan: el total de listas no cambia, solo el reparto. `lib/recencia.ts` (6 pruebas).
+- **Selectores de mazo por juego**: además de los arquetipos, ofrecen los mazos de ese jugador
+  (se guarda su arquetipo, como antes). Con «mazo distinto en cada juego», el modo rápido también
+  pide el mazo de cada juego (antes no había dónde ponerlo).
+
+### Quitado
+
+- Guías `IMPLEMENTAR-v0.82` … `v0.109`, `arena-v0.95.0-cambios.zip`, `PENDIENTES-CLAUDE-CODE-v0.94.0.md`,
+  `docs/pendientes-claude-code-v0.93.0.md`, `docs/respaldo/` y la copia de `15-uso-vercel-neon.md`
+  de la raíz (la buena está en `docs/`). El historial queda en este CHANGELOG.
+
 ## [0.109.0] — 2026-11-05
 
 **Sin migración nueva.**

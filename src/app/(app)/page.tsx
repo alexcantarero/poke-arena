@@ -18,12 +18,11 @@ import { marcadoresDe } from "@/lib/marcador";
 import {
   archetypeStats, isInternal, isPlayed, standings,
 } from "@/lib/stats";
-import { byAgenda, fechaCorta, num, pct, shortName, todayISO, wrColor } from "@/lib/format";
+import { byAgenda, fechaCorta, num, pct, shortName, todayISO } from "@/lib/format";
 import { CALENDAR_KINDS, toneOf } from "@/lib/calendar";
 import { medallaDe } from "@/lib/rangos";
 import {
   Empty, Kpi, PageHead, PlayerTag, TournamentEmblem,
-  Record, StreakChip,
 } from "@/components/ui";
 import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
@@ -71,9 +70,11 @@ export default async function HomePage({
 }) {
   const q = await searchParams;
   const vista: Vista = q.vista === "grupo" ? "grupo" : "global";
-  /* v0.65 — el ranking del inicio se elige: Elo (por defecto), CP o la liga. */
-  const rk: "elo" | "cp" | "liga" = q.rk === "cp" || q.rk === "liga" ? q.rk : "elo";
-  const rkHref = (v: "elo" | "cp" | "liga") => {
+  /* v0.65 — el ranking del inicio se elige: Elo (por defecto), CP o la liga.
+     v0.110 — la liga sale de aquí (se ve en la propia liga) y entra el ranking
+     de Poké Ball: el nivel de uso de la web. Un `?rk=liga` viejo cae en Elo. */
+  const rk: "elo" | "cp" | "ball" = q.rk === "cp" || q.rk === "ball" ? q.rk : "elo";
+  const rkHref = (v: "elo" | "cp" | "ball") => {
     const u = new URLSearchParams();
     if (q.vista) u.set("vista", q.vista);
     if (q.resultados) u.set("resultados", q.resultados);
@@ -488,23 +489,79 @@ export default async function HomePage({
         <section className="card min-w-0">
           <div className="card-head flex-wrap gap-y-2">
             <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">
-              {tr(lang, rk === "elo" ? "home.rkElo" : rk === "cp" ? "home.rkCp" : "home.leagueRanking")}
+              {tr(lang, rk === "elo" ? "home.rkElo" : rk === "cp" ? "home.rkCp" : "v110.rkBall")}
             </h2>
             <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
-              {/* v0.65 — qué ranking: Elo, CP o liga. Enlaces: funcionan sin JavaScript. */}
+              {/* v0.65 — qué ranking: Elo, CP o (v0.110) Poké Ball. Enlaces: funcionan sin JavaScript. */}
               <nav className="seg" aria-label={tr(lang, "home.rkElegir")} data-paso="inicio-3">
-                {(["elo", "cp", "liga"] as const).map((v) => (
+                {(["elo", "cp", "ball"] as const).map((v) => (
                   <Link key={v} href={rkHref(v)} scroll={false} data-on={rk === v} aria-current={rk === v ? "page" : undefined}>
-                    {v === "elo" ? "Elo" : v === "cp" ? "CP" : tr(lang, "home.league")}
+                    {v === "elo" ? "Elo" : v === "cp" ? "CP" : tr(lang, "v110.rkBallTab")}
                   </Link>
                 ))}
               </nav>
-              <Link className="btn btn-ghost btn-sm" href={rk === "liga" && mainComp ? `/competiciones/${mainComp.id}` : "/ranking"}>{tr(lang, "home.seeAll")}</Link>
+              {rk !== "ball" && <Link className="btn btn-ghost btn-sm" href="/ranking">{tr(lang, "home.seeAll")}</Link>}
             </div>
           </div>
-          {rk !== "liga" ? (() => {
+          {rk === "ball" ? (() => {
+            /* v0.110 — el ranking de Poké Ball: los puntos de uso de cada uno
+               (partidas, torneos y logros; ver `puntosDeUso`), con su Ball y lo
+               que le falta para la siguiente. Los seis primeros a la vista y el
+               resto plegado: aquí no hay otra pantalla con la lista entera. */
+            const filas = snap.players.filter((p) => p.active)
+              .map((p) => ({ id: p.id, ...nivelDeUso(usoDeJugador(snap, p.id)) }))
+              .filter((f) => f.puntos > 0)
+              .sort((x, y) => y.puntos - x.puntos);
+            if (!filas.length) return <Empty title={tr(lang, "home.noMatchesYet")}>{tr(lang, "home.noMatchesHint")}</Empty>;
+            const fila = (f: (typeof filas)[number], i: number) => {
+              const nombreBall = tr(lang, `logro.ball.${f.nivel.ball}`);
+              return (
+                <li key={f.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${session?.playerId === f.id ? "bg-surface-2/70" : ""}`}>
+                  <span className={`flex size-6 flex-none items-center justify-center rounded-full font-display text-xs font-black tabular ${
+                    i === 0 ? "bg-brand/20 text-brand ring-1 ring-brand/40" : i === 1 ? "bg-surface-3 text-ink-2 ring-1 ring-line" : i === 2 ? "bg-tier-bronce/20 text-tier-bronce ring-1 ring-tier-bronce/40" : "text-muted"}`}>
+                    {i + 1}
+                  </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={urlDeObjeto(f.nivel.ball)} alt="" aria-hidden="true" width={28} height={28}
+                    className="ball-ranking-grande" loading="lazy" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 font-semibold text-ink" />
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-[11px] font-semibold text-muted">{nombreBall}</span>
+                      {f.siguiente && (
+                        <span className="ball-ranking-barra" role="img"
+                          aria-label={trf(lang, "v110.rkBallFaltan", { n: f.faltan, ball: tr(lang, `logro.ball.${f.siguiente.ball}`) })}
+                          title={trf(lang, "v110.rkBallFaltan", { n: f.faltan, ball: tr(lang, `logro.ball.${f.siguiente.ball}`) })}>
+                          <span style={{ width: `${Math.round(Math.max(0.04, f.progreso) * 100)}%` }} />
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="flex-none font-mono text-sm font-bold tabular">
+                    {f.puntos}<span className="ml-1 text-[10px] font-semibold text-muted">{tr(lang, "v110.rkBallPts")}</span>
+                  </span>
+                </li>
+              );
+            };
+            return (
+              <>
+                <ol className="divide-y divide-line-soft">{filas.slice(0, 6).map(fila)}</ol>
+                {filas.length > 6 && (
+                  <details className="border-t border-line-soft">
+                    <summary className="tap cursor-pointer justify-center px-3.5 text-xs font-semibold text-muted">
+                      {trf(lang, "v110.rkBallResto", { n: filas.length - 6 })}
+                    </summary>
+                    <ol className="divide-y divide-line-soft border-t border-line-soft" start={7}>
+                      {filas.slice(6).map((f, i) => fila(f, i + 6))}
+                    </ol>
+                  </details>
+                )}
+                <p className="border-t border-line-soft px-3.5 py-2 text-[11px] text-muted">{tr(lang, "v110.rkBallNota")}</p>
+              </>
+            );
+          })() : (() => {
             /* Elo: los activos con alguna partida, por rating. CP: los que tienen
-               CP esta temporada. Mismo aspecto que la tabla de la liga. */
+               CP esta temporada. */
             const conPartidas = new Set(played.flatMap((m) => [m.playerAId, m.playerBId ?? ""]));
             const filas = rk === "elo"
               ? snap.activePlayerIds.filter((id) => conPartidas.has(id))
@@ -532,63 +589,7 @@ export default async function HomePage({
                 ))}
               </ol>
             );
-          })() : table.some((r) => r.played) ? (
-            <ol className="divide-y divide-line-soft">
-              {table.slice(0, 6).map((r, i) => {
-                const isTop1 = i === 0;
-                const isTop2 = i === 1;
-                const isTop3 = i === 2;
-                const winRate = mainComp?.kind === "league"
-                  ? (r.wins + r.losses ? r.wins / (r.wins + r.losses) : null)
-                  : r.winRate;
-                const rowBg = isTop1
-                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--brand-soft)_60%,transparent),transparent_85%)] border-l-[3px] border-l-brand"
-                  : isTop2
-                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--surface-3)_70%,transparent),transparent_85%)] border-l-[3px] border-l-line"
-                  : isTop3
-                  ? "bg-[linear-gradient(90deg,color-mix(in_oklab,var(--tier-bronce)_25%,transparent),transparent_85%)] border-l-[3px] border-l-tier-bronce"
-                  : "border-l-[3px] border-l-transparent hover:bg-surface-2/60";
-
-                return (
-                  <li key={r.playerId} className={`flex items-center gap-3 px-3.5 py-2.5 transition-colors ${rowBg}`}>
-                    {isTop1 ? (
-                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-brand/20 font-display text-xs font-black text-brand ring-1 ring-brand/40 shadow-xs">
-                        1
-                      </span>
-                    ) : isTop2 ? (
-                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-surface-3 font-display text-xs font-black text-ink-2 ring-1 ring-line shadow-xs">
-                        2
-                      </span>
-                    ) : isTop3 ? (
-                      <span className="flex size-6 flex-none items-center justify-center rounded-full bg-tier-bronce/20 font-display text-xs font-black text-tier-bronce ring-1 ring-tier-bronce/40 shadow-xs">
-                        3
-                      </span>
-                    ) : (
-                      <span className="flex size-6 flex-none items-center justify-center font-display text-xs font-bold tabular text-muted">
-                        {i + 1}
-                      </span>
-                    )}
-                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <PlayerTag player={snap.playersById.get(r.playerId)} size="sm" className="min-w-0 font-semibold text-ink" />
-                      {ballDe(r.playerId)}
-                    </span>
-                    {/* El récord se esconde en pantallas estrechas: con el
-                        nombre, el %V y la racha no cabe, y es lo que menos se
-                        mira de los cuatro. Está entero en Ranking. */}
-                    <span className="hidden xs:inline">
-                      {mainComp?.kind === "league"
-                        ? <span className="font-mono text-xs font-bold tabular"><span className="text-win">{r.wins}</span>–<span className="text-loss">{r.losses}</span></span>
-                        : <Record w={r.wins} d={r.ties} l={r.losses} />}
-                    </span>
-                    <span className="w-11 flex-none text-right font-mono text-xs font-bold tabular" style={{ color: wrColor(winRate) }}>
-                      {pct(winRate, 0)}
-                    </span>
-                    <StreakChip kind={r.streak.kind} n={r.streak.n} />
-                  </li>
-                );
-              })}
-            </ol>
-          ) : <Empty title={tr(lang, "home.noMatchesYet")}>{tr(lang, "home.noMatchesHint")}</Empty>}
+          })()}
         </section>
 
         <section className="card min-w-0">

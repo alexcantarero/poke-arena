@@ -177,6 +177,30 @@ export function MatchForm({
   /** El rival de fuera solo tiene arquetipo, y el servidor lo lee sin prefijo. */
   const opcionesRivalFuera: DeckOption[] = archOpts;
 
+  /* v0.110 — el selector de cada JUEGO también enseña los mazos de ese
+     jugador, no solo los arquetipos. Por juego se guarda el ARQUETIPO (es lo
+     que lee el servidor en `g{i}_arch*`), así que un mazo viaja como
+     `deck:<id>` dentro del selector y se traduce a su arquetipo al elegirlo.
+     El selector lleva otro nombre (`_g…`) para que no pise el campo real. */
+  const DECK_JUEGO = "deck:";
+  const opcionesJuego = (playerId: string | null): DeckOption[] => {
+    const esMio = playerId != null && playerId === meId;
+    const dueno = playerId ? players.find((p) => p.id === playerId) : undefined;
+    const propios: DeckOption[] = playerId
+      ? decks.filter((d) => d.playerId === playerId && !d.retired && archPorId.has(d.archetypeId)).map((d): DeckOption => {
+          const a = archPorId.get(d.archetypeId)!;
+          return {
+            id: `${DECK_JUEGO}${d.id}`, name: d.name, archetypeId: a.id, archetypeName: a.name,
+            main: a.main ?? "", secondary: a.secondary ?? "", type: a.type ?? "colorless",
+            group: esMio ? "mine" : "other", ownerName: esMio ? undefined : dueno?.name, hasList: Boolean(d.list.trim()),
+          };
+        })
+      : [];
+    return [...propios, ...archOpts];
+  };
+  const archDeOpcion = (val: string) =>
+    val.startsWith(DECK_JUEGO) ? (decks.find((d) => d.id === val.slice(DECK_JUEGO.length))?.archetypeId ?? "") : val;
+
   const juegosMazos = games.map((g) => ({ winner: g.winner, archA: g.archA || null, archB: g.archB || null }));
 
   const need = Math.ceil(bestOf / 2);
@@ -241,11 +265,100 @@ export function MatchForm({
     return a >= need || b >= need;
   };
 
+  /** v0.110 — los dos selectores de mazo de un juego: tus mazos y los
+      arquetipos. Lo que alguien ya ganó en un juego anterior no se ofrece en
+      liga (v0.25; el servidor también lo comprueba). */
+  const mazosDelJuego = (i: number, over: boolean) => (
+    <div className="mt-2 grid grid-cols-1 gap-2 xs:grid-cols-2">
+      {(["a", "b"] as const).map((lado) => {
+        const fuera = esLiga ? bloqueados(juegosMazos, i, lado) : new Set<string>();
+        const campo = lado === "a" ? "archA" : "archB";
+        const elegido = games[i][campo];
+        const opciones = opcionesJuego(lado === "a" ? aId : external ? null : bId)
+          .filter((x) => !fuera.has(x.archetypeId) || elegido === x.archetypeId);
+        return (
+          <label key={lado} className="flex min-w-0 flex-col gap-1">
+            <span className="text-[11px] text-muted">
+              {trf(lng, "v110.cfg.mazoDe", { n: lado === "a" ? (A?.name ?? "A") : bLabel })}
+              {fuera.size > 0 && <span className="text-loss"> · {trf(lng, "v110.cfg.bloqueados", { n: fuera.size })}</span>}
+            </span>
+            <DeckPicker
+              key={`g${i}${lado}-${lado === "a" ? aId : bId}`}
+              name={`_g${i}_mazo${lado.toUpperCase()}`}
+              options={opciones}
+              defaultValue={elegido}
+              onChange={(val) => setGame(i, { [campo]: archDeOpcion(val) })}
+              locked={over}
+              searchFrom={1}
+              emptyLabel={tr(lng, "x.5f9b8c84")}
+            />
+            <input type="hidden" name={`g${i}_arch${lado.toUpperCase()}`} value={elegido} />
+          </label>
+        );
+      })}
+    </div>
+  );
+
   return (
     <form action={saveMatch} className="flex flex-col gap-4">
       {match && <input type="hidden" name="id" value={match.id} />}
       <input type="hidden" name="bestOf" value={bestOf} />
       <input type="hidden" name="playerAId" value={aId} />
+
+      {/* --------------------------- configuración ---------------------------
+          v0.110 — lo que cambia el formulario entero va PRIMERO y a la vista:
+          el formato, si se juega con el mismo mazo y cómo se apunta. Antes
+          eran chips pequeños perdidos dentro del resultado. Tres grupos de
+          tarjetas grandes con `aria-pressed`: se tocan con el pulgar y se lee
+          qué hace cada opción sin abrir nada. */}
+      <section className="card registro-seccion config-partida p-4" data-acento="config" aria-labelledby="cfg-titulo">
+        <h2 id="cfg-titulo" className="mb-3 flex items-center gap-2 text-lg font-bold">
+          <ObjetoSprite uso="config" className="size-7" />{tr(lng, "v110.cfg.titulo")}
+        </h2>
+
+        <div className="config-grupo" role="group" aria-labelledby="cfg-formato">
+          <p id="cfg-formato" className="config-etiqueta">{tr(lng, "v110.cfg.formato")}</p>
+          <div className="config-opciones config-opciones-3">
+            {[1, 3, 5].map((n) => (
+              <button key={n} type="button" aria-pressed={bestOf === n} onClick={() => setBestOf(n)} className="config-opcion">
+                <span className="config-opcion-titulo">Bo{n}</span>
+                <span className="config-opcion-texto">{trf(lng, "v110.cfg.boTexto", { n: Math.ceil(n / 2) })}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* v0.43 — fijar el mazo o no. Viaja al servidor en `mazo_fijo`. */}
+        <div className="config-grupo" role="group" aria-labelledby="cfg-mazos">
+          <p id="cfg-mazos" className="config-etiqueta">{tr(lng, "v110.cfg.mazos")}</p>
+          <div className="config-opciones">
+            <button type="button" aria-pressed={mazoFijo} onClick={() => setMazoFijo(true)} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "v110.cfg.mismo")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v110.cfg.mismoTexto")}</span>
+            </button>
+            <button type="button" aria-pressed={!mazoFijo} onClick={() => setMazoFijo(false)} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "x.2860c708")}</span>
+              <span className="config-opcion-texto">{esLiga ? tr(lng, "x.b9b9a770") : tr(lng, "x.9f47a827")}</span>
+            </button>
+          </div>
+          <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
+        </div>
+
+        {/* v0.53 — modo rápido / juego a juego */}
+        <div className="config-grupo" role="group" aria-labelledby="cfg-modo">
+          <p id="cfg-modo" className="config-etiqueta">{tr(lng, "rr.modo")}</p>
+          <div className="config-opciones">
+            <button type="button" aria-pressed={modo === "rapido"} onClick={() => setModo("rapido")} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "rr.rapido")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v110.cfg.rapidoTexto")}</span>
+            </button>
+            <button type="button" aria-pressed={modo === "detalle"} onClick={() => setModo("detalle")} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "rr.detallar")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v110.cfg.detalleTexto")}</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* ------------------------------ quién ------------------------------ */}
       <section className="card registro-seccion p-4" data-acento="rival">
@@ -356,33 +469,12 @@ export function MatchForm({
       <section className="card registro-seccion p-4" data-acento="resultado">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="resultado" className="size-7" />{tr(lng, "x.c7589dbf")}</h2>
-          <div className="seg seg-brand">
-            {[1, 3, 5].map((n) => (
-              <button key={n} type="button" data-on={bestOf === n} onClick={() => setBestOf(n)}>Bo{n}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* v0.43 — fijar el mazo o no. Un botón con `aria-pressed`, no una
-            casilla escondida: es una decisión que cambia el formulario entero
-            y tiene que verse. Viaja al servidor en `mazo_fijo`. */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            aria-pressed={mazoFijo}
-            onClick={() => setMazoFijo((v) => !v)}
-            className={`chip ${mazoFijo ? "chip-brand" : ""}`}
-          >
-            {mazoFijo ? "✓ Mismo mazo toda la serie" : tr(lng, "x.2860c708")}
-          </button>
-          <span className="text-xs text-muted">
-            {mazoFijo
-              ? tr(lng, "x.2f3564d7")
-              : esLiga
-                ? tr(lng, "x.b9b9a770")
-                : tr(lng, "x.9f47a827")}
-          </span>
-          <input type="hidden" name="mazo_fijo" value={mazoFijo ? "1" : ""} />
+          {/* v0.110 — el resumen de la configuración de arriba, para no perderla de vista. */}
+          <a href="#cfg-titulo" className="config-resumen" title={tr(lng, "v110.cfg.cambiar")}>
+            <span>Bo{bestOf}</span>
+            <span>{mazoFijo ? tr(lng, "v110.cfg.mismoCorto") : tr(lng, "v110.cfg.distintoCorto")}</span>
+            <span>{modo === "rapido" ? tr(lng, "rr.rapido") : tr(lng, "v110.cfg.detalleCorto")}</span>
+          </a>
         </div>
 
         {/* v0.71 — si estos dos tienen una partida de liga pendiente, el
@@ -435,14 +527,6 @@ export function MatchForm({
           </p>
         )}
 
-        {/* v0.53 — modo rápido / detallar juegos */}
-        <div className="mb-3 flex gap-1.5" role="group" aria-label={tr(lng, "rr.modo")}>
-          <button type="button" aria-pressed={modo === "rapido"} onClick={() => setModo("rapido")}
-            className={`chip ${modo === "rapido" ? "chip-brand" : ""}`}>{tr(lng, "rr.rapido")}</button>
-          <button type="button" aria-pressed={modo === "detalle"} onClick={() => setModo("detalle")}
-            className={`chip ${modo === "detalle" ? "chip-brand" : ""}`}>{tr(lng, "rr.detallar")}</button>
-        </div>
-
         {modo === "rapido" ? (
           <>
             <div className="grid grid-cols-2 gap-2 xs:grid-cols-4">
@@ -467,6 +551,25 @@ export function MatchForm({
             {!empateTiempo && games.slice(0, bestOf).map((g, i) => g.winner && (
               <input key={i} type="hidden" name={`g${i}_winner`} value={g.winner} />
             ))}
+            {/* v0.110 — con mazo distinto en cada juego, el modo rápido también
+                pide el mazo de cada juego (antes no había dónde ponerlo). */}
+            {!mazoFijo && !empateTiempo && (
+              <div className="mt-3 flex flex-col gap-2.5">
+                {Array.from({ length: Math.max(1, played) }, (_, i) => (
+                  <div key={i} className="rounded-xl border border-line-soft p-3">
+                    <div className="juego-cinta" data-gana={games[i].winner || undefined}>
+                      <span>{trf(lng, "v63.juego", { n: i + 1 })}</span>
+                      {games[i].winner && (
+                        <span className="ml-auto text-[10px] font-bold normal-case tracking-normal opacity-90">
+                          {trf(lng, "v63.ganaJuego", { n: games[i].winner === "a" ? (A?.name ?? "A") : bLabel })}
+                        </span>
+                      )}
+                    </div>
+                    {mazosDelJuego(i, false)}
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="mt-2 text-xs text-muted">{tr(lng, "rr.notaRapido")}</p>
           </>
         ) : (
@@ -549,40 +652,8 @@ export function MatchForm({
                   onChange={(parcial) => setGame(i, parcial)}
                 />
 
-                {/* v0.25 — mazo de cada uno en ESTE juego. Lo que alguien ya ganó
-                    en un juego anterior de la serie no se ofrece (regla de liga;
-                    el servidor también lo comprueba).
-
-                    v0.41 — SOLO en liga. En un amistoso no se pinta: el mazo de
-                    la serie vale para todos los juegos, y al no enviarse los
-                    `g{i}_arch*` el servidor los guarda vacíos, que significa
-                    exactamente eso («el de la serie»). */}
-                {!mazoFijo && (
-                <div className="mt-2 grid grid-cols-1 gap-2 xs:grid-cols-2">
-                  {(["a", "b"] as const).map((lado) => {
-                    // El bloqueo es la regla de LIGA; en un amistoso se puede
-                    // repetir el mazo que se quiera.
-                    const fuera = esLiga ? bloqueados(juegosMazos, i, lado) : new Set<string>();
-                    const campo = lado === "a" ? "archA" : "archB";
-                    return (
-                      <label key={lado} className="flex min-w-0 flex-col gap-1">
-                        <span className="text-[11px] text-muted">
-                          Mazo de {lado === "a" ? (A?.name ?? "A") : bLabel}
-                          {fuera.size > 0 && <span className="text-loss"> · {fuera.size} bloqueado{fuera.size > 1 ? "s" : ""}</span>}
-                        </span>
-                        <DeckPicker
-  name={`g${i}_arch${lado.toUpperCase()}`}
-  options={archOpts.filter((x) => !fuera.has(x.id) || games[i][campo] === x.id)}
-  defaultValue={games[i][campo]}
-  onChange={(val) => setGame(i, { [campo]: val })}
-  locked={over}
-  emptyLabel={tr(lng, "x.5f9b8c84")}
-/>
-                      </label>
-                    );
-                  })}
-                </div>
-                )}
+                {/* v0.25 — mazo de cada uno en ESTE juego (v0.110: ver `mazosDelJuego`). */}
+                {!mazoFijo && mazosDelJuego(i, over)}
               </div>
             );
           })}

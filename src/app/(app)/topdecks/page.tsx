@@ -10,6 +10,7 @@ import { Empty, isOtherArchetype, Kpi, OtherMark, PageHead } from "@/components/
 import { Icon } from "@/components/icons";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { FormatoActual } from "@/components/FormatoActual";
 
 export const metadata = { title: "Top Decks" };
 
@@ -116,6 +117,8 @@ export default async function TopDecksPage({
           sub={tr(lng, "x.8283eb44")}
           back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }}
         />
+        {/* v0.110 — en qué formato estamos, lo primero */}
+        <FormatoActual lang={lng} className="mb-4" />
         {pestanas}
         <form action="/topdecks" method="get" className="mb-4 flex gap-2">
           {presencial && <input type="hidden" name="fuente" value="presencial" />}
@@ -175,6 +178,8 @@ export default async function TopDecksPage({
         back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }}
       />
 
+      {/* v0.110 — en qué formato estamos, lo primero */}
+      <FormatoActual lang={lng} className="mb-4" />
       {pestanas}
         <form action="/topdecks" method="get" className="mb-4 flex gap-2">
           {presencial && <input type="hidden" name="fuente" value="presencial" />}

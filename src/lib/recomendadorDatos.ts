@@ -6,6 +6,7 @@ import { arquetipos as arquetiposCm, catalogo as catalogoCm, matchupProfiles as 
 import { crucesDeMatchupProfiles } from "@/lib/ciphermaniacCruces";
 import type { FilaConversionTH } from "@/lib/trainerHill";
 import { comb } from "@/lib/herramientas";
+import { pesosNormalizados } from "@/lib/recencia";
 import { fetchMatrizMeta } from "@/lib/sources/limitless";
 import { archetypesOfMatch, isPlayed, outcome, sideOf } from "@/lib/stats";
 import { parseDeckList } from "@/lib/decklist";
@@ -146,6 +147,19 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       const tam = Math.round(e.playerCount * frac);
       if ((listasPorEvento.get(e.id) ?? 0) > tam * 1.05) tamDia2.set(e.id, tam);
     }
+    /* v0.110 — LO RECIENTE PESA MÁS. Cada evento cuenta según su antigüedad
+       (vida media de 30 días, ver `lib/recencia.ts`), normalizado dentro de su
+       grupo (Regionales por un lado, City Leagues por otro) para que el total
+       de listas no cambie: solo cambia el reparto. El Regional del fin de
+       semana pasado ya lleva las cartas nuevas; el de hace cuatro meses, no. */
+    const hoy = new Date().toISOString().slice(0, 10);
+    const esCity = (k: string) => k === "city_league";
+    const pesoEvento = new Map<string, number>();
+    for (const grupoCity of [false, true]) {
+      const evs = [...evById.values()].filter((e) => esCity(e.kind) === grupoCity);
+      const pesos = pesosNormalizados(evs.map((e) => ({ id: e.id, fecha: e.date, tam: listasPorEvento.get(e.id) ?? 0 })), hoy);
+      for (const [id, w] of pesos) pesoEvento.set(id, w);
+    }
     for (const en of entries) {
       const ev = evById.get(en.eventId);
       if (!ev) continue;
@@ -153,22 +167,23 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       if (!f) continue;
       const l = en.main || liderDe(en.archetypeName);
       if (!l) continue;
+      const w = pesoEvento.get(ev.id) ?? 1;
       nombrar(l, en.archetypeName);
-      f.cuota[l] = (f.cuota[l] ?? 0) + en.copies;
+      f.cuota[l] = (f.cuota[l] ?? 0) + en.copies * w;
       const vv = variante(l, en.secondary, en.archetypeName);
-      vv.listas += en.copies;
+      vv.listas += en.copies * w;
       if (en.placement != null) {
         const corte = ev.topCut ?? (ev.kind === "city_league" ? 8 : 0);
         const x = f.conversion![l] ?? { n: 0, corte: 0, top4: 0, ganados: 0 };
-        x.n += 1;
-        if (corte && en.placement <= corte) x.corte += 1;
-        if (en.placement <= 4) x.top4 = (x.top4 ?? 0) + 1;
-        if (en.placement === 1) x.ganados = (x.ganados ?? 0) + 1;
+        x.n += w;
+        if (corte && en.placement <= corte) x.corte += w;
+        if (en.placement <= 4) x.top4 = (x.top4 ?? 0) + w;
+        if (en.placement === 1) x.ganados = (x.ganados ?? 0) + w;
         const t2 = tamDia2.get(ev.id);
-        if (t2) { x.dia2Base = (x.dia2Base ?? 0) + 1; if (en.placement <= t2) x.dia2 = (x.dia2 ?? 0) + 1; }
+        if (t2) { x.dia2Base = (x.dia2Base ?? 0) + w; if (en.placement <= t2) x.dia2 = (x.dia2 ?? 0) + w; }
         f.conversion![l] = x;
-        vv.conPuesto += 1;
-        if (corte && en.placement <= corte) vv.corte += 1;
+        vv.conPuesto += w;
+        if (corte && en.placement <= corte) vv.corte += w;
       }
     }
     nReg = [...evById.values()].filter((e) => e.kind !== "city_league").length;
@@ -188,6 +203,8 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     if (cat.ok) {
       const desde = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
       const evs = cat.datos.filter((n) => /regional|international|special/i.test(n) && n.slice(0, 10) >= desde).slice(0, 6);
+      // v0.110 — también aquí, lo reciente pesa más (el nombre empieza por la fecha).
+      const pesoCm = pesosNormalizados(evs.map((n) => ({ id: n, fecha: n.slice(0, 10), tam: 1 })), new Date().toISOString().slice(0, 10));
       const aLider = (x: { slug: string; nombre: string; listas: number | null }) => ({
         lider: liderDeSlug(x.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")).lider,
         listas: x.listas ?? 0,
@@ -196,16 +213,19 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
         const [todos, fase2, mps] = await Promise.all([arquetiposCm(ev), arquetiposCm(ev, "phase2"), matchupsCm(ev)]);
         if (mps.ok) {
           const aL = (nombre: string) => liderDeSlug(nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")).lider;
-          ciphermaniac.cruces!.push(...crucesDeMatchupProfiles(mps.datos, aL));
+          const w = pesoCm.get(ev) ?? 1;
+          ciphermaniac.cruces!.push(...crucesDeMatchupProfiles(mps.datos, aL)
+            .map((c) => ({ ...c, w: c.w * w, l: c.l * w, t: c.t * w })));
         }
         if (!todos.ok || !fase2.ok) continue;
         const conv = conversionDia2(todos.datos.map(aLider), fase2.datos.map(aLider));
         if (!conv) continue;
         eventosDia2++;
+        const wEv = pesoCm.get(ev) ?? 1;
         for (const [l, x] of Object.entries(conv)) {
           const y = (regionales.conversion![l] ??= { n: 0, corte: 0, top4: 0, ganados: 0 });
-          y.dia2 = (y.dia2 ?? 0) + x.dia2;
-          y.dia2Base = (y.dia2Base ?? 0) + x.base;
+          y.dia2 = (y.dia2 ?? 0) + x.dia2 * wEv;
+          y.dia2Base = (y.dia2Base ?? 0) + x.base * wEv;
         }
       }
     }

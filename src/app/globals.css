@@ -2022,3 +2022,112 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .modo-directo input, .modo-directo select, .modo-directo textarea { min-height: 3rem; font-size: 1rem; }
 .modo-directo .seg > * { min-height: 3rem; }
 
+
+/* =========================================================================
+   v0.110
+   ========================================================================= */
+
+/* Ranking de Poké Ball en el Inicio: la Ball grande y la barra hasta la siguiente. */
+.ball-ranking-grande { width: 1.75rem; height: 1.75rem; flex: none; image-rendering: pixelated; object-fit: contain; }
+.ball-ranking-barra {
+  position: relative; display: block; flex: 1 1 auto; max-width: 7rem; height: .35rem;
+  border-radius: 9999px; overflow: hidden; background: var(--surface-3, var(--surface-2));
+  box-shadow: inset 0 0 0 1px var(--line-soft, var(--line));
+}
+.ball-ranking-barra > span {
+  position: absolute; inset: 0 auto 0 0; border-radius: inherit;
+  background: linear-gradient(90deg, var(--info), var(--brand));
+}
+
+/* Registrar partida: «Configura la partida». Tarjetas grandes, para el pulgar. */
+.registro-seccion[data-acento="config"] { background-image: linear-gradient(90deg, var(--brand), var(--info)); }
+.config-grupo + .config-grupo { margin-top: .9rem; }
+.config-etiqueta {
+  margin-bottom: .4rem; font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.config-opciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.config-opciones-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.config-opcion {
+  position: relative; display: flex; min-width: 0; min-height: 3.5rem; flex-direction: column; justify-content: center; gap: .15rem;
+  padding: .6rem .75rem; border-radius: .9rem; text-align: left;
+  border: 2px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .12s;
+}
+.config-opciones-3 .config-opcion { align-items: center; text-align: center; }
+.config-opcion:hover { border-color: color-mix(in oklab, var(--brand) 45%, var(--line)); }
+.config-opcion:active { transform: scale(.97); }
+.config-opcion:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.config-opcion[aria-pressed="true"] {
+  border-color: var(--brand); color: var(--ink);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--brand) 22%, var(--surface-2)), var(--surface-2));
+  box-shadow: 0 0 0 1px var(--brand), 0 6px 18px color-mix(in oklab, var(--brand) 25%, transparent);
+}
+/* La marca de elegido no depende solo del color: lleva un ✓. */
+.config-opcion[aria-pressed="true"]::after {
+  content: "✓"; position: absolute; top: .3rem; right: .45rem;
+  font-size: .75rem; font-weight: 900; color: var(--brand);
+}
+.config-opcion-titulo { font-family: var(--font-display); font-size: .98rem; font-weight: 800; line-height: 1.15; }
+.config-opcion-texto { font-size: .72rem; line-height: 1.25; color: var(--muted); }
+.config-opcion[aria-pressed="true"] .config-opcion-texto { color: var(--ink-2); }
+@media (max-width: 379px) { .config-opcion-texto { display: none; } }
+.config-resumen {
+  display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: .25rem; min-width: 0;
+  font-size: .68rem; font-weight: 700; color: var(--ink-2); text-decoration: none;
+}
+.config-resumen > span { padding: .15rem .45rem; border-radius: 9999px; border: 1px solid var(--line); background: var(--surface-2); }
+.config-resumen:hover > span { border-color: var(--brand); }
+@media (prefers-reduced-motion: reduce) { .config-opcion { transition: none; } .config-opcion:active { transform: none; } }
+
+/* «Formato Estándar»: arriba de Top Decks y Herramientas. */
+.formato-actual { overflow: visible; }
+.formato-summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; cursor: pointer; list-style: none;
+  padding: .85rem 1rem;
+}
+.formato-summary::-webkit-details-marker { display: none; }
+.formato-summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: rotate .15s; }
+.formato-actual:not([open]) .formato-summary::after { rotate: -90deg; }
+.formato-titulo { font-family: var(--font-display); font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+.formato-resumen { min-width: 0; font-size: .75rem; color: var(--muted); }
+.formato-rejilla {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; padding: 0 1rem .75rem;
+}
+@media (min-width: 640px) { .formato-rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .formato-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.formato-bloque {
+  --t: var(--info);
+  min-width: 0; padding: .7rem .8rem; border-radius: .9rem;
+  border: 1px solid color-mix(in oklab, var(--t) 30%, var(--line));
+  background: linear-gradient(160deg, color-mix(in oklab, var(--t) 10%, var(--surface-2)), var(--surface-2));
+}
+.formato-bloque[data-tono="actual"] { --t: var(--win); }
+.formato-bloque[data-tono="proxima"] { --t: var(--brand); }
+.formato-bloque[data-tono="temporada"] { --t: var(--loss); }
+.formato-etiqueta { margin-bottom: .35rem; font-size: .66rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.formato-exp { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.formato-exp + .formato-exp { margin-top: .55rem; }
+.formato-espera { padding-top: .55rem; border-top: 1px dashed var(--line); }
+.formato-portada { width: 2.6rem; height: 2.6rem; flex: none; object-fit: contain; }
+.formato-portada-vacia { display: inline-block; border-radius: 9999px; border: 1px dashed var(--line); }
+.formato-nombre { font-weight: 800; line-height: 1.2; color: var(--ink); }
+.formato-codigo {
+  margin-left: .4rem; padding: .05rem .35rem; border-radius: .35rem; border: 1px solid var(--line);
+  font-family: var(--font-mono, monospace); font-size: .65rem; font-weight: 700; color: var(--ink-2);
+}
+.formato-dato { font-size: .8rem; line-height: 1.35; color: var(--ink-2); }
+.formato-dato + .formato-dato { margin-top: .3rem; }
+.formato-nota { margin-top: .2rem; font-size: .7rem; line-height: 1.3; color: var(--muted); }
+.formato-cuenta {
+  display: inline-block; padding: 0 .4rem; border-radius: 9999px; font-size: .7rem; font-weight: 700;
+  background: color-mix(in oklab, var(--t) 18%, transparent); color: var(--ink);
+}
+.formato-marcas { display: flex; gap: .35rem; margin-bottom: .35rem; }
+.formato-marca {
+  display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: .45rem;
+  font-family: var(--font-display); font-weight: 900; color: var(--ink);
+  border: 2px solid var(--ink-2); background: var(--surface);
+}
+.formato-pie { padding: 0 1rem .8rem; font-size: .68rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .formato-summary::after { transition: none; } }
+#cfg-titulo { scroll-margin-top: 5.5rem; }

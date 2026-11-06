@@ -4,6 +4,7 @@ import { Herramientas, type MazoHerramienta } from "@/components/Herramientas";
 import { cargarDatosRecomendador } from "@/lib/recomendadorDatos";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { FormatoActual } from "@/components/FormatoActual";
 
 /* v0.71 — Herramientas: calculadora suiza, consistencia, premios y el
    simulador de manos (antes en la ficha de cada mazo). */
@@ -26,6 +27,8 @@ export default async function HerramientasPage({ searchParams }: { searchParams:
   return (
     <>
       <PageHead title={tr(lng, "hr.titulo")} sub={tr(lng, "hr.sub")} />
+      {/* v0.110 — el formato vigente, antes de calcular nada */}
+      <FormatoActual lang={lng} className="mb-4" />
       <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} datos={datos} />
     </>
   );

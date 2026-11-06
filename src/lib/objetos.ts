@@ -21,6 +21,8 @@ export const OBJETOS = {
   resultado: "rare-candy",
   guardar: "poke-ball",
   contexto: "town-map",
+  // v0.110 — «Configura la partida»: el Repartir Exp., que reparte cómo va a ir todo.
+  config: "exp-share",
 } as const;
 
 export type UsoObjeto = keyof typeof OBJETOS;

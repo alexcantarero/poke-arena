@@ -591,7 +591,7 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                             <li key={x.clave} className="flex items-center gap-2 text-[11px]">
                               <span className={`min-w-0 flex-1 truncate ${x.clave === mv.clave ? "font-bold" : ""}`}>{x.nombre}</span>
                               <span className="w-10 text-right font-mono tabular">{pct(x.wr, 0)}</span>
-                              <span className="w-24 text-right text-muted tabular">{trf(lng, "rc.var.datos", { n: x.w + x.l + x.t, l: x.listas })}</span>
+                              <span className="w-24 text-right text-muted tabular">{trf(lng, "rc.var.datos", { n: Math.round(x.w + x.l + x.t), l: Math.round(x.listas) /* v0.110: con pesos por fecha ya no son enteros */ })}</span>
                               {x.conversion != null && <span className="w-12 text-right font-mono tabular text-muted">×{x.conversion.toFixed(2)}</span>}
                             </li>
                           ))}
@@ -657,6 +657,8 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
             })}
             {datos.resumen.trainerHill > 0 && <> {trf(lng, "th.enRecomendador", { n: datos.resumen.trainerHill.toLocaleString("es-ES") })}</>}
           </p>
+          {/* v0.110 — lo reciente pesa más, y se dice. */}
+          <p className="text-[11px] text-muted">{tr(lng, "v110.rcReciente")}</p>
           <p className="text-[11px] text-muted">{tr(lng, "rc.nota")}</p>
         </>
       )}
