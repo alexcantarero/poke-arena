@@ -2,6 +2,28 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.112.0] — 2026-11-06
+
+### Añadido
+
+- **Torneo inaugural del Cinturón**: inscripción para jugadores activos hasta el 20 de noviembre
+  de 2026 a las 08:00, hora de Madrid; al llegar la hora, el cron crea automáticamente la primera
+  ronda suiza Bo3. La organización puede iniciarla manualmente si el cron no se ejecuta. Los
+  emparejamientos posteriores esperan a que se complete la ronda actual; al terminar las rondas,
+  la organización cierra el torneo y queda proclamado el primer puesto.
+- Registro persistente de inscripciones, desempates con descanso para número impar de jugadores,
+  acceso desde la navegación e integración con la clasificación y ficha de competiciones.
+
+### Cambiado
+
+- El cron diario pasa de las 04:00 a las 07:00 UTC para coincidir con las 08:00 de Madrid el día
+  del inicio. También desplaza a esa hora las demás tareas diarias.
+
+### Requiere intervención manual
+
+- Revisar y aplicar `drizzle/0031_v0_112_0.sql` en la rama **dev** de Neon antes de probar la
+  inscripción. No se ha ejecutado ninguna migración.
+
 ## [0.111.0] — 2026-11-06
 
 ### Añadido

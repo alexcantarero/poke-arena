@@ -314,6 +314,12 @@ export const competitionPlayers = pgTable("competition_players", {
   dropped: boolean("dropped").notNull().default(false),
 }, (t) => [index("cp_comp_idx").on(t.competitionId)]);
 
+export const beltRegistrations = pgTable("belt_registrations", {
+  eventId: text("event_id").notNull(),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.eventId, t.playerId] })]);
+
 /**
  * v0.19 — Historial de resets de temporada del ladder. `settings.ladder_since`
  * solo guarda el último; esto guarda todos, para marcarlos en la gráfica.

@@ -52,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.compete",
     title: "Competir",
     items: [
+      { href: "/cinturon", label: "Torneo del Cinturón", icon: "trophy" },
       { href: "/torneos", label: "Torneos", icon: "trophy", sprite: "objeto:vs-seeker" },
       { href: "/competiciones", label: "Liga", icon: "league", sprite: "objeto:shiny-charm" },
       { href: "/resultados", label: "Resultados", icon: "results", sprite: "objeto:rare-candy" },

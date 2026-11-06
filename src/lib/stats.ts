@@ -116,10 +116,14 @@ export function outcome(m: MatchFull): Outcome {
 
 /**
  * Una partida cuenta cuando está cerrada y se sabe cómo acabó: o por sus
- * juegos, o porque el resultado está declarado.
+ * juegos, o porque el resultado está declarado. Los descansos BYE no son
+ * partidas jugadas; la clasificación del suizo los virtualiza al calcularse.
  */
+const esBye = (m: MatchFull) =>
+  m.playerBId === null && /^\s*bye\s*$/i.test(m.opponentName ?? "");
+
 export const isPlayed = (m: MatchFull) =>
-  m.status === "done" && (m.games.length > 0 || m.seriesResult !== null);
+  m.status === "done" && (m.games.length > 0 || m.seriesResult !== null) && !esBye(m);
 
 /**
  * Una partida es "interna" cuando los dos jugadores están en la liga. Las que
@@ -216,8 +220,6 @@ export function pesoElo(m: Pick<MatchFull, "competitionId" | "tournamentId">, to
   }
   return m.competitionId ? ELO_PESOS.league : ELO_PESOS.amistoso;
 }
-
-const esBye = (m: MatchFull) => /^\s*bye\s*$/i.test(m.opponentName ?? "");
 
 export function eloTable(
   allMatches: MatchFull[],

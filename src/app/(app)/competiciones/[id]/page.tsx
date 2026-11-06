@@ -39,6 +39,7 @@ import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { CINTURON_COMPETITION_ID, incluirDescansosEnClasificacion } from "@/lib/cinturon";
 
 export default async function CompetitionPage({
   params,
@@ -76,7 +77,10 @@ export default async function CompetitionPage({
   const played = applyMatchFilter(playedAll, filter, index);
 
   const pending = inComp.filter((m) => m.status === "scheduled");
-  const table = standings(played, ids, snap.elo.rating, snap.config);
+  const partidasClasificacion = id === CINTURON_COMPETITION_ID
+    ? incluirDescansosEnClasificacion(played)
+    : played;
+  const table = standings(partidasClasificacion, ids, snap.elo.rating, snap.config);
   const isLeague = comp.kind === "league";
   const archetypesByPlayer = new Map<string, Set<string>>();
   for (const match of played) {
@@ -93,10 +97,17 @@ export default async function CompetitionPage({
     }
   }
   const nextRound = Math.max(0, ...inComp.map((m) => m.round)) + 1;
+  const cinturonSinRondas = id === CINTURON_COMPETITION_ID && comp.rounds > 0 && nextRound > comp.rounds;
   /* v0.44 — `inComp` y no `played`: la acción que crea la jornada recibe
      todas las partidas de la competición, y la vista previa recibía solo las
      jugadas. Lo que se enseñaba podía no ser lo que se creaba al pulsar. */
-  const previewLiga = pairRound(comp.kind, ids, inComp, snap.elo.rating, snap.config);
+  const previewLiga = pairRound(
+    comp.kind,
+    ids,
+    id === CINTURON_COMPETITION_ID ? incluirDescansosEnClasificacion(inComp) : inComp,
+    snap.elo.rating,
+    snap.config,
+  );
   const kind =
     COMPETITION_KINDS[comp.kind as CompetitionKind] ?? COMPETITION_KINDS.league;
 
@@ -485,7 +496,7 @@ export default async function CompetitionPage({
                     {preview.repetidos === 1 ? "enfrentamiento" : "enfrentamientos"}. Es la segunda vuelta.
                   </p>
                 )}
-                {manager ? (
+                {manager && !cinturonSinRondas && !(id === CINTURON_COMPETITION_ID && pending.length > 0) ? (
                   <form action={createPairings}>
                     <input type="hidden" name="competitionId" value={comp.id} />
                     <button className="btn btn-brand w-full" type="submit">
@@ -494,7 +505,9 @@ export default async function CompetitionPage({
                   </form>
                 ) : (
                   <p className="text-sm text-muted">
-                    {tr(lng, "x.b98489c9")}
+                    {manager
+                      ? cinturonSinRondas ? tr(lng, "belt.roundsDone") : tr(lng, "belt.finishRound")
+                      : tr(lng, "x.b98489c9")}
                   </p>
                 )}
               </>

@@ -6,6 +6,7 @@ import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
 import { esLunesEnMadrid } from "@/lib/discordMensajes";
 import { guardarLecturaNeonDeHoy } from "@/lib/usoDb";
+import { iniciarSuizoCinturon } from "@/lib/cinturonDb";
 
 /* =========================================================================
    GET /api/cron/limpieza — v0.19.
@@ -23,6 +24,9 @@ export async function GET(req: NextRequest) {
   if (!secreto || req.headers.get("authorization") !== `Bearer ${secreto}`) {
     return NextResponse.json({ error: "no autorizado" }, { status: 401 });
   }
+  const ahora = new Date();
+  const fechaMadrid = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(ahora);
+  const cinturon = fechaMadrid === "2026-11-20" ? await iniciarSuizoCinturon(ahora) : null;
   const borrados = await borrarTorneosAbandonados();
   // v0.45 — y los que se quedaron abiertos más de una semana con datos dentro.
   const cerrados = await cerrarTorneosTerminados();
@@ -38,12 +42,13 @@ export async function GET(req: NextRequest) {
      la semana. Cada aviso es opcional y nunca rompe el cron. */
   const discord = { resultados: 0, pendientes: false, agenda: false };
   for (const t of cerrados) if (await notificarResultadosTorneo(t.id)) discord.resultados++;
-  const ahora = new Date();
   if (esLunesEnMadrid(ahora)) {
     discord.pendientes = await notificarPendientesLiga();
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
   }
-  if (borrados.length || cerrados.length || series?.creados || series?.retirados) revalidatePath("/", "layout");
+  if (cinturon === "started" || borrados.length || cerrados.length || series?.creados || series?.retirados) {
+    revalidatePath("/", "layout");
+  }
   // v0.89 — los borradores cuya fecha ha llegado, a «En curso».
   await abrirTorneosDelDia(ahora.toISOString().slice(0, 10));
   /* v0.95 — la foto diaria de Neon para el panel de uso (Ajustes → Uso). Neon
@@ -59,5 +64,6 @@ export async function GET(req: NextRequest) {
     series,
     discord,
     usoNeon,
+    cinturon,
   });
 }
