@@ -5,15 +5,14 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { beltChallenges, beltRegistrations, beltState, competitions, players } from "@/db/schema";
 import {
-  CINTURON_COMPETITION_ID, CINTURON_ESTADO_ID, CINTURON_FECHA, cumpleRequisitoReto,
+  CINTURON_COMPETITION_ID, CINTURON_ESTADO_ID, CINTURON_FECHA, cumpleRequisitoReto, posicionEnForma,
   esCompeticionCinturon, inscripcionCinturonAbierta, plazoVencido,
   CINTURON_ENFRIAMIENTO_DIAS, CINTURON_RETO_DIAS,
 } from "@/lib/cinturon";
-import { compPlayers, loadSnapshot, mainCompetition } from "@/lib/data";
+import { loadSnapshot } from "@/lib/data";
 import { notificarCambioCinturon } from "@/lib/discord";
 import { withFlash } from "@/lib/flash";
 import { newId, todayISO } from "@/lib/format";
-import { standings } from "@/lib/stats";
 import { getLang } from "@/lib/lang";
 import {
   msj, refresh, requireActor, requireManager, str,
@@ -113,16 +112,10 @@ export async function openVacantBeltSwiss() {
 export async function requestBeltChallenge() {
   const actor = await requireActor();
   const snap = await loadSnapshot();
-  const candidateMain = mainCompetition(snap);
-  const main = candidateMain?.status === "done" ? undefined : candidateMain;
-  const active = new Set(snap.activePlayerIds);
-  const ids = (main ? compPlayers(snap, main.id) : snap.activePlayerIds).filter((id) => active.has(id));
-  const matches = main ? snap.matches.filter((match) => match.competitionId === main.id) : [];
-  const table = standings(matches, ids, snap.elo.rating, snap.config);
-  const position = table.findIndex((row) => row.playerId === actor.id);
-  const pos = position >= 0 ? position + 1 : null;
-  const elo = snap.elo.rating[actor.id] ?? snap.config.eloStart;
-  if (!cumpleRequisitoReto(pos, elo)) {
+  // v0.115 — se reta por FORMA (Elo con la actividad dentro), no por la liga.
+  const pos = posicionEnForma(snap.forma, snap.activePlayerIds, actor.id);
+  const forma = snap.forma[actor.id]?.forma ?? null;
+  if (!cumpleRequisitoReto(pos, forma)) {
     redirect(withFlash(RUTA_CINTURON, "error", await msj("belt.challengeIneligible")));
   }
 

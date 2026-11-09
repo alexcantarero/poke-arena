@@ -1,3 +1,4 @@
+import { DivisionEloBadge } from "@/components/DivisionEloBadge";
 import { Variocolor } from "@/components/Huevos";
 import { VerMas } from "@/components/VerMas";
 import { PlanMundial } from "@/components/PlanMundial";
@@ -190,6 +191,9 @@ export default async function ProfilePage({
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : tr(lng, "x.4e7afebc")}</span>}
             {isMe && <span className="chip chip-info">{tr(lng, "x.4dc2088e")}</span>}
+            {/* v0.115 — la división de Elo (sale de la Forma). */}
+            <DivisionEloBadge forma={snap.forma[id]} partidas={snap.elo.jugadas[id] ?? 0}
+              challenger={Boolean(player.beltHolder)} lang={lng} />
             {player.ladderElo != null && <RankBadge elo={player.ladderElo} size="sm" />}
             {/* v0.65 — las etiquetas: hitos conseguidos, como la del ladder. */}
             {etiquetas.map((e) => (
@@ -327,6 +331,17 @@ export default async function ProfilePage({
       <div className="mt-2.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Kpi label="Elo" value={elo}
           note={`${elo - snap.config.eloStart >= 0 ? "+" : ""}${elo - snap.config.eloStart} desde el inicio`} />
+        {/* v0.115 — la Forma y de dónde sale: lo que resta la actividad. */}
+        {snap.forma[id] && (
+          <Kpi label={tr(lng, "v115.forma")} value={snap.forma[id].forma}
+            note={snap.forma[id].penPocas + snap.forma[id].penInactividad > 0
+              ? trf(lng, "v115.formaNota", {
+                  n: snap.forma[id].recientes,
+                  p: snap.forma[id].penPocas,
+                  i: snap.forma[id].penInactividad,
+                })
+              : tr(lng, "v115.formaPlena")} />
+        )}
         <Link href="#cp-desglose" className="block rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           aria-label={tr(lng, "perfil.cpIr")}>
           <Kpi label={`CP ${cp.season}`} value={cp.total}

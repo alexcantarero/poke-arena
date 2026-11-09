@@ -17,7 +17,10 @@ import type {
   Archetype, DeckOption, Game, MatchFull, MetaEntry, MetaEvent, PublicPlayer, Settings, TournamentFull,
   TournamentResult,
 } from "./types";
-import { deckArchetypeIndex, eloTable, isPlayed, standings } from "./stats";
+import { deckArchetypeIndex, eloTable, isPlayed, standings, type TorneoElo } from "./stats";
+import { formaDe, type Forma } from "./forma";
+import { formaDe as estructuraDe } from "./estructura";
+import { todayISO } from "./format";
 import { filasAPedir, planDeConsulta, TOPE_SIN_PAGINAR, type FiltroConsultable, type PlanDeConsulta } from "./matchQuery";
 import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
 import { readSession } from "./auth";
@@ -257,8 +260,19 @@ export const loadSnapshot = cache(async () => {
   //
   // Cuidado: no hagas `{ ...snap }` ni serialices el snapshot entero, porque
   // eso dispara el getter y pierdes el ahorro.
-  const tourWeights = new Map(tourRows.map((t) => [t.id, { kind: t.kind, scope: t.scope }]));
+  /* v0.115 — además del tipo, el suizo (para saber qué ronda es de top cut),
+     la asistencia y los puestos del grupo (para el bonus por resultado). */
+  const tourWeights = new Map<string, TorneoElo>(toursFull.map((t) => {
+    let suizo: number | null = null;
+    try { suizo = estructuraDe(t).suizo; } catch { suizo = null; }
+    return [t.id, {
+      kind: t.kind, scope: t.scope, suizo, playerCount: t.playerCount,
+      fecha: t.endDate ?? t.date,
+      puestos: t.results.map((r) => ({ playerId: r.playerId, placement: r.placement })),
+    }];
+  }));
   let eloCache: ReturnType<typeof eloTable> | null = null;
+  let formaCache: Record<string, Forma> | null = null;
   const total = Date.now() - t0;
   if (total > 500) console.warn(`[rendimiento] loadSnapshot ${total} ms (tablas ${tTablas} ms · ${matchRows.length} partidas · ${gameRows.length} juegos)`);
 
@@ -284,6 +298,19 @@ export const loadSnapshot = cache(async () => {
     get elo() {
       eloCache ??= eloTable(matchesFull, playerRows, config, tourWeights);
       return eloCache;
+    },
+    /** v0.115 — la Forma de cada uno (Elo con la actividad dentro). Perezosa, como el Elo. */
+    get forma() {
+      if (!formaCache) {
+        eloCache ??= eloTable(matchesFull, playerRows, config, tourWeights);
+        const hoy = todayISO();
+        const out: Record<string, Forma> = {};
+        for (const id of Object.keys(eloCache.rating)) {
+          out[id] = formaDe(eloCache.rating[id], eloCache.actividad[id] ?? [], hoy);
+        }
+        formaCache = out;
+      }
+      return formaCache;
     },
     activePlayerIds: playerRows.filter((p) => p.active).map((p) => p.id),
   };
@@ -587,7 +614,12 @@ export function eloChartData(snap: Snapshot) {
     if (t) torneoDe.set(m.id, { torneo: t.name, tipo: t.kind });
   }
   const conTorneo = (ps: PuntoSerie[]) =>
-    ps.map((p) => (p.matchId && torneoDe.has(p.matchId) ? { ...p, ...torneoDe.get(p.matchId)! } : p));
+    ps.map((p) => {
+      if (p.matchId && torneoDe.has(p.matchId)) return { ...p, ...torneoDe.get(p.matchId)! };
+      // v0.115 — el bonus por resultado del torneo, marcado como el torneo.
+      const t = p.tournamentId ? snap.toursById.get(p.tournamentId) : undefined;
+      return t ? { ...p, torneo: t.name, tipo: t.kind } : p;
+    });
   const series = snap.players
     .filter((p) => p.active && por.has(p.id))
     .map((p, i) => ({

@@ -1,3 +1,4 @@
+import { DivisionEloBadge } from "@/components/DivisionEloBadge";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { compPlayers, eloChartData, ladderChartData, loadSnapshot, playerCp } from "@/lib/data";
@@ -171,7 +172,13 @@ export default async function RankingPage({
   let mejorElo: { nombre: string; elo: number } | null = null; // v0.60
   const avatarDe = (pid: string) => {
     const p = snap.playersById.get(pid);
-    return { avatar: <Avatar player={p} size="md" />, avatarSm: <Avatar player={p} size="sm" />, name: p?.name ?? "—" };
+    return {
+      avatar: <Avatar player={p} size="md" />, avatarSm: <Avatar player={p} size="sm" />, name: p?.name ?? "—",
+      /* v0.115 — la división de Elo, pintada en el servidor como el avatar. */
+      division: (snap.elo.jugadas[pid] ?? 0) > 0
+        ? <DivisionEloBadge forma={snap.forma[pid]} partidas={snap.elo.jugadas[pid] ?? 0} challenger={Boolean(p?.beltHolder)} lang={lng} />
+        : null,
+    };
   };
 
   let tabla: ReactNode;

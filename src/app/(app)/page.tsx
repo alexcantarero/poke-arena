@@ -11,6 +11,7 @@ import { compPlayers, loadMetaIrl, loadSnapshot, playerCp } from "@/lib/data";
 import { CelebrarNuevos } from "@/components/CelebrarNuevos";
 import { novedadesDeJugador } from "@/lib/novedadesJugador";
 import { TorneosEnDirecto } from "@/components/TorneosEnDirecto";
+import { DivisionEloBadge } from "@/components/DivisionEloBadge";
 import { readSession } from "@/lib/auth";
 import { resultadoRapido } from "@/actions";
 import { Bienvenida } from "@/components/Bienvenida";
@@ -560,12 +561,12 @@ export default async function HomePage({
               </>
             );
           })() : (() => {
-            /* Elo: los activos con alguna partida, por rating. CP: los que tienen
+            /* Elo: los activos con alguna partida que contó, por FORMA (v0.115: el
+               Elo con la actividad dentro), con su división. CP: los que tienen
                CP esta temporada. */
-            const conPartidas = new Set(played.flatMap((m) => [m.playerAId, m.playerBId ?? ""]));
             const filas = rk === "elo"
-              ? snap.activePlayerIds.filter((id) => conPartidas.has(id))
-                  .map((id) => ({ id, valor: Math.round(snap.elo.rating[id] ?? snap.config.eloStart) }))
+              ? snap.activePlayerIds.filter((id) => (snap.elo.jugadas[id] ?? 0) > 0)
+                  .map((id) => ({ id, valor: snap.forma[id]?.forma ?? snap.config.eloStart }))
               : snap.players.filter((p) => p.active)
                   .map((p) => ({ id: p.id, valor: playerCp(snap, p.id).total })).filter((f) => f.valor > 0);
             filas.sort((x, y) => y.valor - x.valor);
@@ -582,8 +583,13 @@ export default async function HomePage({
                       <PlayerTag player={snap.playersById.get(f.id)} size="sm" className="min-w-0 font-semibold text-ink" />
                       {ballDe(f.id)}
                     </span>
-                    <span className="flex-none font-mono text-sm font-bold tabular">
-                      {f.valor}<span className="ml-1 text-[10px] font-semibold text-muted">{rk === "elo" ? "Elo" : "CP"}</span>
+                    {rk === "elo" && (
+                      <DivisionEloBadge forma={snap.forma[f.id]} partidas={snap.elo.jugadas[f.id] ?? 0}
+                        challenger={Boolean(snap.playersById.get(f.id)?.beltHolder)} lang={lang} />
+                    )}
+                    <span className="flex-none text-right font-mono text-sm font-bold tabular"
+                      title={rk === "elo" ? trf(lang, "v115.formaTitulo", { e: snap.elo.rating[f.id] ?? snap.config.eloStart }) : undefined}>
+                      {f.valor}<span className="ml-1 text-[10px] font-semibold text-muted">{rk === "elo" ? tr(lang, "v115.forma") : "CP"}</span>
                     </span>
                   </li>
                 ))}

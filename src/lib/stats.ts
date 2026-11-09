@@ -197,29 +197,130 @@ function byDate(a: MatchFull, b: MatchFull) {
    Los byes no cuentan (no hubo partida), ni las rondas sin resultado.
    ------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------
+   v0.115 — Elo que premia los torneos, los buenos resultados y la constancia.
+
+   El problema de antes (v0.21–v0.114): contra alguien de fuera el rival valía
+   SIEMPRE 1000, así que el Elo de cada uno se estancaba donde su % de
+   victorias era «lo esperado» contra un 1000 (~1070 con un 60 %), jugase 80
+   rondas o 200. Un Regional o una racha online larga y buena apenas se notaban.
+
+   Tres piezas nuevas:
+
+   1. PESO (multiplica la K) y RIVAL DE REFERENCIA según el evento, con el
+      rival más fuerte en el top cut:
+
+        Evento        Peso   Rival   En top cut
+        Online        0,5    1000    —
+        Challenge     1      1000    —
+        Tienda/otro   1      1000    —
+        Cup           1,5    1100    1200
+        Regional/SPE  2      1250    1400
+        Internacional 2,5    1350    1500
+        Mundial       3      1450    1600
+
+   2. K PROVISIONAL: las primeras 20 partidas de cada jugador mueven el doble,
+      para que quien llega encuentre su nivel en semanas y no en meses.
+
+   3. BONUS POR RESULTADO, una vez por torneo y en su fecha, según el puesto
+      (`BONUS_RESULTADO`). Lo online solo en torneos de 16 o más.
+
+   Los bonus solo suman: el Elo del grupo sube con la actividad. Es a
+   propósito (la constancia cuenta) y lo compensa la FORMA (`lib/forma.ts`),
+   que baja con la inactividad. Las cifras viven aquí, con sus pruebas en
+   `tests/eloV115.test.ts`: si con datos reales no convencen, se tocan aquí.
+   ------------------------------------------------------------------------- */
+
 export const ELO_PESOS: Record<string, number> = {
   league: 1,
   amistoso: 0.5,
   league_challenge: 1,
-  league_cup: 1.25,
-  regional: 1.5,
-  special: 1.5,
-  international: 1.75,
-  worlds: 2,
-  online: 0.75,
-  store: 0.75,
-  other: 0.75,
+  league_cup: 1.5,
+  regional: 2,
+  special: 2,
+  international: 2.5,
+  worlds: 3,
+  online: 0.5,
+  store: 1,
+  other: 1,
 };
+
+/** v0.115 — el rival de referencia de una ronda contra alguien de fuera. */
+export const ELO_RIVAL: Record<string, { suizo: number; corte: number }> = {
+  online: { suizo: 1000, corte: 1000 },
+  league_challenge: { suizo: 1000, corte: 1000 },
+  store: { suizo: 1000, corte: 1000 },
+  other: { suizo: 1000, corte: 1000 },
+  league_cup: { suizo: 1100, corte: 1200 },
+  regional: { suizo: 1250, corte: 1400 },
+  special: { suizo: 1250, corte: 1400 },
+  international: { suizo: 1350, corte: 1500 },
+  worlds: { suizo: 1450, corte: 1600 },
+};
+
+/** v0.115 — bonus por puesto: [puesto máximo, puntos], de mejor a peor. */
+export const BONUS_RESULTADO: Record<string, Array<[number, number]>> = {
+  online: [[1, 15], [8, 8]],
+  league_challenge: [[1, 20], [4, 10]],
+  store: [[1, 20], [4, 10]],
+  other: [[1, 20], [4, 10]],
+  league_cup: [[1, 40], [4, 25], [8, 15]],
+  regional: [[1, 150], [8, 90], [32, 60], [128, 35], [256, 20]],
+  special: [[1, 150], [8, 90], [32, 60], [128, 35], [256, 20]],
+  international: [[1, 200], [8, 120], [32, 80], [128, 45], [256, 25]],
+  worlds: [[1, 300], [8, 180], [32, 120], [128, 70], [256, 40]],
+};
+
+/** Partidas con K doble al empezar. */
+export const ELO_PROVISIONAL = 20;
+/** Lo online solo da bonus con al menos este número de jugadores. */
+export const ONLINE_MIN_BONUS = 16;
+
+/** v0.115 — la clave de evento de un torneo (online manda sobre el tipo). */
+export function claveEvento(tour?: { kind: string; scope?: string | null }): string {
+  if (!tour) return "other";
+  if (tour.scope === "online" || tour.kind === "online") return "online";
+  if (tour.kind === "pokemon_challenge") return "league_challenge";
+  if (tour.kind === "pokemon_cup") return "league_cup";
+  return ELO_PESOS[tour.kind] != null && tour.kind !== "league" && tour.kind !== "amistoso" ? tour.kind : "other";
+}
 
 /** El peso de una partida según dónde se jugó. */
 export function pesoElo(m: Pick<MatchFull, "competitionId" | "tournamentId">, tour?: { kind: string; scope?: string | null }): number {
-  if (m.tournamentId) {
-    if (!tour) return ELO_PESOS.other;
-    if (tour.scope === "online") return ELO_PESOS.online;
-    return ELO_PESOS[tour.kind] ?? ELO_PESOS.other;
-  }
+  if (m.tournamentId) return ELO_PESOS[claveEvento(tour)] ?? ELO_PESOS.other;
   return m.competitionId ? ELO_PESOS.league : ELO_PESOS.amistoso;
 }
+
+/** v0.115 — el Elo del rival de fuera, según el evento y la fase de la ronda. */
+export function rivalReferencia(tour: { kind: string; scope?: string | null } | undefined, corte: boolean): number {
+  const r = ELO_RIVAL[claveEvento(tour)] ?? ELO_RIVAL.other;
+  return corte ? r.corte : r.suizo;
+}
+
+/** v0.115 — el bonus de un puesto. 0 si no llega a ningún tramo. */
+export function bonoResultado(
+  tour: { kind: string; scope?: string | null; playerCount?: number | null } | undefined,
+  placement: number | null | undefined,
+): number {
+  if (placement == null || placement < 1) return 0;
+  const clave = claveEvento(tour);
+  if (clave === "online" && (tour?.playerCount ?? 0) < ONLINE_MIN_BONUS) return 0;
+  for (const [hasta, puntos] of BONUS_RESULTADO[clave] ?? []) if (placement <= hasta) return puntos;
+  return 0;
+}
+
+/** Lo que `eloTable` necesita saber de cada torneo. */
+export type TorneoElo = {
+  kind: string;
+  scope?: string | null;
+  /** Rondas de suizo: una ronda con número mayor es del top cut. Nulo = no se sabe. */
+  suizo?: number | null;
+  playerCount?: number | null;
+  /** Fecha del bonus (fin del torneo). Sin ella, no hay bonus. */
+  fecha?: string | null;
+  /** Puesto de cada jugador del grupo. */
+  puestos?: Array<{ playerId: string; placement: number | null }>;
+};
 
 export function eloTable(
   allMatches: MatchFull[],
@@ -229,18 +330,24 @@ export function eloTable(
     /** ISO. Las partidas anteriores a este día no cuentan. */
     eloSince?: string | null;
   } = DEFAULT_SETTINGS,
-  /** v0.21: tipo y modalidad de cada torneo, para el peso. Sin esto, peso 0,75. */
-  torneos: Map<string, { kind: string; scope?: string | null }> = new Map(),
+  /** Tipo, modalidad, suizo y puestos de cada torneo (peso, rival y bonus). */
+  torneos: Map<string, TorneoElo> = new Map(),
 ) {
   const rating: Record<string, number> = {};
-  const history: Record<string, { date: string; value: number; i?: number; matchId?: string; delta?: number }[]> = {};
+  const history: Record<string, { date: string; value: number; i?: number; matchId?: string; delta?: number; tournamentId?: string; bonus?: boolean }[]> = {};
+  /** v0.115 — fechas de las partidas que movieron el Elo de cada uno (para la Forma). */
+  const actividad: Record<string, string[]> = {};
+  const jugadas: Record<string, number> = {};
   const touch = (id: string) => {
     if (rating[id] == null) {
       rating[id] = cfg.eloStart;
       history[id] = [{ date: "", value: cfg.eloStart }];
+      actividad[id] = [];
+      jugadas[id] = 0;
     }
   };
   for (const p of players) touch(p.id);
+  const kDe = (id: string, base: number) => base * ((jugadas[id] ?? 0) < ELO_PROVISIONAL ? 2 : 1);
 
   const scope = asEloScope(cfg.eloScope);
   const desde = cfg.eloSince || null;
@@ -253,41 +360,76 @@ export function eloTable(
     /* La fecha de corte. Es lo que hace de «reset»: no se borra ninguna
        partida, simplemente se empieza a contar desde aquí. Quitar la fecha
        devuelve el Elo de antes tal cual, porque nunca se perdió nada. */
-    .filter((m) => !desde || m.date >= desde);
+    .filter((m) => !desde || m.date >= desde)
+    .sort(byDate);
 
-  // v0.24: nº de orden de cada partida que mueve el Elo (eje X de la gráfica).
+  /* v0.115 — los bonus de torneo, como «sucesos» en su fecha, después de las
+     partidas de ese día. Los torneos siempre cuentan para el Elo (en los
+     tres ámbitos), así que no miran `scope`; sí la fecha de corte. */
+  type Suceso = { fecha: string; orden: number; m?: MatchFull; bonus?: { playerId: string; puntos: number; tournamentId: string } };
+  const sucesos: Suceso[] = elegibles.map((m, i) => ({ fecha: m.date, orden: i, m }));
+  let extra = elegibles.length;
+  for (const [tournamentId, t] of torneos) {
+    if (!t.fecha || !t.puestos?.length || (desde && t.fecha < desde)) continue;
+    for (const r of t.puestos) {
+      const puntos = bonoResultado(t, r.placement);
+      if (puntos > 0) sucesos.push({ fecha: t.fecha, orden: extra++, bonus: { playerId: r.playerId, puntos, tournamentId } });
+    }
+  }
+  sucesos.sort((a, b) => a.fecha.localeCompare(b.fecha)
+    || (a.m ? 0 : 1) - (b.m ? 0 : 1) || a.orden - b.orden);
+
+  // v0.24: nº de orden de cada suceso que mueve el Elo (eje X de la gráfica).
   let orden = 0;
-  for (const m of elegibles.sort(byDate)) {
+  for (const su of sucesos) {
+    if (su.bonus) {
+      const { playerId, puntos, tournamentId } = su.bonus;
+      if (rating[playerId] == null) continue; // alguien que ya no está en la liga
+      orden++;
+      rating[playerId] += puntos;
+      history[playerId].push({ date: su.fecha, value: rating[playerId], i: orden, delta: puntos, tournamentId, bonus: true });
+      continue;
+    }
+    const m = su.m!;
     const o = outcome(m);
     // Una ronda sin juegos ni resultado declarado no es un empate: no se jugó.
     if (!m.games.length && !o.declared) continue;
     orden++;
     const scoreA = o.winner === "a" ? 1 : o.winner === "b" ? 0 : 0.5;
-    const k = cfg.eloK * pesoElo(m, m.tournamentId ? torneos.get(m.tournamentId) : undefined);
+    const tour = m.tournamentId ? torneos.get(m.tournamentId) : undefined;
+    const k = cfg.eloK * pesoElo(m, tour);
     touch(m.playerAId);
 
     if (m.playerBId) {
-      // Partida interna: suma cero, como siempre.
+      // Partida interna: suma cero, salvo la K provisional de quien empieza
+      // (cada lado se mueve con su K; con los dos ya asentados, suma cero).
       touch(m.playerBId);
       const expectedA = 1 / (1 + Math.pow(10, (rating[m.playerBId] - rating[m.playerAId]) / 400));
-      const delta = k * (scoreA - expectedA);
-      rating[m.playerAId] += delta;
-      rating[m.playerBId] -= delta;
-      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
-      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden, matchId: m.id, delta: -delta });
+      const dA = kDe(m.playerAId, k) * (scoreA - expectedA);
+      const dB = -kDe(m.playerBId, k) * (scoreA - expectedA);
+      rating[m.playerAId] += dA;
+      rating[m.playerBId] += dB;
+      jugadas[m.playerAId]++; jugadas[m.playerBId]++;
+      actividad[m.playerAId].push(m.date); actividad[m.playerBId].push(m.date);
+      history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta: dA });
+      history[m.playerBId].push({ date: m.date, value: rating[m.playerBId], i: orden, matchId: m.id, delta: dB });
     } else {
-      // Ronda de torneo: solo se mueve quien la apuntó.
+      // Ronda de torneo: solo se mueve quien la apuntó. Rival del grupo: su
+      // Elo real; de fuera: el de referencia del evento y la fase (v0.115).
+      const corte = tour?.suizo != null && tour.suizo > 0 && m.round > tour.suizo;
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
-        ? rating[m.opponentPlayerId] : cfg.eloStart;
+        ? rating[m.opponentPlayerId] : rivalReferencia(tour, corte);
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
-      const delta = k * (scoreA - expectedA);
+      const delta = kDe(m.playerAId, k) * (scoreA - expectedA);
       rating[m.playerAId] += delta;
+      jugadas[m.playerAId]++;
+      actividad[m.playerAId].push(m.date);
       history[m.playerAId].push({ date: m.date, value: rating[m.playerAId], i: orden, matchId: m.id, delta });
     }
   }
   const rounded: Record<string, number> = {};
   for (const k of Object.keys(rating)) rounded[k] = Math.round(rating[k]);
-  return { rating: rounded, history };
+  return { rating: rounded, history, actividad, jugadas };
 }
 
 /* -------------------------------------------------------- Clasificación -- */

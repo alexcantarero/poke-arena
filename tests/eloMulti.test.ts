@@ -23,14 +23,15 @@ test("una ronda ganada contra alguien de fuera sube el Elo, y más en un Regiona
   const torneos = new Map([["chal", { kind: "league_challenge" }], ["reg", { kind: "regional" }]]);
   const enChal = eloTable([ronda("chal")], players, cfg, torneos).rating.a;
   const enReg = eloTable([ronda("reg")], players, cfg, torneos).rating.a;
-  assert.equal(enChal, 1012);   // 24 × (1 − 0,5)
-  assert.equal(enReg, 1018);    // 24 × 1,5 × (1 − 0,5)
+  // v0.115: K provisional (×2 en las 20 primeras) y rival de referencia por evento.
+  assert.equal(enChal, 1024);   // 24 × 2 × (1 − 0,5) contra un 1000
+  assert.equal(enReg, 1078);    // 24 × 2 (peso) × 2 (provisional) × (1 − 0,19) contra un 1250
 });
 
 test("la ronda solo mueve a quien la apuntó, aunque el rival sea del grupo", () => {
   const r = eloTable([m({ playerAId: "a", tournamentId: "t", opponentPlayerId: "b", seriesResult: "a" })],
     players, cfg, new Map([["t", { kind: "league_challenge" }]]));
-  assert.equal(r.rating.a, 1012);
+  assert.equal(r.rating.a, 1024);
   assert.equal(r.rating.b, 1000);
 });
 

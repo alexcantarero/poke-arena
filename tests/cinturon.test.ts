@@ -49,7 +49,8 @@ test("la inscripción cierra exactamente a las 08:00 de Madrid del 20 de noviemb
 test("los requisitos del reto son top cinco o Elo 1100, incluidos los límites", () => {
   assert.equal(cumpleRequisitoReto(5, 1000), true);
   assert.equal(cumpleRequisitoReto(6, 1099), false);
-  assert.equal(cumpleRequisitoReto(null, 1100), true);
+  assert.equal(cumpleRequisitoReto(null, 1199), false); // v0.115: forma mínima 1200
+  assert.equal(cumpleRequisitoReto(null, 1200), true);
   assert.equal(cumpleRequisitoReto(1, null), true);
   assert.equal(esCompeticionCinturon("cinturon-inaugural-2026"), true);
   assert.equal(esCompeticionCinturon("cinturon-evento-2"), true);

@@ -30,6 +30,8 @@ export type TodoRow = {
   name: string;
   avatar: ReactNode;
   avatarSm: ReactNode;
+  /** v0.115 — la división de Elo, ya pintada en el servidor. */
+  division?: ReactNode;
   points: number;
   played: number;
   wins: number;
@@ -210,7 +212,7 @@ export function RankingTodoTable({ rows }: { rows: TodoRow[] }) {
                   </span>
                 </td>
                 <td className="text-right tabular">{r.played}</td>
-                <td className="text-right tabular">{r.elo}</td>
+                <td className="text-right tabular"><span className="inline-flex items-center justify-end gap-1.5">{r.division}{r.elo}</span></td>
                 <td className="text-right tabular">{r.cp || "—"}</td>
                 <td className="text-right tabular">{r.torneos || "—"}</td>
                 <td className="text-right tabular">

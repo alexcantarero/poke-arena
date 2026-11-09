@@ -9,10 +9,10 @@ import { PageHead, PlayerTag } from "@/components/ui";
 import { db } from "@/db";
 import { beltRegistrations, players } from "@/db/schema";
 import { canManageLeague } from "@/lib/auth";
-import { compPlayers, currentPlayer, loadSnapshot, mainCompetition } from "@/lib/data";
+import { compPlayers, currentPlayer, loadSnapshot } from "@/lib/data";
 import {
   CINTURON_CIERRE_INSCRIPCION, CINTURON_COMPETITION_ID,
-  cumpleRequisitoReto, incluirDescansosEnClasificacion, iniciarCinturonPermitido, inscripcionCinturonAbierta,
+  cumpleRequisitoReto, posicionEnForma, incluirDescansosEnClasificacion, iniciarCinturonPermitido, inscripcionCinturonAbierta,
 } from "@/lib/cinturon";
 import { leerEstadoCinturon } from "@/lib/cinturonDb";
 import { suggestedRounds } from "@/lib/sugerencias";
@@ -61,16 +61,9 @@ export default async function BeltTournamentPage() {
     && roundsPlayed >= competition.rounds && !pending;
   const vacancyCanStart = manager && !holder && Boolean(belt.state?.vacantSince)
     && (!competition || competition.status === "done");
-  const candidateMain = mainCompetition(snap);
-  const main = candidateMain?.status === "done" ? undefined : candidateMain;
-  const active = new Set(snap.activePlayerIds);
-  const leagueIds = (main ? compPlayers(snap, main.id) : snap.activePlayerIds).filter((id) => active.has(id));
-  const leagueMatches = main ? snap.matches.filter((match) => match.competitionId === main.id) : [];
-  const leagueTable = standings(leagueMatches, leagueIds, snap.elo.rating, snap.config);
-  const positionIndex = me ? leagueTable.findIndex((row) => row.playerId === me.id) : -1;
-  const position = positionIndex >= 0 ? positionIndex + 1 : null;
-  const elo = me ? snap.elo.rating[me.id] ?? snap.config.eloStart : null;
-  const eligible = me && cumpleRequisitoReto(position, elo);
+  // v0.115 — se reta por FORMA, no por la liga.
+  const eligible = me && cumpleRequisitoReto(
+    posicionEnForma(snap.forma, snap.activePlayerIds, me.id), snap.forma[me.id]?.forma ?? null);
   const activeChallenge = belt.challenges.find((challenge) => RETOS_ABIERTOS.has(challenge.status));
   const recentLoss = me && holder ? belt.challenges.find((challenge) =>
     challenge.challengerId === me.id

@@ -21,8 +21,22 @@ export function esDescansoCinturon(m: {
     && m.opponentName?.trim().toUpperCase() === CINTURON_BYE;
 }
 
-export function cumpleRequisitoReto(posicionLiga: number | null, elo: number | null): boolean {
-  return (posicionLiga !== null && posicionLiga <= 5) || (elo !== null && elo >= 1100);
+/* v0.115 — el Cinturón Elo mide forma y actividad: puede retar quien está en
+   el top 5 de FORMA (`lib/forma.ts`) o tiene al menos 1200 de forma. Antes
+   era el top 5 de la liga o 1100 de Elo. Como la Forma baja con la
+   inactividad, un campeón que deja de jugar se queda sin aspirantes que lo
+   reten… y acaba vacante por el plazo de seis semanas. */
+export const CINTURON_FORMA_MIN = 1200;
+
+export function cumpleRequisitoReto(posicionForma: number | null, forma: number | null): boolean {
+  return (posicionForma !== null && posicionForma <= 5) || (forma !== null && forma >= CINTURON_FORMA_MIN);
+}
+
+/** v0.115 — tu puesto en la clasificación de Forma entre los jugadores activos (1 = el mejor). */
+export function posicionEnForma(formas: Record<string, { forma: number }>, activos: string[], id: string): number | null {
+  const orden = activos.filter((p) => formas[p]).sort((x, y) => formas[y].forma - formas[x].forma || x.localeCompare(y));
+  const i = orden.indexOf(id);
+  return i >= 0 ? i + 1 : null;
 }
 
 export function plazoVencido(desde: Date, dias: number, ahora: Date): boolean {

@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.115.0] — 2026-11-09
+
+**Sin migración ni dependencias nuevas. Cambia el cálculo del Elo: al subirlo, el Elo y su
+historial se recalculan desde la primera partida** (no se pierde nada; volver a la v0.114 lo deja
+como estaba).
+
+### Cambiado
+
+- **Elo que premia los torneos y los buenos resultados** (`lib/stats.ts`):
+  - Peso de cada ronda según el evento: online ×0,5 · Challenge y tienda ×1 · Cup ×1,5 ·
+    Regional/Special ×2 · Internacional ×2,5 · Mundial ×3.
+  - Rival de referencia según el evento (antes siempre 1000): Challenge, tienda y online 1000 ·
+    Cup 1100 (1200 en top cut) · Regional/Special 1250 (1400) · Internacional 1350 (1500) ·
+    Mundial 1450 (1600). Una ronda es de top cut si su número pasa del suizo del torneo.
+  - K provisional: las 20 primeras partidas de cada jugador mueven el doble.
+  - **Bonus por resultado**, una vez por torneo y en su fecha: online (16+ jugadores) 1.º +15,
+    top 8 +8 · Challenge 1.º +20, top 4 +10 · Cup 1.º +40, top 4 +25, top 8 +15 · Regional 1.º
+    +150 … top 256 +20 · Internacional 1.º +200 … top 256 +25 · Mundial 1.º +300 … top 256 +40.
+    Sale en la gráfica de evolución marcado con su torneo.
+- **Forma** (`lib/forma.ts`): Elo − pocas partidas (menos de 30 en 90 días, hasta −100) −
+  inactividad (tras 21 días sin jugar, −5 por día, hasta −150). Es la cifra del ranking de Elo del
+  Inicio y sale en el perfil con su desglose. Se recupera sola al volver a jugar.
+- **Divisiones de Elo** con los nombres y colores de la web (`lib/divisionElo.ts`), sobre la
+  Forma: Novato (menos de 10 partidas) · Hierro (<1000) · Bronce, Plata, Oro, Platino y Diamante
+  de 100 en 100 desde 1000, con subdivisiones IV–I · Maestro (1500) · Gran Maestro (1600+) ·
+  Challenger para quien tiene el Cinturón Elo. Insignia en el Inicio, el Ranking y el perfil.
+- **Cinturón Elo**: puede retar quien está en el top 5 de Forma o tiene al menos 1200 de Forma
+  (antes, top 5 de la liga o 1100 de Elo).
+
 ## [0.114.0] — 2026-11-09
 
 **Sin migración ni dependencias nuevas.**

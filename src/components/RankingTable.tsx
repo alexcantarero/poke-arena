@@ -26,6 +26,8 @@ export type RankRow = {
    */
   avatar: ReactNode;
   avatarSm: ReactNode;
+  /** v0.115 — la división de Elo, ya pintada en el servidor. */
+  division?: ReactNode;
   played: number; wins: number; ties: number; losses: number;
   points: number; winRate: number | null; resistance: number | null;
   diff: number; elo: number; cp: number;
@@ -241,7 +243,7 @@ export function RankingTable({ rows }: { rows: RankRow[] }) {
                       />
                     </span>
                   </td>
-                  <td className="text-right font-mono text-xs tabular text-ink-2">{r.elo}</td>
+                  <td className="text-right font-mono text-xs tabular text-ink-2"><span className="inline-flex items-center justify-end gap-1.5">{r.division}{r.elo}</span></td>
                   <td className="text-right font-mono text-xs tabular text-ink-2">{r.cp || "—"}</td>
                   <td className="text-right font-mono text-xs tabular text-muted">{r.played}</td>
                   <td className="text-right font-mono text-xs tabular text-muted">{pct(r.resistance, 1)}</td>

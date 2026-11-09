@@ -2152,3 +2152,13 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .bye-opcion { width: 100%; min-height: 3rem; }
 .bye-opcion[aria-pressed="true"] { border-color: var(--win); box-shadow: 0 0 0 1px var(--win); background: linear-gradient(160deg, color-mix(in oklab, var(--win) 18%, var(--surface-2)), var(--surface-2)); }
 .bye-opcion[aria-pressed="true"]::after { color: var(--win); }
+
+/* v0.115 — la división de Elo: los colores de los tiers de la web (`--tier-*`). */
+.division-elo {
+  display: inline-flex; align-items: center; flex: none; white-space: nowrap;
+  padding: .05rem .45rem; border-radius: 9999px; font-size: .66rem; font-weight: 800; letter-spacing: .02em;
+  color: var(--tier, var(--ink-2)); border: 1px solid color-mix(in oklab, var(--tier, var(--line)) 55%, transparent);
+  background: color-mix(in oklab, var(--tier, var(--surface-2)) 14%, var(--surface));
+}
+.division-elo[data-size="md"] { font-size: .8rem; padding: .15rem .6rem; }
+.division-elo[data-tier="challenger"] { box-shadow: 0 0 10px color-mix(in oklab, var(--tier-challenger) 45%, transparent); }
