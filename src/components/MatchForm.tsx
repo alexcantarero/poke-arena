@@ -700,13 +700,19 @@ export function MatchForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="date">{tr(lng, "x.bcc47609")}</label>
-              <input className="input" id="date" name="date" type="date" defaultValue={match?.date ?? todayISO()} />
+              {/* v0.114 — una partida emparejada (pendiente) se apunta con el día en
+                  que se juega, no con el de su jornada. */}
+              <input className="input" id="date" name="date" type="date"
+                defaultValue={match && match.status !== "scheduled" ? match.date : todayISO()} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="round">{tr(lng, "x.74d2b97e")}</label>
               <input className="input" id="round" name="round" type="number" min={0} inputMode="numeric" defaultValue={match?.round ?? 0} />
             </div>
           </div>
+          {match?.status === "scheduled" && (
+            <p className="-mt-1 text-xs text-muted">{trf(lng, "v114.fechaJugada", { f: match.date })}</p>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="note">{tr(lng, "x.73035e47")}</label>
             <textarea className="input" id="note" name="note" rows={2} defaultValue={match?.note ?? ""}

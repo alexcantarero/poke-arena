@@ -2384,6 +2384,20 @@ const ES = {
   "v110.fmt.manana": "mañana",
   "v110.fmt.revisado": "Datos revisados a mano el {f}.",
   "v110.fmt.revisar": "Hace tiempo que no se revisan: puede haber una expansión o una rotación nueva.",
+  // v0.114
+  "v114.bye": "Bye (ronda libre)",
+  "v114.byeTexto": "Número impar: esta ronda no tienes rival. Cuenta como victoria, sin mazo ni resultado.",
+  "v114.byeResultado": "Bye: cuenta como victoria en el récord (3 puntos). No entra en las estadísticas de mazos ni en el Elo.",
+  "v114.fechaJugada": "Era de la jornada del {f}: pon el día en que se jugó de verdad (por defecto, hoy).",
+  "v114.cal.que": "¿Qué es?",
+  "v114.cal.deLiga": "De la liga",
+  "v114.cal.torneo": "Torneo",
+  "v114.cal.torneoAyuda": "Si es un torneo creado en la app, elígelo y se rellenan el nombre, las fechas y el lugar.",
+  "v114.cal.europaTexto": "Los Regionales, Special Events y el Internacional de la temporada 2027 en Europa, de una vez. La lista está escrita a mano en src/data/eventos-europa.ts con sus fuentes; no se consulta ninguna web. Volver a pulsar actualiza y no duplica.",
+  "v114.cal.europaYa": "{n} de {t} ya en el calendario.",
+  "v114.cal.pegarA": "Pega aquí la lista copiada del",
+  "v114.cal.pegarB": "o un mensaje de chat organizado por meses (OCTUBRE con CHALLENGE, CUP y REGIONAL). Pegar otra vez la misma lista actualiza y no duplica.",
+  "v114.cal.importarLista": "Importar la lista",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -4742,6 +4756,20 @@ const EN: Record<I18nKey, string> = {
   "v110.fmt.manana": "tomorrow",
   "v110.fmt.revisado": "Data checked by hand on {f}.",
   "v110.fmt.revisar": "Not checked for a while: there may be a new set or rotation.",
+  // v0.114
+  "v114.bye": "Bye (free round)",
+  "v114.byeTexto": "Odd number of players: no opponent this round. Counts as a win, no deck or score needed.",
+  "v114.byeResultado": "Bye: counts as a win in the record (3 points). It doesn't count for deck stats or Elo.",
+  "v114.fechaJugada": "It belonged to the round dated {f}: enter the day it was actually played (today by default).",
+  "v114.cal.que": "What is it?",
+  "v114.cal.deLiga": "League",
+  "v114.cal.torneo": "Tournament",
+  "v114.cal.torneoAyuda": "If it's a tournament created in the app, pick it and the name, dates and place are filled in.",
+  "v114.cal.europaTexto": "The 2027-season Regionals, Special Events and International in Europe, in one go. The list is written by hand in src/data/eventos-europa.ts with its sources; no website is queried. Pressing again updates instead of duplicating.",
+  "v114.cal.europaYa": "{n} of {t} already in the calendar.",
+  "v114.cal.pegarA": "Paste the list copied from the",
+  "v114.cal.pegarB": "or a chat message organised by month (OCTOBER with CHALLENGE, CUP and REGIONAL). Pasting the same list again updates it, no duplicates.",
+  "v114.cal.importarLista": "Import the list",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

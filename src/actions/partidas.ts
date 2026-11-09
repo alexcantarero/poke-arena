@@ -277,6 +277,12 @@ export async function resultadoRapido(fd: FormData) {
   await db.update(matches).set({
     status: "done",
     seriesResult: r === "empate" ? "tie" : null,
+    /* v0.114 — una partida de liga EMPAREJADA guarda la fecha en que se juega,
+       no la de su jornada: una J2 atrasada que se juega hoy cuenta hoy (en la
+       actividad, en el orden del Elo…). Solo la primera vez (al pasar de
+       `scheduled` a `done`); una corrección no mueve la fecha. Las rondas de
+       torneo llevan la fecha del torneo. */
+    ...(m.status === "scheduled" && !m.tournamentId ? { date: todayISO() } : {}),
     ...(correccion ? { updatedBy: actor.id, updatedAt: new Date() } : {}),
   }).where(eq(matches.id, id));
   /* v0.57 — si es una ronda de torneo, el récord guardado del jugador en ese

@@ -527,13 +527,21 @@ export async function saveTournamentRound(fd: FormData) {
     ?? deckOrArchetype(fd, "opponentArchetypeId").archetypeId
     ?? deckOrArchetype(fd, "opponentArchetypeId").deckId;
 
-  /* v0.88 — el resultado y el mazo del rival son obligatorios. El formulario ya
-     no deja enviar sin ellos, pero una Server Action es un endpoint público. */
-  const hayResultado = mode === "quick" ? Boolean(seriesResult)
+  /* v0.114 — BYE (ronda libre con número impar): victoria sin rival, sin mazo
+     y sin juegos. Se guarda contra «BYE» con `seriesResult = "a"`: el récord del
+     torneo la cuenta como victoria (3 puntos), e `isPlayed` la deja fuera de
+     las estadísticas de mazos y del Elo. */
+  const esBye = str(fd, "bye") === "1";
+  if (esBye) { rows.length = 0; seriesResult = "a"; }
+
+  /* v0.88 — el resultado y el mazo del rival son obligatorios (salvo en un
+     BYE). El formulario ya no deja enviar sin ellos, pero una Server Action es
+     un endpoint público. */
+  const hayResultado = esBye || (mode === "quick" ? Boolean(seriesResult)
     : rows.length > 0 && (seriesResult != null
-      || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need);
+      || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need));
   if (!hayResultado) return redirect(withFlash(destinoRonda, "error", "Falta el resultado de la ronda."));
-  if (!rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
+  if (!esBye && !rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
 
   const values = {
     competitionId: null,
@@ -542,16 +550,16 @@ export async function saveTournamentRound(fd: FormData) {
     date: tour.date,
     playerAId: playerId,
     playerBId: null,
-    opponentName,
-    opponentPlayerId: rivalPlayer?.id ?? null,
+    opponentName: esBye ? "BYE" : opponentName,
+    opponentPlayerId: esBye ? null : (rivalPlayer?.id ?? null),
     deckAId,
     archetypeAId,
-    deckBId: rivalDeckId,
-    opponentArchetypeId: rivalArchId,
+    deckBId: esBye ? null : rivalDeckId,
+    opponentArchetypeId: esBye ? null : rivalArchId,
     bestOf,
     status: "done" as const,
     seriesResult,
-    firstTurn: first,
+    firstTurn: esBye ? "" : first,
     note: str(fd, "note").slice(0, 300),
     createdBy: actor.id,
   };

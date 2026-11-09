@@ -16,6 +16,7 @@ import { Icon } from "@/components/icons";
 import { AsistenciaBotones } from "@/components/AsistenciaBotones";
 import { FiltroAsistencia as FiltroAsistenciaSelect } from "@/components/FiltroAsistencia";
 import { importEuropeanEvents, importPastedEvents } from "@/actions";
+import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
 import {
   claveAsistencia, contarAsistencia, parseFiltroAsistencia, pasaAsistencia, FILTROS_ASISTENCIA,
   type EstadoAsistencia, type FiltroAsistencia,
@@ -441,22 +442,30 @@ export default async function CalendarPage({
           importar eventos, para organizadores); la agenda ya NO sale debajo:
           para eso está la vista «Agenda». Y con «Agenda» solo sale la agenda. */}
       {vista === "calendario" && manager && (
+          /* v0.114 — el formulario ocupa dos columnas (con sus campos en dos
+             columnas) y los dos importadores van apilados en la tercera: antes
+             eran tres columnas iguales y el formulario, largo y estrecho,
+             dejaba media pantalla vacía debajo de los otros dos. */
           <div className="grid items-start gap-4 lg:grid-cols-3">
-            <section className="card">
+            <section className="card lg:col-span-2">
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.52501db8")}</h2></div>
               <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
             </section>
 
+            <div className="flex flex-col gap-4">
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.4566e25f")}</h2></div>
               <div className="p-4">
-                <p className="mb-3 text-sm text-muted">
-                  Mete de una vez los Regionales, Special Events y el Internacional de la
-                  temporada 2027 en Europa. La lista está escrita a mano en{" "}
-                  <code className="font-mono text-xs">src/data/eventos-europa.ts</code>, con sus
-                  fuentes; no se consulta ninguna web. Se puede pulsar las veces que haga falta:
-                  actualiza en vez de duplicar.
-                </p>
+                <p className="mb-2 text-sm text-muted">{tr(lng, "v114.cal.europaTexto")}</p>
+                {/* v0.114 — cuántos de la lista ya están, para saber si hace falta pulsar. */}
+                {(() => {
+                  const ya = datos.events.filter((e) => e.id.startsWith("eu-2027-")).length;
+                  return (
+                    <p className="mb-3 text-xs font-semibold text-ink-2">
+                      {trf(lng, "v114.cal.europaYa", { n: ya, t: EVENTOS_EUROPA_2027.length })}
+                    </p>
+                  );
+                })()}
                 <form action={importEuropeanEvents}>
                   <button className="btn btn-brand w-full" type="submit">
                     <Icon name="globe" className="size-4" /> {tr(lng, "x.63d55da9")}
@@ -475,20 +484,20 @@ export default async function CalendarPage({
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.e806562b")}</h2></div>
               <form action={importPastedEvents} className="flex flex-col gap-3 p-4">
                 <p className="text-sm text-muted">
-                  Pega aquí la lista copiada del{" "}
+                  {tr(lng, "v114.cal.pegarA")}{" "}
                   <a className="underline" href="https://events.pokemon.com/EventLocator/" target="_blank" rel="noopener noreferrer">
                     {tr(lng, "x.1c7dda4e")}
                   </a>{" "}
-                  o un mensaje de WhatsApp/chat organizado por meses (ej. OCTUBRE con CHALLENGE, CUP y REGIONAL).
-                  Pegar otra vez la misma lista actualiza y no duplica.
+                  {tr(lng, "v114.cal.pegarB")}
                 </p>
                 <textarea className="input min-h-32 font-mono text-xs" name="texto" required
                   placeholder={"OCTUBRE\nCHALLENGE Sábado 3 - 16:30 Freakshow (Girona)\nCUP Domingo 4 - 10:30 Mythic (Calella)\nREGIONAL NIZA 17-18"} />
                 <button className="btn btn-brand w-full" type="submit">
-                  <Icon name="calendar" className="size-4" /> {tr(lng, "x.52501db8")}
+                  <Icon name="calendar" className="size-4" /> {tr(lng, "v114.cal.importarLista")}
                 </button>
               </form>
             </section>
+            </div>
           </div>
         )}
 

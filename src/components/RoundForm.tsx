@@ -123,6 +123,11 @@ export function RoundForm({
     setRivalName(p.name);
   };
   const hasGames = (m?.games.length ?? 0) > 0;
+  /* v0.114 — BYE: ronda libre (número impar). Cuenta como victoria en el récord
+     (3 puntos, como en el reglamento) pero no tiene rival, mazo ni juegos: no
+     entra en las estadísticas de mazos ni en el Elo (`isPlayed` lo excluye). */
+  const [bye, setBye] = useState<boolean>(
+    Boolean(m && !m.opponentPlayerId && (m.opponentName ?? "").trim().toUpperCase() === "BYE"));
 
   /* Los mazos registrados primero y los arquetipos después: si tu rival llevaba
      algo que alguien ya tiene apuntado carta por carta, es mejor eso que el
@@ -262,6 +267,13 @@ export function RoundForm({
             type="number" min={1} max={maxRound ?? 50} inputMode="numeric" defaultValue={round}
           />
         </div>
+        {bye ? (
+          <div className="flex flex-col gap-1.5">
+            <span className="label">{tr(lng, "x.dca34e30")}</span>
+            <div className="input justify-start bg-surface-2 font-display font-extrabold tracking-wider">{"BYE" /* nombre del reglamento, igual en los dos idiomas */}</div>
+            <input type="hidden" name="bye" value="1" />
+          </div>
+        ) : (
         <div className="flex flex-col gap-1.5">
           <label className="label" htmlFor={`opp-${round}`}>{tr(lng, "x.dca34e30")}</label>
           {/* v0.87 — el campo visible no se llama «…Name»: Safari lo tomaba por un
@@ -280,9 +292,17 @@ export function RoundForm({
           />
           <input type="hidden" name="opponentPlayerId" value={rivalId} />
         </div>
+        )}
       </div>
 
-      {rivalPlayers.length > 0 && (
+      {/* v0.114 — la ronda libre, a la vista: con número impar alguien descansa. */}
+      <button type="button" aria-pressed={bye} onClick={() => setBye((v) => !v)}
+        className="config-opcion bye-opcion">
+        <span className="config-opcion-titulo">{tr(lng, "v114.bye")}</span>
+        <span className="config-opcion-texto">{tr(lng, "v114.byeTexto")}</span>
+      </button>
+
+      {!bye && rivalPlayers.length > 0 && (
         <div className="-mt-1.5 flex flex-col gap-1.5">
           <span className="text-[11px] text-muted">
             {tr(lng, "x.a4246d24")}
@@ -323,6 +343,7 @@ export function RoundForm({
           —con su lista de 60 cartas, si alguien la apuntó— y los arquetipos
           sueltos. Es justo para lo que existen los mazos sin dueño: apuntar lo
           que llevaba el rival sin inventarle una cuenta. */}
+      {!bye && (
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor={`arch-${round}`}>{tr(lng, "x.d5d31276")} <span className="text-loss" aria-hidden="true">*</span></label>
         <DeckPicker
@@ -349,6 +370,7 @@ export function RoundForm({
           );
         })()}
       </div>
+      )}
 
       {/* El mazo del torneo: se elige una vez y se queda. También se puede
           fijar solo el arquetipo, si todavía no tienes la lista registrada:
@@ -372,6 +394,11 @@ export function RoundForm({
         </div>
       ) : null}
 
+      {bye ? (
+        <p className="rounded-xl border border-win/40 bg-win/10 px-3 py-2.5 text-sm text-ink-2" role="status">
+          {tr(lng, "v114.byeResultado")}
+        </p>
+      ) : (<>
       {/* --- v0.63: el panel de enfrentamiento --- */}
       <div
         className="vs-panel vs-panel-ronda" data-tipo="torneo" data-familia={familia}
@@ -528,6 +555,7 @@ export function RoundForm({
           </div>
         )}
       </div>
+      </>)}
 
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor={`note-${round}`}>{tr(lng, "x.1a6b7be7")}</label>
@@ -542,11 +570,11 @@ export function RoundForm({
           const hayResultado = mode === "games"
             ? Boolean(settled || decidedByTie || (timeCalled && gameWinners.some(Boolean)))
             : Boolean(result);
-          const faltan = [!hayResultado && tr(lng, "v88.faltaResultado"), !mazoRival && tr(lng, "v88.faltaMazo")].filter(Boolean);
+          const faltan = bye ? [] : [!hayResultado && tr(lng, "v88.faltaResultado"), !mazoRival && tr(lng, "v88.faltaMazo")].filter(Boolean);
           return faltan.length ? <p className="basis-full text-xs text-loss" role="status">{trf(lng, "v88.falta", { x: faltan.join(" y ") })}</p> : null;
         })()}
         <button className="btn btn-brand btn-gamer min-w-40 flex-1 disabled:opacity-50" type="submit"
-          disabled={!mazoRival || (mode === "games" ? !(settled || decidedByTie || (timeCalled && gameWinners.some(Boolean))) : !result)}>
+          disabled={!bye && (!mazoRival || (mode === "games" ? !(settled || decidedByTie || (timeCalled && gameWinners.some(Boolean))) : !result))}>
           <ObjetoSprite uso="guardar" className="size-5" />
           {existing ? tr(lng, "v63.guardarCambios") : trf(lng, "v63.guardarRonda", { n: round })}
         </button>

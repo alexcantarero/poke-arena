@@ -2,6 +2,36 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.114.0] — 2026-11-09
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Bye en las rondas de torneo**: botón «Bye (ronda libre)» en el formulario de ronda para cuando
+  sois impares. Se guarda contra «BYE» sin rival, sin mazo y sin juegos; cuenta como victoria en
+  el récord (3 puntos) y queda fuera de las estadísticas de mazos y del Elo. Antes el mazo del
+  rival era obligatorio y no había forma de apuntarlo.
+
+### Cambiado
+
+- **Fecha real de las partidas de liga atrasadas**: al apuntar el resultado de una partida
+  emparejada (pendiente), se guarda el día en que se juega y no el de su jornada. Resultado rápido
+  lo hace solo; el formulario completo propone hoy y explica de qué jornada era. Las correcciones
+  no mueven la fecha. Afecta a la actividad diaria, al orden del Elo y a todo lo que va por fecha.
+- **Calendario → Añadir al calendario**: «Tipo de actividad» y «Tipo de torneo» pasan a ser una
+  sola pregunta («¿Qué es?», en grupos De la liga / Torneo). «Competición asociada» solo sale para
+  cosas de la liga (y solo ligas en curso); «Torneo asociado» solo para torneos, con los recientes
+  o próximos, y elegirlo rellena nombre, fechas y lugar. Campos en dos columnas, notas plegadas.
+- **Calendario → importadores**: apilados a la derecha del formulario; «Eventos oficiales de
+  Europa» dice cuántos de la lista ya están; el botón de pegar lista se llama «Importar la lista»
+  (antes repetía «Añadir al calendario»). Textos al diccionario ES/EN.
+
+### Quitado
+
+- `IMPLEMENTAR-v0.110.0.md`, `IMPLEMENTAR-v0.110.1.md` e `IMPLEMENTAR-v0.111.0.md` (sin pasos
+  pendientes; el historial está aquí). Se conservan las de la v0.112 y v0.113 por sus migraciones.
+
 ## [0.113.0] — 2026-11-06
 
 ### Añadido

@@ -2147,3 +2147,8 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .formato-pie { padding: 0 1rem .8rem; font-size: .68rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .formato-summary::after { transition: none; } }
 #cfg-titulo { scroll-margin-top: 5.5rem; }
+
+/* v0.114 — el BYE en el formulario de ronda: una tarjeta ancha, verde al elegirla. */
+.bye-opcion { width: 100%; min-height: 3rem; }
+.bye-opcion[aria-pressed="true"] { border-color: var(--win); box-shadow: 0 0 0 1px var(--win); background: linear-gradient(160deg, color-mix(in oklab, var(--win) 18%, var(--surface-2)), var(--surface-2)); }
+.bye-opcion[aria-pressed="true"]::after { color: var(--win); }
