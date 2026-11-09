@@ -2475,6 +2475,9 @@ const ES = {
   "v116.quedanPartidas": "Quedan {n} partidas sin jugar. Márcalo si quieres cerrar igualmente.",
   "v116.repartoTitulo": "Reparto de divisiones",
   "v116.repartoAyuda": "Sale de la temporada anterior: suben los 2 primeros y bajan los 2 últimos de cada división; quien entra nuevo empieza por la última.",
+  // v0.117
+  "v117.celDivision": "¡Nueva división de Elo!",
+  "v117.hilo": "Quedar en Discord →",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -4924,6 +4927,9 @@ const EN: Record<I18nKey, string> = {
   "v116.quedanPartidas": "{n} matches still unplayed. Tick the box to close anyway.",
   "v116.repartoTitulo": "Division allocation",
   "v116.repartoAyuda": "Comes from last season: the top 2 of each division go up and the bottom 2 go down; newcomers start in the lowest one.",
+  // v0.117
+  "v117.celDivision": "New Elo division!",
+  "v117.hilo": "Arrange it on Discord →",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

@@ -363,6 +363,15 @@ export const ligaDivisiones = pgTable("liga_divisiones", {
   ordenFinal: jsonb("orden_final").$type<string[]>(),
 }, (t) => [primaryKey({ columns: [t.temporadaId, t.nivel] })]);
 
+/** v0.117 — El post del foro de Discord de cada enfrentamiento de la liga
+    (migración 0034). Tabla aparte, y no una columna en `matches`: así una
+    base sin migrar no rompe la lectura de las partidas. */
+export const discordHilos = pgTable("discord_hilos", {
+  matchId: text("match_id").primaryKey().references(() => matches.id, { onDelete: "cascade" }),
+  hiloId: text("hilo_id").notNull(),
+  creadoAt: timestamp("creado_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

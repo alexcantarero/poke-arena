@@ -2,6 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.117.0] — 2026-11-09
+
+**Con migración** (`drizzle/0034_v0_117_0.sql`: tabla `discord_hilos`). Dos variables de entorno
+nuevas y opcionales: `DISCORD_WEBHOOK_FORO` y `DISCORD_SERVIDOR_ID`.
+
+### Añadido
+
+- **Un post en el foro de Discord por enfrentamiento de la liga por divisiones**: «J3 · Ibai vs
+  Alex · División 2», con la jornada, el formato y el enlace a la partida, para quedar ahí entre
+  los dos. Usa el parámetro `thread_name` de los webhooks de Discord, que crea un post nuevo en un
+  canal de tipo foro (comprobado en la documentación de Discord). Se crean los de la semana: los de
+  la 1.ª jornada al empezar la temporada y el resto en el cron diario (6 por día, con pausa, para no
+  chocar con el límite de Discord). La ficha de la partida enlaza a su post si está
+  `DISCORD_SERVIDOR_ID`.
+- **Celebración al subir de división de Elo**, como la de las medallas y las Balls (en el Inicio y
+  en tu perfil). Al bajar no se celebra; al volver a subir, sí. La primera vez solo se guarda.
+
 ## [0.116.0] — 2026-11-09
 
 **Con migración** (`drizzle/0033_v0_116_0.sql`: tablas `liga_temporadas`, `liga_inscripciones` y

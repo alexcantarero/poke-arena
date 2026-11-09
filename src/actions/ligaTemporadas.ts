@@ -23,7 +23,7 @@ import { clasificarDivision, fechaJornada, movimientos, siguienteReparto, sortea
 import { ordenesAnteriores } from "@/lib/ligaTemporadaDb";
 import { loadSnapshot } from "@/lib/data";
 import { isPlayed, outcome } from "@/lib/stats";
-import { notificarLiga } from "@/lib/discord";
+import { crearHilosLiga, notificarLiga } from "@/lib/discord";
 import { bool, int, isoDate, msj, refresh, requireActor, requireManager, str } from "./_comun";
 
 const RUTA = "/divisiones";
@@ -175,6 +175,8 @@ export async function empezarLiga() {
     tipo: "empieza", nombre: t.nombre,
     divisiones: reparto.map((ids, i) => ({ nivel: i + 1, jugadores: ids.map((id) => nombres.get(id) ?? "?") })),
   });
+  // v0.117 — los posts del foro de Discord de la primera jornada (el resto, el cron).
+  await crearHilosLiga(todayISO(), 6);
   refresh();
   redirect(withFlash(RUTA, "ok", await msj("v116.empezada", { n: t.nombre })));
 }

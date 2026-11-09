@@ -6,6 +6,7 @@ import { titulosDisponibles } from "@/lib/logros";
 import { urlDeObjeto } from "@/lib/objetos";
 import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 import { tr, type Lang } from "@/lib/i18n";
+import { divisionDeElo, divisionesAlcanzadas } from "@/lib/divisionElo";
 import type { Novedad } from "@/components/CelebrarNuevos";
 
 /* =========================================================================
@@ -20,7 +21,7 @@ import type { Novedad } from "@/components/CelebrarNuevos";
 
 const IMG_TIER = { bronze: "star-piece", silver: "bottle-cap", gold: "gold-bottle-cap" } as const;
 
-export function novedadesDeJugador(snap: Snapshot, player: Pick<PublicPlayer, "id" | "logros">, lng: Lang): { medallas: Novedad[]; titulos: Novedad[] } {
+export function novedadesDeJugador(snap: Snapshot, player: Pick<PublicPlayer, "id" | "logros" | "beltHolder">, lng: Lang): { medallas: Novedad[]; titulos: Novedad[]; divisiones: Novedad[] } {
   const entrada = entradaMedallasDeJugador(snap, player.id);
   const avance = avanceTitulosDeJugador(snap, player.id, entrada);
   const medallas = badgesOf(entrada).filter((b) => b.tier !== "none").map((b) => ({
@@ -32,5 +33,13 @@ export function novedadesDeJugador(snap: Snapshot, player: Pick<PublicPlayer, "i
   const titulos = titulosDisponibles(player.logros, avance)
     .filter((t) => t.grupo !== "inicio" && !t.id.startsWith("logro:"))
     .map((t) => ({ id: `${t.id}:${t.clave}`, etiqueta: tr(lng, "cel.titulo"), nombre: tr(lng, t.clave), img: urlDeObjeto("rare-candy") }));
-  return { medallas, titulos };
+  /* v0.117 — la división de Elo: al subir, celebración (ver `divisionesAlcanzadas`). */
+  const forma = snap.forma[player.id];
+  const actual = forma
+    ? divisionDeElo(forma.forma, { challenger: Boolean(player.beltHolder), partidas: snap.elo.jugadas[player.id] ?? 0 }).id
+    : "novato";
+  const divisiones = divisionesAlcanzadas(actual).map((d) => ({
+    id: `division:${d}`, etiqueta: tr(lng, "v117.celDivision"), nombre: tr(lng, `v115.div.${d}`), img: urlDeObjeto("exp-share"),
+  }));
+  return { medallas, titulos, divisiones };
 }

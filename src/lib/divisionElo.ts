@@ -65,3 +65,14 @@ export function divisionDeElo(valor: number, o: { challenger?: boolean; partidas
 export const ORDEN_DIVISION: Record<DivisionEloId, number> = {
   novato: 0, hierro: 1, bronce: 2, plata: 3, oro: 4, platino: 5, diamante: 6, maestro: 7, granmaestro: 8, challenger: 9,
 };
+
+/**
+ * v0.117 — Para celebrar al SUBIR de división: todas las alcanzadas hasta la
+ * actual (de Hierro a ella). Al bajar desaparecen las de arriba, que no son
+ * «nuevas», así que no se celebra; al volver a subir, sí. Novato no cuenta.
+ */
+export function divisionesAlcanzadas(actual: DivisionEloId): DivisionEloId[] {
+  if (actual === "novato") return [];
+  const orden: DivisionEloId[] = ["hierro", "bronce", "plata", "oro", "platino", "diamante", "maestro", "granmaestro", "challenger"];
+  return orden.slice(0, orden.indexOf(actual) + 1);
+}

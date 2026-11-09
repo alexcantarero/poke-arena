@@ -175,3 +175,39 @@ export function esLunesEnMadrid(ahora: Date): boolean {
   const dia = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "Europe/Madrid" }).format(ahora);
   return dia === "Mon";
 }
+
+/* =========================================================================
+   v0.117 — Un post del foro de Discord por enfrentamiento de la liga.
+   ========================================================================= */
+
+export type Enfrentamiento = {
+  matchId: string; temporada: string; division: number; jornada: number; fecha: string;
+  a: string; b: string; bestOf: number;
+};
+
+/** Nombre del post (Discord admite hasta 100 caracteres). */
+export function nombreHilo(e: Enfrentamiento): string {
+  const t = `J${e.jornada} · ${e.a} vs ${e.b} · División ${e.division}`;
+  return t.length > 100 ? `${t.slice(0, 99)}…` : t;
+}
+
+export function embedEnfrentamiento(e: Enfrentamiento, urlApp: string): Embed {
+  return {
+    title: `${e.a} vs ${e.b}`,
+    url: `${urlApp}/partidas/${e.matchId}`,
+    description: recortar(`**${e.temporada} · División ${e.division} · Jornada ${e.jornada}** · Bo${e.bestOf}\n`
+      + `Semana del ${e.fecha}. Quedad aquí para la fecha y la hora, y apuntad el resultado en la web.`),
+    color: AMARILLO,
+    footer: { text: "PokeArena TCG · Liga por divisiones" },
+  };
+}
+
+/** La URL del webhook con `wait=true` (para que Discord devuelva el mensaje y su hilo). */
+export function conEspera(url: string): string {
+  return url.includes("?") ? `${url}&wait=true` : `${url}?wait=true`;
+}
+
+/** Enlace a un hilo de Discord, si se conoce el servidor. */
+export function urlHilo(servidorId: string | null | undefined, hiloId: string): string | null {
+  return servidorId && /^\d+$/.test(servidorId.trim()) && /^\d+$/.test(hiloId) ? `https://discord.com/channels/${servidorId.trim()}/${hiloId}` : null;
+}

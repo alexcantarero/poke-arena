@@ -1,9 +1,9 @@
 import "server-only";
 import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, competitions, decks, events, matches, players, tournamentResults, tournaments } from "@/db/schema";
+import { archetypes, competitions, decks, discordHilos, events, ligaDivisiones, ligaTemporadas, matches, players, tournamentResults, tournaments } from "@/db/schema";
 import {
-  embedAgenda, embedEventoCinturon, embedLiga, embedPendientes, embedTorneo, semanaDe,
+  conEspera, embedAgenda, embedEnfrentamiento, embedEventoCinturon, embedLiga, embedPendientes, embedTorneo, nombreHilo, semanaDe, urlHilo,
   type Embed, type EventoAgenda, type EventoCinturon, type EventoLiga, type Pendiente, type ResultadoTorneo,
 } from "./discordMensajes";
 import { motivoDeEstado, normalizarWebhook, type MotivoDiscord } from "./discordWebhook";
@@ -160,6 +160,84 @@ export async function notificarPendientesLiga(): Promise<boolean> {
     return e ? enviar("liga", e) : false;
   } catch {
     return false;
+  }
+}
+
+/* =========================================================================
+   v0.117 — Un post en un canal de FORO de Discord por cada enfrentamiento de
+   la liga por divisiones, para quedar ahí (fecha, hora) entre los dos.
+
+   · DISCORD_WEBHOOK_FORO: el webhook de un canal de tipo foro. La API de
+     Discord crea un post nuevo si se manda `thread_name` (y solo funciona en
+     foros). Con `?wait=true` devuelve el mensaje, cuyo `channel_id` es el hilo.
+   · DISCORD_SERVIDOR_ID (opcional, no es secreto): el id del servidor, para
+     enlazar el post desde la ficha de la partida.
+   Se crean los de la semana (partidas pendientes con fecha hasta dentro de 6
+   días), unos pocos por llamada y con pausa, para no chocar con el límite de
+   Discord. Lo que no dé tiempo, al día siguiente lo hace el cron.
+   ========================================================================= */
+export function foroConfigurado(): boolean {
+  return Boolean(normalizarWebhook(process.env.DISCORD_WEBHOOK_FORO));
+}
+
+export async function crearHilosLiga(hoyIso: string, maximo = 8): Promise<number> {
+  const url = normalizarWebhook(process.env.DISCORD_WEBHOOK_FORO);
+  if (!url) return 0;
+  try {
+    const hasta = new Date(`${hoyIso.slice(0, 10)}T12:00:00Z`);
+    hasta.setUTCDate(hasta.getUTCDate() + 6);
+    const limite = hasta.toISOString().slice(0, 10);
+    const divs = await db.select({ c: ligaDivisiones.competitionId, nivel: ligaDivisiones.nivel, temporada: ligaTemporadas.nombre })
+      .from(ligaDivisiones).innerJoin(ligaTemporadas, eq(ligaTemporadas.id, ligaDivisiones.temporadaId))
+      .where(eq(ligaTemporadas.estado, "en_curso"));
+    if (!divs.length) return 0;
+    const porComp = new Map<string, { c: string; nivel: number; temporada: string }>(divs.map((d) => [d.c, d]));
+    const candidatas = await db.select().from(matches).where(and(
+      inArray(matches.competitionId, [...porComp.keys()]),
+      eq(matches.status, "scheduled"),
+      lte(matches.date, limite),
+    ));
+    if (!candidatas.length) return 0;
+    const hechos = new Set((await db.select({ m: discordHilos.matchId }).from(discordHilos)
+      .where(inArray(discordHilos.matchId, candidatas.map((m) => m.id)))).map((r) => r.m));
+    const nombres = new Map<string, string>((await db.select({ id: players.id, name: players.name }).from(players)).map((p) => [p.id, p.name]));
+    const app = urlApp();
+    let creados = 0;
+    for (const m of candidatas.filter((x) => !hechos.has(x.id)).sort((x, y) => x.date.localeCompare(y.date) || x.round - y.round)) {
+      if (creados >= maximo) break;
+      const d = porComp.get(m.competitionId!)!;
+      const e = {
+        matchId: m.id, temporada: d.temporada, division: d.nivel, jornada: m.round, fecha: m.date,
+        a: nombres.get(m.playerAId) ?? "?", b: (m.playerBId && nombres.get(m.playerBId)) || "?", bestOf: m.bestOf,
+      };
+      const res = await fetch(conEspera(url), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "PokeArena", thread_name: nombreHilo(e), embeds: [embedEnfrentamiento(e, app)], allowed_mentions: { parse: [] } }),
+        signal: AbortSignal.timeout(6000),
+        cache: "no-store",
+      });
+      if (res.status === 429) { console.warn("[discord] foro: límite de Discord, se sigue mañana"); break; }
+      if (!res.ok) { console.warn(`[discord] foro: HTTP ${res.status}`); break; }
+      const cuerpo = await res.json().catch(() => null) as { channel_id?: string } | null;
+      if (!cuerpo?.channel_id) break;
+      await db.insert(discordHilos).values({ matchId: m.id, hiloId: cuerpo.channel_id }).onConflictDoNothing();
+      creados++;
+      await new Promise((r) => setTimeout(r, 1200)); // pausa: el límite de un webhook es de pocos mensajes por segundo
+    }
+    return creados;
+  } catch {
+    return 0; // sin la migración 0034, sin red o Discord caído: mañana
+  }
+}
+
+/** El enlace al post de una partida, o null (sin post, sin servidor configurado o sin migración). */
+export async function enlaceHiloDe(matchId: string): Promise<string | null> {
+  try {
+    const [h] = await db.select({ hilo: discordHilos.hiloId }).from(discordHilos).where(eq(discordHilos.matchId, matchId)).limit(1);
+    return h ? urlHilo(process.env.DISCORD_SERVIDOR_ID, h.hilo) : null;
+  } catch {
+    return null;
   }
 }
 

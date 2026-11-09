@@ -351,6 +351,7 @@ export default async function HomePage({
     <>
       {novedades && jugadorSesion && <CelebrarNuevos ambito={`medallas:${jugadorSesion.id}`} items={novedades.medallas} />}
       {novedades && jugadorSesion && <CelebrarNuevos ambito={`titulos:${jugadorSesion.id}`} items={novedades.titulos} />}
+      {novedades && jugadorSesion && <CelebrarNuevos ambito={`divisionElo:${jugadorSesion.id}`} items={novedades.divisiones} />}
       <PageHead
         gradient
         title={snap.config.name}

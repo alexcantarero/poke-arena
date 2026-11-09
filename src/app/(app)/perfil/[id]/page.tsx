@@ -225,6 +225,7 @@ export default async function ProfilePage({
 
       {novedades && <CelebrarNuevos ambito={`medallas:${player.id}`} items={novedades.medallas} />}
       {novedades && <CelebrarNuevos ambito={`titulos:${player.id}`} items={novedades.titulos} />}
+      {novedades && <CelebrarNuevos ambito={`divisionElo:${player.id}`} items={novedades.divisiones} />}
 
       {/* v0.65 — la Ball de uso y los logros secretos. */}
       <section className="card mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center">

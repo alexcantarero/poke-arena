@@ -1,3 +1,4 @@
+import { enlaceHiloDe } from "@/lib/discord";
 import { mazosLigeros, torneosLigeros } from "@/lib/aligerar";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -92,6 +93,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     ? snap.compsById.get(match.competitionId)?.name
     : match.tournamentId ? snap.toursById.get(match.tournamentId)?.name : null;
 
+  const hiloDiscord = match.competitionId ? await enlaceHiloDe(match.id) : null;
   return (
     <>
       <PageHead
@@ -104,6 +106,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             ? <Link className="btn btn-ghost btn-sm" href={`/competiciones/${match.competitionId}`}><Icon name="back" className="size-4" /> {tr(lng, "x.0582c003")}</Link>
             : <Link className="btn btn-ghost btn-sm" href="/resultados"><Icon name="back" className="size-4" /> {tr(lng, "x.b164a1ab")}</Link>}
       />
+      {/* v0.117 — el post del foro de Discord de este enfrentamiento. */}
+      {hiloDiscord && (
+        <p className="-mt-2 mb-3">
+          <a className="btn btn-ghost btn-sm" href={hiloDiscord} target="_blank" rel="noopener noreferrer">{tr(lng, "v117.hilo")}</a>
+        </p>
+      )}
       {/* v0.54 — el rastro: si alguien corrigió el resultado, quién y cuándo. */}
       {match.updatedAt && (
         <p className="-mt-2 mb-3 text-xs text-muted">

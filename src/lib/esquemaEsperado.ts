@@ -47,6 +47,8 @@ export const ESQUEMA_ESPERADO: readonly Requisito[] = [
   { tabla: "liga_temporadas", columna: "semilla", migracion: "drizzle/0033_v0_116_0.sql", version: "0.116" },
   { tabla: "liga_inscripciones", columna: "estado", migracion: "drizzle/0033_v0_116_0.sql", version: "0.116" },
   { tabla: "liga_divisiones", columna: "competition_id", migracion: "drizzle/0033_v0_116_0.sql", version: "0.116" },
+  { tabla: "liga_divisiones", columna: "orden_final", migracion: "drizzle/0033_v0_116_0.sql", version: "0.116" },
+  { tabla: "discord_hilos", columna: "hilo_id", migracion: "drizzle/0034_v0_117_0.sql", version: "0.117" },
 ];
 
 /**
