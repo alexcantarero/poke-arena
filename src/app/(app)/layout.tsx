@@ -30,6 +30,8 @@ import { Snackbar } from "@/components/Snackbar";
 import { LogroAviso } from "@/components/LogroAviso";
 import { CelebrarBall } from "@/components/CelebrarBall";
 import { AvisoVersion } from "@/components/AvisoVersion";
+import { AvisoLiga } from "@/components/AvisoLiga";
+import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
 import { logout } from "@/actions";
@@ -56,12 +58,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      (tutorial v0.60, páginas vistas v0.61, pendientes v0.54 y la Ball de la
      v0.94): cuatro viajes seguidos a Neon en CADA página. En paralelo, la espera
      es la del más lento. */
-  const [verTutorial, paginasVistas, misPendientes, usoLigero, tituloBarra] = await Promise.all([
+  const [verTutorial, paginasVistas, misPendientes, usoLigero, tituloBarra, avisoLiga] = await Promise.all([
     tutorialPendiente(me.id), // v0.60
     tutorialesVistos(me.id), // v0.61
     cargarPendientesDe(me.id), // v0.54 — mis partidas sin resultado: el número del menú.
     usoLigeroDeJugador(me.id, me.logros), // v0.94
     barraMini ? null : tituloParaBarra(me, cfg),
+    avisoLigaPara(me.id), // v0.116 — la inscripción a la liga, si no te has apuntado
   ]);
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const ballUso = nivelDeUso(usoLigero);
@@ -188,6 +191,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* v0.58 — los líderes de la pestaña, en los márgenes de las pantallas anchas. */}
         <LideresMargen />
         <main className="mx-auto w-full max-w-5xl px-3 xl:max-w-6xl 2xl:max-w-7xl pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
+          {avisoLiga && <AvisoLiga id={avisoLiga.id} nombre={avisoLiga.nombre} />}
           {children}
         </main>
       </div>

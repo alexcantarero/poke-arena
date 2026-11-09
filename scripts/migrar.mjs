@@ -33,7 +33,7 @@ neonConfig.webSocketConstructor = globalThis.WebSocket;
 const host = new URL(url).host;
 console.log(`→ Base de datos: ${host}`);
 
-const MIGRACIONES = ["drizzle/0018_v0_45_0.sql", "drizzle/0019_v0_47_0.sql", "drizzle/0020_v0_54_0.sql", "drizzle/0021_v0_57_0.sql", "drizzle/0022_v0_59_0.sql", "drizzle/0023_v0_60_0.sql", "drizzle/0024_v0_61_0.sql", "drizzle/0025_v0_65_0.sql", "drizzle/0026_v0_67_0.sql", "drizzle/0027_v0_79_0.sql", "drizzle/0028_v0_94_0.sql", "drizzle/0029_v0_95_0.sql", "drizzle/0030_v0_106_0.sql"];
+const MIGRACIONES = ["drizzle/0018_v0_45_0.sql", "drizzle/0019_v0_47_0.sql", "drizzle/0020_v0_54_0.sql", "drizzle/0021_v0_57_0.sql", "drizzle/0022_v0_59_0.sql", "drizzle/0023_v0_60_0.sql", "drizzle/0024_v0_61_0.sql", "drizzle/0025_v0_65_0.sql", "drizzle/0026_v0_67_0.sql", "drizzle/0027_v0_79_0.sql", "drizzle/0028_v0_94_0.sql", "drizzle/0029_v0_95_0.sql", "drizzle/0030_v0_106_0.sql", "drizzle/0031_v0_112_0.sql", "drizzle/0032_v0_113_0.sql", "drizzle/0033_v0_116_0.sql"];
 const pool = new Pool({ connectionString: url });
 try {
   for (const f of MIGRACIONES) {

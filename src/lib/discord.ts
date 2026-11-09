@@ -3,8 +3,8 @@ import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { archetypes, competitions, decks, events, matches, players, tournamentResults, tournaments } from "@/db/schema";
 import {
-  embedAgenda, embedEventoCinturon, embedPendientes, embedTorneo, semanaDe,
-  type Embed, type EventoAgenda, type EventoCinturon, type Pendiente, type ResultadoTorneo,
+  embedAgenda, embedEventoCinturon, embedLiga, embedPendientes, embedTorneo, semanaDe,
+  type Embed, type EventoAgenda, type EventoCinturon, type EventoLiga, type Pendiente, type ResultadoTorneo,
 } from "./discordMensajes";
 import { motivoDeEstado, normalizarWebhook, type MotivoDiscord } from "./discordWebhook";
 
@@ -158,6 +158,15 @@ export async function notificarPendientesLiga(): Promise<boolean> {
     }));
     const e = embedPendientes(p, urlApp());
     return e ? enviar("liga", e) : false;
+  } catch {
+    return false;
+  }
+}
+
+/** v0.116 — la liga por divisiones, al canal de la liga. Nunca rompe nada. */
+export async function notificarLiga(evento: EventoLiga): Promise<boolean> {
+  try {
+    return await enviar("liga", embedLiga(evento, urlApp()));
   } catch {
     return false;
   }

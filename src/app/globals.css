@@ -2162,3 +2162,22 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 }
 .division-elo[data-size="md"] { font-size: .8rem; padding: .15rem .6rem; }
 .division-elo[data-tier="challenger"] { box-shadow: 0 0 10px color-mix(in oklab, var(--tier-challenger) 45%, transparent); }
+
+/* v0.116 — Liga por divisiones: el aviso de inscripción y las divisiones. */
+.aviso-liga {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; padding: .6rem .75rem; border-radius: .9rem;
+  border: 1px solid color-mix(in oklab, var(--brand) 55%, var(--line));
+  background: linear-gradient(100deg, color-mix(in oklab, var(--brand) 18%, var(--surface)), var(--surface));
+}
+.aviso-liga-texto { flex: 1 1 12rem; min-width: 0; font-weight: 700; color: var(--ink); }
+.aviso-liga-cerrar { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 9999px; color: var(--muted); }
+.aviso-liga-cerrar:hover { background: var(--surface-2); color: var(--ink); }
+.liga-division { border-left: 3px solid var(--info); padding-left: .75rem; }
+.liga-division[data-nivel="1"] { border-left-color: var(--brand); }
+.liga-division-titulo { font-family: var(--font-display); font-weight: 800; color: var(--ink); }
+.liga-campeon { padding: .6rem .8rem; border-radius: .8rem; font-weight: 700; color: var(--ink);
+  border: 1px solid color-mix(in oklab, var(--brand) 50%, var(--line)); background: color-mix(in oklab, var(--brand) 12%, var(--surface)); }
+.liga-mov { flex: none; padding: 0 .4rem; border-radius: 9999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+[data-mov="sube"] .liga-mov { color: var(--win); background: color-mix(in oklab, var(--win) 15%, transparent); }
+[data-mov="baja"] .liga-mov { color: var(--loss); background: color-mix(in oklab, var(--loss) 15%, transparent); }
+[data-mov="campeon"] .liga-mov { color: var(--brand); background: color-mix(in oklab, var(--brand) 18%, transparent); }

@@ -16,6 +16,7 @@ export * from "./partidas";
 export * from "./torneos";
 export * from "./ligas";
 export * from "./cinturon";
+export * from "./ligaTemporadas";
 export * from "./calendario";
 export * from "./ajustes";
 export * from "./metagame";

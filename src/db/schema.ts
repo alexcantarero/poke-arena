@@ -319,6 +319,50 @@ export const competitionPlayers = pgTable("competition_players", {
   dropped: boolean("dropped").notNull().default(false),
 }, (t) => [index("cp_comp_idx").on(t.competitionId)]);
 
+/* =========================================================================
+   v0.116 — Liga por divisiones (migración 0033).
+
+   Una TEMPORADA reúne varias divisiones; cada división es una competición
+   normal (`competitions`, kind "league"), así que la clasificación, las
+   jornadas, los resultados y los avisos de Discord ya existentes sirven tal
+   cual. Aquí solo vive lo que no cabe en una competición: la inscripción
+   (con lista de espera), el sorteo y a qué nivel va cada competición.
+   ========================================================================= */
+export const ligaTemporadas = pgTable("liga_temporadas", {
+  id: text("id").primaryKey(),
+  numero: integer("numero").notNull(),
+  nombre: text("nombre").notNull(),
+  /** inscripcion · en_curso · cerrada */
+  estado: text("estado").notNull().default("inscripcion"),
+  maxPorDivision: integer("max_por_division").notNull().default(6),
+  bestOf: integer("best_of").notNull().default(3),
+  /** Fecha de la primera jornada; las demás, una por semana. */
+  inicio: date("inicio").notNull(),
+  /** El sorteo: con la misma semilla sale el mismo reparto. Nula hasta sortear. */
+  semilla: text("semilla"),
+  creadaAt: timestamp("creada_at", { withTimezone: true }).notNull().defaultNow(),
+  empezadaAt: timestamp("empezada_at", { withTimezone: true }),
+  cerradaAt: timestamp("cerrada_at", { withTimezone: true }),
+  campeonId: text("campeon_id").references(() => players.id, { onDelete: "set null" }),
+});
+
+export const ligaInscripciones = pgTable("liga_inscripciones", {
+  temporadaId: text("temporada_id").notNull().references(() => ligaTemporadas.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  /** inscrito (entra en esta temporada) · espera (se apuntó con la liga ya empezada) */
+  estado: text("estado").notNull().default("inscrito"),
+  inscritaAt: timestamp("inscrita_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.temporadaId, t.playerId] })]);
+
+export const ligaDivisiones = pgTable("liga_divisiones", {
+  temporadaId: text("temporada_id").notNull().references(() => ligaTemporadas.id, { onDelete: "cascade" }),
+  /** 1 = la de arriba. */
+  nivel: integer("nivel").notNull(),
+  competitionId: text("competition_id").notNull().references(() => competitions.id, { onDelete: "cascade" }),
+  /** La clasificación final (ids, del 1.º al último), al cerrar la temporada. */
+  ordenFinal: jsonb("orden_final").$type<string[]>(),
+}, (t) => [primaryKey({ columns: [t.temporadaId, t.nivel] })]);
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

@@ -2,6 +2,34 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.116.0] — 2026-11-09
+
+**Con migración** (`drizzle/0033_v0_116_0.sql`: tablas `liga_temporadas`, `liga_inscripciones` y
+`liga_divisiones`). Sin ella, la app funciona igual y la pantalla de la liga avisa de que falta.
+
+### Añadido
+
+- **Liga por divisiones** (`/divisiones`, en el menú «Competir»):
+  - El organizador abre una temporada (nombre, primera jornada, máximo por división —6 por
+    defecto— y formato). Se abre la inscripción, sale un **aviso arriba en todas las páginas** para
+    quien no se ha apuntado (lleva directo a apuntarse; la ✕ lo esconde en ese navegador) y un
+    mensaje en el canal de liga de Discord.
+  - **Primera edición: sorteo** reproducible (la semilla se guarda) que se puede repetir antes de
+    empezar, con el reparto a la vista. Divisiones equilibradas con el tope (14 personas → 5/5/4).
+  - Al empezar se crea una competición por división con **todas sus jornadas** (todos contra
+    todos, una por semana; con número impar, cada jornada descansa uno). Clasificación, jornadas,
+    resultados y avisos de pendientes son los de cualquier liga.
+  - Quien se apunta con la temporada en curso queda **en lista de espera** para la siguiente.
+  - **Cierre de temporada**: clasificación final con desempates Bo3 (puntos de serie, directo
+    solo entre dos empatados, diferencia de juegos, % de victorias de los rivales con suelo del
+    25 %), **suben los 2 primeros y bajan los 2 últimos** de cada división, y el 1.º de la División
+    1 gana el **Cinturón de Liga** (sale en su perfil). Aviso en Discord con el campeón y los
+    movimientos. Durante la temporada, la pantalla enseña quién subiría y bajaría hoy.
+  - **Temporadas siguientes**: se apuntan solos quien jugó la anterior y quien estaba en espera
+    (pueden borrarse); el reparto sale de los ascensos y descensos, y los nuevos entran por la
+    última división.
+  - `lib/ligaDivisiones.ts` (11 pruebas) y mensajes de Discord (2 pruebas).
+
 ## [0.115.0] — 2026-11-09
 
 **Sin migración ni dependencias nuevas. Cambia el cálculo del Elo: al subirlo, el Elo y su

@@ -1,3 +1,4 @@
+import { campeonatosDe } from "@/lib/ligaTemporadaDb";
 import { DivisionEloBadge } from "@/components/DivisionEloBadge";
 import { Variocolor } from "@/components/Huevos";
 import { VerMas } from "@/components/VerMas";
@@ -107,6 +108,7 @@ export default async function ProfilePage({
   // deja fuera a propósito pero que para el jugador son suyas igual.
   const rec = playerRecord(scoped, id);
   const elo = snap.elo.rating[id] ?? snap.config.eloStart;
+  const campeonatos = await campeonatosDe(id); // v0.116
   const history = (snap.elo.history[id] ?? []).map((h) => h.value);
   const archs = archetypeStats(mine, snap.archIndex, id, snap.archById);
   /* v0.38 — mínimo 5 partidas y no 2. Con dos cruces el porcentaje solo
@@ -191,6 +193,8 @@ export default async function ProfilePage({
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {player.role !== "player" && <span className="chip chip-brand">{player.role === "owner" ? "Organizador" : tr(lng, "x.4e7afebc")}</span>}
             {isMe && <span className="chip chip-info">{tr(lng, "x.4dc2088e")}</span>}
+            {/* v0.116 — el Cinturón de Liga: las temporadas que ha ganado. */}
+            {campeonatos.map((n) => <span key={n} className="chip chip-brand">{trf(lng, "v116.chipCampeon", { n })}</span>)}
             {/* v0.115 — la división de Elo (sale de la Forma). */}
             <DivisionEloBadge forma={snap.forma[id]} partidas={snap.elo.jugadas[id] ?? 0}
               challenger={Boolean(player.beltHolder)} lang={lng} />

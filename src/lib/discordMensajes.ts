@@ -77,6 +77,41 @@ export function embedPendientes(p: readonly Pendiente[], urlApp: string): Embed 
 
 export type EventoAgenda = { fecha: string; fin: string | null; titulo: string; lugar: string | null; url: string | null };
 
+/** v0.116 — la liga por divisiones: se abre la inscripción o empieza la temporada. */
+export type EventoLiga =
+  | { tipo: "inscripcion"; nombre: string; inicio: string; maxPorDivision: number }
+  | { tipo: "empieza"; nombre: string; divisiones: Array<{ nivel: number; jugadores: string[] }> }
+  | { tipo: "cierre"; nombre: string; campeon: string | null; divisiones: Array<{ nivel: number; suben: string[]; bajan: string[] }> };
+
+export function embedLiga(e: EventoLiga, urlApp: string): Embed {
+  if (e.tipo === "cierre") {
+    const lineas = e.divisiones
+      .filter((d) => d.suben.length || d.bajan.length)
+      .map((d) => `**División ${d.nivel}**${d.suben.length ? ` · ⬆️ ${d.suben.join(", ")}` : ""}${d.bajan.length ? ` · ⬇️ ${d.bajan.join(", ")}` : ""}`);
+    return {
+      title: `Liga · ${e.nombre} · Final`,
+      url: `${urlApp}/divisiones`,
+      description: recortar(`🏆 **${e.campeon ?? "?"}** gana la División 1 y el Cinturón de Liga.\n\n${lineas.join("\n")}`),
+      color: AMARILLO,
+      footer: { text: "PokeArena TCG · Liga por divisiones" },
+      timestamp: new Date().toISOString(),
+    };
+  }
+  const descripcion = e.tipo === "inscripcion"
+    ? `📝 Abierta la inscripción a **${e.nombre}**. Empieza el ${e.inicio}, con divisiones de hasta ${e.maxPorDivision}.\n\n👉 Apúntate aquí: ${urlApp}/divisiones`
+    : `🏁 Empieza **${e.nombre}**.\n\n` + e.divisiones
+      .map((d) => `**División ${d.nivel}**: ${d.jugadores.join(", ")}`)
+      .join("\n");
+  return {
+    title: e.tipo === "inscripcion" ? `Liga · ${e.nombre}` : `Liga · ${e.nombre} · Divisiones`,
+    url: `${urlApp}/divisiones`,
+    description: recortar(descripcion),
+    color: AMARILLO,
+    footer: { text: "PokeArena TCG · Liga por divisiones" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export type EventoCinturon = {
   tipo: "coronacion" | "defensa" | "cambio" | "forfeit" | "vacante";
   poseedor: string | null;

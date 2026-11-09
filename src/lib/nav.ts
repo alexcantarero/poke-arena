@@ -54,6 +54,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/cinturon", label: "Torneo del Cinturón", icon: "trophy" },
       { href: "/torneos", label: "Torneos", icon: "trophy", sprite: "objeto:vs-seeker" },
+      // v0.116 — la liga por divisiones (temporadas, inscripción y sorteo).
+      { href: "/divisiones", label: "Liga por divisiones", icon: "league", sprite: "objeto:exp-share" },
       { href: "/competiciones", label: "Liga", icon: "league", sprite: "objeto:shiny-charm" },
       { href: "/resultados", label: "Resultados", icon: "results", sprite: "objeto:rare-candy" },
       // Beta: se conserva la herramienta, pero se oculta de la navegación.
