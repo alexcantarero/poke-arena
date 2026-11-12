@@ -505,7 +505,7 @@ export function MatchForm({
           )}
           </>)}
 
-          {sameTwice && especial !== "bye" && <p className="text-sm font-medium text-loss">{tr(lng, "x.015e83e1")}</p>}
+          {sameTwice && <p className="text-sm font-medium text-loss">{tr(lng, "x.015e83e1")}</p>}
         </div>
       </section>
 
