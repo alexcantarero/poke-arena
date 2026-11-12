@@ -975,22 +975,26 @@ html[data-motion="off"] .season-pokemon-sprite {
   background: linear-gradient(145deg, #d8fff8 0%, #8fe0d2 38%, #4bb3a8 70%, #2b7f78 100%);
 }
 .cp-rank-emerald {
-  color: #fff;
+  color: #03221a; /* v0.122: en negro, el blanco no se leía */
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
   border-color: #1d9a63;
   background: linear-gradient(145deg, #8ef0c0 0%, #34c584 38%, #159062 70%, #0b5c3f 100%);
 }
 .cp-rank-diamond {
-  color: #fff;
+  color: #070b2a;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
   border-color: #5a6ee0;
   background: linear-gradient(145deg, #c9d6ff 0%, #7f99ff 38%, #4b5fd6 70%, #2b358f 100%);
 }
 .cp-rank-master {
-  color: #fff;
+  color: #1e0633;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
   border-color: #a24fe0;
   background: linear-gradient(145deg, #f0c9ff 0%, #c47af2 38%, #8b39c9 70%, #561e86 100%);
 }
 .cp-rank-grandmaster {
-  color: #fff;
+  color: #2a0505;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.3);
   border-color: #d9452f;
   background: linear-gradient(145deg, #ffc2a3 0%, #ff7a52 35%, #d63a26 70%, #7d1414 100%);
 }
@@ -2157,11 +2161,8 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .division-elo {
   display: inline-flex; align-items: center; flex: none; white-space: nowrap;
   padding: .05rem .45rem; border-radius: 9999px; font-size: .66rem; font-weight: 800; letter-spacing: .02em;
-  color: var(--tier, var(--ink-2)); border: 1px solid color-mix(in oklab, var(--tier, var(--line)) 55%, transparent);
-  background: color-mix(in oklab, var(--tier, var(--surface-2)) 14%, var(--surface));
 }
 .division-elo[data-size="md"] { font-size: .8rem; padding: .15rem .6rem; }
-.division-elo[data-tier="challenger"] { box-shadow: 0 0 10px color-mix(in oklab, var(--tier-challenger) 45%, transparent); }
 
 /* v0.116 — Liga por divisiones: el aviso de inscripción y las divisiones. */
 .aviso-liga {
@@ -2219,3 +2220,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .grafico-tendencia-leyenda span { display: inline-flex; align-items: center; gap: .3rem; }
 .grafico-tendencia-leyenda i { display: inline-block; width: .8rem; height: .5rem; border-radius: 2px; background: var(--source-global, var(--info)); }
 [data-t="sube"] { color: var(--win); } [data-t="baja"] { color: var(--loss); } [data-t="nuevo"] { color: var(--brand); }
+
+/* v0.122 — la división de Elo con la escalera de minerales de los CP (`cp-rank-*`
+   pone el degradado, el color del texto y el del borde). */
+.division-elo { border-width: 1px; border-style: solid; }

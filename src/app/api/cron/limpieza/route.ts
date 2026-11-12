@@ -1,3 +1,4 @@
+import { importarDesdeLimitless } from "@/lib/importarLimitlessDb";
 import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -61,6 +62,12 @@ export async function GET(req: NextRequest) {
     discord.pendientes = await notificarPendientesLiga();
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
   }
+  // v0.122 — los torneos online de los del grupo (por su nick de Limitless), cada día.
+  let limitless: { mirados: number; nuevos: number; resultados: number } | null = null;
+  try {
+    const r = await importarDesdeLimitless({ dias: 2, maxTorneos: 100 });
+    limitless = { mirados: r.mirados, nuevos: r.nuevos, resultados: r.resultados };
+  } catch { limitless = null; }
   // v0.117 — los posts del foro de Discord de los enfrentamientos de esta semana.
   discord.hilos = await crearHilosLiga(fechaMadrid, 6);
   if (cinturon === "started" || plazoCinturon || borrados.length || cerrados.length || series?.creados || series?.retirados) {
@@ -80,6 +87,7 @@ export async function GET(req: NextRequest) {
     cerrados: cerrados.length, torneosCerrados: cerrados.map((t) => t.name),
     series,
     discord,
+    limitless,
     usoNeon,
     cinturon,
     plazoCinturon: plazoCinturon?.kind ?? null,

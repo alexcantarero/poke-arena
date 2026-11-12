@@ -2,6 +2,40 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.122.0] — 2026-11-12
+
+**Sin migración ni dependencias nuevas.** Cambia el Elo (se recalcula al desplegar).
+
+### Arreglado
+
+- **La importación de torneos online por nick de Limitless casi nunca encontraba nada**: miraba
+  los 25–50 torneos más recientes de TODA la plataforma, que son unas horas. Ahora recorre una
+  ventana de días (3, 7, 14 o 30, paginando la API, torneos de 8 o más jugadores) y, además, el
+  **cron diario** la hace sola con los dos últimos días. Trae también rondas de suizo, top cut y
+  organizador (de los detalles del torneo), y casa el mazo con el catálogo por id de Limitless o,
+  si no, por nombre. Lo apuntado a mano sigue mandando. `lib/importarLimitlessDb.ts`.
+- **El jugar online hundía el Elo**: contra un rival fijo de 1000, por encima de 1000 cada derrota
+  quitaba mucho más de lo que daba cada victoria. Ahora el rival online vale lo que tú (ganar y
+  perder pesan igual) y perder quita ×0,75: jugar online es entrenar y mantiene la forma. Bonus
+  online (16+ jugadores) como una Challenge: 1.º +20, top 4 +10, top 8 +6.
+- **El script de aplicar fallaba**: la carpeta `_v0.121` se quedaba dentro del repo mientras
+  `tsc` verificaba y se compilaban esas copias sueltas. Ahora se borra justo después de copiar.
+- **Números en blanco ilegibles** en las medallas de CP Esmeralda, Diamante, Master y GrandMaster
+  (p. ej. los 160 de un top 32 de Regional): ahora en negro.
+
+### Añadido
+
+- **El script de aplicar hace commit y push** a la rama actual si la verificación y el build
+  pasan, y deja todo en `aplicar-v0.122.log` por si algo falla.
+- **Top Decks → Último torneo**: dos, el último de **300 o más** jugadores (60 días) y el último de
+  **100 a 299** (3 semanas).
+
+### Cambiado
+
+- **Divisiones de Elo con la escalera de minerales de los CP**: Hierro, Bronce, Plata, Oro, Platino,
+  **Esmeralda**, Diamante, Master, GrandMaster (de 100 en 100 desde 1000; Esmeralda 1400, Diamante
+  1500, Master 1600, GrandMaster 1700) y Challenger, con los mismos degradados que las medallas de CP.
+
 ## [0.121.0] — 2026-11-12
 
 **Sin migración ni dependencias nuevas.** Una variable de entorno nueva y opcional:

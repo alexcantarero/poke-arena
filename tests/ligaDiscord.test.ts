@@ -44,5 +44,5 @@ test("enlace al hilo solo con un id de servidor válido", () => {
 test("celebrar al subir: divisiones alcanzadas hasta la actual, Novato no cuenta", () => {
   assert.deepEqual(divisionesAlcanzadas("novato"), []);
   assert.deepEqual(divisionesAlcanzadas("plata"), ["hierro", "bronce", "plata"]);
-  assert.equal(divisionesAlcanzadas("challenger").length, 9);
+  assert.equal(divisionesAlcanzadas("challenger").length, 10); // v0.122: con Esmeralda
 });

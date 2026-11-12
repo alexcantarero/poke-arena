@@ -590,16 +590,19 @@ export type TournamentReport = {
 export async function fetchLastBigTournament(opts: {
   days?: number;
   minPlayers?: number;
+  /** v0.122 — tope de jugadores (para separar «mediano» de «grande»). */
+  maxPlayers?: number;
   format?: string;
   apiKey?: string;
 } = {}): Promise<TournamentReport | null> {
   /* v0.120 — el ÚLTIMO torneo de 100 o más jugadores (antes: el más grande
      de 64+ entre los 50 más recientes, que a menudo no tenía ninguno). Se
      busca paginando en las últimas tres semanas. */
-  const { days = 21, minPlayers = 100, format = "STANDARD", apiKey } = opts;
+  const { days = 21, minPlayers = 100, maxPlayers = Infinity, format = "STANDARD", apiKey } = opts;
 
   try {
     const lista = (await fetchTournamentsDesde({ days, format, apiKey, minPlayers, maxPaginas: 25 }))
+      .filter((t) => (t.players ?? 0) <= maxPlayers)
       // El más reciente; a igualdad de día, el más grande.
       .sort((a, b) => b.date.localeCompare(a.date) || (b.players ?? 0) - (a.players ?? 0));
 

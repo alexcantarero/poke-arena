@@ -46,7 +46,7 @@ test("bonus por puesto, y lo online solo con 16 o más", () => {
   assert.equal(bonoResultado({ kind: "regional" }, 300), 0);
   assert.equal(bonoResultado({ kind: "league_cup" }, 5), 25); // v0.120: top cut de Cup, muy bueno
   assert.equal(bonoResultado({ kind: "league_challenge" }, 5), 0);
-  assert.equal(bonoResultado({ kind: "online", playerCount: 40 }, 1), 15);
+  assert.equal(bonoResultado({ kind: "online", playerCount: 40 }, 1), 20); // v0.122: como una Challenge
   assert.equal(bonoResultado({ kind: "online", playerCount: 12 }, 1), 0);
   assert.equal(bonoResultado({ kind: "regional" }, null), 0);
   // Las tablas van de mejor a peor puesto y de más a menos puntos.
@@ -98,7 +98,7 @@ test("online: un top 4 en un torneo de 64 suma su bonus encima de las rondas", (
     puestos: [{ playerId: "a", placement: 4 }] }]]);
   const sin = eloTable(lista, players, cfg, torneos).rating.a;
   const con = eloTable(lista, players, cfg, conBonus).rating.a;
-  assert.ok(con === sin + 8);
+  assert.ok(con === sin + 10); // v0.122: top 4 online +10
 });
 
 test("la liga interna sigue siendo suma cero entre dos jugadores en la misma fase", () => {
@@ -148,9 +148,10 @@ test("divisiones con los nombres de la web", () => {
   assert.deepEqual(divisionDeElo(1000, { partidas: 30 }), { id: "bronce", sub: "IV", faltan: 100, siguiente: "plata" });
   assert.equal(divisionDeElo(1099, { partidas: 30 }).sub, "I");
   assert.equal(divisionDeElo(1250, { partidas: 30 }).id, "oro");
-  assert.equal(divisionDeElo(1450, { partidas: 30 }).id, "diamante");
-  assert.equal(divisionDeElo(1550, { partidas: 30 }).id, "maestro");
-  assert.equal(divisionDeElo(1800, { partidas: 30 }).id, "granmaestro");
+  assert.equal(divisionDeElo(1450, { partidas: 30 }).id, "esmeralda"); // v0.122: escalera de los CP
+  assert.equal(divisionDeElo(1550, { partidas: 30 }).id, "diamante");
+  assert.equal(divisionDeElo(1650, { partidas: 30 }).id, "master");
+  assert.equal(divisionDeElo(1800, { partidas: 30 }).id, "grandmaster");
   assert.equal(divisionDeElo(1800, { partidas: 30 }).faltan, null);
   assert.equal(divisionDeElo(900, { challenger: true }).id, "challenger");
   assert.equal(divisionDeElo(1300, { partidas: 3 }).id, "novato");
@@ -169,4 +170,19 @@ test("v0.120: en un Regional ganar suma más y perder quita menos; día 2 y réc
   const gana = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "a" })], players, cfg, torneos).history.a[1].delta!;
   const pierde = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "b" })], players, cfg, torneos).history.a[1].delta!;
   assert.ok(gana > Math.abs(pierde) * 4); // rival fuerte + más por ganar + menos por perder
+});
+
+test("v0.122 — EL CASO DE IBAI: online ya no hunde el Elo; ganar y perder pesan igual, perder algo menos", () => {
+  const torneos = new Map([["on", { kind: "online", scope: "online" }]]);
+  const r = (res: string, n: number) => Array.from({ length: n }, (_, i) => m({
+    playerAId: "a", tournamentId: "on", seriesResult: res, date: `2026-10-${String((i % 28) + 1).padStart(2, "0")}`,
+  }));
+  // Partiendo de 1200 (cfg), mitad y mitad: antes bajaba hacia 1000; ahora sube un poco.
+  const alto = { ...cfg, eloStart: 1200 };
+  const lista = [...r("a", 30), ...r("b", 30)].sort((x: any, y: any) => x.date.localeCompare(y.date));
+  const fin = eloTable(lista, players, alto, torneos).rating.a;
+  assert.ok(fin >= 1200, String(fin));
+  const h = eloTable([r("a", 1)[0]], players, alto, torneos).history.a;
+  const hp = eloTable([r("b", 1)[0]], players, alto, torneos).history.a;
+  assert.ok(Math.abs(hp[1].delta!) < h[1].delta!); // perder quita menos que lo que da ganar
 });

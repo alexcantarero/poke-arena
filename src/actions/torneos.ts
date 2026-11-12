@@ -15,8 +15,8 @@ import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { newId, todayISO } from "@/lib/format";
 import { cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
-import { importarTorneos, type FilaClasificacion, type TorneoRemoto } from "@/lib/limitlessImport";
-import { fetchStandings, fetchTournaments } from "@/lib/sources/limitless";
+import { importarDesdeLimitless } from "@/lib/importarLimitlessDb";
+
 import { bestOfDeRonda, familiaDe, maxRondasDe } from "@/lib/estructura";
 import { currentPlayer } from "@/lib/data";
 import { TOURNAMENT_STATUSES } from "@/lib/types";
@@ -752,92 +752,15 @@ export async function limpiarTorneosAbandonados() {
 
 export async function importarTorneosLimitless(fd: FormData) {
   const actor = await requireManager();
-  const cuantos = Math.min(Math.max(1, Number(str(fd, "cuantos")) || 25), 50);
-
-  const jugadores = await db
-    .select({ id: players.id, name: players.name, limitlessHandle: players.limitlessHandle })
-    .from(players)
-    .where(eq(players.active, true));
-
-  if (!jugadores.some((j) => (j.limitlessHandle ?? "").trim())) {
+  // v0.122 — una VENTANA de días (antes: los 25–50 torneos más recientes de
+  // toda la plataforma, unas horas). Ver `lib/importarLimitlessDb.ts`.
+  const dias = Math.min(Math.max(1, Number(str(fd, "dias")) || 7), 30);
+  const r = await importarDesdeLimitless({ dias, maxTorneos: dias > 7 ? 250 : 150, actorId: actor.id });
+  if (!r.mirados && r.sinNick.length && !r.nuevos) {
     redirect(withFlash("/ajustes", "error", await msj("x.58ce5300")));
   }
-
-  const recientes = await fetchTournaments({ limit: cuantos });
-
-  // Las clasificaciones, de una en una y en serie a propósito: son hasta 50
-  // peticiones a una API pública y gratuita, y no hay ninguna prisa.
-  const entradas: Array<{ torneo: TorneoRemoto; clasificacion: FilaClasificacion[] }> = [];
-  for (const t of recientes) {
-    try {
-      entradas.push({ torneo: t, clasificacion: await fetchStandings(t.id) });
-    } catch {
-      // Un torneo que no responde no puede tumbar la importación entera.
-    }
-  }
-
-  const resumen = importarTorneos(entradas, jugadores);
-  if (!resumen.torneos.length) {
-    redirect(withFlash("/ajustes", "ok",
-      `Mirados ${entradas.length} torneos online: en ninguno jugó nadie del grupo.`));
-  }
-
-  // El catálogo, para casar el slug de Limitless con vuestros arquetipos.
-  const catalogo = await db.select().from(archetypes);
-  const porSlug = new Map(catalogo.filter((a) => a.limitlessId).map((a) => [a.limitlessId!, a]));
-
-  let nuevos = 0, actualizados = 0;
-
-  for (const t of resumen.torneos) {
-    const yaEstaba = await db.select({ id: tournaments.id }).from(tournaments)
-      .where(eq(tournaments.id, t.id)).limit(1);
-
-    await db.insert(tournaments).values({
-      id: t.id,
-      name: t.name,
-      kind: "online",
-      scope: "online",
-      format: t.format.toLowerCase() === "standard" ? "standard" : "other",
-      date: t.date,
-      playerCount: t.playerCount,
-      season: seasonOfDate(t.date),
-      status: "closed",
-      url: `https://play.limitlesstcg.com/tournament/${t.remoteId}`,
-      organizer: "Limitless",
-      createdBy: actor.id,
-    }).onConflictDoUpdate({
-      target: tournaments.id,
-      // Solo se refresca lo que puede cambiar en la fuente. El nombre y la
-      // fecha no se tocan por si alguien los corrigió a mano.
-      set: { playerCount: t.playerCount },
-    });
-
-    if (yaEstaba.length) actualizados++; else nuevos++;
-
-    for (const r of t.resultados) {
-      const arch = r.deckSlug ? porSlug.get(r.deckSlug) ?? null : null;
-      await db.insert(tournamentResults).values({
-        id: newId("tr"),
-        tournamentId: t.id,
-        playerId: r.playerId,
-        placement: r.placement,
-        wins: r.wins, losses: r.losses, ties: r.ties,
-        archetypeId: arch?.id ?? null,
-        notes: arch || !r.deckName ? "" : `Mazo en Limitless: ${r.deckName}`,
-      }).onConflictDoNothing({
-        // `DoNothing` y no `DoUpdate`: si ya hay un resultado es porque
-        // alguien lo apuntó o lo corrigió, y lo tecleado manda sobre lo
-        // importado. Siempre.
-        target: [tournamentResults.tournamentId, tournamentResults.playerId],
-      });
-    }
-  }
-
   revalidatePath("/", "layout");
-
-  const pendientes = resumen.sinNick.length
-    ? ` Sin nick y por tanto sin buscar: ${resumen.sinNick.join(", ")}.`
-    : "";
+  const pendientes = r.sinNick.length ? ` Sin nick y por tanto sin buscar: ${r.sinNick.join(", ")}.` : "";
   redirect(withFlash("/ajustes", "ok",
-    `${nuevos} torneo(s) nuevo(s) y ${actualizados} ya conocido(s), de ${entradas.length} mirados.${pendientes}`));
+    `${r.mirados} torneos online mirados (${dias} días): ${r.nuevos} nuevo(s), ${r.actualizados} ya conocido(s), ${r.resultados} resultado(s) nuevo(s).${pendientes}`));
 }

@@ -266,7 +266,7 @@ export const ELO_RIVAL: Record<string, { suizo: number; corte: number }> = {
      sin castigar demasiado (un récord positivo sigue sumando).
    · Challenge, tienda y online: equilibrado. */
 export const ELO_GANA_PIERDE: Record<string, { gana: number; pierde: number }> = {
-  online: { gana: 1, pierde: 1 },
+  online: { gana: 1, pierde: 0.75 }, // v0.122: como entrenar; perder quita menos
   league_challenge: { gana: 1, pierde: 1 },
   store: { gana: 1, pierde: 1 },
   other: { gana: 1, pierde: 1 },
@@ -289,7 +289,7 @@ export const BONUS_DIA_DOS: Record<string, { diaDos: number; positivo: number }>
 
 /** v0.115 — bonus por puesto: [puesto máximo, puntos], de mejor a peor. */
 export const BONUS_RESULTADO: Record<string, Array<[number, number]>> = {
-  online: [[1, 15], [8, 8]],
+  online: [[1, 20], [4, 10], [8, 6]], // v0.122: un gran resultado online vale como una Challenge
   league_challenge: [[1, 20], [4, 10]],
   store: [[1, 20], [4, 10]],
   other: [[1, 20], [4, 10]],
@@ -456,8 +456,15 @@ export function eloTable(
       // Ronda de torneo: solo se mueve quien la apuntó. Rival del grupo: su
       // Elo real; de fuera: el de referencia del evento y la fase (v0.115).
       const corte = tour?.suizo != null && tour.suizo > 0 && m.round > tour.suizo;
+      /* v0.122 — online, el rival de fuera vale lo que TÚ: contra un 1000 fijo,
+         con más de 1000 cada derrota quitaba mucho más de lo que daba cada
+         victoria y jugar mucho online hundía el Elo. Así ganar y perder pesan
+         igual (y perder, además, ×0,75): jugar online es entrenar y mantiene
+         la forma, y con un récord decente suma poco a poco. */
+      const esOnline = claveEvento(tour) === "online";
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
-        ? rating[m.opponentPlayerId] : rivalReferencia(tour, corte);
+        ? rating[m.opponentPlayerId]
+        : esOnline ? rating[m.playerAId] + (corte ? 50 : 0) : rivalReferencia(tour, corte);
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
       // v0.120 — ganar y perder pesan distinto según el evento (ver ELO_GANA_PIERDE).
       const gp = ELO_GANA_PIERDE[claveEvento(tour)] ?? ELO_GANA_PIERDE.other;

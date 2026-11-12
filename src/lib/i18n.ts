@@ -2410,8 +2410,9 @@ const ES = {
   "v115.div.oro": "Oro",
   "v115.div.platino": "Platino",
   "v115.div.diamante": "Diamante",
-  "v115.div.maestro": "Maestro",
-  "v115.div.granmaestro": "Gran Maestro",
+  "v115.div.esmeralda": "Esmeralda",
+  "v115.div.master": "Master",
+  "v115.div.grandmaster": "GrandMaster",
   "v115.div.challenger": "Challenger",
   "v115.div.faltan": "Faltan {n} de forma para {d}",
   "v115.div.novatoAyuda": "Menos de 10 partidas: Elo provisional",
@@ -2488,8 +2489,8 @@ const ES = {
   "v120.discordTitulo": "Únete al Discord de la liga",
   "v120.discordTexto": "Ahí se queda cada enfrentamiento (fecha y hora) y salen los avisos de jornadas y resultados.",
   "v120.discordBoton": "Unirme al Discord",
-  "v120.eventoSub": "El último torneo online de 100 o más jugadores de Limitless.",
-  "v120.eventoComo": "Se busca el torneo online más reciente de 100 o más jugadores de las últimas tres semanas. La respuesta de Limitless se guarda 6 horas: cambia como mucho cada 6 h, cuando termina uno nuevo.",
+  "v120.eventoSub": "Los últimos torneos online grandes de Limitless: el último de 300 o más jugadores y el último de 100 a 299.",
+  "v120.eventoComo": "Cómo se actualiza: al abrir esta pestaña se pregunta a Limitless por el torneo online más reciente de 300 o más jugadores (últimos 60 días) y por el más reciente de 100 a 299 (últimas 3 semanas). La respuesta se guarda 6 horas: cambia como mucho cada 6 h, en cuanto termina uno nuevo. No hay que hacer nada.",
   "v120.tabCity": "City Leagues",
   "v120.tabEvento": "Último torneo",
   "v120.tendTitulo": "Cuota: hace dos meses {a} · el mes pasado {b} · este mes {c}",
@@ -2519,6 +2520,12 @@ const ES = {
   "v121.tendNota": "De cada mes, los torneos online más grandes de Limitless. La lista completa, con la tendencia de cada mazo, en",
   "v121.verTopDecks": "Top Decks.",
   "v121.tendSinDatos": "No se ha podido leer la tendencia del meta online ahora mismo (Limitless no responde). Se vuelve a intentar en la próxima carga.",
+  // v0.122
+  "v122.grande": "Último gran torneo · 300 o más jugadores",
+  "v122.mediano": "Último torneo · de 100 a 299 jugadores",
+  "v122.limDias": "Buscar en los últimos",
+  "v122.limDiasN": "{n} días",
+  "v122.limAyuda": "Recorre todos los torneos online de Limitless de esos días (de 8 o más jugadores) y busca a cada uno por su nick. Además, el cron lo hace solo cada día con los dos últimos días, así que normalmente no hace falta pulsarlo; úsalo para recuperar semanas pasadas.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -4903,8 +4910,9 @@ const EN: Record<I18nKey, string> = {
   "v115.div.oro": "Gold",
   "v115.div.platino": "Platinum",
   "v115.div.diamante": "Diamond",
-  "v115.div.maestro": "Master",
-  "v115.div.granmaestro": "Grandmaster",
+  "v115.div.esmeralda": "Emerald",
+  "v115.div.master": "Master",
+  "v115.div.grandmaster": "GrandMaster",
   "v115.div.challenger": "Challenger",
   "v115.div.faltan": "{n} form to {d}",
   "v115.div.novatoAyuda": "Fewer than 10 matches: provisional Elo",
@@ -4981,8 +4989,8 @@ const EN: Record<I18nKey, string> = {
   "v120.discordTitulo": "Join the league Discord",
   "v120.discordTexto": "That's where each match is arranged (date and time) and where round and result notices go.",
   "v120.discordBoton": "Join Discord",
-  "v120.eventoSub": "The latest Limitless online tournament with 100+ players.",
-  "v120.eventoComo": "It looks for the most recent online tournament with 100 or more players in the last three weeks. Limitless's answer is cached for 6 hours: it changes at most every 6 h, when a new one finishes.",
+  "v120.eventoSub": "The latest big Limitless online events: the last one with 300+ players and the last one with 100–299.",
+  "v120.eventoComo": "How it updates: opening this tab asks Limitless for the most recent online event with 300+ players (last 60 days) and with 100–299 (last 3 weeks). The answer is cached for 6 hours: it changes at most every 6 h, as soon as a new one ends. Nothing to do by hand.",
   "v120.tabCity": "City Leagues",
   "v120.tabEvento": "Latest event",
   "v120.tendTitulo": "Share: two months ago {a} · last month {b} · this month {c}",
@@ -5012,6 +5020,12 @@ const EN: Record<I18nKey, string> = {
   "v121.tendNota": "Each month, the largest Limitless online events. The full list, with each deck's trend, is in",
   "v121.verTopDecks": "Top Decks.",
   "v121.tendSinDatos": "Couldn't read the online meta trend right now (Limitless isn't answering). It will retry on the next load.",
+  // v0.122
+  "v122.grande": "Latest major event · 300+ players",
+  "v122.mediano": "Latest event · 100–299 players",
+  "v122.limDias": "Search the last",
+  "v122.limDiasN": "{n} days",
+  "v122.limAyuda": "Goes through every Limitless online tournament in those days (8+ players) and looks for each player by their username. The daily cron also does it for the last two days, so you rarely need to press it; use it to recover past weeks.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

@@ -25,7 +25,7 @@ import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { MotionToggle } from "@/components/MotionToggle";
 import { ServiceWorkerOff } from "@/components/ServiceWorkerOff";
-import { type Lang, tr } from "@/lib/i18n";
+import { type Lang, tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { estadoDiscord } from "@/lib/discord";
 import { probarDiscord } from "@/actions/ajustes";
@@ -350,13 +350,14 @@ export default async function SettingsPage() {
             <p className="mb-3 text-xs text-muted">
               {tr(lng, "x.b2e8a5e3")}
             </p>
+            <p className="mb-3 text-xs text-muted">{tr(lng, "v122.limAyuda")}</p>
             <form action={importarTorneosLimitless} className="flex flex-wrap items-end gap-2">
+              {/* v0.122 — una ventana de días, no «los N más recientes» (que eran unas horas). */}
               <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted">{tr(lng, "x.f21ae80f")}</span>
-                <input
-                  className="input w-24 text-center tabular" type="number" name="cuantos"
-                  min={1} max={50} defaultValue={25} inputMode="numeric"
-                />
+                <span className="text-[11px] text-muted">{tr(lng, "v122.limDias")}</span>
+                <select className="input w-32" name="dias" defaultValue="7">
+                  {[3, 7, 14, 30].map((d) => <option key={d} value={d}>{trf(lng, "v122.limDiasN", { n: d })}</option>)}
+                </select>
               </label>
               <button className="btn btn-brand" type="submit">
                 <Icon name="refresh" className="size-4" /> {tr(lng, "x.0baa275c")}

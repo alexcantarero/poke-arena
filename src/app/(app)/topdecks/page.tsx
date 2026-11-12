@@ -96,13 +96,22 @@ export default async function TopDecksPage({
 
   /* ------------------------------------------------------- último torneo */
   if (evento) {
-    const informe = await fetchLastBigTournament({ format: formato, apiKey: process.env.LIMITLESS_API_KEY });
+    /* v0.122 — dos: el último de 100 a 299 jugadores (el «semanal grande») y el
+       último de 300 o más (los grandes de verdad, más raros: se miran 60 días). */
+    const apiKey = process.env.LIMITLESS_API_KEY;
+    const [mediano, grande] = await Promise.all([
+      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 100, maxPlayers: 299, days: 21 }),
+      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 300, days: 60 }),
+    ]);
     return (
       <>
         <PageHead title="Top Decks" sub={tr(lng, "v120.eventoSub")} back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }} />
         <FormatoActual lang={lng} className="mb-4" />
         {pestanas}
-        <LastEvent report={informe} />
+        <h2 className="mb-2 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "v122.grande")}</h2>
+        <LastEvent report={grande} />
+        <h2 className="mb-2 mt-8 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "v122.mediano")}</h2>
+        <LastEvent report={mediano} />
         <p className="mt-3 text-xs text-muted">{tr(lng, "v120.eventoComo")}</p>
       </>
     );
