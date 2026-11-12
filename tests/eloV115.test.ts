@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   BONUS_RESULTADO, ELO_PESOS, ELO_PROVISIONAL, bonoResultado, claveEvento, eloTable, rivalReferencia,
 } from "../src/lib/stats.ts";
-import { formaDe } from "../src/lib/forma.ts";
+import { formaDe, penalizacionInactividad } from "../src/lib/forma.ts";
 import { divisionDeElo } from "../src/lib/divisionElo.ts";
 
 const base = {
@@ -33,10 +33,10 @@ test("clave del evento: online manda sobre el tipo y los alias de Pokémon Cup/C
 
 test("rival de referencia: más fuerte en eventos grandes y en el top cut", () => {
   assert.equal(rivalReferencia({ kind: "league_challenge" }, false), 1000);
-  assert.equal(rivalReferencia({ kind: "league_cup" }, false), 1100);
-  assert.equal(rivalReferencia({ kind: "league_cup" }, true), 1200);
-  assert.equal(rivalReferencia({ kind: "regional" }, true), 1400);
-  assert.equal(rivalReferencia({ kind: "worlds" }, false), 1450);
+  assert.equal(rivalReferencia({ kind: "league_cup" }, false), 1050); // v0.120
+  assert.equal(rivalReferencia({ kind: "league_cup" }, true), 1150);
+  assert.equal(rivalReferencia({ kind: "regional" }, true), 1450);
+  assert.equal(rivalReferencia({ kind: "worlds" }, false), 1500);
   assert.equal(rivalReferencia({ kind: "regional", scope: "online" }, true), 1000);
 });
 
@@ -44,7 +44,7 @@ test("bonus por puesto, y lo online solo con 16 o más", () => {
   assert.equal(bonoResultado({ kind: "regional" }, 1), 150);
   assert.equal(bonoResultado({ kind: "regional" }, 20), 60);
   assert.equal(bonoResultado({ kind: "regional" }, 300), 0);
-  assert.equal(bonoResultado({ kind: "league_cup" }, 5), 15);
+  assert.equal(bonoResultado({ kind: "league_cup" }, 5), 25); // v0.120: top cut de Cup, muy bueno
   assert.equal(bonoResultado({ kind: "league_challenge" }, 5), 0);
   assert.equal(bonoResultado({ kind: "online", playerCount: 40 }, 1), 15);
   assert.equal(bonoResultado({ kind: "online", playerCount: 12 }, 1), 0);
@@ -63,7 +63,7 @@ test("el bonus entra en la fecha del torneo, después de sus rondas, y sale en e
   const r = eloTable([m({ playerAId: "a", tournamentId: "cup", seriesResult: "a" })], players, cfg, torneos);
   const h = r.history.a;
   assert.equal(h[h.length - 1].bonus, true);
-  assert.equal(h[h.length - 1].delta, 40);
+  assert.equal(h[h.length - 1].delta, 60); // v0.120
   assert.equal(r.rating.b, 1000); // 9.º en una Cup: sin bonus
   assert.ok(r.rating.a > 1040);
 });
@@ -118,15 +118,21 @@ test("forma: 30 partidas recientes y jugando ayer = el Elo tal cual", () => {
 });
 
 test("forma: pocas partidas restan en proporción", () => {
-  const f = formaDe(1100, Array.from({ length: 15 }, () => "2026-11-01"), "2026-11-09");
+  const f = formaDe(1100, Array.from({ length: 15 }, () => "2026-11-08"), "2026-11-09");
   assert.equal(f.penPocas, 50);
   assert.equal(f.forma, 1050);
 });
 
-test("forma: tras 21 días sin jugar, 5 por día hasta 150", () => {
+test("forma (v0.120): a la semana empieza a bajar, poco a poco, hasta 150", () => {
+  assert.equal(penalizacionInactividad(7), 0);
+  assert.equal(penalizacionInactividad(8), 1);
+  assert.equal(penalizacionInactividad(14), 7);
+  assert.equal(penalizacionInactividad(21), 21);
+  assert.equal(penalizacionInactividad(22), 25);
+  assert.equal(penalizacionInactividad(400), 150);
   const a = formaDe(1200, Array.from({ length: 40 }, () => "2026-10-09"), "2026-11-09"); // 31 días
   assert.equal(a.diasSinJugar, 31);
-  assert.equal(a.penInactividad, 50);
+  assert.equal(a.penInactividad, 61);
   const b = formaDe(1200, ["2026-01-01"], "2026-11-09");
   assert.equal(b.penInactividad, 150);
   assert.equal(b.penPocas, 100);
@@ -148,4 +154,19 @@ test("divisiones con los nombres de la web", () => {
   assert.equal(divisionDeElo(1800, { partidas: 30 }).faltan, null);
   assert.equal(divisionDeElo(900, { challenger: true }).id, "challenger");
   assert.equal(divisionDeElo(1300, { partidas: 3 }).id, "novato");
+});
+
+test("v0.120: en un Regional ganar suma más y perder quita menos; día 2 y récord positivo dan bonus", async () => {
+  const { bonoTorneo, ELO_GANA_PIERDE } = await import("../src/lib/stats.ts");
+  assert.ok(ELO_GANA_PIERDE.regional.gana > 1 && ELO_GANA_PIERDE.regional.pierde < 1);
+  assert.ok(ELO_GANA_PIERDE.league_cup.gana < 1 && ELO_GANA_PIERDE.league_cup.pierde > 1);
+  assert.deepEqual(ELO_GANA_PIERDE.league_challenge, { gana: 1, pierde: 1 });
+  assert.equal(bonoTorneo({ kind: "regional" }, { placement: 200, diaDos: true }), 20 + 60);
+  assert.equal(bonoTorneo({ kind: "regional" }, { placement: 900, diaDos: false, positivo: true }), 25);
+  assert.equal(bonoTorneo({ kind: "league_cup" }, { placement: 12, positivo: true }), 10);
+  assert.equal(bonoTorneo({ kind: "league_challenge" }, { placement: 1, positivo: true }), 20);
+  const torneos = new Map([["reg", { kind: "regional", suizo: 9 }]]);
+  const gana = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "a" })], players, cfg, torneos).history.a[1].delta!;
+  const pierde = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "b" })], players, cfg, torneos).history.a[1].delta!;
+  assert.ok(gana > Math.abs(pierde) * 4); // rival fuerte + más por ganar + menos por perder
 });

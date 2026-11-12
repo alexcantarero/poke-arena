@@ -38,6 +38,8 @@ const P: Record<string, string> = {
   alert: "M12 3 2 20h20zM12 9v5m0 3h.01",
   // Añadidos en la v0.7.0, para la pantalla de estadísticas y el buscador de
   // cartas. Mismo trazo y misma rejilla de 24 que el resto.
+  // v0.120 — un pin de mapa (City Leagues).
+  pin: "M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11ZM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
   globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z",
   database: "M12 7c4.4 0 8-1.1 8-2.5S16.4 2 12 2 4 3.1 4 4.5 7.6 7 12 7ZM4 4.5v15C4 20.9 7.6 22 12 22s8-1.1 8-2.5v-15M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5",
   compare: "M12 3v18M7 7 3 11l4 4M17 17l4-4-4-4",

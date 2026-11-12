@@ -566,7 +566,7 @@ export default async function ProfilePage({
           pone a mano. Mezclarlos invitaba a confundir el Elo de la liga con el
           rango, que es el primer malentendido que iba a haber. */}
       <SectionTitle aside={tr(lng, "x.e51af110")}>{tr(lng, "x.65c72323")}</SectionTitle>
-      <div className="card mb-6 p-4" data-paso="perfilGuia-7">
+      <div id="ladder" className="card mb-6 scroll-mt-24 p-4" data-paso="perfilGuia-7">
         {canEditLadder ? (
           <div className="flex flex-col gap-4">
             <LadderEditor

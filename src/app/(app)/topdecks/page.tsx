@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitless";
+import { fetchLastBigTournament, fetchMetaConTendencia, fetchMetaSnapshot, top4Rate, type MetaRow } from "@/lib/sources/limitless";
+import { LastEvent } from "@/components/statistics/LastEvent";
+import { TendenciaCuota } from "@/components/TendenciaCuota";
 import { loadMetaIrl, loadArchetypes } from "@/lib/data";
 import { irlMeta } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
@@ -71,7 +73,12 @@ export default async function TopDecksPage({
   const q = await searchParams;
   const formato = FORMATOS.some((f) => f.value === q.formato) ? q.formato! : "STANDARD";
   const dias = VENTANAS.some((v) => v.value === q.dias) ? Number(q.dias) : 30;
-  const presencial = q.fuente === "presencial";
+  /* v0.120 — Top Decks reúne TODOS los mazos de fuera: online, Regionales,
+     City Leagues y el último torneo online grande (antes, los tres últimos
+     estaban en Estadísticas, que se queda con estadísticas y gráficos). */
+  const city = q.fuente === "city";
+  const presencial = q.fuente === "presencial" || city;
+  const evento = q.fuente === "evento";
   const query = (q.q ?? "").trim();
   const needle = query.toLowerCase();
 
@@ -85,14 +92,28 @@ export default async function TopDecksPage({
   const nuestros = new Set(archetypes.map((a) => norm(a.name)));
 
   // v0.40 — las tres pestañas, compartidas con /mazos (ver MetaTabs).
-  const pestanas = <MetaTabs actual={presencial ? "presencial" : "online"} query={query} />;
+  const pestanas = <MetaTabs actual={city ? "city" : presencial ? "presencial" : evento ? "evento" : "online"} query={query} />;
+
+  /* ------------------------------------------------------- último torneo */
+  if (evento) {
+    const informe = await fetchLastBigTournament({ format: formato, apiKey: process.env.LIMITLESS_API_KEY });
+    return (
+      <>
+        <PageHead title="Top Decks" sub={tr(lng, "v120.eventoSub")} back={{ href: "/mas", label: tr(lng, "x.e4f75d52") }} />
+        <FormatoActual lang={lng} className="mb-4" />
+        {pestanas}
+        <LastEvent report={informe} />
+        <p className="mt-3 text-xs text-muted">{tr(lng, "v120.eventoComo")}</p>
+      </>
+    );
+  }
 
   /* ------------------------------------------------------------ presencial */
   if (presencial) {
     const todo = await loadMetaIrl();
     // v0.14: las City Leagues van aparte (formato japonés, por delante del
     // internacional): mezclarlas aquí movería las cuotas del meta de papel.
-    const events = todo.events.filter((e) => e.kind !== "city_league");
+    const events = todo.events.filter((e) => (city ? e.kind === "city_league" : e.kind !== "city_league"));
     const vivos = new Set(events.map((e) => e.id));
     const entries = todo.entries.filter((r) => vivos.has(r.eventId));
     // Nombre distinto del `meta` de la vista online, aunque estén en bloques
@@ -121,7 +142,7 @@ export default async function TopDecksPage({
         <FormatoActual lang={lng} className="mb-4" />
         {pestanas}
         <form action="/topdecks" method="get" className="mb-4 flex gap-2">
-          {presencial && <input type="hidden" name="fuente" value="presencial" />}
+          {presencial && <input type="hidden" name="fuente" value={city ? "city" : "presencial"} />}
           {formato !== "STANDARD" && <input type="hidden" name="formato" value={formato} />}
           {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
           <input
@@ -146,15 +167,18 @@ export default async function TopDecksPage({
   /* ---------------------------------------------------------------- online */
 
   let meta: Awaited<ReturnType<typeof fetchMetaSnapshot>> | null = null;
+  // v0.120 — cuota de cada mazo este mes, el pasado y el anterior.
+  let tendencia: Record<string, Array<number | null>> = {};
   let error: string | null = null;
   try {
-    meta = await fetchMetaSnapshot({
+    const r = await fetchMetaConTendencia({
       days: dias,
-      limit: 100,
       minPlayers: 16,
       format: formato,
       apiKey: process.env.LIMITLESS_API_KEY,
     });
+    meta = r.snapshot;
+    tendencia = r.tendencia;
   } catch (e) {
     error = e instanceof Error ? e.message : tr(lng, "x.e95fcee8");
   }
@@ -182,7 +206,7 @@ export default async function TopDecksPage({
       <FormatoActual lang={lng} className="mb-4" />
       {pestanas}
         <form action="/topdecks" method="get" className="mb-4 flex gap-2">
-          {presencial && <input type="hidden" name="fuente" value="presencial" />}
+          {presencial && <input type="hidden" name="fuente" value={city ? "city" : "presencial"} />}
           {formato !== "STANDARD" && <input type="hidden" name="formato" value={formato} />}
           {dias !== 30 && <input type="hidden" name="dias" value={dias} />}
           <input
@@ -308,6 +332,8 @@ export default async function TopDecksPage({
                       </span>
                       <span className="block text-[10px] text-muted">{tr(lng, "x.cdd02ce6")}</span>
                     </span>
+                    {/* v0.120 — la cuota de los tres últimos meses. */}
+                    <TendenciaCuota serie={tendencia[r.identifier] ?? [r.share, null, null]} lang={lng} />
                     <span className="w-12">
                       <span className="block font-display text-base font-extrabold tabular"
                         style={{ color: wrColor(r.winRate) }}>

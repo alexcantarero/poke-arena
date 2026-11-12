@@ -2,6 +2,49 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.120.0] — 2026-11-09
+
+**Sin migración ni dependencias nuevas.** Cambia el cálculo del Elo y de la Forma: se recalculan
+desde la primera partida al desplegar.
+
+### Arreglado
+
+- **El filtro de días del meta online no hacía nada**: se pedían los 100 torneos más recientes de
+  Limitless (3–4 días) y luego se filtraba por fecha, así que 14, 30 y 90 días daban casi lo mismo.
+  Ahora se pagina la API (parámetro `page`, documentado) hasta cubrir la ventana y se usan los
+  torneos más grandes de cada periodo.
+
+### Añadido
+
+- **Tendencia de cuota** en Top Decks: cuota de cada mazo este mes, el pasado y el anterior, con
+  barritas y flecha (sube / baja / estable / nuevo). `lib/metaTendencia.ts` (4 pruebas).
+- **Top Decks reúne todos los mazos de fuera**: pestañas Online, Presencial, City Leagues y Último
+  torneo (+ Mazos). Estadísticas se queda con Jugadores de la app, Online y PTCG Live; los enlaces
+  viejos redirigen.
+- **Último torneo online**: ahora el más reciente de 100 o más jugadores (3 semanas), no el más
+  grande de 64+ entre los 50 últimos.
+- **Recordatorios**: el nick de Limitless (importante, «Más tarde» lo calla un día) y, una vez por
+  semana, actualizar el rango del ladder. `lib/recordatorios.ts` (2 pruebas).
+- **Liga por divisiones**: al apuntarte sale la invitación al Discord de la liga.
+- **Evolución del Elo**: atajos Yo / Top 5 / Todos / Ninguno, cada persona con su puesto y su cifra,
+  y a partir de 8 el resto plegado en «+N más».
+
+### Cambiado
+
+- **Elo**: ganar y perder pesan distinto según el evento. Regional ×1,2 / ×0,6, Internacional
+  ×1,25 / ×0,55, Mundial ×1,3 / ×0,5; Cup ×0,9 / ×1,1; Challenge, tienda y online equilibrados.
+  Rival de referencia de Cup 1050 (1150 en corte), Regional 1300 (1450), Internacional 1400 (1550),
+  Mundial 1500 (1650). **Bonus de día 2** (Regional +60, Internacional +80, Mundial +100) o, si no,
+  de récord positivo (+25 / +30 / +40; Cup +10). Top cut de Cup: 1.º +60, top 4 +40, top 8 +25.
+- **Forma**: la inactividad empieza a la semana y crece poco a poco (−1/día la 2.ª semana, −2 la
+  3.ª, −4 desde entonces, hasta −150). Antes: 21 días de gracia y −5/día.
+- **Menú**: el Torneo del Cinturón se entra desde Torneos y la Liga por divisiones desde Liga (con
+  su estado), en vez de tener entrada propia.
+- **Pegar torneos del localizador oficial**: nombre limpio («12/11 Porygon's Cup - Pokémon TCG
+  League Challenge» → «Porygon's Cup»), sede con calle, CP, ciudad y provincia, ciudad y país, hora y
+  la línea original en las notas. No se duplica un torneo con el mismo día y tipo y el mismo nombre
+  **o la misma dirección**. `tests/eventosLocalizador.test.ts` (3 pruebas).
+
 ## [0.117.0] — 2026-11-09
 
 **Con migración** (`drizzle/0034_v0_117_0.sql`: tabla `discord_hilos`). Dos variables de entorno

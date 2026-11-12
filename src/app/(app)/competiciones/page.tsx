@@ -9,13 +9,15 @@ import { Empty, PageHead, PlayerTag, Record } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { TarjetaAcceso } from "@/components/TarjetaAcceso";
+import { cargarLiga } from "@/lib/ligaTemporadaDb";
 
 export const metadata = { title: "Liga" };
 
 export default async function CompetitionsPage() {
   const lng = await getLang(); // v0.49
 
-  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
+  const [snap, me, liga] = await Promise.all([loadSnapshot(), currentPlayer(), cargarLiga()]);
   const played = snap.matches.filter(isPlayed);
   const manager = me ? canManageLeague(me.role) : false;
 
@@ -25,6 +27,12 @@ export default async function CompetitionsPage() {
         title={tr(lng, "x.942efd43")}
         sub={tr(lng, "x.748f9484")}
       />
+      {/* v0.120 — la liga por divisiones es otro tipo de competición, aparte de las ligas de siempre. */}
+      <TarjetaAcceso href="/divisiones" titulo={tr(lng, "v116.titulo")} texto={tr(lng, "v120.divisionesTexto")}
+        accion={tr(lng, "v120.ver")}
+        estado={liga && !("error" in liga) && liga.temporada
+          ? `${liga.temporada.nombre} · ${tr(lng, liga.temporada.estado === "inscripcion" ? "v120.estInscripcion" : "v120.estEnCurso")}`
+          : null} />
 
       {/* v0.25: sin gráfica de Elo en la Liga (queda en el Ranking). */}
 

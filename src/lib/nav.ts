@@ -52,10 +52,11 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "nav.group.compete",
     title: "Competir",
     items: [
-      { href: "/cinturon", label: "Torneo del Cinturón", icon: "trophy" },
+      // v0.120 — el Cinturón se entra desde Torneos y la liga por divisiones desde Liga.
+      { href: "/cinturon", label: "Torneo del Cinturón", icon: "trophy", oculto: true },
       { href: "/torneos", label: "Torneos", icon: "trophy", sprite: "objeto:vs-seeker" },
       // v0.116 — la liga por divisiones (temporadas, inscripción y sorteo).
-      { href: "/divisiones", label: "Liga por divisiones", icon: "league", sprite: "objeto:exp-share" },
+      { href: "/divisiones", label: "Liga por divisiones", icon: "league", sprite: "objeto:exp-share", oculto: true },
       { href: "/competiciones", label: "Liga", icon: "league", sprite: "objeto:shiny-charm" },
       { href: "/resultados", label: "Resultados", icon: "results", sprite: "objeto:rare-candy" },
       // Beta: se conserva la herramienta, pero se oculta de la navegación.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, Globe, Landmark, MapPin, Trophy } from "lucide-react";
+import { Database, Globe } from "lucide-react";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
@@ -14,22 +14,14 @@ import { getLang } from "@/lib/lang";
    que instala su CLI, así que ya viene con el resto.
    ========================================================================= */
 
+/* v0.120 — Regionales, City Leagues y el último torneo online se mudan a
+   Top Decks: aquí solo vuestras estadísticas, las del meta online y PTCG Live. */
 const OPCIONES = [
   {
     value: "local" as const,
     // v0.14: el nombre dice lo que es — solo lo que habéis jugado vosotros.
     label: "Jugadores de la app",
     Icon: Database,
-  },
-  {
-    value: "regionales" as const,
-    label: "Regionales",
-    Icon: Landmark,
-  },
-  {
-    value: "city" as const,
-    label: "City Leagues",
-    Icon: MapPin,
   },
   {
     value: "global" as const,
@@ -42,11 +34,6 @@ const OPCIONES = [
     value: "live" as const,
     label: "PTCG Live",
     Icon: Database,
-  },
-  {
-    value: "evento" as const,
-    label: "Último torneo online",
-    Icon: Trophy,
   },
 ];
 

@@ -31,6 +31,7 @@ import { LogroAviso } from "@/components/LogroAviso";
 import { CelebrarBall } from "@/components/CelebrarBall";
 import { AvisoVersion } from "@/components/AvisoVersion";
 import { AvisoLiga } from "@/components/AvisoLiga";
+import { AvisosJugador } from "@/components/AvisosJugador";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
@@ -192,6 +193,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <LideresMargen />
         <main className="mx-auto w-full max-w-5xl px-3 xl:max-w-6xl 2xl:max-w-7xl pb-nav-safe pt-3 xs:px-4 xs:pt-4 sm:px-6 md:pb-10 md:pt-6">
           {avisoLiga && <AvisoLiga id={avisoLiga.id} nombre={avisoLiga.nombre} />}
+          {/* v0.120 — nick de Limitless (importante) y rango del ladder (semanal). */}
+          <AvisosJugador playerId={me.id} nick={me.limitlessHandle ?? null}
+            ladderActualizado={me.ladderEloUpdatedAt ? new Date(me.ladderEloUpdatedAt).toISOString() : null} />
           {children}
         </main>
       </div>

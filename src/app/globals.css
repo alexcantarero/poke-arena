@@ -2181,3 +2181,29 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 [data-mov="sube"] .liga-mov { color: var(--win); background: color-mix(in oklab, var(--win) 15%, transparent); }
 [data-mov="baja"] .liga-mov { color: var(--loss); background: color-mix(in oklab, var(--loss) 15%, transparent); }
 [data-mov="campeon"] .liga-mov { color: var(--brand); background: color-mix(in oklab, var(--brand) 18%, transparent); }
+
+/* v0.120 — tendencia de la cuota (Top Decks): tres barritas y una flecha. */
+.tendencia { align-items: center; gap: .3rem; flex: none; }
+.tendencia-barras { display: inline-flex; align-items: flex-end; gap: 2px; height: 1.6rem; }
+.tendencia-barras > span { width: .4rem; border-radius: 2px 2px 0 0; background: color-mix(in oklab, var(--source-global, var(--info)) 45%, transparent); }
+.tendencia-barras > span:last-child { background: var(--source-global, var(--info)); }
+.tendencia-barras > span[data-vacio] { background: var(--line); }
+.tendencia-flecha { width: .9rem; font-size: .7rem; text-align: center; color: var(--muted); }
+.tendencia[data-t="sube"] .tendencia-flecha { color: var(--win); }
+.tendencia[data-t="baja"] .tendencia-flecha { color: var(--loss); }
+.tendencia[data-t="nuevo"] .tendencia-flecha { color: var(--brand); }
+
+/* v0.120 — tarjeta-enlace a una sección fuera del menú (Cinturón, Liga por divisiones). */
+.tarjeta-acceso { display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem; text-decoration: none;
+  border-color: color-mix(in oklab, var(--brand) 40%, var(--line)); }
+.tarjeta-acceso:hover { border-color: var(--brand); }
+.aviso-discord { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem;
+  border-color: color-mix(in oklab, #5865f2 55%, var(--line));
+  background: linear-gradient(100deg, color-mix(in oklab, #5865f2 16%, var(--surface)), var(--surface)); }
+/* v0.120 — recordatorios al jugador (nick de Limitless, rango del ladder). */
+.aviso-jugador { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; padding: .55rem .75rem; border-radius: .9rem;
+  border: 1px solid var(--line); background: var(--surface); }
+.aviso-jugador[data-tono="importante"] { border-color: color-mix(in oklab, var(--loss) 55%, var(--line));
+  background: linear-gradient(100deg, color-mix(in oklab, var(--loss) 14%, var(--surface)), var(--surface)); }
+.aviso-jugador-texto { flex: 1 1 14rem; min-width: 0; font-size: .85rem; color: var(--ink-2); }
+.aviso-jugador-texto b { color: var(--ink); }

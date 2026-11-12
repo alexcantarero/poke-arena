@@ -19,7 +19,7 @@ import type {
 } from "./types";
 import { deckArchetypeIndex, eloTable, isPlayed, standings, type TorneoElo } from "./stats";
 import { formaDe, type Forma } from "./forma";
-import { formaDe as estructuraDe } from "./estructura";
+import { formaDe as estructuraDe, pasaDiaDos, umbralesDe } from "./estructura";
 import { todayISO } from "./format";
 import { filasAPedir, planDeConsulta, TOPE_SIN_PAGINAR, type FiltroConsultable, type PlanDeConsulta } from "./matchQuery";
 import { awardsCp, computeCp, cpKindOf, seasonOfDate, type CpResultInput, type CpTotals } from "./cp";
@@ -268,7 +268,15 @@ export const loadSnapshot = cache(async () => {
     return [t.id, {
       kind: t.kind, scope: t.scope, suizo, playerCount: t.playerCount,
       fecha: t.endDate ?? t.date,
-      puestos: t.results.map((r) => ({ playerId: r.playerId, placement: r.placement })),
+      // v0.120 — día 2 (con la estructura oficial y la asistencia) y récord positivo.
+      puestos: t.results.map((r) => {
+        let diaDos: boolean | null = null;
+        try {
+          const u = t.playerCount ? umbralesDe(t.playerCount, t.kind) : null;
+          diaDos = u ? pasaDiaDos(3 * r.wins + r.ties, u) : null;
+        } catch { diaDos = null; }
+        return { playerId: r.playerId, placement: r.placement, diaDos, positivo: r.wins > r.losses };
+      }),
     }];
   }));
   let eloCache: ReturnType<typeof eloTable> | null = null;

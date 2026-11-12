@@ -35,6 +35,8 @@ import "server-only";
 import { mejoresListas, type ResultadoConLista } from "@/lib/listasLimitless";
 import { acumular, nuevoAcumulado, resumen, type Clasif, type Emparejamiento } from "@/lib/emparejamientosOnline";
 
+import { cuotas, DIAS_PERIODO, muestraPorPeriodos, PERIODOS } from "../metaTendencia";
+
 const API = "https://play.limitlesstcg.com/api";
 
 /** Cuánto se guarda una respuesta. El metagame no cambia en una hora. */
@@ -122,6 +124,45 @@ export async function fetchTournaments(
     apiKey,
   );
   return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * v0.120 — Todos los torneos de los últimos `days` días, recorriendo páginas.
+ *
+ * El error de antes: se pedían los 100 más recientes y se filtraba por fecha.
+ * Limitless tiene tantos torneos online que 100 son 3 o 4 días: con 14, 30 o
+ * 90 días salía casi lo mismo. Ahora se piden páginas (de 5 en 5, en
+ * paralelo) hasta pasar la fecha de corte. Cada página va a la caché de 6 h.
+ */
+export async function fetchTournamentsDesde(
+  { days, format = "STANDARD", apiKey, minPlayers = 16, maxPaginas = 40 }:
+  { days: number; format?: string; apiKey?: string; minPlayers?: number; maxPaginas?: number },
+): Promise<LimitlessTournament[]> {
+  const desde = Date.now() - days * 86400000;
+  const out: LimitlessTournament[] = [];
+  const vistos = new Set<string>();
+  const POR_PAGINA = 100, EN_PARALELO = 5;
+  for (let pag = 1; pag <= maxPaginas; pag += EN_PARALELO) {
+    const paginas = await Promise.all(
+      Array.from({ length: Math.min(EN_PARALELO, maxPaginas - pag + 1) }, (_, k) =>
+        get<LimitlessTournament[]>(
+          `/tournaments?game=PTCG&format=${encodeURIComponent(format)}&limit=${POR_PAGINA}&page=${pag + k}`, apiKey,
+        ).catch(() => [] as LimitlessTournament[])),
+    );
+    let pasado = false;
+    for (const filas of paginas) {
+      if (!Array.isArray(filas) || !filas.length) { pasado = true; continue; }
+      for (const t of filas) {
+        const d = Date.parse(t.date);
+        if (Number.isFinite(d) && d < desde) { pasado = true; continue; }
+        if (vistos.has(t.id) || (t.players ?? 0) < minPlayers) continue;
+        vistos.add(t.id);
+        out.push(t);
+      }
+    }
+    if (pasado) break;
+  }
+  return out;
 }
 
 /** Clasificación de un torneo, con el mazo de cada jugador ya identificado. */
@@ -300,6 +341,8 @@ export type MetaSnapshot = {
 export type MetaOptions = {
   /** Ventana en días hacia atrás. */
   days?: number;
+  /** v0.120 — torneos ya elegidos (la muestra de la tendencia); si viene, no se buscan. */
+  lista?: LimitlessTournament[];
   /** Cuántos torneos mirar como mucho. */
   limit?: number;
   minPlayers?: number;
@@ -319,13 +362,11 @@ export type MetaOptions = {
 export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSnapshot> {
   const { days = 30, limit = 20, minPlayers = 16, format = "STANDARD", apiKey } = opts;
 
-  const desde = Date.now() - days * 86400000;
-  const list = (await fetchTournaments({ limit, format, apiKey }))
-    .filter((t) => (t.players ?? 0) >= minPlayers)
-    .filter((t) => {
-      const d = Date.parse(t.date);
-      return Number.isFinite(d) ? d >= desde : true;
-    });
+  /* v0.120 — toda la ventana (paginando) y, de ella, los torneos más grandes:
+     `limit` como mucho, para no pedir cientos de clasificaciones. */
+  const list = opts.lista ?? (await fetchTournamentsDesde({ days, format, apiKey, minPlayers }))
+    .sort((a, b) => (b.players ?? 0) - (a.players ?? 0) || b.date.localeCompare(a.date))
+    .slice(0, limit);
 
   const acc = new Map<string, MetaRow & { placements: number[] }>();
   /** Nombre y fecha de cada torneo, para poder decir de dónde sale el mejor puesto. */
@@ -333,7 +374,7 @@ export async function fetchMetaSnapshot(opts: MetaOptions = {}): Promise<MetaSna
   let entries = 0;
   let failed = 0;
 
-  const BATCH = 4;
+  const BATCH = 8;
   for (let i = 0; i < list.length; i += BATCH) {
     const chunk = list.slice(i, i + BATCH);
     const settled = await Promise.allSettled(chunk.map((t) => fetchStandings(t.id, apiKey)));
@@ -552,18 +593,15 @@ export async function fetchLastBigTournament(opts: {
   format?: string;
   apiKey?: string;
 } = {}): Promise<TournamentReport | null> {
-  const { days = 14, minPlayers = 64, format = "STANDARD", apiKey } = opts;
+  /* v0.120 — el ÚLTIMO torneo de 100 o más jugadores (antes: el más grande
+     de 64+ entre los 50 más recientes, que a menudo no tenía ninguno). Se
+     busca paginando en las últimas tres semanas. */
+  const { days = 21, minPlayers = 100, format = "STANDARD", apiKey } = opts;
 
   try {
-    const desde = Date.now() - days * 86400000;
-    const lista = (await fetchTournaments({ limit: 50, format, apiKey }))
-      .filter((t) => (t.players ?? 0) >= minPlayers)
-      .filter((t) => {
-        const d = Date.parse(t.date);
-        return Number.isFinite(d) ? d >= desde : false;
-      })
-      // El más grande; a igualdad, el más reciente.
-      .sort((a, b) => (b.players ?? 0) - (a.players ?? 0) || b.date.localeCompare(a.date));
+    const lista = (await fetchTournamentsDesde({ days, format, apiKey, minPlayers, maxPaginas: 25 }))
+      // El más reciente; a igualdad de día, el más grande.
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.players ?? 0) - (a.players ?? 0));
 
     const elegido = lista[0];
     if (!elegido) return null;
@@ -726,4 +764,48 @@ export async function fetchMatrizMeta(opts: MetaOptions & { top?: number; minPar
     }
   }
   return { acc, filas: resumen(acc, { top, minPartidas }), torneos, fallidos };
+}
+
+/* =========================================================================
+   v0.120 — El metagame online con su TENDENCIA: la cuota de cada mazo este
+   mes, el pasado y el anterior (ver `lib/metaTendencia.ts`).
+
+   Una sola muestra de 90 días: de cada periodo de 30, los `porPeriodo`
+   torneos más grandes. La foto de la ventana elegida (14, 30 o 90 días) sale
+   de esa misma muestra, así que las clasificaciones se piden una vez.
+   ========================================================================= */
+export async function fetchMetaConTendencia(opts: MetaOptions & { porPeriodo?: number } = {}): Promise<{
+  snapshot: MetaSnapshot;
+  /** Por mazo: [cuota este mes, el pasado, el anterior] (null si no apareció). */
+  tendencia: Record<string, Array<number | null>>;
+  periodos: Array<{ torneos: number; listas: number }>;
+}> {
+  const { days = 30, minPlayers = 16, format = "STANDARD", apiKey, porPeriodo = 30 } = opts;
+  const ahora = Date.now();
+  const todos = await fetchTournamentsDesde({ days: DIAS_PERIODO * PERIODOS, format, apiKey, minPlayers });
+  const cubos = muestraPorPeriodos(todos, ahora, porPeriodo);
+  const muestra = cubos.flat();
+  const desde = ahora - days * 86400000;
+  const enVentana = muestra.filter((t) => Date.parse(t.date) >= desde);
+  const snapshot = await fetchMetaSnapshot({ days, format, apiKey, minPlayers, lista: enVentana, limit: enVentana.length });
+
+  // Cuota por periodo. Las clasificaciones ya están en la caché de `fetch`.
+  const tendencia: Record<string, Array<number | null>> = {};
+  const periodos: Array<{ torneos: number; listas: number }> = [];
+  for (const [i, cubo] of cubos.entries()) {
+    const listas = new Map<string, number>();
+    const res = await Promise.allSettled(cubo.map((t) => fetchStandings(t.id, apiKey)));
+    let total = 0;
+    for (const r of res) {
+      if (r.status !== "fulfilled") continue;
+      for (const fila of r.value) {
+        if (!fila.deck?.id) continue;
+        listas.set(fila.deck.id, (listas.get(fila.deck.id) ?? 0) + 1);
+        total++;
+      }
+    }
+    periodos.push({ torneos: cubo.length, listas: total });
+    for (const [id, c] of cuotas(listas)) (tendencia[id] ??= Array(PERIODOS).fill(null))[i] = c;
+  }
+  return { snapshot, tendencia, periodos };
 }

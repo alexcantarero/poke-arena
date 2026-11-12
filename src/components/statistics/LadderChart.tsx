@@ -62,6 +62,16 @@ export function LadderChart({
     [series, inicial, destacados],
   );
   const [elegidos, setElegidos] = useState<Set<string>>(porDefecto);
+  /* v0.120 — el selector de personas, más claro: atajos (destacados, top 5,
+     todos, ninguno), cada chip con su puesto y su cifra actual, y a partir de
+     ocho personas el resto plegado bajo «+N más» (los elegidos siempre a la vista). */
+  const [verTodos, setVerTodos] = useState(false);
+  const ranking = useMemo(
+    () => [...series].sort((a, b) => (b.actual ?? -1) - (a.actual ?? -1) || a.name.localeCompare(b.name)),
+    [series],
+  );
+  const puestoDe = useMemo(() => new Map(ranking.map((s, i) => [s.id, i + 1])), [ranking]);
+  const MAX_CHIPS = 8;
   /* v0.56 — el periodo: con meses de datos, los puntos se amontonaban. Por
      defecto, los últimos tres meses; «Todo» sigue a un toque. */
   const [periodo, setPeriodo] = useState<30 | 90 | 0>(90);
@@ -167,7 +177,21 @@ export function LadderChart({
   return (
     <div className="px-3 pb-3 pt-2 xs:px-4">
       <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
-        {seriesOrdenadas.map((s) => {
+        {/* v0.120 — atajos */}
+        <div className="mb-1 flex w-full flex-wrap items-center gap-1.5">
+          {destacados.some((d) => series.some((x) => x.id === d)) && (
+            <button type="button" className="chip" onClick={() => setElegidos(new Set(destacados.filter((d) => series.some((x) => x.id === d))))}>
+              {tr(lng, "v120.selYo")}
+            </button>
+          )}
+          <button type="button" className="chip" onClick={() => setElegidos(new Set(ranking.slice(0, 5).map((x) => x.id)))}>{tr(lng, "v120.selTop5")}</button>
+          <button type="button" className="chip" onClick={() => setElegidos(new Set(series.map((x) => x.id)))}>{tr(lng, "x.a4114a83")}</button>
+          <button type="button" className="chip" onClick={() => setElegidos(new Set())}>{tr(lng, "x.f3c24118")}</button>
+          <span className="ml-auto text-[11px] text-muted tabular">
+            {trf(lng, "elo.seleccionadas", { n: visiblesBase.length, total: series.length })}
+          </span>
+        </div>
+        {seriesOrdenadas.filter((s, i) => verTodos || elegidos.has(s.id) || i < MAX_CHIPS).map((s) => {
           const on = elegidos.has(s.id);
           return (
             <button key={s.id} type="button" onClick={() => alternar(s.id)} aria-pressed={on}
@@ -176,18 +200,21 @@ export function LadderChart({
               className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity
                 ${on ? "bg-surface-2 text-ink shadow-xs" : "border-line-soft text-muted opacity-60"}`}
               style={on ? { borderColor: colorDe(s) } : undefined}>
+              <span className="font-mono text-[10px] text-muted tabular">{puestoDe.get(s.id)}.</span>
               <span className="size-2.5 flex-none rounded-full" style={{ background: on ? colorDe(s) : s.color }} />
               {s.name}
+              {s.actual != null && <span className="font-mono text-[10px] text-muted tabular">{Math.round(s.actual)}</span>}
             </button>
           );
         })}
-        <span className="ml-auto text-[11px] text-muted tabular">
-          {trf(lng, "elo.seleccionadas", { n: visiblesBase.length, total: series.length })}
-        </span>
-        <button type="button" className="text-xs font-semibold text-info hover:underline"
-          onClick={() => setElegidos(new Set(series.map((s) => s.id)))}>{tr(lng, "x.a4114a83")}</button>
-        <button type="button" className="text-xs font-semibold text-muted hover:underline"
-          onClick={() => setElegidos(new Set())}>{tr(lng, "x.f3c24118")}</button>
+        {!verTodos && seriesOrdenadas.filter((s, i) => !elegidos.has(s.id) && i >= MAX_CHIPS).length > 0 && (
+          <button type="button" className="chip text-info" onClick={() => setVerTodos(true)}>
+            {trf(lng, "v120.selMas", { n: seriesOrdenadas.filter((s, i) => !elegidos.has(s.id) && i >= MAX_CHIPS).length })}
+          </button>
+        )}
+        {verTodos && series.length > MAX_CHIPS && (
+          <button type="button" className="chip" onClick={() => setVerTodos(false)}>{tr(lng, "v120.selMenos")}</button>
+        )}
       </div>
 
       {/* v0.56 — periodo: menos puntos, menos amontonados. */}

@@ -1,3 +1,4 @@
+import { TarjetaAcceso } from "@/components/TarjetaAcceso";
 import { limpiezaPerezosa } from "@/lib/limpiezaDb";
 import { roundsOf } from "@/lib/stats";
 import Link from "next/link";
@@ -124,6 +125,8 @@ export default async function TournamentsPage({
           </Link>
         }
       />
+      {/* v0.120 — el Cinturón, aquí y no en el menú: es un torneo. */}
+      <TarjetaAcceso href="/cinturon" titulo={tr(lng, "v120.cinturonTitulo")} texto={tr(lng, "v120.cinturonTexto")} accion={tr(lng, "v120.ver")} />
 
       {!table.confirmed && (
         <p className="mb-4 rounded-lg border border-brand-line bg-brand-soft px-3 py-2 text-sm text-ink-2">

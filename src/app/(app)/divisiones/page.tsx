@@ -10,6 +10,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { apuntarmeLiga, borrarmeLiga, cerrarLiga, crearTemporadaLiga, empezarLiga, sortearLiga } from "@/actions";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { DISCORD_INVITATION_URL } from "@/lib/nav";
 import type { PublicPlayer } from "@/lib/types";
 
 export const metadata = { title: "Liga por divisiones" };
@@ -86,6 +87,19 @@ export default async function DivisionesPage() {
         <p className="liga-campeon mb-4">
           {trf(lng, "v116.campeonAnterior", { t: liga.anterior.nombre, n: porId.get(liga.anterior.campeonId)?.name ?? "?" })}
         </p>
+      )}
+
+      {/* v0.120 — apuntado: la invitación al Discord, donde se queda cada partida. */}
+      {mia && (
+        <section className="card aviso-discord mb-4 p-4" role="status">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-base font-extrabold text-ink">{tr(lng, "v120.discordTitulo")}</h2>
+            <p className="text-sm text-muted">{tr(lng, "v120.discordTexto")}</p>
+          </div>
+          <a className="btn btn-brand flex-none" href={DISCORD_INVITATION_URL} target="_blank" rel="noopener noreferrer">
+            {tr(lng, "v120.discordBoton")}
+          </a>
+        </section>
       )}
 
       {/* ----------------------------------------------- sin temporada */}

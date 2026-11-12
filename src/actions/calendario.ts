@@ -11,7 +11,7 @@ import { asistencias, events, matches, tournamentResults, tournaments } from "@/
 import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
 import { newId, todayISO } from "@/lib/format";
 import { withFlash } from "@/lib/flash";
-import { datosDeDireccion, parseEventosPegados } from "@/lib/eventosPegados";
+import { claveDireccion, detallesEvento, parseEventosPegados } from "@/lib/eventosPegados";
 import { seasonOfDate } from "@/lib/cp";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { esEstado, type EstadoAsistencia } from "@/lib/asistencia";
@@ -134,7 +134,7 @@ export async function importPastedEvents(fd: FormData) {
   }
   const [yaRegistrados, toursExistentes, evOficiales] = await Promise.all([
     db.select({ id: events.id }).from(events).where(inArray(events.id, eventos.map((e) => e.id))),
-    db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind }).from(tournaments),
+    db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind, venue: tournaments.venue }).from(tournaments),
     db.select({ id: events.id, date: events.date, tournamentKind: events.tournamentKind, title: events.title }).from(events),
   ]);
   const ya = new Set(yaRegistrados.map((r) => r.id));
@@ -150,10 +150,15 @@ export async function importPastedEvents(fd: FormData) {
     );
     const idAGuardar = evCoincidente ? evCoincidente.id : e.id;
 
-    // Un torneo ya apuntado a mano (mismo día, tipo y nombre) se enlaza en vez de duplicarse.
+    /* v0.120 — los detalles bien sacados (nombre limpio, dirección, ciudad…),
+       y no se duplica un torneo que ya está: mismo día y tipo, y mismo nombre
+       O misma dirección (la tienda puede haberlo apuntado con otro nombre). */
+    const det = detallesEvento(e);
+    const calleNueva = claveDireccion(det.direccion);
     const tourCoincidente = toursExistentes.find((t) =>
-      t.date === e.date && t.kind === e.kind && Boolean(e.store) && (
-        norm(t.name).includes(norm(e.store)) || norm(e.store).includes(norm(t.name))
+      t.date === e.date && t.kind === e.kind && (
+        (Boolean(det.nombre) && (norm(t.name).includes(norm(det.nombre)) || norm(det.nombre).includes(norm(t.name))))
+        || (calleNueva.length >= 6 && claveDireccion(t.venue ?? "").startsWith(calleNueva))
       )
     );
 
@@ -162,10 +167,9 @@ export async function importPastedEvents(fd: FormData) {
     let tournamentId = tourCoincidente?.id ?? null;
     if (!tournamentId) {
       tournamentId = `tp-${e.id}`;
-      const { city, country } = datosDeDireccion(e.location);
       await db.insert(tournaments).values({
         id: tournamentId,
-        name: (e.store || e.title).slice(0, 120),
+        name: (det.nombre || e.store || e.title).slice(0, 120),
         kind: e.kind,
         status: "draft",
         scope: "onsite",
@@ -174,24 +178,25 @@ export async function importPastedEvents(fd: FormData) {
         date: e.date,
         endDate: e.endDate ?? null,
         startTime: e.time ?? null,
-        venue: e.location.slice(0, 120),
-        city: city.slice(0, 80),
-        country,
+        venue: (det.sede || e.location).slice(0, 120),
+        city: det.ciudad.slice(0, 80),
+        country: det.pais,
         season: seasonOfDate(e.date),
         division: "masters",
-        notes: e.note ?? "",
+        notes: [e.note, `Del localizador de eventos oficial · ${e.location}${e.time ? ` · ${e.time}` : ""}`].filter(Boolean).join("\n"),
         createdBy: actor.id,
       }).onConflictDoNothing();
       torneosCreados++;
     }
 
     const values = {
-      title: e.title.slice(0, 120),
+      // v0.120 — «League Challenge · Porygon's Cup (Mataró)» y la sede legible.
+      title: `${e.title.split(" · ")[0]} · ${det.nombre}${det.ciudad ? ` (${det.ciudad})` : ""}`.slice(0, 120),
       date: e.date,
       endDate: e.endDate ?? null,
       kind: "tourney",
       tournamentKind: e.kind,
-      location: e.location,
+      location: det.sede || e.location,
       url: "",
       competitionId: null,
       tournamentId,

@@ -449,3 +449,70 @@ export function parseEventosPegados(
     ignorados: oficiales.ignorados + compactos.ignorados,
   };
 }
+
+/* =========================================================================
+   v0.120 — Los detalles de un torneo pegado del localizador oficial, para
+   crear la ficha del torneo bien rellena:
+
+     «12/11 Porygon's Cup - Pokémon TCG League Challenge»
+     «RONDA FREDERIC MISTRAL, 26, 08304 MATARÓ, BARCELONA, SPAIN»
+   →  nombre «Porygon's Cup» · dirección «Ronda Frederic Mistral, 26»
+      · CP 08304 · ciudad «Mataró» · provincia «Barcelona» · España
+
+   El localizador no dice el nombre de la tienda: el nombre del torneo es lo
+   más parecido (muchas tiendas lo ponen ahí) y la dirección va completa.
+   ========================================================================= */
+
+const MENORES = new Set(["de", "del", "la", "las", "les", "el", "els", "los", "i", "y", "d'", "l'"]);
+
+/** «CARRER DE LES TORRES» → «Carrer de les Torres» (las partículas, en minúscula). */
+export function tituloDireccion(s: string): string {
+  return s.trim().toLowerCase().split(/\s+/).map((w, i) => {
+    if (!w) return "";
+    if (i > 0 && MENORES.has(w)) return w;
+    const conApostrofo = /^([dl]')(.+)$/.exec(w);
+    if (conApostrofo) return conApostrofo[1] + conApostrofo[2].charAt(0).toUpperCase() + conApostrofo[2].slice(1);
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(" ");
+}
+
+/** El nombre limpio: sin la fecha delante ni la coletilla «- Pokémon TCG League Challenge». */
+export function nombreLimpio(titulo: string): string {
+  let n = titulo.trim()
+    .replace(/^\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?\s*[-–·:]?\s*/, "")
+    .replace(/\s*[-–·|]\s*(pok[eé]mon\s+)?(tcg\s+)?(league\s+(challenge|cup)|liga|desaf[ií]o de liga|copa de liga)\s*$/i, "")
+    .trim();
+  if (!n) n = titulo.trim();
+  return n;
+}
+
+export type DetallesEvento = {
+  nombre: string;
+  /** Calle y número, en formato legible. */
+  direccion: string;
+  cp: string;
+  ciudad: string;
+  provincia: string;
+  pais: string;
+  /** Lo que va en el campo «Tienda o sede» del torneo. */
+  sede: string;
+};
+
+export function detallesEvento(e: Pick<EventoPegado, "store" | "title" | "location">): DetallesEvento {
+  const partes = e.location.split(",").map((p) => p.trim()).filter(Boolean);
+  const i = partes.findIndex((p) => /^\d{5}\b/.test(p));
+  const calle = (i > 0 ? partes.slice(0, i) : i === 0 ? [] : partes.slice(0, Math.max(1, partes.length - 2))).join(", ");
+  const cp = i >= 0 ? partes[i].slice(0, 5) : "";
+  const ciudad = i >= 0 ? tituloDireccion(partes[i].replace(/^\d{5}\s*/, "")) : "";
+  const provincia = i >= 0 && partes[i + 1] && !/spain|españa/i.test(partes[i + 1]) ? tituloDireccion(partes[i + 1]) : "";
+  const { country } = datosDeDireccion(e.location);
+  const direccion = tituloDireccion(calle);
+  const sede = [direccion, [cp, ciudad].filter(Boolean).join(" "), provincia && provincia !== ciudad ? `(${provincia})` : ""]
+    .filter(Boolean).join(", ").replace(", (", " (");
+  return { nombre: nombreLimpio(e.store || e.title), direccion, cp, ciudad, provincia, pais: country, sede };
+}
+
+/** Para no duplicar: misma dirección (calle y número) normalizada. */
+export function claveDireccion(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 40);
+}

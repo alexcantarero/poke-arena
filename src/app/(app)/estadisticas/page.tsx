@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { loadMetaIrl, loadSnapshot } from "@/lib/data";
 import { irlMeta } from "@/lib/metaIrl";
@@ -72,6 +73,13 @@ export default async function StatsPage({
     fuenteRaw === "global" || fuenteRaw === "both" || fuenteRaw === "evento"
     || fuenteRaw === "regionales" || fuenteRaw === "city" || fuenteRaw === "live"
       ? fuenteRaw : "local";
+
+  /* v0.120 — los mazos de fuera (Regionales, City Leagues, último torneo
+     online) se ven en Top Decks; Estadísticas se queda con estadísticas y
+     gráficos. Los enlaces viejos llevan a su nuevo sitio. */
+  if (fuente === "regionales") redirect("/topdecks?fuente=presencial");
+  if (fuente === "city") redirect("/topdecks?fuente=city");
+  if (fuente === "evento") redirect("/topdecks?fuente=evento");
 
   /* v0.14 — Regionales y City Leagues: el metagame presencial (lo traído de
      Limitless o pegado a mano), partido por tipo de evento. Son mazos de

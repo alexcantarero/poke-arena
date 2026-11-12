@@ -251,11 +251,40 @@ export const ELO_RIVAL: Record<string, { suizo: number; corte: number }> = {
   league_challenge: { suizo: 1000, corte: 1000 },
   store: { suizo: 1000, corte: 1000 },
   other: { suizo: 1000, corte: 1000 },
-  league_cup: { suizo: 1100, corte: 1200 },
-  regional: { suizo: 1250, corte: 1400 },
-  special: { suizo: 1250, corte: 1400 },
-  international: { suizo: 1350, corte: 1500 },
-  worlds: { suizo: 1450, corte: 1600 },
+  // v0.120 — la Cup baja un escalón (era 1100/1200) y los grandes suben: hay más nivel.
+  league_cup: { suizo: 1050, corte: 1150 },
+  regional: { suizo: 1300, corte: 1450 },
+  special: { suizo: 1300, corte: 1450 },
+  international: { suizo: 1400, corte: 1550 },
+  worlds: { suizo: 1500, corte: 1650 },
+};
+
+/* v0.120 — Lo que se gana y lo que se pierde, por separado (multiplica la K):
+   · Regional y superiores: las victorias valen más y las derrotas quitan
+     menos — hay mucho nivel y perder ahí no dice tanto.
+   · Cup: un escalón menos: las victorias algo menos y las derrotas algo más,
+     sin castigar demasiado (un récord positivo sigue sumando).
+   · Challenge, tienda y online: equilibrado. */
+export const ELO_GANA_PIERDE: Record<string, { gana: number; pierde: number }> = {
+  online: { gana: 1, pierde: 1 },
+  league_challenge: { gana: 1, pierde: 1 },
+  store: { gana: 1, pierde: 1 },
+  other: { gana: 1, pierde: 1 },
+  league_cup: { gana: 0.9, pierde: 1.1 },
+  regional: { gana: 1.2, pierde: 0.6 },
+  special: { gana: 1.2, pierde: 0.6 },
+  international: { gana: 1.25, pierde: 0.55 },
+  worlds: { gana: 1.3, pierde: 0.5 },
+};
+
+/* v0.120 — Bonus por pasar al DÍA 2 (o, si no lo hay o no se pasó, por
+   acabar con récord positivo) en los eventos de dos fases y en las Cups. */
+export const BONUS_DIA_DOS: Record<string, { diaDos: number; positivo: number }> = {
+  league_cup: { diaDos: 0, positivo: 10 },
+  regional: { diaDos: 60, positivo: 25 },
+  special: { diaDos: 60, positivo: 25 },
+  international: { diaDos: 80, positivo: 30 },
+  worlds: { diaDos: 100, positivo: 40 },
 };
 
 /** v0.115 — bonus por puesto: [puesto máximo, puntos], de mejor a peor. */
@@ -264,7 +293,7 @@ export const BONUS_RESULTADO: Record<string, Array<[number, number]>> = {
   league_challenge: [[1, 20], [4, 10]],
   store: [[1, 20], [4, 10]],
   other: [[1, 20], [4, 10]],
-  league_cup: [[1, 40], [4, 25], [8, 15]],
+  league_cup: [[1, 60], [4, 40], [8, 25]], // v0.120: el top cut de una Cup, muy bueno
   regional: [[1, 150], [8, 90], [32, 60], [128, 35], [256, 20]],
   special: [[1, 150], [8, 90], [32, 60], [128, 35], [256, 20]],
   international: [[1, 200], [8, 120], [32, 80], [128, 45], [256, 25]],
@@ -309,6 +338,16 @@ export function bonoResultado(
   return 0;
 }
 
+/** v0.120 — El bonus total de un resultado: puesto + día 2 (o récord positivo). */
+export function bonoTorneo(
+  tour: { kind: string; scope?: string | null; playerCount?: number | null } | undefined,
+  r: { placement: number | null | undefined; diaDos?: boolean | null; positivo?: boolean | null },
+): number {
+  const extra = BONUS_DIA_DOS[claveEvento(tour)];
+  const porFase = !extra ? 0 : r.diaDos ? extra.diaDos : r.positivo ? extra.positivo : 0;
+  return bonoResultado(tour, r.placement) + porFase;
+}
+
 /** Lo que `eloTable` necesita saber de cada torneo. */
 export type TorneoElo = {
   kind: string;
@@ -318,8 +357,8 @@ export type TorneoElo = {
   playerCount?: number | null;
   /** Fecha del bonus (fin del torneo). Sin ella, no hay bonus. */
   fecha?: string | null;
-  /** Puesto de cada jugador del grupo. */
-  puestos?: Array<{ playerId: string; placement: number | null }>;
+  /** Puesto de cada jugador del grupo (y, v0.120, si pasó al día 2 o acabó en positivo). */
+  puestos?: Array<{ playerId: string; placement: number | null; diaDos?: boolean | null; positivo?: boolean | null }>;
 };
 
 export function eloTable(
@@ -372,7 +411,7 @@ export function eloTable(
   for (const [tournamentId, t] of torneos) {
     if (!t.fecha || !t.puestos?.length || (desde && t.fecha < desde)) continue;
     for (const r of t.puestos) {
-      const puntos = bonoResultado(t, r.placement);
+      const puntos = bonoTorneo(t, r);
       if (puntos > 0) sucesos.push({ fecha: t.fecha, orden: extra++, bonus: { playerId: r.playerId, puntos, tournamentId } });
     }
   }
@@ -420,7 +459,10 @@ export function eloTable(
       const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
         ? rating[m.opponentPlayerId] : rivalReferencia(tour, corte);
       const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
-      const delta = kDe(m.playerAId, k) * (scoreA - expectedA);
+      // v0.120 — ganar y perder pesan distinto según el evento (ver ELO_GANA_PIERDE).
+      const gp = ELO_GANA_PIERDE[claveEvento(tour)] ?? ELO_GANA_PIERDE.other;
+      const bruto = scoreA - expectedA;
+      const delta = kDe(m.playerAId, k) * bruto * (bruto >= 0 ? gp.gana : gp.pierde);
       rating[m.playerAId] += delta;
       jugadas[m.playerAId]++;
       actividad[m.playerAId].push(m.date);

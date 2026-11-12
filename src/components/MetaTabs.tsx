@@ -14,7 +14,7 @@ import { getLang } from "@/lib/lang";
    Por eso es un componente y no un trozo de JSX dentro de Top Decks.
    ========================================================================= */
 
-export type MetaTab = "online" | "presencial" | "mazos";
+export type MetaTab = "online" | "presencial" | "city" | "evento" | "mazos";
 
 export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?: string }) {
   const lng = await getLang(); // v0.49
@@ -39,6 +39,25 @@ export async function MetaTabs({ actual, query = "" }: { actual: MetaTab; query?
       >
         <Icon name="trophy" className="size-4" />
         {tr(lng, "x.4bb0ddec")}
+      </Link>
+
+      {/* v0.120 — City Leagues y el último torneo online grande, que antes estaban
+          en Estadísticas: todos los mazos de fuera viven ahora aquí. */}
+      <Link
+        href={`/topdecks?fuente=city${q ? `&${q}` : ""}`}
+        aria-current={actual === "city" ? "page" : undefined}
+        className="pestana" data-on={actual === "city"}
+      >
+        <Icon name="pin" className="size-4" />
+        {tr(lng, "v120.tabCity")}
+      </Link>
+      <Link
+        href="/topdecks?fuente=evento"
+        aria-current={actual === "evento" ? "page" : undefined}
+        className="pestana" data-on={actual === "evento"}
+      >
+        <Icon name="trophy" className="size-4" />
+        {tr(lng, "v120.tabEvento")}
       </Link>
 
       {/* `<nav>` con `aria-current` y no `tablist` con `role="tab"`: las
