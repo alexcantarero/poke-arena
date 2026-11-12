@@ -268,7 +268,8 @@ export default async function HomePage({
         share: r.share, decks: r.entries,
       })),
       topNota: trf(lang, "home.importedNote", { events: top.events, season: temporada }),
-      recientes: irl.events.filter((e) => e.kind !== "city_league").slice(0, 6).map((e) => ({
+      // v0.123 — «Torneos pasados»: solo Regionales (y Specials/Internacionales).
+      recientes: irl.events.filter((e) => KINDS_REGIONAL.has(e.kind)).slice(0, 6).map((e) => ({
         key: e.id, date: fechaCorta(e.date), name: e.name, tipo: etiquetaTipo(e.kind),
         aside: e.playerCount ? trf(lang, "home.players", { n: num(e.playerCount) }) : undefined,
         href: "/topdecks?fuente=presencial",
@@ -330,7 +331,8 @@ export default async function HomePage({
         share: f.field / decksTemp, decks: f.field,
       })),
       topNota: trf(lang, "home.groupNote", { results: rTemp.resultados, tournaments: rTemp.torneos, season: temporada }),
-      recientes: jugados.slice(0, 6).map((x) => {
+      // v0.123 — solo Regionales (y Specials/Internacionales), como en la vista global.
+      recientes: jugados.filter((x) => KINDS_REGIONAL.has(x.kind)).slice(0, 6).map((x) => {
         const mejor = Math.min(...x.results.map((r) => r.placement ?? 9e9));
         return {
           key: x.id, date: fechaCorta(x.date), name: x.name, tipo: etiquetaTipo(x.kind),

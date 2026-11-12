@@ -22,7 +22,7 @@ Mazos · Competiciones · Top Decks · Perfil · Ajustes
 | **Gráficas** | Recharts 3 (las de estadísticas) y SVG a mano (las pequeñas) |
 | **Diseño** | mobile-first: barra inferior en el móvil, barra lateral en escritorio, PWA instalable |
 | **Acceso** | cuenta por jugador (correo + contraseña con scrypt), alta por enlace de invitación, sesión en cookie firmada |
-| **Datos de fuera** | Limitless TCG (sin clave) y pokemontcg.io (opcional) — los dos, prescindibles |
+| **Datos de fuera** | Limitless TCG (sin clave) y TCGdex (cartas, sin clave) — los dos, prescindibles |
 | **Hosting** | GitHub + Vercel + Neon, todo en plan gratuito |
 | **Coste** | 0 € |
 
@@ -57,7 +57,7 @@ Mazos · Competiciones · Top Decks · Perfil · Ajustes
   error y 404 propias, pastilla en la pestaña activa del móvil, respeto por la muesca y la
   barra de gestos del iPhone, matriz de emparejamientos que se desliza sin disparar el
   «atrás» del navegador. Y dos cosas de fondo: **buscador de cartas** en el editor de mazos
-  (pokemontcg.io) y **cifras del metagame mundial** en Estadísticas.
+  (TCGdex) y **cifras del metagame mundial** en Estadísticas.
 - **v0.6.0** — el snackbar por fin aparece, filtros de verdad compartidos por Resultados y
   Estadísticas, metagame mundial desde Limitless con modo comparación, y simulador de manos
   (mulligan y probabilidad de apertura).
@@ -92,7 +92,6 @@ está escrito paso a paso, sin dar nada por sabido.
 | `SESSION_SECRET` | **sí** | Firma la cookie de sesión. Genérala con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
 | `LEAGUE_INVITE_CODE` | no | Código de alta. También se cambia desde Ajustes. |
 | `LIMITLESS_API_KEY` | no | Los endpoints que usa Arena responden sin clave. Con clave se usa además el catálogo oficial de arquetipos. |
-| `POKEMONTCG_API_KEY` | no | Sube el límite del buscador de cartas. Sin clave son 1.000 peticiones al día, de sobra. |
 
 Las dos últimas son **fuentes externas y la app funciona entera sin ellas**: se queda sin el
 metagame mundial y sin el buscador de cartas, y nada más. Se ve su estado en
@@ -143,7 +142,7 @@ src/
     registro/[token]/       alta desde un enlace de invitación
     api/
       stats/route.ts        estadísticas locales y mundiales, en JSON
-      cards/route.ts        búsqueda de cartas (pokemontcg.io)
+      cards/route.ts        búsqueda de cartas (TCGdex)
     (app)/                  todo lo que va detrás del acceso
       layout.tsx            navegación, sesión y el aviso de abajo (snackbar)
       loading.tsx           esqueleto por defecto de todas las pantallas del grupo
@@ -191,7 +190,7 @@ src/
     flash.ts                el mensaje que viaja en la URL hasta el snackbar
     format.ts               fechas, porcentajes y utilidades de presentación
     types.ts                tipos compartidos
-    sources/                clientes de fuera: limitless.ts, pokemontcg.ts, pokeapi.ts
+    sources/                clientes de fuera: limitless.ts, tcgdex.ts, pokeapi.ts, ciphermaniac.ts
   data/
     eventos-europa.ts       los oficiales de Europa, a mano y con sus fuentes
 scripts/
@@ -227,7 +226,7 @@ docs/                       esta documentación
 | Cambiar el sistema de acceso | `src/lib/auth.ts` |
 | Actualizar las cifras de CP de una temporada | `src/lib/cp.ts` (sección de datos, al final) |
 | Añadir algo que escriba en la base | `src/actions/index.ts` |
-| Cambiar de fuente de datos de carta | `src/lib/sources/pokemontcg.ts`, y solo ese |
+| Cambiar de fuente de datos de carta | `src/lib/sources/tcgdex.ts`, y solo ese |
 
 ---
 
@@ -310,9 +309,9 @@ Conviene tenerlo escrito, porque son preguntas que vuelven:
   vez de poner un selector de región que no haría nada.
 - **No se raspa RK9.gg ni pokemon.com.** Sus condiciones prohíben expresamente la extracción
   automatizada, con o sin fines comerciales.
-- **pokemontcg.io está deprecada.** No dan claves nuevas y las que existen mueren el 1 de
-  marzo de 2027. El reemplazo natural es TCGdex, y cambiarlo es reescribir
-  `src/lib/sources/pokemontcg.ts` y nada más.
+- **Las cartas vienen de TCGdex** (gratis, sin clave, con español): `src/lib/sources/tcgdex.ts`.
+  pokemontcg.io (deprecada, sus claves mueren el 1/3/2027) ya no se usa en ningún sitio; la
+  variable `POKEMONTCG_API_KEY` sobra y se puede borrar de Vercel.
 - **Los CP no se leen de la base: se calculan.** La columna `cp_earned` es una caché y las
   pantallas la ignoran a propósito (`effectiveCp` en `src/lib/cp.ts`). Si alguna vez un número
   de CP no cuadra, el dato a mirar es la **asistencia del torneo** y su **temporada**, no esa

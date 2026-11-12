@@ -22,12 +22,11 @@ enriquecimiento visual u opcional.
 - **RK9.gg** — no tiene API pública, y sus condiciones prohíben expresamente la extracción
   automatizada de datos «con o sin fines comerciales». El inciso es deliberado y elimina la
   excusa de «es un proyecto personal». No está ni como respaldo.
-- **pokemontcg.io** — funciona hoy, pero está **deprecada**: no admite registros nuevos y las
-  claves existentes dejan de valer el 1 de marzo de 2027. Sirve para un volcado puntual, no como
-  dependencia. Su sucesora, Scrydex, es de pago por créditos.
-- **TCGdex** — alternativa viva, gratis, sin clave y con español, para imágenes de carta. Es el
-  reemplazo natural el día que el CDN de Limitless cambie de sitio. Requiere mapear el código de
-  set (TWM, MEG…) al identificador de TCGdex, que es el único trabajo pendiente.
+- **pokemontcg.io** — **ya no se usa** (v0.123: comprobado que no queda ninguna llamada). Está
+  deprecada, no admite registros nuevos y sus claves dejan de valer el 1 de marzo de 2027. Su
+  sucesora, Scrydex, es de pago.
+- **TCGdex** — es la fuente de cartas: gratis, sin clave y con español. El buscador de cartas
+  (`/api/cards`) y `src/lib/sources/tcgdex.ts` la usan.
 - **JustInBasil** — buen recurso para leer, pero sin API y con la página del metagame sin
   actualizar desde julio de 2025.
 
@@ -275,11 +274,10 @@ GET https://api.tcgdex.net/v2/es/sets/swsh3/136
 
 Las imágenes se piden con calidad y extensión al final: `<image>/high.png`.
 
-### Pokémon TCG API (pokemontcg.io)
+### Pokémon TCG API (pokemontcg.io) — retirada
 
-<https://pokemontcg.io> — la histórica y más completa en metadatos de precios y legalidad. Ahora
-forma parte de Scrydex y **pide clave**. Los datos en crudo siguen en
-<https://github.com/PokemonTCG/pokemon-tcg-data>, que se puede descargar entero.
+Ya no se usa: la sustituyó TCGdex. Ahora forma parte de Scrydex y pide clave. Si alguna vez hiciera
+falta un volcado, los datos en crudo siguen en <https://github.com/PokemonTCG/pokemon-tcg-data>.
 
 ### Cómo lo montaría
 

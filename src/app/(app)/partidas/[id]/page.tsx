@@ -1,3 +1,4 @@
+import { causasDePartida } from "@/lib/causasDb";
 import { enlaceHiloDe } from "@/lib/discord";
 import { mazosLigeros, torneosLigeros } from "@/lib/aligerar";
 import { notFound } from "next/navigation";
@@ -94,6 +95,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     : match.tournamentId ? snap.toursById.get(match.tournamentId)?.name : null;
 
   const hiloDiscord = match.competitionId ? await enlaceHiloDe(match.id) : null;
+  const causasGuardadas = await causasDePartida(match.id); // v0.123
   return (
     <>
       <PageHead
@@ -292,6 +294,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 myDecks={deckOptions(snap, match.playerAId, { includeOthers: false })}
                 lockedDeckId={lockedRound}
                 existing={toRoundView(match)}
+                causasIniciales={causasGuardadas[match.playerAId] ?? [] /* v0.123 */}
                 maxRound={maxRondasDe({ kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut })}
                 jugador={snap.playersById.get(match.playerAId)}
                 rivalPlayers={snap.players.filter((p) => p.active && p.id !== match.playerAId)}
@@ -312,6 +315,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <div className="border-t border-line-soft p-4">
           <MatchForm
             match={match}
+            causasIniciales={causasGuardadas /* v0.123 */}
             players={snap.players}
             decks={mazosLigeros(snap.decks) /* v0.108: sin listas, ver lib/aligerar.ts */}
             archetypes={snap.archetypes}

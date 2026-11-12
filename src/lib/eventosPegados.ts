@@ -332,7 +332,7 @@ const RUIDO = /^(register|registrarse|inscribirse|more info|más información|de
  * «League Challenge - TCG»), no el nombre del torneo. Ojo: «Mythic L. CUP October»
  * o «LORCANOS - TCG League Challenge October» NO son etiquetas: son nombres.
  */
-const ETIQUETA_RE = /^\W*(?:(?:pok[eé]mon\s+)?(?:tcg\s+)?(?:league\s+)?(?:cup|challenge)|copa(?:\s+de\s+liga)?|desaf[ií]o(?:\s+de\s+liga)?|liga|torneo\s+amistoso|prerelease|regional(?:\s+championships?)?|special(?:\s+event)?|internacional|international)(?:\s*[-–·|]\s*(?:tcg|pok[eé]mon|league))?\W*$/i;
+const ETIQUETA_RE = /^\W*(?:(?:pok[eé]mon\s+)?(?:tcg\s+)?(?:league\s+)?(?:cup|challenge)|copa(?:\s+de\s+liga)?|desaf[ií]o(?:\s+de\s+liga)?|liga|torneo\s+amistoso|prerelease|regional(?:\s+championships?)?|campeonato\s+regional|special(?:\s+event)?|evento\s+especial|campeonato\s+internacional|internacional|international(?:\s+championships?)?)(?:\s*[-–·|]\s*(?:tcg|pok[eé]mon|league))?\W*$/i;
 
 function esEtiqueta(linea: string): boolean {
   return ETIQUETA_RE.test(linea.trim());
@@ -488,6 +488,8 @@ export function nombreLimpio(titulo: string): string {
 
 export type DetallesEvento = {
   nombre: string;
+  /** v0.123 — la tienda u organizador, cuando el nombre lo trae («… - Mythic Games»). */
+  tienda: string;
   /** Calle y número, en formato legible. */
   direccion: string;
   cp: string;
@@ -504,15 +506,49 @@ export function detallesEvento(e: Pick<EventoPegado, "store" | "title" | "locati
   const calle = (i > 0 ? partes.slice(0, i) : i === 0 ? [] : partes.slice(0, Math.max(1, partes.length - 2))).join(", ");
   const cp = i >= 0 ? partes[i].slice(0, 5) : "";
   const ciudad = i >= 0 ? tituloDireccion(partes[i].replace(/^\d{5}\s*/, "")) : "";
-  const provincia = i >= 0 && partes[i + 1] && !/spain|españa/i.test(partes[i + 1]) ? tituloDireccion(partes[i + 1]) : "";
-  const { country } = datosDeDireccion(e.location);
+  // v0.123 — el último trozo es el PAÍS si es uno conocido (no solo España);
+  // la provincia es lo que queda entre la ciudad y el país.
+  const ultimo = partes[partes.length - 1] ?? "";
+  const pais = paisDe(ultimo);
+  const provincia = i >= 0 && partes[i + 1] && i + 1 < partes.length && !(pais && i + 1 === partes.length - 1)
+    ? tituloDireccion(partes[i + 1]) : "";
   const direccion = tituloDireccion(calle);
   const sede = [direccion, [cp, ciudad].filter(Boolean).join(" "), provincia && provincia !== ciudad ? `(${provincia})` : ""]
     .filter(Boolean).join(", ").replace(", (", " (");
-  return { nombre: nombreLimpio(e.store || e.title), direccion, cp, ciudad, provincia, pais: country, sede };
+  const bruto = e.store || e.title;
+  const tienda = tiendaDe(bruto);
+  const sinTienda = tienda ? bruto.slice(0, bruto.lastIndexOf(tienda)).replace(/\s[-–|]\s*$/, "").trim() : bruto;
+  return { nombre: nombreLimpio(sinTienda || bruto), tienda, direccion, cp, ciudad, provincia, pais, sede };
 }
 
 /** Para no duplicar: misma dirección (calle y número) normalizada. */
 export function claveDireccion(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 40);
+}
+
+/* v0.123 — Países de Europa que salen en el localizador, en inglés → español. */
+const PAISES: Record<string, string> = {
+  spain: "España", "españa": "España", portugal: "Portugal", france: "Francia", germany: "Alemania",
+  italy: "Italia", "united kingdom": "Reino Unido", uk: "Reino Unido", netherlands: "Países Bajos",
+  belgium: "Bélgica", poland: "Polonia", "czech republic": "Chequia", czechia: "Chequia", austria: "Austria",
+  switzerland: "Suiza", denmark: "Dinamarca", sweden: "Suecia", norway: "Noruega", finland: "Finlandia",
+  ireland: "Irlanda", andorra: "Andorra", "united states": "Estados Unidos", mexico: "México",
+};
+
+/** El país de un trozo de dirección, en español; vacío si no es un país conocido. */
+export function paisDe(trozo: string): string {
+  return PAISES[trozo.trim().toLowerCase().replace(/\s+/g, " ")] ?? "";
+}
+
+/**
+ * v0.123 — La tienda, si el nombre la trae detrás de un guion y no es la
+ * coletilla genérica: «League Cup Noviembre - Mythic Games» → «Mythic Games»;
+ * «12/11 Porygon's Cup - Pokémon TCG League Challenge» → «» (es la coletilla).
+ */
+export function tiendaDe(titulo: string): string {
+  const m = /\s[-–|]\s+([^-–|]+)$/.exec(titulo.trim());
+  if (!m) return "";
+  const t = m[1].trim();
+  if (/^(pok[eé]mon\s+)?(tcg\s+)?(league\s+(challenge|cup)|liga|desaf[ií]o de liga|copa de liga)$/i.test(t)) return "";
+  return t.length >= 3 ? t : "";
 }

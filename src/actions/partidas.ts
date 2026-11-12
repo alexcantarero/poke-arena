@@ -6,7 +6,7 @@
 import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, competitions, games, matches, tournaments } from "@/db/schema";
+import { archetypes, competitions, games, matches, players, tournaments } from "@/db/schema";
 import { validarMazosPorJuego } from "@/lib/juegosMazos";
 import { asModalidad } from "@/lib/modalidades";
 import { canManageLeague } from "@/lib/auth";
@@ -18,6 +18,8 @@ import {
   syncTournamentRecord,
 } from "./_comun";
 import { leerMarcador, secuenciaDe } from "@/lib/marcador";
+import { leerCausas, PREFIJO_NO_PRESENTADO } from "@/lib/causasDerrota";
+import { guardarCausas } from "@/lib/causasDb";
 
 export async function saveMatch(fd: FormData) {
   const actor = await requireActor();
@@ -25,8 +27,12 @@ export async function saveMatch(fd: FormData) {
   const bestOf = int(fd, "bestOf", 3, 1, 5);
   if (!BEST_OF.includes(bestOf)) return;
 
-  const externalName = str(fd, "opponentName");
-  const playerBId = str(fd, "playerBId");
+  /* v0.123 — resultados especiales: BYE (descansa por ser impares: gana sin
+     rival) y NO PRESENTADO (gana quien sí fue). Sin juegos ni mazos; cuentan
+     para la clasificación y no para el Elo ni las estadísticas de mazos. */
+  const especial = pick(fd, "especial", ["", "bye", "np_a", "np_b"] as const, "");
+  const externalName = especial === "bye" ? "BYE" : str(fd, "opponentName");
+  const playerBId = especial === "bye" ? "" : str(fd, "playerBId");
   const playerAId = str(fd, "playerAId");
   if (!playerAId) return;
   if (!playerBId && !externalName) return;
@@ -79,6 +85,16 @@ export async function saveMatch(fd: FormData) {
     note: str(fd, "note").slice(0, 500),
     createdBy: actor.id,
   };
+  if (especial) {
+    values.deckAId = null; values.archetypeAId = null; values.deckBId = null; values.opponentArchetypeId = null;
+    values.seriesResult = especial === "np_a" ? "b" : "a";
+    if (especial !== "bye") {
+      const ausente = especial === "np_a" ? playerAId : playerBId;
+      const [p] = ausente ? await db.select({ name: players.name }).from(players).where(eq(players.id, ausente)).limit(1) : [];
+      const quien = p?.name ?? (externalName || "rival");
+      values.note = `${PREFIJO_NO_PRESENTADO}: ${quien}${values.note ? ` · ${values.note}` : ""}`.slice(0, 500);
+    }
+  }
 
   /* v0.71 — Registrar desde el botón «+» una partida que ya estaba EMPAREJADA
      en una liga la anotaba aparte, como amistoso, y la de la liga seguía
@@ -154,7 +170,8 @@ export async function saveMatch(fd: FormData) {
   }
   // v0.53 — sin juegos solo vale un empate por tiempo. Antes, sin juegos, la
   // acción salía SIN GUARDAR y sin decir nada.
-  if (!rows.length && values.seriesResult !== "tie") {
+  if (especial) rows.length = 0; // v0.123: un bye o un no presentado no tiene juegos
+  if (!rows.length && values.seriesResult !== "tie" && !especial) {
     console.warn(`[saveMatch] sin juegos: bo${bestOf} campos=${[...fd.keys()].filter((k) => !k.startsWith("$")).join(",")}`);
     redirect(withFlash(editing ? `/partidas/${editing}` : "/partidas/nueva", "error", await msj("rr.faltaResultado")));
   }
@@ -205,6 +222,11 @@ export async function saveMatch(fd: FormData) {
     await db.insert(matches).values({ id, ...values });
   }
   if (rows.length) await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
+  // v0.123 — causas de la derrota (opcionales) del que perdió.
+  const causasDe = str(fd, "causasDe");
+  if (!especial && str(fd, "causasTocadas") === "1" && (causasDe === playerAId || (causasDe && causasDe === playerBId))) {
+    await guardarCausas(id, causasDe, leerCausas(str(fd, "causas")));
+  }
   refresh();
   if (pendienteLiga) {
     redirect(withFlash(`/competiciones/${pendienteLiga.competitionId}`, "ok", await msj("v71.anotadaEnLiga", { n: pendienteLiga.round })));

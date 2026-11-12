@@ -372,6 +372,15 @@ export const discordHilos = pgTable("discord_hilos", {
   creadoAt: timestamp("creado_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** v0.123 — Causas de una derrota (o de un mal resultado), por partida y por
+    jugador (migración 0035). Tabla aparte: sin migrar, las partidas se leen igual. */
+export const matchCausas = pgTable("match_causas", {
+  matchId: text("match_id").notNull().references(() => matches.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  causas: jsonb("causas").$type<string[]>().notNull(),
+  creadoAt: timestamp("creado_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.matchId, t.playerId] })]);
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

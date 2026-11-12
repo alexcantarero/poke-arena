@@ -2224,3 +2224,11 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 /* v0.122 — la división de Elo con la escalera de minerales de los CP (`cp-rank-*`
    pone el degradado, el color del texto y el del borde). */
 .division-elo { border-width: 1px; border-style: solid; }
+
+/* v0.123 — causas de derrota: chips y gráfico. */
+.causa-chip { min-height: 2.25rem; }
+.causas-barra { display: block; height: .7rem; border-radius: 9999px; background: var(--surface-2); overflow: hidden; }
+.causas-barra > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in oklab, var(--loss) 55%, transparent), var(--loss)); }
+.registro-seccion[data-acento="causas"] { background-image: linear-gradient(90deg, var(--loss), color-mix(in oklab, var(--loss) 40%, transparent)); }
+.config-opcion.np-yo[aria-pressed="true"] { border-color: var(--loss); box-shadow: 0 0 0 1px var(--loss); background: linear-gradient(160deg, color-mix(in oklab, var(--loss) 16%, var(--surface-2)), var(--surface-2)); }
+.config-opcion.np-yo[aria-pressed="true"]::after { color: var(--loss); }

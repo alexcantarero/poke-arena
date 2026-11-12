@@ -1,3 +1,4 @@
+import { GraficoCausas } from "@/components/statistics/GraficoCausas";
 import { GraficoTendenciaMeta } from "@/components/statistics/GraficoTendenciaMeta";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -651,6 +652,15 @@ export default async function StatsPage({
         <div>
                 <SeguimientoJugadoresLazy filas={filasSeguimiento} jugadores={jugadoresSeguimiento} />
         </div>
+      )}
+      {/* v0.123 — por qué se pierde: las causas de derrota más repetidas. */}
+      {fuente !== "live" && (
+        <>
+          <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "v123.graficoSeccion")}</h2>
+          <Suspense fallback={<div className="card h-48 animate-pulse" aria-hidden="true" />}>
+            <GraficoCausas matchIds={rows.map((m) => m.id)} lang={lng} />
+          </Suspense>
+        </>
       )}
       <h2 className="mt-8 mb-3 font-display text-sm font-bold uppercase tracking-[0.14em] text-muted">{tr(lng, "est.b.partidas")}</h2>
       {fuente !== "live" && (

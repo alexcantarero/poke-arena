@@ -128,8 +128,8 @@ Rama de trabajo: `development`. Despliegue: Vercel.
 
 - **`loadSnapshot()`** sigue cargando las 21 tablas en las pantallas pesadas. El plan por fases
   está en `docs/13-plan-rendimiento.md`. **Léelo antes de tocar `data.ts`.**
-- **`pokemontcg.io` está deprecada y muere el 1 de marzo de 2027.** Reemplazo previsto: TCGdex.
-  Es reescribir `src/lib/sources/pokemontcg.ts` y nada más.
+- **Las cartas vienen de TCGdex** (`src/lib/sources/tcgdex.ts`). pokemontcg.io (deprecada, muere
+  el 1/3/2027) no se usa en ningún sitio: no volver a añadirla.
 - **Los sprites** salen de `https://r2.limitlesstcg.net/pokemon/gen9/<slug>.png`, que es un patrón
   de URL de un tercero, no un contrato.
 - **`src/actions/index.ts`** tiene casi 60 acciones en un fichero. Partirlo por dominio está

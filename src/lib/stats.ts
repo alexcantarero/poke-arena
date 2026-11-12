@@ -133,6 +133,15 @@ export const isPlayed = (m: MatchFull) =>
  */
 export const isInternal = (m: MatchFull): boolean => m.playerBId !== null;
 
+/**
+ * v0.123 — Ganada o perdida porque alguien NO SE PRESENTÓ: sin juegos ni
+ * mazos, con la nota «No presentado…» (ver `lib/causasDerrota.ts`, que no se
+ * importa aquí: este módulo no importa nada). Cuenta para la clasificación,
+ * no para el Elo.
+ */
+export const esNoPresentadoPartida = (m: Pick<MatchFull, "note">): boolean =>
+  /^\s*no presentad[oa]\b/i.test(m.note ?? "");
+
 export const sideOf = (m: MatchFull, playerId: string): Side | null =>
   m.playerAId === playerId ? "a" : m.playerBId === playerId ? "b" : null;
 export const opponentOf = (m: MatchFull, playerId: string): string | null =>
@@ -395,6 +404,7 @@ export function eloTable(
     .filter(isPlayed)
     // v0.21: entre dos del grupo, o rondas de torneo (contra quien sea).
     .filter((m) => isInternal(m) || (m.tournamentId != null && !esBye(m)))
+    .filter((m) => !esNoPresentadoPartida(m)) // v0.123: un no presentado no mueve el Elo
     .filter((m) => countsForElo(m, scope))
     /* La fecha de corte. Es lo que hace de «reset»: no se borra ninguna
        partida, simplemente se empieza a contar desde aquí. Quitar la fecha
@@ -495,7 +505,12 @@ export function standings(
   elo: Record<string, number> = {},
   cfg: Pick<Settings, "ptsWin" | "ptsTie" | "ptsLoss" | "eloStart"> = { ...DEFAULT_SETTINGS },
 ): StandingRow[] {
-  const played = matches.filter(isPlayed).filter(isInternal).sort(byDate);
+  /* v0.123 — en una LIGA, el BYE de quien descansa por ser impares cuenta como
+     victoria: se juega contra un rival ficticio que no está en la tabla (el
+     mismo truco que el Cinturón, `incluirDescansosEnClasificacion`). */
+  const played = matches
+    .map((m) => (m.competitionId && esBye(m) ? { ...m, playerBId: "__bye__" } : m))
+    .filter(isPlayed).filter(isInternal).sort(byDate);
   const table = new Map<string, StandingRow & { opponents: string[]; seq: ("w" | "l" | "d")[]; archs: Set<string> }>();
   for (const id of playerIds) {
     table.set(id, {

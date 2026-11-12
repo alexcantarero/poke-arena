@@ -2,6 +2,39 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.123.0] — 2026-11-12
+
+**Con migración**: `drizzle/0035_v0_123_0.sql` (tabla `match_causas`). Sin ella todo funciona,
+pero las causas de derrota no se guardan ni se ven.
+
+### Añadido
+
+- **Causas de derrota**: 11 etiquetas (matchup, misplay, mulligans, varianza, mala suerte en los
+  robos, topdeck del rival, premios bloqueados, mal thinning, lista/techs, tiempo, otro). En
+  Registrar partida salen al acabar la serie para el que perdió (en un empate, para el lado A); en
+  las rondas de torneo, si pierdes o empatas. Opcionales y múltiples; solo se guardan si se tocan
+  (editar no borra las que había). `lib/causasDerrota.ts` (3 pruebas), `lib/causasDb.ts`.
+- **Estadísticas → «Por qué se pierde»**: gráfico con las causas más repetidas sobre las partidas
+  filtradas, con su número y el % de derrotas etiquetadas.
+- **No presentado y Bye en Registrar partida**: «Tipo de partida» (Normal / No presentado / Bye)
+  en «Configura la partida». Sin marcador ni mazos; resumen de quién gana.
+- **Rondas de torneo**: «Ronda especial» con Bye, Rival no presentado y No me presenté.
+
+### Cambiado
+
+- **Un no presentado cuenta en la clasificación pero no en el Elo** (ni en las estadísticas de
+  mazos). Se guarda con la nota «No presentado: …».
+- **El Bye de quien descansa por ser impares suma la victoria en cualquier liga** (antes solo en
+  el Cinturón). `tests/partidasEspeciales.test.ts` (3 pruebas).
+- **Inicio → «Torneos pasados»**: solo Regionales (y Specials e Internacionales).
+- **Pegar del localizador de eventos**: reconoce «Campeonato Regional»/«Evento especial»/
+  «Campeonato Internacional» como tipo (antes «Campeonato Regional» acababa siendo el nombre);
+  el país sale bien también fuera de España (y deja de aparecer como provincia); y la tienda tras
+  el guion se separa del nombre («League Cup Noviembre - Mythic Games» → nombre «League Cup
+  Noviembre», organiza «Mythic Games»). Formato en inglés (AM/PM) cubierto con prueba.
+- **Documentación**: pokemontcg.io ya no aparece como fuente (el código usaba TCGdex desde la
+  v0.29). `POKEMONTCG_API_KEY` sobra.
+
 ## [0.122.0] — 2026-11-12
 
 **Sin migración ni dependencias nuevas.** Cambia el Elo (se recalcula al desplegar).

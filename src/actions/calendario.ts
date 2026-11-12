@@ -181,6 +181,7 @@ export async function importPastedEvents(fd: FormData) {
         venue: (det.sede || e.location).slice(0, 120),
         city: det.ciudad.slice(0, 80),
         country: det.pais,
+        organizer: det.tienda.slice(0, 80), // v0.123 — la tienda, si el nombre la trae
         season: seasonOfDate(e.date),
         division: "masters",
         notes: [e.note, `Del localizador de eventos oficial · ${e.location}${e.time ? ` · ${e.time}` : ""}`].filter(Boolean).join("\n"),

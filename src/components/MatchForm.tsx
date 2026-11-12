@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { deleteMatch, saveMatch } from "@/actions";
 import type { Archetype, Competition, Deck, MatchFull, PublicPlayer, Tournament } from "@/lib/types";
 import { bloqueados } from "@/lib/juegosMazos";
+import { CAUSAS_DERROTA } from "@/lib/causasDerrota";
 import { Mulligans } from "@/components/Mulligans";
 import { todayISO } from "@/lib/format";
 import { Avatar } from "./ui";
@@ -24,6 +25,8 @@ type JuegoEnEdicion = {
 
 type Props = {
   match?: MatchFull;
+  /** v0.123 — causas de derrota ya guardadas de esta partida, por jugador. */
+  causasIniciales?: Record<string, string[]>;
   players: PublicPlayer[];
   decks: Deck[];
   archetypes: Archetype[];
@@ -54,13 +57,22 @@ type Props = {
  */
 export function MatchForm({
   match, players, decks, archetypes, competitions, tournaments, meId, canPickPlayer = false,
-  initialP1, initialP2, initialBestOf, initialGames, pendientesLiga = [],
+  initialP1, initialP2, initialBestOf, initialGames, pendientesLiga = [], causasIniciales = {},
 }: Props) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const active = players.filter((p) => p.active || match);
   const [aId, setAId] = useState(match?.playerAId ?? initialP1 ?? meId ?? active[0]?.id ?? "");
   const [external, setExternal] = useState(Boolean(match && !match.playerBId));
+  /* v0.123 — partida especial: BYE (descansa por impares y gana) o NO
+     PRESENTADO (gana quien sí fue). Sin juegos ni mazos. */
+  const [especial, setEspecial] = useState<"" | "bye" | "np_a" | "np_b">(() => {
+    if (!match) return "";
+    if (!match.playerBId && /^\s*bye\s*$/i.test(match.opponentName ?? "")) return "bye";
+    if (/^\s*no presentad[oa]\b/i.test(match.note ?? "")) return match.seriesResult === "b" ? "np_a" : "np_b";
+    return "";
+  });
+  const [causas, setCausas] = useState<string[] | null>(null); // null = sin tocar (vale lo guardado)
   const [bId, setBId] = useState(match?.playerBId ?? initialP2 ?? active.find((p) => p.id !== (meId ?? active[0]?.id))?.id ?? "");
   /* El valor de partida: el de la serie si lo hay; si no, el de los juegos
      cuando es el mismo en todos los juegos de ese lado. */
@@ -249,8 +261,15 @@ export function MatchForm({
   // todos los juegos: un Bo3 que acaba 1-1 con el tercero empatado por tiempo
   // es un resultado normal y tiene que poder guardarse.
   const decided = empateTiempo || score.a >= need || score.b >= need || played === bestOf;
-  const sameTwice = !external && aId === bId;
-  const canSave = !sameTwice && aId && decided;
+  const sameTwice = !external && aId === bId && especial !== "bye";
+  /* v0.123 — quién ganó la serie y de quién son las causas de la derrota: el
+     que perdió si es del grupo; en un empate, el lado A. */
+  const ganadorSerie: "a" | "b" | "tie" = empateTiempo || score.a === score.b ? "tie" : score.a > score.b ? "a" : "b";
+  const causasDe = ganadorSerie === "a" ? (external ? "" : bId) : aId;
+  const causasMarcadas = causas ?? (causasIniciales[causasDe] ?? []);
+  const canSave = !sameTwice && aId && (especial
+    ? especial === "bye" || (external ? rivalFuera.trim() !== "" : Boolean(bId))
+    : decided);
 
   const setGame = (i: number, patch: Partial<JuegoEnEdicion>) =>
     setGames((g) => g.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -316,6 +335,26 @@ export function MatchForm({
           <ObjetoSprite uso="config" className="size-7" />{tr(lng, "v110.cfg.titulo")}
         </h2>
 
+        {/* v0.123 — tipo de partida: normal, alguien no se presentó, o BYE por ser impares. */}
+        <div className="config-grupo" role="group" aria-labelledby="cfg-tipo">
+          <p id="cfg-tipo" className="config-etiqueta">{tr(lng, "v123.tipo")}</p>
+          <div className="config-opciones config-opciones-3">
+            <button type="button" aria-pressed={!especial} onClick={() => setEspecial("")} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "v123.normal")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v123.normalTexto")}</span>
+            </button>
+            <button type="button" aria-pressed={especial === "np_a" || especial === "np_b"} onClick={() => setEspecial(especial === "np_a" || especial === "np_b" ? especial : "np_b")} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "v123.np")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v123.npTexto")}</span>
+            </button>
+            <button type="button" aria-pressed={especial === "bye"} onClick={() => { setEspecial("bye"); setExternal(false); }} className="config-opcion">
+              <span className="config-opcion-titulo">{tr(lng, "v123.bye")}</span>
+              <span className="config-opcion-texto">{tr(lng, "v123.byeCorto")}</span>
+            </button>
+          </div>
+          <input type="hidden" name="especial" value={especial} />
+        </div>
+
         <div className="config-grupo" role="group" aria-labelledby="cfg-formato">
           <p id="cfg-formato" className="config-etiqueta">{tr(lng, "v110.cfg.formato")}</p>
           <div className="config-opciones config-opciones-3">
@@ -364,7 +403,7 @@ export function MatchForm({
       <section className="card registro-seccion p-4" data-acento="rival">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="rival" className="size-7" />{tr(lng, "x.ec039ecb")}</h2>
-          <label className="inline-flex items-center gap-2 text-sm">
+          <label className={`inline-flex items-center gap-2 text-sm ${especial === "bye" ? "invisible" : ""}`}>
             <input
               type="checkbox" className="size-4" checked={external}
               onChange={(e) => setExternal(e.target.checked)}
@@ -395,7 +434,7 @@ export function MatchForm({
               «V0.25.3» (9 de octubre) y dejó estas líneas en blanco; desde
               entonces ninguna partida guardaba su mazo de serie. Solo se pinta
               con el mazo fijado: si se cambia entre juegos, va en cada juego. */}
-          {mazoFijo && (
+          {mazoFijo && !especial && (
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="deckAId">{tr(lng, "x.3f62cf84")}</label>
               {/* `key` con el jugador: al cambiar de jugador se vacía, porque los
@@ -409,6 +448,10 @@ export function MatchForm({
             </div>
           )}
 
+          {/* v0.123 — con BYE no hay rival. */}
+          {especial === "bye" ? (
+            <p className="rounded-xl border border-win/40 bg-win/10 px-3 py-2.5 text-sm text-ink-2">{tr(lng, "v123.byeTexto")}</p>
+          ) : (<>
           <hr className="border-line-soft" />
 
           {external ? (
@@ -426,7 +469,7 @@ export function MatchForm({
                   {tr(lng, "x.01ffc556")}
                 </p>
               </div>
-              {mazoFijo && (
+              {mazoFijo && !especial && (
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="opponentArchetypeId">{tr(lng, "x.6205beb8")}</label>
                   <DeckPicker
@@ -447,7 +490,7 @@ export function MatchForm({
                     .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              {mazoFijo && (
+              {mazoFijo && !especial && (
                 <div className="flex flex-col gap-1.5">
                   <label className="label" htmlFor="deckBId">{tr(lng, "x.3f62cf84")}</label>
                   <DeckPicker
@@ -460,12 +503,14 @@ export function MatchForm({
               )}
             </>
           )}
+          </>)}
 
-          {sameTwice && <p className="text-sm font-medium text-loss">{tr(lng, "x.015e83e1")}</p>}
+          {sameTwice && especial !== "bye" && <p className="text-sm font-medium text-loss">{tr(lng, "x.015e83e1")}</p>}
         </div>
       </section>
 
       {/* ----------------------------- resultado ----------------------------- */}
+      {!especial ? (<>
       <section className="card registro-seccion p-4" data-acento="resultado">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="resultado" className="size-7" />{tr(lng, "x.c7589dbf")}</h2>
@@ -675,6 +720,59 @@ export function MatchForm({
           </p>
         )}
       </section>
+
+
+      {/* v0.123 — por qué se perdió (opcional): etiquetas de causa del que perdió.
+          En un empate, del que registra (lado A): también es un mal resultado. */}
+      {decided && causasDe && (
+        <section className="card registro-seccion p-4" data-acento="causas" aria-labelledby="causas-titulo">
+          <h2 id="causas-titulo" className="text-base font-bold">
+            {trf(lng, ganadorSerie === "tie" ? "v123.causasEmpate" : "v123.causasTitulo", { n: causasDe === aId ? (A?.name ?? "A") : bLabel })}
+          </h2>
+          <p className="mb-2 text-xs text-muted">{tr(lng, "v123.causasAyuda")}</p>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="causas-titulo">
+            {CAUSAS_DERROTA.map((c) => {
+              const on = causasMarcadas.includes(c);
+              return (
+                <button key={c} type="button" aria-pressed={on} className={`chip causa-chip ${on ? "chip-loss" : ""}`}
+                  onClick={() => setCausas(on ? causasMarcadas.filter((x) => x !== c) : [...causasMarcadas, c])}>
+                  {tr(lng, `v123.causa.${c}`)}
+                </button>
+              );
+            })}
+          </div>
+          <input type="hidden" name="causas" value={causasMarcadas.join(",")} />
+          <input type="hidden" name="causasDe" value={causasDe} />
+          <input type="hidden" name="causasTocadas" value={causas ? "1" : ""} />
+        </section>
+      )}
+      </>) : (
+        <section className="card registro-seccion p-4" data-acento="resultado">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold"><ObjetoSprite uso="resultado" className="size-7" />{tr(lng, "x.c7589dbf")}</h2>
+          {especial !== "bye" && (
+            <div className="config-grupo" role="group" aria-labelledby="np-quien">
+              <p id="np-quien" className="config-etiqueta">{tr(lng, "v123.npQuien")}</p>
+              <div className="config-opciones">
+                <button type="button" aria-pressed={especial === "np_a"} onClick={() => setEspecial("np_a")} className="config-opcion">
+                  <span className="config-opcion-titulo">{A?.name ?? "A"}</span>
+                </button>
+                <button type="button" aria-pressed={especial === "np_b"} onClick={() => setEspecial("np_b")} className="config-opcion">
+                  <span className="config-opcion-titulo">{external ? (rivalFuera || bLabel) : bLabel}</span>
+                </button>
+              </div>
+            </div>
+          )}
+          <p className="mt-3 rounded-xl border border-win/40 bg-win/10 px-3 py-2.5 text-sm font-semibold text-ink" role="status">
+            {especial === "bye"
+              ? trf(lng, "v123.resBye", { a: A?.name ?? "A" })
+              : trf(lng, "v123.resNp", {
+                  g: especial === "np_a" ? (external ? (rivalFuera || bLabel) : bLabel) : (A?.name ?? "A"),
+                  p: especial === "np_a" ? (A?.name ?? "A") : (external ? (rivalFuera || bLabel) : bLabel),
+                })}
+          </p>
+          <p className="mt-2 text-xs text-muted">{tr(lng, "v123.especialNota")}</p>
+        </section>
+      )}
 
       {/* ------------------------------ contexto ------------------------------ */}
       <details className="card p-4" open={Boolean(match?.competitionId || match?.tournamentId || match?.note)}>

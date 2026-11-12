@@ -16,6 +16,8 @@ import { newId, todayISO } from "@/lib/format";
 import { cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { importarDesdeLimitless } from "@/lib/importarLimitlessDb";
+import { leerCausas, PREFIJO_NO_PRESENTADO } from "@/lib/causasDerrota";
+import { guardarCausas } from "@/lib/causasDb";
 
 import { bestOfDeRonda, familiaDe, maxRondasDe } from "@/lib/estructura";
 import { currentPlayer } from "@/lib/data";
@@ -533,15 +535,19 @@ export async function saveTournamentRound(fd: FormData) {
      las estadísticas de mazos y del Elo. */
   const esBye = str(fd, "bye") === "1";
   if (esBye) { rows.length = 0; seriesResult = "a"; }
+  /* v0.123 — NO PRESENTADO: el rival no vino (ganas) o no fuiste tú (pierdes).
+     Sin juegos ni mazo del rival; cuenta en el récord, no en el Elo. */
+  const np = esBye ? "" : pick(fd, "np", ["", "rival", "yo"] as const, "");
+  if (np) { rows.length = 0; seriesResult = np === "rival" ? "a" : "b"; }
 
   /* v0.88 — el resultado y el mazo del rival son obligatorios (salvo en un
      BYE). El formulario ya no deja enviar sin ellos, pero una Server Action es
      un endpoint público. */
-  const hayResultado = esBye || (mode === "quick" ? Boolean(seriesResult)
+  const hayResultado = esBye || Boolean(np) || (mode === "quick" ? Boolean(seriesResult)
     : rows.length > 0 && (seriesResult != null
       || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need));
   if (!hayResultado) return redirect(withFlash(destinoRonda, "error", "Falta el resultado de la ronda."));
-  if (!esBye && !rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
+  if (!esBye && !np && !rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
 
   const values = {
     competitionId: null,
@@ -554,13 +560,15 @@ export async function saveTournamentRound(fd: FormData) {
     opponentPlayerId: esBye ? null : (rivalPlayer?.id ?? null),
     deckAId,
     archetypeAId,
-    deckBId: esBye ? null : rivalDeckId,
-    opponentArchetypeId: esBye ? null : rivalArchId,
+    deckBId: esBye || np ? null : rivalDeckId,
+    opponentArchetypeId: esBye || np ? null : rivalArchId,
     bestOf,
     status: "done" as const,
     seriesResult,
-    firstTurn: esBye ? "" : first,
-    note: str(fd, "note").slice(0, 300),
+    firstTurn: esBye || np ? "" : first,
+    note: (np
+      ? `${PREFIJO_NO_PRESENTADO}: ${np === "rival" ? (opponentName || "rival") : "yo"}${str(fd, "note") ? ` · ${str(fd, "note")}` : ""}`
+      : str(fd, "note")).slice(0, 300),
     createdBy: actor.id,
   };
 
@@ -650,6 +658,10 @@ export async function saveTournamentRound(fd: FormData) {
   }
   if (rows.length) {
     await db.insert(games).values(rows.map((r) => ({ matchId: id, ...r, note: "" })));
+  }
+  // v0.123 — causas de la derrota (o del empate), solo si se tocaron.
+  if (str(fd, "causasTocadas") === "1" && !esBye && !np) {
+    await guardarCausas(id, playerId, leerCausas(str(fd, "causas")));
   }
 
   // Si el mazo (o el arquetipo) del torneo se acaba de elegir aquí, queda

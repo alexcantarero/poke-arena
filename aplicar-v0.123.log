@@ -1,0 +1,69 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261112204928
+Nombre de usuario: elzorro1-PC\elzorro1
+Usuario RunAs: elzorro1-PC\elzorro1
+Nombre de la configuración: 
+Máquina: ELZORRO1-PC (Microsoft Windows NT 10.0.22631.0)
+Aplicación host: powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\elzorro1\OneDrive\Escritorio\PokeArenaTCG\aplicar-v0.123.ps1
+Id. de proceso: 16320
+PSVersion: 5.1.22621.6133
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.22621.6133
+BuildVersion: 10.0.22621.6133
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Comprobando el repositorio
+Version actual: 0.122.0
+Rama: development
+Aviso: tienes cambios sin commitear. Entraran en el mismo commit de la v0.123:
+   ?? IMPLEMENTAR-v0.123.0.md
+
+==> Copiando los ficheros de la v0.123
+  + CHANGELOG.md
+  + CLAUDE.md
+  + IMPLEMENTAR-v0.123.0.md
+  + package-lock.json
+  + package.json
+  + README.md
+  + docs\08-datos-externos.md
+  + drizzle\0035_v0_123_0.sql
+  + scripts\migrar.mjs
+  + src\actions\calendario.ts
+  + src\actions\partidas.ts
+  + src\actions\torneos.ts
+  + src\app\globals.css
+  + src\app\(app)\page.tsx
+  + src\app\(app)\estadisticas\page.tsx
+  + src\app\(app)\partidas\[id]\page.tsx
+  + src\components\MatchForm.tsx
+  + src\components\RoundForm.tsx
+  + src\components\statistics\GraficoCausas.tsx
+  + src\db\schema.ts
+  + src\lib\causasDb.ts
+  + src\lib\causasDerrota.ts
+  + src\lib\esquemaEsperado.ts
+  + src\lib\eventosPegados.ts
+  + src\lib\i18n.ts
+  + src\lib\stats.ts
+  + tests\causasDerrota.test.ts
+  + tests\eventosLocalizador.test.ts
+  + tests\partidasEspeciales.test.ts
+29 ficheros copiados.
+
+==> Borrando lo que ya no hace falta
+  - IMPLEMENTAR-v0.121.0.md
+
+==> npm run verificar  (codificacion + acciones + textos + pruebas + tipos)
+
+
+ERROR: La verificacion ha fallado: NO se ha hecho commit. Los ficheros nuevos ya estan copiados; mira el error de arriba. Puedes volver a lanzar el .bat cuando lo arregles.
+Detalle completo en aplicar-v0.123.log
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261112204950
+**********************
