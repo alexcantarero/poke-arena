@@ -33,6 +33,7 @@ ponla a `20` y vuelve a desplegar.
    sin eventos importados sale como «—»; un mes con eventos donde ese mazo no apareció, como 0.
 3. Con `META_TORNEOS_POR_MES=20`, la primera carga de Top Decks pide menos clasificaciones.
 4. **Idioma EN**: los textos nuevos salen en inglés.
+5. Abrir `/estadisticas?fuente=evento` vuelve a Estadísticas, no a Top Decks.
 
 ## Deshacer
 

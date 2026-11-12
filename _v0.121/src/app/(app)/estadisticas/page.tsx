@@ -1,9 +1,7 @@
 import { GraficoTendenciaMeta } from "@/components/statistics/GraficoTendenciaMeta";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { loadMetaIrl, loadSnapshot } from "@/lib/data";
-import { irlMeta } from "@/lib/metaIrl";
-import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
+import { loadSnapshot } from "@/lib/data";
 import { CrucePanel } from "@/components/CrucePanel";
 import { hrefConParam, parseCruce, valorCruce, type PartidaCruce } from "@/lib/cruces";
 import {
@@ -25,8 +23,6 @@ import { KpiCard } from "@/components/charts/KpiCard";
 import { EnlaceArquetipo } from "@/components/EnlaceArquetipo";
 import { filtroBaseParaEnlaces } from "@/lib/enlacesFiltro";
 import { prepareDailyTrend, prepareHourlyDistribution } from "@/lib/chartData";
-import { LastEvent } from "@/components/statistics/LastEvent";
-import { fetchLastBigTournament } from "@/lib/sources/limitless";
 import { SortToggle, sortRows, type SortDir } from "@/components/statistics/SortToggle";
 import { GlobalMeta } from "@/components/statistics/GlobalMeta";
 import { tipoDePartida } from "@/lib/tiposPartida";
@@ -75,64 +71,16 @@ export default async function StatsPage({
     || fuenteRaw === "regionales" || fuenteRaw === "city" || fuenteRaw === "live"
       ? fuenteRaw : "local";
 
-  /* v0.120 — los mazos de fuera (Regionales, City Leagues, último torneo
-     online) se ven en Top Decks; Estadísticas se queda con estadísticas y
-     gráficos. Los enlaces viejos llevan a su nuevo sitio. */
+  /* v0.120 — los mazos de fuera (Regionales y City Leagues) se ven en Top
+     Decks; Estadísticas se queda con estadísticas y gráficos. */
   if (fuente === "regionales") redirect("/topdecks?fuente=presencial");
   if (fuente === "city") redirect("/topdecks?fuente=city");
-  if (fuente === "evento") redirect("/topdecks?fuente=evento");
-
-  /* v0.14 — Regionales y City Leagues: el metagame presencial (lo traído de
-     Limitless o pegado a mano), partido por tipo de evento. Son mazos de
-     fuera: los filtros de partidas de la liga no aplican, así que la página
-     se queda en la tabla y la lista de eventos. */
-  if (fuente === "regionales" || fuente === "city") {
-    const { events, entries } = await loadMetaIrl();
-    const tipos = fuente === "city"
-      ? new Set(["city_league"])
-      : new Set(["regional", "special", "international", "worlds"]);
-    const evs = events.filter((e) => tipos.has(e.kind));
-    const ids = new Set(evs.map((e) => e.id));
-    const meta = irlMeta(
-      evs.map((e) => ({
-        id: e.id, name: e.name, date: e.date, kind: e.kind,
-        coverage: e.coverage, playerCount: e.playerCount, topCut: e.topCut,
-      })),
-      entries.filter((r) => ids.has(r.eventId)).map((r) => ({
-        eventId: r.eventId, placement: r.placement, copies: r.copies,
-        archetypeId: r.archetypeId, archetypeName: r.archetypeName,
-        main: r.main, secondary: r.secondary,
-      })),
-    );
-    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
-    return (
-      <>
-        <PageHead
-          title={tr(lng, "x.a580d598")}
-          sub={fuente === "city"
-            ? tr(lng, "x.b77027d0")
-            : tr(lng, "x.b17c6661")}
-        />
-        <SourceTabs current={fuente} query="" />
-        <MetaIrlTable meta={meta} nuestros={new Set(snap.archetypes.map((a) => norm(a.name)))} />
-        <MetaIrlEvents eventos={evs.map((e) => ({
-          id: e.id, name: e.name, date: e.date, kind: e.kind, location: e.location,
-          sourceName: e.sourceName, sourceUrl: e.sourceUrl, coverage: e.coverage,
-          playerCount: e.playerCount, division: e.division,
-        }))} />
-        <p className="mt-3 text-xs text-muted">
-          Se actualiza en Ajustes → «Regionales y City Leagues automáticos». Datos de{" "}
-          <a className="underline" href="https://limitlesstcg.com" target="_blank" rel="noopener noreferrer">{tr(lng, "x.af108644")}</a>.
-        </p>
-      </>
-    );
-  }
+  if (fuente === "evento") redirect("/estadisticas");
 
   /* La fuente manda sobre la página ENTERA, no solo sobre el primer bloque.
-     Con «Meta online» o «Último torneo» no tiene sentido enseñar la matriz de
-     emparejamientos ni la actividad por mes: esas salen de vuestras partidas
-     y no existen fuera. En vez de dejarlas ahí diciendo lo de siempre —que
-     era lo confuso—, se ocultan y se dice por qué. */
+     Con «Meta online» no tiene sentido enseñar la matriz de emparejamientos
+     ni la actividad por mes: esas salen de vuestras partidas y no existen
+     fuera. */
   const conLocal = fuente === "local" || fuente === "both" || fuente === "live";
 
   /* Orden de los gráficos y de las listas de arquetipos. Descendente por
@@ -418,18 +366,6 @@ export default async function StatsPage({
     return qs ? `/estadisticas?${qs}` : "/estadisticas";
   };
 
-  /* El informe del último torneo grande. Solo se pide cuando toca: son dos
-     llamadas encadenadas a Limitless y no hay por qué pagarlas en las otras
-     tres pestañas. */
-  const informe = fuente === "evento"
-    ? await fetchLastBigTournament({
-        days: 14,
-        minPlayers: 64,
-        format: (filter.format || "standard").toUpperCase(),
-        apiKey: process.env.LIMITLESS_API_KEY,
-      })
-    : null;
-
   /** La URL de ahora con otro orden. */
   const ordenHref = (d: SortDir) => {
     const p = new URLSearchParams(query);
@@ -466,10 +402,6 @@ export default async function StatsPage({
 
       <SourceTabs current={fuente} query={query} />
 
-      {fuente === "evento" ? (
-        <LastEvent report={informe} />
-      ) : (
-      <>
       <FilterPanel
         action="/estadisticas"
         filter={filter}
@@ -791,8 +723,6 @@ export default async function StatsPage({
                 />
               </div>
         </div>
-      )}
-      </>
       )}
       </>
       )}
