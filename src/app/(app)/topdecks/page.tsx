@@ -3,7 +3,7 @@ import { fetchLastBigTournament, fetchMetaConTendencia, fetchMetaSnapshot, top4R
 import { LastEvent } from "@/components/statistics/LastEvent";
 import { TendenciaCuota } from "@/components/TendenciaCuota";
 import { loadMetaIrl, loadArchetypes } from "@/lib/data";
-import { irlMeta } from "@/lib/metaIrl";
+import { irlMeta, tendenciaIrl } from "@/lib/metaIrl";
 import { MetaIrlEvents, MetaIrlTable } from "@/components/MetaIrlTable";
 import { spriteUrl } from "@/lib/pokemon";
 import { pct, wrColor } from "@/lib/format";
@@ -154,7 +154,13 @@ export default async function TopDecksPage({
             <Icon name="search" className="size-4" />
           </button>
         </form>
-        <MetaIrlTable meta={metaIrl} nuestros={nuestros} query={query} />
+        {/* v0.121 — también aquí, la cuota de este mes, el pasado y el anterior. */}
+        <MetaIrlTable meta={metaIrl} nuestros={nuestros} query={query}
+          tendencia={tendenciaIrl(
+            events.map((e) => ({ id: e.id, name: e.name, date: e.date, kind: e.kind, coverage: e.coverage, playerCount: e.playerCount, topCut: e.topCut })),
+            entries.map((r) => ({ eventId: r.eventId, placement: r.placement, copies: r.copies, archetypeId: r.archetypeId, archetypeName: r.archetypeName, main: r.main, secondary: r.secondary })),
+            Date.now(),
+          )} />
         <MetaIrlEvents eventos={events.map((e) => ({
           id: e.id, name: e.name, date: e.date, kind: e.kind, location: e.location,
           coverage: e.coverage, playerCount: e.playerCount,

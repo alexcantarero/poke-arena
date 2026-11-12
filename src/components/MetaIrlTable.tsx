@@ -1,3 +1,4 @@
+import { TendenciaCuota } from "@/components/TendenciaCuota";
 import Link from "next/link";
 import { spriteUrl } from "@/lib/pokemon";
 import { fmtDate, pct } from "@/lib/format";
@@ -26,7 +27,11 @@ import { getLang } from "@/lib/lang";
    sin su contexto se cita luego sin él.
    ========================================================================= */
 
-export async function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSummary; nuestros: Set<string>; query?: string }) {
+export async function MetaIrlTable({ meta, nuestros, query = "", tendencia }: {
+  meta: IrlSummary; nuestros: Set<string>; query?: string;
+  /** v0.121 — cuota por mes (este, el pasado, el anterior), con la clave de cada fila. */
+  tendencia?: Record<string, Array<number | null>>;
+}) {
   const lng = await getLang(); // v0.49
 
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -116,6 +121,7 @@ export async function MetaIrlTable({ meta, nuestros, query = "" }: { meta: IrlSu
                   </span>
                   <span className="block text-[10px] text-muted">{tr(lng, "x.cdd02ce6")}</span>
                 </span>
+                {tendencia && <TendenciaCuota serie={tendencia[r.key] ?? [r.share, null, null]} lang={lng} />}
                 <span className="w-12">
                   <span className="block font-display text-base font-extrabold tabular">
                     {pct(top8Rate(r), 0)}

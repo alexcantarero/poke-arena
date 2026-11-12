@@ -2509,6 +2509,16 @@ const ES = {
   "v120.selTop5": "Top 5",
   "v120.selMas": "+{n} más",
   "v120.selMenos": "Ver menos",
+  // v0.121
+  "v121.tendSeccion": "Cómo se mueve el meta online",
+  "v121.tendTitulo": "Cuota de los 8 más jugados, mes a mes",
+  "v121.tendMuestra": "Muestra: {a} torneos este mes · {b} el pasado · {c} el anterior",
+  "v121.hace2": "Hace dos meses",
+  "v121.mesPasado": "Mes pasado",
+  "v121.esteMes": "Este mes",
+  "v121.tendNota": "De cada mes, los torneos online más grandes de Limitless. La lista completa, con la tendencia de cada mazo, en",
+  "v121.verTopDecks": "Top Decks.",
+  "v121.tendSinDatos": "No se ha podido leer la tendencia del meta online ahora mismo (Limitless no responde). Se vuelve a intentar en la próxima carga.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -4992,6 +5002,16 @@ const EN: Record<I18nKey, string> = {
   "v120.selTop5": "Top 5",
   "v120.selMas": "+{n} more",
   "v120.selMenos": "Show less",
+  // v0.121
+  "v121.tendSeccion": "How the online meta is moving",
+  "v121.tendTitulo": "Share of the 8 most played, month by month",
+  "v121.tendMuestra": "Sample: {a} events this month · {b} last month · {c} the one before",
+  "v121.hace2": "Two months ago",
+  "v121.mesPasado": "Last month",
+  "v121.esteMes": "This month",
+  "v121.tendNota": "Each month, the largest Limitless online events. The full list, with each deck's trend, is in",
+  "v121.verTopDecks": "Top Decks.",
+  "v121.tendSinDatos": "Couldn't read the online meta trend right now (Limitless isn't answering). It will retry on the next load.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

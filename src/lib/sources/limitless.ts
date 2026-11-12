@@ -780,7 +780,11 @@ export async function fetchMetaConTendencia(opts: MetaOptions & { porPeriodo?: n
   tendencia: Record<string, Array<number | null>>;
   periodos: Array<{ torneos: number; listas: number }>;
 }> {
-  const { days = 30, minPlayers = 16, format = "STANDARD", apiKey, porPeriodo = 30 } = opts;
+  /* v0.121 — cuántos torneos por mes, ajustable sin tocar código: si en Vercel
+     la primera carga va lenta, META_TORNEOS_POR_MES=20 (entre 10 y 60). */
+  const porEnv = Number(process.env.META_TORNEOS_POR_MES);
+  const { days = 30, minPlayers = 16, format = "STANDARD", apiKey,
+    porPeriodo = Number.isFinite(porEnv) && porEnv > 0 ? Math.min(60, Math.max(10, Math.round(porEnv))) : 30 } = opts;
   const ahora = Date.now();
   const todos = await fetchTournamentsDesde({ days: DIAS_PERIODO * PERIODOS, format, apiKey, minPlayers });
   const cubos = muestraPorPeriodos(todos, ahora, porPeriodo);

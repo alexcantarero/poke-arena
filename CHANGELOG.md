@@ -2,6 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.121.0] — 2026-11-12
+
+**Sin migración ni dependencias nuevas.** Una variable de entorno nueva y opcional:
+`META_TORNEOS_POR_MES`.
+
+### Añadido
+
+- **Estadísticas → Online: «Cómo se mueve el meta online»**: gráfico con la cuota de los 8 mazos
+  más jugados, mes a mes (hace dos meses, el pasado, este), en la misma escala, con la flecha de
+  tendencia y la muestra de torneos de cada mes. La lista completa sigue en Top Decks.
+- **Tendencia también en el meta presencial** (Top Decks → Presencial y City Leagues): cuota de
+  cada mazo en los eventos importados de este mes, el pasado y el anterior.
+  `tendenciaIrl()` en `lib/metaIrl.ts` (1 prueba).
+- **`META_TORNEOS_POR_MES`** (opcional, 10–60, por defecto 30): cuántos torneos online por mes
+  se usan para el meta y la tendencia. Si la primera carga de Top Decks va lenta en Vercel, bajarlo
+  a 20 sin tocar código.
+
 ## [0.120.0] — 2026-11-09
 
 **Sin migración ni dependencias nuevas.** Cambia el cálculo del Elo y de la Forma: se recalculan

@@ -285,3 +285,38 @@ export function panelDeEvento(
     corte,
   };
 }
+
+/* =========================================================================
+   v0.121 — La tendencia del metagame presencial: cuota de cada mazo en los
+   eventos de este mes, del pasado y del anterior (periodos de 30 días hacia
+   atrás desde hoy, por la fecha del evento). Misma clave que `irlMeta`, para
+   poder ponerla al lado de cada fila. Un periodo sin eventos da null.
+   ========================================================================= */
+export function tendenciaIrl(
+  events: IrlEvent[], entries: IrlEntry[], ahoraMs: number, diasPeriodo = 30, periodos = 3,
+): Record<string, Array<number | null>> {
+  const periodoDe = new Map<string, number>();
+  for (const e of events) {
+    const t = Date.parse(`${e.date.slice(0, 10)}T12:00:00Z`);
+    if (!Number.isFinite(t)) continue;
+    const p = Math.floor(Math.max(0, ahoraMs - t) / (diasPeriodo * 86_400_000));
+    if (p < periodos) periodoDe.set(e.id, p);
+  }
+  const listas: Array<Map<string, number>> = Array.from({ length: periodos }, () => new Map());
+  const totales = Array(periodos).fill(0) as number[];
+  for (const r of entries) {
+    const p = periodoDe.get(r.eventId);
+    if (p == null) continue;
+    const key = r.archetypeId ?? `n:${norm(r.archetypeName)}`;
+    if (!key || key === "n:") continue;
+    listas[p].set(key, (listas[p].get(key) ?? 0) + r.copies);
+    totales[p] += r.copies;
+  }
+  const out: Record<string, Array<number | null>> = {};
+  listas.forEach((m, p) => {
+    for (const [k, n] of m) (out[k] ??= Array(periodos).fill(null))[p] = totales[p] ? n / totales[p] : null;
+  });
+  // Un periodo con eventos pero sin ese mazo es un 0, no «sin datos».
+  for (const k of Object.keys(out)) out[k] = out[k].map((v, p) => (v == null && totales[p] > 0 ? 0 : v));
+  return out;
+}

@@ -175,3 +175,21 @@ test("v0.13 · panelDeEvento: solo resumen, sin puestos → conversión nula, no
   assert.equal(p.campo.decks, 40);
   assert.equal(p.corte.length, 0);
 });
+
+import { tendenciaIrl } from "../src/lib/metaIrl.ts";
+
+test("v0.121: tendencia presencial por meses, con la misma clave que la tabla", () => {
+  const ahora = Date.parse("2026-11-12T12:00:00Z");
+  const ev = [
+    { id: "e1", name: "Stuttgart", date: "2026-11-01", kind: "regional", coverage: 64, playerCount: 1200, topCut: 8 },
+    { id: "e2", name: "Gdansk", date: "2026-10-01", kind: "regional", coverage: 64, playerCount: 1000, topCut: 8 },
+  ];
+  const en = [
+    { eventId: "e1", placement: 1, copies: 3, archetypeId: "drag", archetypeName: "Dragapult", main: "dragapult", secondary: "" },
+    { eventId: "e1", placement: 2, copies: 1, archetypeId: null, archetypeName: "Gardevoir ex", main: "gardevoir", secondary: "" },
+    { eventId: "e2", placement: 1, copies: 2, archetypeId: "drag", archetypeName: "Dragapult", main: "dragapult", secondary: "" },
+  ];
+  const t = tendenciaIrl(ev, en, ahora);
+  assert.deepEqual(t.drag, [0.75, 1, null]);
+  assert.deepEqual(t["n:gardevoirex"], [0.25, 0, null]);
+});
