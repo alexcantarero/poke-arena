@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useRouter } from "next/navigation";
 import { subirRondaDeCola } from "@/actions";
 import {
-  CLAVE_COLA, aFormulario, aplicarRespuesta, encolar, forzar, listaParaGuardar, parseCola, porSubir, quitar, recordCon, siguienteRonda,
-  type EspecialCola, type ResultadoCola, type RondaEnCola,
+  CLAVE_COLA, aFormulario, aplicarRespuesta, encolar, falloEnJuegos, forzar, listaParaGuardar, parseCola, porSubir, quitar, recordCon,
+  resultadoDeJuegos, siguienteRonda,
+  type EspecialCola, type JuegoCola, type ResultadoCola, type RondaEnCola,
 } from "@/lib/colaRondas";
+import { CAUSAS_DERROTA } from "@/lib/causasDerrota";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
@@ -30,14 +32,25 @@ import { useLang } from "@/components/LangProvider";
 
 /** `color`: el de su tipo de energía; `sprite`: URL del Pokémon principal (vacíos si no hay). */
 export type OpcionMazo = { valor: string; nombre: string; color: string; sprite: string };
-export type RondaVista = { ronda: number; r: "w" | "l" | "t" | null; rival: string; mazoRival: string };
+export type RondaVista = {
+  ronda: number; r: "w" | "l" | "t" | null; rival: string; mazoRival: string;
+  /** v0.128 — lo guardado, para abrir «Corregir» con sus datos. */
+  rivalValor: string; primero: "" | "a" | "b"; especial: EspecialCola; juegos: JuegoCola[];
+};
+
+/** v0.128 — un juego mientras se edita: el ganador puede estar aún sin elegir. */
+type JuegoForm = { g: ResultadoCola | ""; pa: number | null; pb: number | null; ma: number; mb: number };
+const JUEGO_VACIO: JuegoForm = { g: "", pa: null, pb: null, ma: 0, mb: 0 };
+const DE_LETRA: Record<string, ResultadoCola> = { w: "a", l: "b", t: "tie" };
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const LETRA: Record<ResultadoCola, "w" | "l" | "t"> = { a: "w", b: "l", tie: "t" };
 
 export function ModoTorneo({
-  torneoId, playerId, abierto, dropped, tope, rondas, mazoFijado, arquetipos, misMazos, frecuentes, buildId,
+  torneoId, playerId, abierto, dropped, tope, rondas, mazoFijado, arquetipos, misMazos, frecuentes, buildId, bestOfPorRonda,
 }: {
+  /** v0.128 — el formato (1, 3 o 5) de cada ronda; la ronda 1 es el índice 0. */
+  bestOfPorRonda: number[];
   torneoId: string; playerId: string; abierto: boolean; dropped: boolean; tope: number | null;
   rondas: RondaVista[]; mazoFijado: string; arquetipos: OpcionMazo[]; misMazos: OpcionMazo[]; frecuentes: string[]; buildId: string;
 }) {
@@ -64,6 +77,11 @@ export function ModoTorneo({
   const [oponente, setOponente] = useState("");
   const [especial, setEspecial] = useState<EspecialCola>("");
   const [miMazo, setMiMazo] = useState("");
+  /* v0.128 — el detalle opcional: premios y mulligans de cada juego, y etiquetas.
+     `detalle` apagado = modo rápido de siempre. `causas` null = sin tocar. */
+  const [detalle, setDetalle] = useState(false);
+  const [juegos, setJuegos] = useState<JuegoForm[]>([JUEGO_VACIO]);
+  const [causas, setCausas] = useState<string[] | null>(null);
 
   const persistir = useCallback((c: RondaEnCola[]) => {
     colaRef.current = c;
@@ -173,9 +191,28 @@ export function ModoTorneo({
 
   const limpiar = () => {
     setEditando(null); setResultado(""); setRival(""); setBusca(""); setPrimero(""); setOponente(""); setEspecial("");
+    setDetalle(false); setJuegos([JUEGO_VACIO]); setCausas(null);
   };
 
-  const puedeGuardar = rondaForm != null && listaParaGuardar({ resultado, rival, especial, miMazo, mazoFijado: Boolean(mazoFijado) });
+  /* v0.128 — el detalle. En un Bo1 hay un solo juego y su ganador ES el
+     resultado elegido arriba. En un Bo3/Bo5 se apunta el ganador de cada juego
+     y el resultado de arriba se pone solo con lo que digan los juegos. */
+  const bestOf = rondaForm != null ? bestOfPorRonda[rondaForm - 1] ?? bestOfPorRonda[bestOfPorRonda.length - 1] ?? 1 : 1;
+  const unJuego = bestOf === 1;
+  const conDetalle = detalle && !especial;
+  const juegosFinales: JuegoForm[] = !conDetalle ? [] : unJuego ? [{ ...juegos[0], g: resultado }] : juegos;
+  const falloJuegos = conDetalle ? falloEnJuegos(juegosFinales, bestOf) : null;
+  const cambiaJuego = (i: number, parcial: Partial<JuegoForm>) => {
+    const nuevos = juegos.map((j, k) => (k === i ? { ...j, ...parcial } : j));
+    setJuegos(nuevos);
+    // En un Bo3/Bo5 el resultado de arriba sigue a los juegos.
+    if (!unJuego && nuevos.every((j) => j.g)) { const res = resultadoDeJuegos(nuevos); if (res) setResultado(res); }
+  };
+  const noCuadra = conDetalle && !unJuego && !falloJuegos && resultadoDeJuegos(juegosFinales) !== resultado;
+  const perdida = !especial && (resultado === "b" || resultado === "tie");
+
+  const puedeGuardar = rondaForm != null && !falloJuegos && !noCuadra
+    && listaParaGuardar({ resultado, rival, especial, miMazo, mazoFijado: Boolean(mazoFijado) });
 
   const guardar = () => {
     if (rondaForm == null || !puedeGuardar) return;
@@ -188,6 +225,9 @@ export function ModoTorneo({
       // Corregir una ronda que ya estaba en el servidor no es un choque.
       conocida: rondas.some((r) => r.ronda === rondaForm) || subidas.current.has(rondaForm),
       creado: Date.now(), estado: "pendiente", detalle: "", forzar: false,
+      juegos: juegosFinales as JuegoCola[], // `puedeGuardar` ya ha comprobado que todos tienen ganador
+      // Las etiquetas son de una derrota o un empate; si al final se ganó, no viajan.
+      causas: perdida ? causas : null,
     };
     persistir(encolar(colaRef.current, nueva));
     limpiar();
@@ -196,10 +236,16 @@ export function ModoTorneo({
 
   const editar = (ronda: number) => {
     const enCola = cola.find((r) => r.ronda === ronda);
+    // v0.128 — si no está en la cola, se abre con lo que hay en el servidor: corregir no es volver a teclearlo todo.
+    const srv = enCola ? undefined : rondas.find((r) => r.ronda === ronda);
+    const esp = enCola?.especial ?? srv?.especial ?? "";
+    const js = enCola?.juegos ?? srv?.juegos ?? [];
     setEditando(ronda);
-    setResultado(enCola && !enCola.especial ? enCola.resultado : "");
-    setRival(enCola?.rival ?? ""); setBusca(""); setPrimero(enCola?.primero ?? ""); setOponente(enCola?.oponente ?? "");
-    setEspecial(enCola?.especial ?? "");
+    setResultado(esp ? "" : enCola ? enCola.resultado : srv?.r ? DE_LETRA[srv.r] : "");
+    setRival(enCola?.rival ?? srv?.rivalValor ?? ""); setBusca(""); setPrimero(enCola?.primero ?? srv?.primero ?? "");
+    setOponente(enCola?.oponente ?? (srv && !/^(NPC|Rival R)\s?\d+$|^BYE$/.test(srv.rival) ? srv.rival : ""));
+    setEspecial(esp);
+    setDetalle(js.length > 0); setJuegos(js.length ? js : [JUEGO_VACIO]); setCausas(enCola?.causas ?? null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -226,9 +272,13 @@ export function ModoTorneo({
   if (!mazoFijado && !miMazo) faltan.push(tr(lng, "v126.faltaMiMazo"));
   if (!especial && !resultado) faltan.push(tr(lng, "v126.faltaResultado"));
   if (!especial && !rival) faltan.push(tr(lng, "v126.faltaRival"));
+  if (falloJuegos) faltan.push(tr(lng, `v128.fallo.${falloJuegos}`));
+  else if (noCuadra) faltan.push(tr(lng, "v128.noCuadra"));
   const resumen = especial
     ? tr(lng, especial === "bye" ? "v125.bye" : especial === "np-rival" ? "v125.npRival" : "v125.npYo")
-    : [resultado ? tr(lng, RES.find((o) => o.v === resultado)!.clave) : "", nombreDe.get(rival) ?? ""].filter(Boolean).join(" · ");
+    : [resultado ? tr(lng, RES.find((o) => o.v === resultado)!.clave) : "",
+      nombreDe.get(rival) ?? rondas.find((r) => r.ronda === rondaForm && r.rivalValor === rival)?.mazoRival ?? "",
+      conDetalle ? tr(lng, "v128.conDetalle") : ""].filter(Boolean).join(" · ");
   let paso = 0;
   const num = () => String(++paso).padStart(2, "0");
 
@@ -342,6 +392,94 @@ export function ModoTorneo({
                 </div>
               </div>
             </>
+          )}
+
+          {/* v0.128 — DETALLE OPCIONAL: premios y mulligans de cada juego. */}
+          {!especial && (
+            <div className="mt-paso" data-opcional="true" data-hecho={conDetalle && !falloJuegos}>
+              <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v128.detalle")}<em>{tr(lng, "v126.opcional")}</em></p>
+              {!detalle ? (
+                <button type="button" className="mt-anadir" onClick={() => setDetalle(true)}>
+                  <b>＋</b> {tr(lng, unJuego ? "v128.anadir" : "v128.anadirJuegos")}
+                </button>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {(unJuego ? juegos.slice(0, 1) : juegos).map((j, i) => (
+                    <div key={i} className="mt-juego">
+                      {!unJuego && (
+                        <>
+                          <p className="mt-juego-titulo">{trf(lng, "v128.juego", { n: i + 1 })}</p>
+                          <div className="seg mb-3 w-full" role="group" aria-label={trf(lng, "v128.ganadorJuego", { n: i + 1 })}>
+                            {([["a", "v128.ganeJuego"], ["b", "v128.perdiJuego"], ["tie", "v128.empateJuego"]] as const).map(([v, k]) => (
+                              <button key={v} type="button" data-on={j.g === v} onClick={() => cambiaJuego(i, { g: v })}>{tr(lng, k)}</button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {([["pa", "v128.premiosYo"], ["pb", "v128.premiosRival"]] as const).map(([campo, k]) => (
+                        <div key={campo} className="mb-2.5">
+                          <p className="mt-mini">{tr(lng, k)}</p>
+                          <div className="mt-premios" role="group" aria-label={tr(lng, k)}>
+                            {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                              <button key={n} type="button" aria-pressed={j[campo] === n}
+                                onClick={() => { const v = j[campo] === n ? null : n; cambiaJuego(i, campo === "pa" ? { pa: v } : { pb: v }); }}>{n}</button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="grid grid-cols-2 gap-2">
+                        {([["ma", "v128.mullYo"], ["mb", "v128.mullRival"]] as const).map(([campo, k]) => (
+                          <div key={campo}>
+                            <p className="mt-mini">{tr(lng, k)}</p>
+                            <div className="mt-contador">
+                              <button type="button" aria-label={`− ${tr(lng, k)}`} disabled={j[campo] === 0}
+                                onClick={() => { const v = Math.max(0, j[campo] - 1); cambiaJuego(i, campo === "ma" ? { ma: v } : { mb: v }); }}>−</button>
+                              <output aria-live="polite">{j[campo]}</output>
+                              <button type="button" aria-label={`+ ${tr(lng, k)}`} disabled={j[campo] === 10}
+                                onClick={() => { const v = Math.min(10, j[campo] + 1); cambiaJuego(i, campo === "ma" ? { ma: v } : { mb: v }); }}>+</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    {!unJuego && juegos.length < bestOf && (
+                      <button type="button" className="btn btn-sm" onClick={() => setJuegos([...juegos, JUEGO_VACIO])}>
+                        ＋ {trf(lng, "v128.juego", { n: juegos.length + 1 })}
+                      </button>
+                    )}
+                    {!unJuego && juegos.length > 1 && (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setJuegos(juegos.slice(0, -1))}>
+                        {tr(lng, "v128.quitarJuego")}
+                      </button>
+                    )}
+                    <button type="button" className="btn btn-ghost btn-sm ml-auto" onClick={() => { setDetalle(false); setJuegos([JUEGO_VACIO]); }}>
+                      {tr(lng, "v128.quitarDetalle")}
+                    </button>
+                  </div>
+                  {!unJuego && <p className="text-xs text-muted">{tr(lng, "v128.juegosAyuda")}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* v0.128 — ETIQUETAS de la derrota o el empate (las mismas de la ficha y de Estadísticas). */}
+          {perdida && (
+            <div className="mt-paso" data-opcional="true" data-hecho={Boolean(causas?.length)}>
+              <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, resultado === "tie" ? "v123.causasEmpateYo" : "v123.causasYo")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CAUSAS_DERROTA.map((c) => {
+                  const on = (causas ?? []).includes(c);
+                  return (
+                    <button key={c} type="button" className={`chip mt-chip ${on ? "chip-brand" : ""}`} aria-pressed={on}
+                      onClick={() => setCausas(on ? (causas ?? []).filter((x) => x !== c) : [...(causas ?? []), c])}>
+                      {tr(lng, `v123.causa.${c}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           <details className="mt-mas" open={Boolean(especial) || undefined}>

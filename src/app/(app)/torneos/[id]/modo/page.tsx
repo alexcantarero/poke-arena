@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { readSession } from "@/lib/auth";
 import { currentPlayer, loadModoTorneo } from "@/lib/data";
 import { roundResult } from "@/lib/stats";
-import { maxRondasDe } from "@/lib/estructura";
+import { bestOfDeRonda, maxRondasDe } from "@/lib/estructura";
+import { esNoPresentado } from "@/lib/causasDerrota";
 import { ARCHETYPE_PREFIX, asStatus } from "@/lib/types";
 import { spriteUrl, typeOf } from "@/lib/pokemon";
 import { isOtherArchetype } from "@/components/ui";
@@ -43,10 +44,19 @@ export default async function ModoTorneoPage({ params }: { params: Promise<{ id:
 
   const rondas: RondaVista[] = d.misRondas.map((m) => {
     const r = roundResult(m);
+    const np = esNoPresentado(m.note);
     return {
       ronda: m.round, r: r === "d" ? "t" : r,
       rival: m.opponentName ?? "",
       mazoRival: nombreDeMazo(m.deckBId, m.opponentArchetypeId),
+      /* v0.128 — lo que ya estaba guardado, para que «Corregir» abra la ronda
+         con sus datos (y con el detalle, que si no se perdería al volver a guardar). */
+      rivalValor: m.deckBId ?? (m.opponentArchetypeId ? `${ARCHETYPE_PREFIX}${m.opponentArchetypeId}` : ""),
+      primero: (m.games[0]?.first === "a" || m.games[0]?.first === "b" ? m.games[0].first
+        : m.firstTurn === "a" || m.firstTurn === "b" ? m.firstTurn : "") as "" | "a" | "b",
+      especial: (m.opponentName === "BYE" ? "bye" : np ? (r === "w" ? "np-rival" : "np-yo") : "") as "" | "bye" | "np-rival" | "np-yo",
+      juegos: m.games.flatMap((g) => (g.winner === "a" || g.winner === "b" || g.winner === "tie"
+        ? [{ g: g.winner as "a" | "b" | "tie", pa: g.prizesA ?? null, pb: g.prizesB ?? null, ma: g.mulligansA ?? 0, mb: g.mulligansB ?? 0 }] : [])),
     };
   });
 
@@ -67,6 +77,8 @@ export default async function ModoTorneoPage({ params }: { params: Promise<{ id:
 
   const estado = asStatus(t.status);
   const tope = maxRondasDe({ kind: t.kind, playerCount: t.playerCount, rounds: t.rounds, topCut: t.topCut });
+  // v0.128 — el formato de cada ronda (el del top cut puede ser otro): para el detalle juego a juego.
+  const bestOfPorRonda = Array.from({ length: Math.max(tope ?? 0, 20) }, (_, i) => bestOfDeRonda(t, i + 1));
 
   return (
     /* v0.126 — siempre en oscuro (`data-theme`), sea cual sea el tema: es una
@@ -80,7 +92,7 @@ export default async function ModoTorneoPage({ params }: { params: Promise<{ id:
       <h1 className="mt-titulo">{t.name}</h1>
       <ModoTorneo
         torneoId={t.id} playerId={me.id} abierto={estado === "open"} dropped={Boolean(d.miResultado?.dropped)}
-        tope={tope} rondas={rondas} mazoFijado={fijado}
+        tope={tope} rondas={rondas} mazoFijado={fijado} bestOfPorRonda={bestOfPorRonda}
         arquetipos={arquetipos} misMazos={misMazos} frecuentes={frecuentes}
         buildId={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"}
       />

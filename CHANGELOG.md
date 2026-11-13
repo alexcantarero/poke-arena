@@ -2,6 +2,31 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.128.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido — detalle opcional en el modo torneo
+
+- **Premios y mulligans**, como paso opcional detrás de los tres de siempre. En un Bo1, los del
+  juego; en un Bo3/Bo5, juego a juego (quién ganó cada uno, premios de los dos lados y
+  mulligans), y el resultado de arriba se pone solo con lo que digan los juegos. Premios con siete
+  teclas (0–6; volver a pulsar la elegida la borra, porque 0 no es «sin apuntar») y mulligans con
+  − n +.
+- **Etiquetas** de por qué se perdió o no se ganó (las mismas once de la ficha y de la gráfica de
+  Estadísticas), cuando el resultado es derrota o empate.
+- Todo viaja por la misma cola: funciona sin cobertura y se guarda en las mismas tablas que el
+  formulario completo de la ficha (`games`, `match_causas`), así que alimenta las mismas
+  estadísticas. Quien no abra el detalle sigue apuntando en tres toques, igual que antes.
+- **«Corregir» abre la ronda con lo que ya tenía** (resultado, mazo del rival, quién empezó y el
+  detalle). Antes se abría en blanco, y volver a guardar habría borrado el detalle.
+
+### Cambiado
+
+- `subirRondaDeCola` admite rondas juego a juego además del modo rápido, y al comparar con lo que
+  hay en el servidor cuenta los juegos (una ronda con detalle no siempre lleva el resultado
+  escrito).
+
 ## [0.127.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.** Al traer rondas nuevas, **se mueven el Elo y las

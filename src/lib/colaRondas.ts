@@ -23,13 +23,21 @@
    · El récord que se enseña mezcla lo del servidor con la cola (la cola manda
      en las rondas que toca), para que se vea al momento aunque no haya subido.
 
-   Solo modo rápido: resultado, mazo del rival y quién empezó. El desglose
-   juego a juego sigue en la ficha, con red.
+   Lo mínimo son tres datos: resultado, mazo del rival y quién empezó.
+
+   v0.128 — Y, PARA QUIEN QUIERA, EL DETALLE: los premios y los mulligans de
+   cada juego, y las etiquetas de por qué se perdió (o no se ganó). Todo
+   opcional. Con detalle, la ronda viaja «juego a juego» (los mismos campos que
+   el formulario completo de la ficha) y el resultado sale de los juegos; sin
+   él, viaja en modo rápido como siempre.
    ========================================================================= */
 
 export type ResultadoCola = "a" | "b" | "tie";
 export type EspecialCola = "" | "bye" | "np-rival" | "np-yo";
 export type EstadoCola = "pendiente" | "conflicto" | "error";
+
+/** v0.128 — un juego con su detalle. `pa`/`pb`: premios que cogí yo / el rival (null = sin apuntar); `ma`/`mb`: mulligans. */
+export type JuegoCola = { g: ResultadoCola; pa: number | null; pb: number | null; ma: number; mb: number };
 
 export type RondaEnCola = {
   torneoId: string;
@@ -54,6 +62,10 @@ export type RondaEnCola = {
   detalle: string;
   /** «Usar la mía» tras un choque: la próxima subida pisa lo del servidor. */
   forzar: boolean;
+  /** v0.128 — el detalle juego a juego (vacío = modo rápido). */
+  juegos: JuegoCola[];
+  /** v0.128 — etiquetas de la derrota o el empate. null = no se tocaron (el servidor deja las que hubiera). */
+  causas: string[] | null;
 };
 
 export const CLAVE_COLA = (torneoId: string, playerId: string) => `arena-cola-rondas:${torneoId}:${playerId}`;
@@ -61,6 +73,51 @@ export const CLAVE_COLA = (torneoId: string, playerId: string) => `arena-cola-ro
 const esResultado = (x: unknown): x is ResultadoCola => x === "a" || x === "b" || x === "tie";
 const esEspecial = (x: unknown): x is EspecialCola => x === "" || x === "bye" || x === "np-rival" || x === "np-yo";
 const texto = (x: unknown, max: number) => (typeof x === "string" ? x.slice(0, max) : "");
+const entre = (x: unknown, min: number, max: number): number | null => {
+  const n = Number(x);
+  return x != null && x !== "" && Number.isInteger(n) && n >= min && n <= max ? n : null;
+};
+
+/** Lee los juegos guardados; lo que no se entienda, fuera. */
+function leerJuegos(x: unknown): JuegoCola[] {
+  if (!Array.isArray(x)) return [];
+  const out: JuegoCola[] = [];
+  for (const j of x.slice(0, 5) as Array<Record<string, unknown>>) {
+    if (!j || typeof j !== "object" || !esResultado(j.g)) return [];
+    out.push({ g: j.g, pa: entre(j.pa, 0, 6), pb: entre(j.pb, 0, 6), ma: entre(j.ma, 0, 10) ?? 0, mb: entre(j.mb, 0, 10) ?? 0 });
+  }
+  return out;
+}
+
+/**
+ * v0.128 — El resultado que dicen los juegos: quien gana más juegos, o empate
+ * si van iguales (se acabó el tiempo). null si no hay juegos.
+ */
+export function resultadoDeJuegos(juegos: ReadonlyArray<{ g: string }>): ResultadoCola | null {
+  if (!juegos.length) return null;
+  const a = juegos.filter((j) => j.g === "a").length, b = juegos.filter((j) => j.g === "b").length;
+  return a > b ? "a" : b > a ? "b" : "tie";
+}
+
+/**
+ * v0.128 — ¿Tienen sentido los juegos para este formato? Devuelve el motivo
+ * del fallo, o null si están bien. Las mismas reglas que aplica el servidor:
+ * no más juegos que el formato, nadie gana más de la mayoría, no se juega
+ * después de decidida la serie y un juego empatado (tiempo) es el último.
+ */
+export type FalloJuegos = "sinGanador" | "demasiados" | "sobran";
+export function falloEnJuegos(juegos: ReadonlyArray<{ g: string }>, bestOf: number): FalloJuegos | null {
+  if (juegos.some((j) => !esResultado(j.g))) return "sinGanador";
+  if (juegos.length > bestOf) return "demasiados";
+  const need = Math.ceil(bestOf / 2);
+  let a = 0, b = 0;
+  for (let i = 0; i < juegos.length; i++) {
+    if (a >= need || b >= need) return "sobran"; // ya estaba decidida
+    if (juegos[i].g === "a") a++; else if (juegos[i].g === "b") b++;
+    else if (i < juegos.length - 1) return "sobran"; // un empate corta la ronda
+  }
+  return null;
+}
 
 /** Lee la cola guardada. Lo que no se entienda se descarta: nunca revienta. */
 export function parseCola(json: string | null | undefined, torneoId: string): RondaEnCola[] {
@@ -87,6 +144,8 @@ export function parseCola(json: string | null | undefined, torneoId: string): Ro
       estado: x.estado === "conflicto" || x.estado === "error" ? x.estado : "pendiente",
       detalle: texto(x.detalle, 200),
       forzar: x.forzar === true,
+      juegos: especial ? [] : leerJuegos(x.juegos),
+      causas: Array.isArray(x.causas) ? (x.causas as unknown[]).filter((c): c is string => typeof c === "string").slice(0, 20) : null,
     });
   }
   return ordenar(out);
@@ -122,6 +181,20 @@ export function aFormulario(r: RondaEnCola): Record<string, string> {
   else {
     f.opponentDeck = r.rival;
     if (r.primero) f.g0_first = r.primero;
+    // v0.128 — con detalle, juego a juego. `timeCalled`: si la serie no llegó a
+    // decidirse (1-1, o un solo juego en un Bo3), vale lo que digan los juegos.
+    if (r.juegos.length) {
+      f.mode = "games";
+      f.timeCalled = "1";
+      r.juegos.forEach((j, i) => {
+        f[`g${i}_winner`] = j.g;
+        if (j.pa != null) f[`g${i}_prizes_a`] = String(j.pa);
+        if (j.pb != null) f[`g${i}_prizes_b`] = String(j.pb);
+        f[`g${i}_mulligans_a`] = String(j.ma);
+        f[`g${i}_mulligans_b`] = String(j.mb);
+      });
+    }
+    if (r.causas) { f.causas = r.causas.join(","); f.causasTocadas = "1"; }
   }
   return f;
 }

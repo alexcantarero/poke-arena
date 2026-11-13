@@ -2336,6 +2336,23 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .mt-mas { border: 1px dashed rgb(255 255 255 / .16); border-radius: .6rem; }
 .mt-chip { min-height: 2.75rem; padding-inline: .9rem; font-size: .9rem; touch-action: manipulation; }
 
+/* v0.128 — el detalle opcional: premios (siete teclas de 0 a 6; volver a pulsar
+   la elegida la borra, porque 0 no es «sin apuntar») y mulligans (− n +). */
+.mt-anadir { display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; min-height: 3.25rem; border: 1px dashed rgb(34 230 255 / .45);
+  border-radius: .6rem; background: rgb(34 230 255 / .05); color: var(--ink); font-weight: 700; font-size: .92rem; touch-action: manipulation; }
+.mt-anadir b { color: var(--neo-2); font-size: 1.15rem; }
+.mt-juego { padding: .75rem .7rem .8rem; border: 1px solid rgb(255 255 255 / .1); border-left: 3px solid var(--neo-2); border-radius: .6rem; background: rgb(10 16 32 / .7); }
+.mt-juego-titulo { margin-bottom: .45rem; font-family: var(--font-mono); font-size: .74rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--neo-2); }
+.mt-mini { margin-bottom: .3rem; font-size: .78rem; font-weight: 600; color: var(--ink-2); }
+.mt-premios { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
+.mt-premios button { min-height: 2.75rem; border: 1px solid rgb(255 255 255 / .14); border-radius: .45rem; background: var(--mt-panel); color: var(--ink);
+  font-family: var(--font-display); font-size: 1.1rem; font-weight: 800; touch-action: manipulation; }
+.mt-premios button[aria-pressed="true"] { background: var(--neo); border-color: var(--neo); color: #1a1200; box-shadow: 0 0 12px rgb(255 210 63 / .4); }
+.mt-contador { display: grid; grid-template-columns: 2.75rem 1fr 2.75rem; align-items: center; border: 1px solid rgb(255 255 255 / .14); border-radius: .5rem; background: var(--mt-panel); overflow: hidden; }
+.mt-contador button { min-height: 2.75rem; font-size: 1.4rem; font-weight: 800; color: var(--neo-2); touch-action: manipulation; }
+.mt-contador button:disabled { color: var(--muted); opacity: .5; }
+.mt-contador output { text-align: center; font-family: var(--font-display); font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+
 /* La barra de guardar: fija sobre la barra inferior del móvil. */
 .mt-barra {
   position: sticky; bottom: calc(var(--spacing-nav, 0px) + env(safe-area-inset-bottom) + .5rem); z-index: 20;

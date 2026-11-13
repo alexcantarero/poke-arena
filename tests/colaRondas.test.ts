@@ -1,13 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  falloEnJuegos, resultadoDeJuegos,
   aFormulario, aplicarRespuesta, encolar, forzar, listaParaGuardar, parseCola, porSubir, quitar, recordCon, siguienteRonda,
   type RondaEnCola,
 } from "../src/lib/colaRondas.ts";
 
 const r = (o: Partial<RondaEnCola>): RondaEnCola => ({
   torneoId: "t1", ronda: 1, resultado: "a", rival: "arch:drago", rivalNombre: "Dragapult ex", oponente: "", primero: "",
-  especial: "", miMazo: "", conocida: false, creado: 1, estado: "pendiente", detalle: "", forzar: false, ...o,
+  especial: "", miMazo: "", conocida: false, creado: 1, estado: "pendiente", detalle: "", forzar: false, juegos: [], causas: null, ...o,
 });
 
 test("una entrada por ronda: volver a apuntar la 2 sustituye la 2 de la cola, y la cola va en orden", () => {
@@ -80,4 +81,52 @@ test("cuándo se puede guardar: resultado y mazo del rival, salvo bye o no prese
   assert.equal(listaParaGuardar({ ...base, resultado: "", rival: "", especial: "bye" }), true);
   assert.equal(listaParaGuardar({ ...base, mazoFijado: false }), false);
   assert.equal(listaParaGuardar({ ...base, mazoFijado: false, miMazo: "arch:y" }), true);
+});
+
+/* ------------------------------------------------------------------ v0.128 */
+
+test("v0.128 — con detalle, la ronda viaja juego a juego: premios, mulligans y etiquetas", () => {
+  const f = aFormulario(r({
+    ronda: 2, resultado: "b", primero: "a",
+    juegos: [{ g: "a", pa: 6, pb: 3, ma: 0, mb: 1 }, { g: "b", pa: 2, pb: 6, ma: 2, mb: 0 }, { g: "b", pa: null, pb: null, ma: 0, mb: 0 }],
+    causas: ["mulligan", "matchup"],
+  }));
+  assert.equal(f.mode, "games");
+  assert.equal(f.timeCalled, "1");
+  assert.deepEqual([f.g0_winner, f.g0_prizes_a, f.g0_prizes_b, f.g0_mulligans_a, f.g0_mulligans_b], ["a", "6", "3", "0", "1"]);
+  assert.deepEqual([f.g1_winner, f.g1_prizes_a, f.g1_mulligans_a], ["b", "2", "2"]);
+  // Premios sin apuntar no viajan (no es lo mismo que cero); los mulligans sí, a 0.
+  assert.deepEqual([f.g2_winner, f.g2_prizes_a, f.g2_prizes_b, f.g2_mulligans_a], ["b", undefined, undefined, "0"]);
+  assert.deepEqual([f.causas, f.causasTocadas, f.g0_first], ["mulligan,matchup", "1", "a"]);
+  // Sin detalle, como siempre: modo rápido y sin tocar las etiquetas.
+  const rapido = aFormulario(r({}));
+  assert.deepEqual([rapido.mode, rapido.g0_winner, rapido.causasTocadas, rapido.timeCalled], ["quick", undefined, undefined, undefined]);
+  // En un bye no viaja detalle aunque lo hubiera.
+  assert.equal(aFormulario(r({ especial: "bye", juegos: [{ g: "a", pa: 6, pb: 0, ma: 0, mb: 0 }] })).mode, "quick");
+});
+
+test("v0.128 — el resultado sale de los juegos, y los juegos tienen que cuadrar con el formato", () => {
+  assert.equal(resultadoDeJuegos([]), null);
+  assert.equal(resultadoDeJuegos([{ g: "a" }, { g: "b" }, { g: "a" }]), "a");
+  assert.equal(resultadoDeJuegos([{ g: "a" }, { g: "b" }]), "tie"); // 1-1 y se acabó el tiempo
+  assert.equal(resultadoDeJuegos([{ g: "b" }, { g: "tie" }]), "b");
+  assert.equal(falloEnJuegos([{ g: "a" }, { g: "b" }, { g: "a" }], 3), null);
+  assert.equal(falloEnJuegos([{ g: "a" }], 1), null);
+  assert.equal(falloEnJuegos([{ g: "tie" }], 1), null);
+  assert.equal(falloEnJuegos([{ g: "a" }, { g: "" }], 3), "sinGanador");
+  assert.equal(falloEnJuegos([{ g: "a" }, { g: "a" }, { g: "b" }], 3), "sobran"); // 2-0 y un tercero
+  assert.equal(falloEnJuegos([{ g: "tie" }, { g: "a" }], 3), "sobran"); // tras un empate no se juega más
+  assert.equal(falloEnJuegos([{ g: "a" }, { g: "b" }], 1), "demasiados");
+});
+
+test("v0.128 — el detalle guardado en el teléfono se lee con cuidado", () => {
+  const c = parseCola(JSON.stringify([
+    { ronda: 1, resultado: "a", rival: "arch:x", juegos: [{ g: "a", pa: 6, pb: "9", ma: -1, mb: 2 }], causas: ["matchup", 7] },
+    { ronda: 2, resultado: "b", rival: "arch:x", juegos: [{ g: "a" }, { g: "zzz" }] }, // un juego roto: sin detalle
+    { ronda: 3, resultado: "a", rival: "arch:x" },
+  ]), "t1");
+  assert.deepEqual(c[0].juegos, [{ g: "a", pa: 6, pb: null, ma: 0, mb: 2 }]);
+  assert.deepEqual(c[0].causas, ["matchup"]);
+  assert.deepEqual([c[1].juegos, c[1].causas], [[], null]);
+  assert.deepEqual([c[2].juegos, c[2].causas], [[], null]);
 });

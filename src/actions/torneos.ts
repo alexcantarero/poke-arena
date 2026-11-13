@@ -705,8 +705,8 @@ export async function saveTournamentRound(fd: FormData) {
 
    El modo torneo guarda cada ronda en el teléfono y la sube cuando hay red,
    así que esta acción NO redirige: responde, y el navegador decide (quitarla
-   de la cola, reintentar o enseñar el fallo). Solo rondas PROPIAS y en modo
-   rápido. Reenviar la misma ronda no la duplica (índice único por torneo,
+   de la cola, reintentar o enseñar el fallo). Solo rondas PROPIAS; en modo
+   rápido o, desde la v0.128, juego a juego (premios, mulligans y etiquetas). Reenviar la misma ronda no la duplica (índice único por torneo,
    jugador y número), y además:
 
    · Si en el servidor ya hay una ronda con ese número que el móvil NO conocía
@@ -721,7 +721,9 @@ export type RespuestaCola =
 export async function subirRondaDeCola(fd: FormData): Promise<RespuestaCola> {
   const actor = await requireActor();
   fd.set("playerId", actor.id); // solo las propias, venga lo que venga
-  fd.set("mode", "quick");
+  // v0.128 — rápido, o juego a juego si trae el detalle (premios y mulligans).
+  const conJuegos = str(fd, "mode") === "games";
+  if (!conJuegos) fd.set("mode", "quick");
   fd.delete("matchId");
   const tournamentId = str(fd, "tournamentId");
   const round = int(fd, "round", 1, 1, 50);
@@ -732,8 +734,17 @@ export async function subirRondaDeCola(fd: FormData): Promise<RespuestaCola> {
     if (hay) {
       const rival = deckOrArchetype(fd, "opponentDeck");
       const np = str(fd, "np");
-      const esperado = str(fd, "bye") === "1" || np === "rival" ? "a" : np === "yo" ? "b" : str(fd, "result");
-      const igual = hay.seriesResult === esperado
+      /* El resultado, de un lado y del otro, contando juegos si los hay (una ronda
+         apuntada juego a juego no siempre lleva el resultado escrito). */
+      const porJuegos = (ganadores: string[]) => {
+        const a = ganadores.filter((g) => g === "a").length, b = ganadores.filter((g) => g === "b").length;
+        return a > b ? "a" : b > a ? "b" : "tie";
+      };
+      const esperado = str(fd, "bye") === "1" || np === "rival" ? "a" : np === "yo" ? "b"
+        : conJuegos ? porJuegos([0, 1, 2, 3, 4].map((i) => str(fd, `g${i}_winner`)).filter(Boolean)) : str(fd, "result");
+      const susJuegos = await db.select({ winner: games.winner }).from(games).where(eq(games.matchId, hay.id));
+      const guardado = susJuegos.length ? porJuegos(susJuegos.map((g) => g.winner)) : hay.seriesResult;
+      const igual = guardado === esperado
         && (hay.deckBId ?? null) === (str(fd, "bye") === "1" || np ? null : rival.deckId)
         && (hay.opponentArchetypeId ?? null) === (str(fd, "bye") === "1" || np ? null : rival.archetypeId);
       if (igual) return { ok: true, yaEstaba: true };
