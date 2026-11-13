@@ -43,6 +43,7 @@ import { novedadesDeJugador } from "@/lib/novedadesJugador";
 import type { CSSProperties } from "react";
 import { spriteUrl } from "@/lib/pokemon";
 import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
+import { nombreOficialDe } from "@/lib/nombreOficialDb";
 
 /* De dónde salen las cifras de arriba.
    Mezclar la liga, los torneos de fuera y los amistosos da un número que no
@@ -136,6 +137,8 @@ export default async function ProfilePage({
   // organizador. La comprobación de verdad está dentro de la Server Action.
   const me = session ? snap.playersById.get(session.playerId) : undefined;
   const canEditLadder = Boolean(me && (isMe || canManageLeague(me.role)));
+  // v0.124 — su nombre en Play! Pokémon: solo lo ve quien puede editarlo.
+  const nombreOficial = canEditLadder ? await nombreOficialDe(id) : "";
 
   /* v0.17 — puesto en el leaderboard oficial (España y Europa) y a cuánto
      está de las plazas del Mundial de su zona. */
@@ -391,6 +394,13 @@ export default async function ProfilePage({
                     min={1} max={100000} defaultValue={player.rankEurope ?? ""} placeholder="—" />
                 </label>
                 <button className="btn btn-brand col-span-2 sm:col-span-1" type="submit">{tr(lang, "zone.save")}</button>
+                {/* v0.124 — con esto, un organizador actualiza los puestos de todos pegando la clasificación. */}
+                <label className="col-span-2 flex flex-col gap-1.5 sm:col-span-3">
+                  <span className="label">{tr(lang, "v124.nombreOficial")}</span>
+                  <input className="input" name="nombreOficial" maxLength={80} autoComplete="off"
+                    defaultValue={nombreOficial} placeholder={tr(lang, "v124.nombreOficialEj")} />
+                  <span className="text-xs text-muted">{tr(lang, "v124.nombreOficialAyuda")}</span>
+                </label>
               </form>
             )}
             <p className="mt-3 text-xs text-muted">{canEditLadder ? tr(lang, "zone.howto") + " " : ""}{tr(lang, "zone.caveat")}</p>

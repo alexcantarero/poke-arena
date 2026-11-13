@@ -152,7 +152,7 @@ const ES = {
 
   // Clasificación oficial / Mundial
   "zone.title": "Camino al Mundial",
-  "zone.sub": "Puesto en el leaderboard oficial de CP, apuntado a mano.",
+  "zone.sub": "Puesto en el leaderboard oficial de CP, apuntado a mano o pegando la clasificación.",
   "zone.spain": "España",
   "zone.europe": "Europa",
   "zone.updated": "actualizado el",
@@ -2581,6 +2581,19 @@ const ES = {
   "v124.precioAyuda": "0 = gratis.",
   "v124.gratis": "Gratis",
   "v124.comoLlegar": "Cómo llegar",
+  "v124.lbTitulo": "Actualizar pegando la clasificación oficial",
+  "v124.lbAyuda": "Abre la clasificación de Play! Pokémon (España o Europa, enseñando 100 o 200), selecciona la tabla, cópiala y pégala aquí. Se analiza en tu navegador y solo se guardan los puestos de la gente de la app: los demás nombres no salen de esta pantalla. Se casa por el «nombre en Play! Pokémon» de cada perfil.",
+  "v124.lbNoFilas": "No he reconocido ninguna fila de la clasificación en lo pegado.",
+  "v124.lbResumen": "{n} filas (hasta el puesto {m}) · {c} de la app encontrados",
+  "v124.lbAmbiguos": "Con un nombre que sale varias veces, sin asignar:",
+  "v124.lbSinSalir": "{n} de la app no salen en lo pegado",
+  "v124.lbSinSalirNota": "Se quedan como estaban. Los marcados con * no han puesto su nombre en Play! Pokémon (perfil → Camino al Mundial) y se han buscado por su nombre en la app.",
+  "v124.lbGuardar": "Guardar {n} puestos",
+  "v124.lbGuardarVacio": "Guardar puestos",
+  "v124.lbNada": "No había ningún puesto que guardar.",
+  "v124.nombreOficial": "Tu nombre en Play! Pokémon",
+  "v124.nombreOficialEj": "Nombre y apellidos, como sales en la clasificación",
+  "v124.nombreOficialAyuda": "Tal cual aparece en la clasificación oficial. Solo lo ven los organizadores: sirve para apuntar tu puesto cuando pegan la clasificación.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -5136,6 +5149,19 @@ const EN: Record<I18nKey, string> = {
   "v124.precioAyuda": "0 = free.",
   "v124.gratis": "Free",
   "v124.comoLlegar": "Directions",
+  "v124.lbTitulo": "Update by pasting the official leaderboard",
+  "v124.lbAyuda": "Open the Play! Pokémon leaderboard (Spain or Europe, showing 100 or 200), select the table, copy it and paste it here. It is parsed in your browser and only the positions of people in the app are saved: the other names never leave this screen. Matching uses each profile's “Play! Pokémon name”.",
+  "v124.lbNoFilas": "I couldn't recognise any leaderboard rows in the pasted text.",
+  "v124.lbResumen": "{n} rows (down to position {m}) · {c} app players found",
+  "v124.lbAmbiguos": "Name appears more than once, not assigned:",
+  "v124.lbSinSalir": "{n} app players are not in the pasted text",
+  "v124.lbSinSalirNota": "They stay as they were. Those marked * haven't set their Play! Pokémon name (profile → Road to Worlds) and were looked up by their app name.",
+  "v124.lbGuardar": "Save {n} positions",
+  "v124.lbGuardarVacio": "Save positions",
+  "v124.lbNada": "There were no positions to save.",
+  "v124.nombreOficial": "Your Play! Pokémon name",
+  "v124.nombreOficialEj": "First and last name, as shown on the leaderboard",
+  "v124.nombreOficialAyuda": "Exactly as it appears on the official leaderboard. Only organisers see it: it is used to record your position when they paste the leaderboard.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

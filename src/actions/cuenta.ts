@@ -24,6 +24,7 @@ import { loadSnapshot } from "@/lib/data";
 import { columnasPlayers, conReservaDeColumnas, type ModoColumnas } from "@/lib/esquemaDb";
 import { avanceTitulosDeJugador, entradaMedallasDeJugador } from "@/lib/perfilTitulos";
 import { caducidadRecuperacion, limpiarToken, type EstadoEnlace } from "@/lib/recuperacion";
+import { guardarNombreOficial } from "@/lib/nombreOficialDb";
 
 export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
@@ -466,9 +467,47 @@ export async function setZoneRanks(fd: FormData) {
       rankZoneUpdatedAt: new Date(),
     })
     .where(eq(players.id, playerId));
+  // v0.124 — el nombre en Play! Pokémon, para casar la clasificación pegada.
+  if (fd.has("nombreOficial")) await guardarNombreOficial(playerId, str(fd, "nombreOficial"));
 
   refresh();
   redirect(withFlash(`/perfil/${playerId}`, "ok", borrar ? "Puestos borrados." : "Puestos guardados."));
+}
+
+/**
+ * v0.124 — Los puestos de la clasificación oficial PEGADA por un organizador.
+ *
+ * El texto se analiza en su navegador (`lib/leaderboard.ts`); aquí solo llega
+ * la zona y, de la gente del grupo, jugador y puesto. Nada de terceros. Quien
+ * no salía en lo pegado no viene y se queda como estaba.
+ */
+export async function guardarPuestosOficiales(fd: FormData) {
+  await requireManager();
+  const zona = str(fd, "zona") === "es" ? "es" : str(fd, "zona") === "eu" ? "eu" : null;
+  let filas: Array<{ id: string; puesto: number }> = [];
+  try {
+    const bruto: unknown = JSON.parse(str(fd, "puestos") || "[]");
+    if (Array.isArray(bruto)) {
+      filas = bruto
+        .map((x) => ({ id: String((x as { id?: unknown })?.id ?? ""), puesto: Number((x as { puesto?: unknown })?.puesto) }))
+        .filter((x) => x.id.length > 0 && x.id.length <= 64 && Number.isInteger(x.puesto) && x.puesto >= 1 && x.puesto <= 100000)
+        .slice(0, 500);
+    }
+  } catch { /* JSON roto: se trata como vacío */ }
+  if (!zona || !filas.length) redirect(withFlash("/ranking#mundial", "error", await msj("v124.lbNada")));
+
+  const existentes = new Set((await db.select({ id: players.id }).from(players)).map((p) => p.id));
+  const ahora = new Date();
+  let n = 0;
+  for (const f of filas) {
+    if (!existentes.has(f.id)) continue;
+    await db.update(players)
+      .set(zona === "es" ? { rankSpain: f.puesto, rankZoneUpdatedAt: ahora } : { rankEurope: f.puesto, rankZoneUpdatedAt: ahora })
+      .where(eq(players.id, f.id));
+    n++;
+  }
+  refresh();
+  redirect(withFlash("/ranking#mundial", "ok", `${zona === "es" ? "España" : "Europa"}: ${n} puesto(s) actualizado(s).`));
 }
 
 /* ================================================================ v0.25 -- */

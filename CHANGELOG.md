@@ -4,8 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [0.124.0] — 2026-11-13
 
-**Con migración**: `drizzle/0036_v0_124_0.sql` (tabla `tournament_direcciones`). Sin ella todo
-funciona, pero la dirección de los torneos no se guarda ni se ve. **Cambia el Elo** (se recalcula
+**Con migración**: `drizzle/0036_v0_124_0.sql` (tablas `tournament_direcciones` y
+`player_nombres_oficiales`). Sin ella todo funciona, pero no se guardan ni la dirección de los
+torneos ni el nombre en Play! Pokémon. **Cambia el Elo** (se recalcula
 al desplegar). Paso manual opcional: `public/logos/discord.svg` (ver IMPLEMENTAR).
 
 ### Arreglado
@@ -25,6 +26,12 @@ al desplegar). Paso manual opcional: `public/logos/discord.svg` (ver IMPLEMENTAR
   aún no ha puesto su rango nuevo, durante tres semanas («Más tarde» lo calla un día). Los lunes
   de esas tres semanas, Discord recuerda quién falta. Mientras sale el aviso de reset, el
   recordatorio semanal del ladder se calla.
+- **Puestos de España y Europa, pegando la clasificación oficial** (Ranking → Camino al Mundial,
+  solo organizadores). Se copia la tabla de Play! Pokémon (top 100, 200…) y se pega: se analiza
+  en el navegador, se casa por el «nombre en Play! Pokémon» de cada perfil (campo nuevo, visible
+  solo para su dueño y los organizadores) y al servidor solo viajan jugador y puesto de la gente
+  de la app. No se consulta pokemon.com (sus condiciones lo prohíben). Un nombre repetido con
+  puestos distintos no se asigna. `lib/leaderboard.ts` (4 pruebas).
 - **Dirección del torneo**: campo propio en el formulario, visible en la ficha con enlace «Cómo
   llegar». Tabla aparte (`tournament_direcciones`) para que el código no dependa de la migración.
 - **«Pegar del localizador de eventos» al crear un torneo**: se pega el bloque del buscador
@@ -38,6 +45,10 @@ al desplegar). Paso manual opcional: `public/logos/discord.svg` (ver IMPLEMENTAR
   recorta); **Tienda o sede** = la tienda («Lorcanos», vaya delante o detrás del guion; si no se
   distingue, vacío); **Dirección** = la dirección completa; **Ciudad** = «Barcelona (Badalona)»
   (provincia y, entre paréntesis, el municipio); **precio 0** por defecto (se enseña «Gratis»).
+- **Etiquetas de división (Inicio, Ranking y perfil)**: con la forma de las medallas de CP
+  (placa con relieve, esquinas redondeadas) y la escalera de minerales, pero legibles: letra del
+  cuerpo a 12,5 px (era una píldora de 10,5 px), sin sombra, el número de subdivisión separado y
+  solo la mitad clara del degradado bajo el texto (la oscura en Hierro y Novato).
 - **Top Decks → Último torneo**: el torneo pequeño pasa de 100–299 a **150–300** jugadores; el
   grande, a más de 300.
 - **Icono de Discord** en el pie de la barra lateral en vez de la palabra (usa el fichero oficial

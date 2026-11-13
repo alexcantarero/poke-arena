@@ -30,6 +30,9 @@ import { LadderTable } from "@/components/Ladder";
 import { ladderStandings } from "@/lib/rank";
 import { readSession } from "@/lib/auth";
 import type { MatchFull, TournamentFull } from "@/lib/types";
+import { canManageLeague } from "@/lib/auth";
+import { nombresOficiales } from "@/lib/nombreOficialDb";
+import { LeaderboardImport } from "@/components/LeaderboardImport";
 
 export const metadata = { title: "Ranking" };
 
@@ -330,6 +333,13 @@ export default async function RankingPage({
     .filter((p) => p.active && visible(p.id))
     .sort(porPuestoZona);
   const conPuesto = zona.filter((p) => p.rankEurope != null).length;
+  /* v0.124 — pegar la clasificación oficial: solo organizadores, y solo a ellos
+     les llega el nombre en Play! Pokémon de cada uno (es un nombre real). */
+  const esOrganizador = Boolean(meId && canManageLeague(snap.playersById.get(meId)?.role ?? "player"));
+  const oficiales = esOrganizador ? await nombresOficiales() : new Map<string, string>();
+  const aCasar = esOrganizador
+    ? snap.players.filter((p) => p.active).map((p) => ({ id: p.id, nombre: p.name, oficial: oficiales.get(p.id) ?? null }))
+    : [];
   // v0.53 — la actualización más reciente de un puesto, para la cabecera.
   const ultimaZona = zona.reduce<string | null>((max, p) => {
     if (!p.rankZoneUpdatedAt) return max;
@@ -633,6 +643,13 @@ export default async function RankingPage({
           {conPuesto}/{zona.length} · {tr(lang, "zone.caveat")}
           {" "}«{tr(lang, "zone.in")} · N» = {tr(lang, "zone.margin")}; «{tr(lang, "zone.out")} · N» = {tr(lang, "zone.places")}.
         </p>
+        {/* v0.124 — los puestos de todos de una vez, pegando la clasificación oficial. */}
+        {esOrganizador && (
+          <details className="border-t border-line-soft">
+            <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold">{tr(lang, "v124.lbTitulo")}</summary>
+            <div className="border-t border-line-soft p-4"><LeaderboardImport jugadores={aCasar} /></div>
+          </details>
+        )}
       </section>
 
 

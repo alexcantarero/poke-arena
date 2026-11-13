@@ -2,11 +2,11 @@
 
 Sobre la **v0.123.0**.
 
-## 1. Migración (para la dirección de los torneos)
+## 1. Migración (dirección de los torneos y nombre en Play! Pokémon)
 
 Neon → SQL Editor, **primero `dev`** y luego `production`: `drizzle/0036_v0_124_0.sql`
-(idempotente). En local: `npm run db:migrar`. Sin ella la app funciona igual; la dirección no se
-guarda ni se ve. Se puede aplicar antes o después de desplegar.
+(idempotente). En local: `npm run db:migrar`. Sin ella la app funciona igual; la dirección y el
+nombre en Play! Pokémon no se guardan. Se puede aplicar antes o después de desplegar.
 
 ## 2. Aplicar (automático, con commit y push)
 
@@ -51,6 +51,14 @@ y, si tampoco, `DISCORD_WEBHOOK_RESULTADOS`.
    Sale el mensaje en Discord y, a cada jugador sin rango, el aviso rojo arriba; al poner el
    rango desaparece.
 
+6. **Etiquetas de división**: Inicio → Ranking de Elo. Placas como las medallas de CP, con letra
+   clara: «Diamante | III».
+7. **Clasificación oficial**: en tu perfil → Camino al Mundial, pon «Tu nombre en Play! Pokémon»
+   (p. ej. como sales en la tabla) y guarda. Luego Ranking → Camino al Mundial → «Actualizar
+   pegando la clasificación oficial»: pega la tabla de España, comprueba la vista previa (tu
+   puesto y tus CP) y guarda; repite con la de Europa. Quien no tenga puesto el nombre se busca
+   por su nombre en la app (sale con * si no aparece).
+
 ## Deshacer
 
-`git revert` del commit. La tabla `tournament_direcciones` puede quedarse.
+`git revert` del commit. Las dos tablas nuevas pueden quedarse.

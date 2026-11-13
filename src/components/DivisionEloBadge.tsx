@@ -16,7 +16,7 @@ export function DivisionEloBadge({
     : d.id === "novato" ? tr(lang, "v115.div.novatoAyuda") : nombre;
   return (
     <span className={`division-elo ${CLASE_DIVISION[d.id]}`} data-division={d.id} data-size={size} title={titulo}>
-      {nombre}{d.sub ? ` ${d.sub}` : ""}
+      {nombre}{d.sub && <span className="division-elo-sub">{d.sub}</span>}
     </span>
   );
 }

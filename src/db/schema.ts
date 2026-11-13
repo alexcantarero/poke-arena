@@ -389,6 +389,14 @@ export const tournamentDirecciones = pgTable("tournament_direcciones", {
   direccion: text("direccion").notNull(),
 });
 
+/** v0.124 — El nombre de cada jugador en Play! Pokémon, para casar la
+    clasificación oficial pegada (migración 0036). Tabla aparte, y fuera de
+    `PublicPlayer`: es un nombre real y solo lo ven su dueño y los organizadores. */
+export const playerNombresOficiales = pgTable("player_nombres_oficiales", {
+  playerId: text("player_id").primaryKey().references(() => players.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+});
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
