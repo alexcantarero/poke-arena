@@ -7,6 +7,7 @@ import { TournamentForm } from "@/components/TournamentForm";
 import { Icon } from "@/components/icons";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { direccionDe } from "@/lib/torneoDireccionDb";
 
 export const metadata = { title: "Editar torneo" };
 
@@ -25,7 +26,7 @@ export default async function EditTournamentPage({ params }: { params: Promise<{
   const lng = await getLang(); // v0.49
 
   const { id } = await params;
-  const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
+  const [snap, me, direccion] = await Promise.all([loadSnapshot(), currentPlayer(), direccionDe(id)]);
   const t = snap.toursById.get(id);
   if (!t) notFound();
   if (!me) redirect("/entrar");
@@ -45,6 +46,7 @@ export default async function EditTournamentPage({ params }: { params: Promise<{
       <TournamentForm
         season={t.season ?? snap.config.cpSeason}
         tournament={t}
+        direccion={direccion}
         back={`/torneos/${id}`}
       />
     </>

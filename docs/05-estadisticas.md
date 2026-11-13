@@ -157,6 +157,13 @@ Mide lo cómodas que han sido tus victorias. Es el último desempate antes del E
 
 El sistema clásico de ajedrez, aplicado a la serie completa.
 
+> **Rondas de torneo contra alguien de fuera (v0.124).** No se sabe el nivel del rival, así que
+> ganar y perder pesan casi igual: la diferencia entre tu Elo y el rival de referencia del evento
+> se recorta a ±35 puntos (una expectativa del 45 al 55 %) y en el top cut el rival vale 50 más.
+> Lo que da más y quita menos es el tipo de evento (`ELO_GANA_PIERDE`: en Regionales y
+> superiores ganar ×1,2 y perder ×0,6) y los bonus por puesto y por día 2. Las cifras están en
+> `src/lib/stats.ts` y sus pruebas en `tests/eloV115.test.ts`.
+
 ```
 esperado_A = 1 / (1 + 10^((Elo_B − Elo_A) / 400))
 Elo_A' = Elo_A + K × (resultado_A − esperado_A)

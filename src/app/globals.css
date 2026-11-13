@@ -1666,6 +1666,8 @@ a:hover > .nav-sprite { filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); opacity:
 }
 .barra-pie .barra-fila .btn { min-width: 2.25rem; min-height: 2.25rem; padding-inline: .45rem; }
 .barra-pie .barra-fila .btn svg { width: 1.25rem; height: 1.25rem; }
+/* v0.124 — el icono de Discord (el fichero oficial, `public/logos/discord.svg`). */
+.discord-marca { width: 1.375rem; height: 1.375rem; flex: none; object-fit: contain; }
 .barra-pie .barra-salir { color: var(--muted); }
 .barra-pie .barra-salir:hover { color: var(--loss); background: color-mix(in oklab, var(--loss) 14%, transparent); }
 .barra-pie .barra-fila .btn { font-size: .8125rem; }

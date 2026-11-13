@@ -15,7 +15,7 @@ import {
   str, maybeNum, int, isoDate, bool, refresh, requireActor, requireManager, owns, confirmed,
   msj,
 } from "./_comun";
-import { notificarAgendaSemana, notificarPendientesLiga, probarCanal } from "@/lib/discord";
+import { notificarAgendaSemana, notificarPendientesLiga, notificarResetLadder, probarCanal } from "@/lib/discord";
 import { leerCifra } from "@/lib/usoLimites";
 import { guardarLectura } from "@/lib/usoDb";
 
@@ -230,9 +230,14 @@ export async function resetLadderSeason(fd: FormData) {
   if (existing[0]) await db.update(settings).set(cambios).where(eq(settings.id, "default"));
   else await db.insert(settings).values({ id: "default", ...cambios });
 
+  /* v0.124 — se avisa: en Discord ahora (si hay algún webhook puesto) y en la
+     web con el aviso destacado a cada jugador (`AvisosJugador`), que sale solo
+     porque el reset deja a todos sin rango. */
+  const avisado = await notificarResetLadder();
+
   refresh();
   redirect(withFlash("/ajustes", "ok",
-    `Temporada nueva: rangos del ladder a cero${tambienElo ? ", Elo de la liga desde hoy" : ""}${tambienPuestos ? " y puestos oficiales borrados" : ""}.`));
+    `${avisado ? "Avisado en Discord. " : ""}Temporada nueva: rangos del ladder a cero${tambienElo ? ", Elo de la liga desde hoy" : ""}${tambienPuestos ? " y puestos oficiales borrados" : ""}.`));
 }
 
 /**

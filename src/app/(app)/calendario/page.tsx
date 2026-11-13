@@ -11,7 +11,6 @@ import {
 import { DOWS, MONTHS, byAgenda, relDays, todayISO } from "@/lib/format";
 import { Empty, PageHead, TournamentEmblem } from "@/components/ui";
 import { CityPicker } from "@/components/CityPicker";
-import { EventForm } from "@/components/EventForm";
 import { Icon } from "@/components/icons";
 import { AsistenciaBotones } from "@/components/AsistenciaBotones";
 import { FiltroAsistencia as FiltroAsistenciaSelect } from "@/components/FiltroAsistencia";
@@ -442,17 +441,10 @@ export default async function CalendarPage({
           importar eventos, para organizadores); la agenda ya NO sale debajo:
           para eso está la vista «Agenda». Y con «Agenda» solo sale la agenda. */}
       {vista === "calendario" && manager && (
-          /* v0.114 — el formulario ocupa dos columnas (con sus campos en dos
-             columnas) y los dos importadores van apilados en la tercera: antes
-             eran tres columnas iguales y el formulario, largo y estrecho,
-             dejaba media pantalla vacía debajo de los otros dos. */
-          <div className="grid items-start gap-4 lg:grid-cols-3">
-            <section className="card lg:col-span-2">
-              <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.52501db8")}</h2></div>
-              <div className="p-4"><EventForm competitions={datos.competitions} tournaments={datos.tournaments} /></div>
-            </section>
-
-            <div className="flex flex-col gap-4">
+          /* v0.124 — fuera «Añadir al calendario»: los torneos que se crean o
+             se importan ya salen solos en el calendario, y el formulario
+             duplicaba ese camino. Quedan los dos importadores, lado a lado. */
+          <div className="grid items-start gap-4 lg:grid-cols-2">
             <section className="card">
               <div className="card-head"><h2 className="text-lg font-bold">{tr(lng, "x.4566e25f")}</h2></div>
               <div className="p-4">
@@ -497,7 +489,6 @@ export default async function CalendarPage({
                 </button>
               </form>
             </section>
-            </div>
           </div>
         )}
 

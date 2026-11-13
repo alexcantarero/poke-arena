@@ -38,6 +38,7 @@ import { Icon } from "@/components/icons";
 import { num } from "@/lib/format";
 import { marcadoresDe } from "@/lib/marcador";
 import { resultadoRapido } from "@/actions/partidas";
+import { direccionDe } from "@/lib/torneoDireccionDb";
 
 /* =========================================================================
    La ficha del torneo, que es donde se hace el trabajo.
@@ -69,7 +70,7 @@ export default async function TournamentPage({
 
   const { id } = await params;
   const q = await searchParams;
-  const [snap, me, lang] = await Promise.all([loadSnapshot(), currentPlayer(), getLang()]);
+  const [snap, me, lang, direccion] = await Promise.all([loadSnapshot(), currentPlayer(), getLang(), direccionDe(id)]);
   const t = snap.toursById.get(id);
   if (!t) notFound();
 
@@ -699,8 +700,18 @@ export default async function TournamentPage({
             {t.venue ? ` · ${t.venue}` : ""}
             {t.city ? `, ${t.city}` : ""}
             {t.entryFeeCents != null
-              ? ` · ${num(t.entryFeeCents / 100, 2)} €`
+              ? ` · ${t.entryFeeCents === 0 ? tr(lng, "v124.gratis") : `${num(t.entryFeeCents / 100, 2)} €`}`
               : ""}
+            {/* v0.124 — la dirección, con el enlace al mapa (es lo que se busca el día del torneo). */}
+            {direccion && (
+              <span className="mt-0.5 block">
+                {direccion}{" · "}
+                <a className="font-semibold underline underline-offset-2" target="_blank" rel="noopener noreferrer"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([t.venue, direccion].filter(Boolean).join(", "))}`}>
+                  {tr(lng, "v124.comoLlegar")}
+                </a>
+              </span>
+            )}
           </>
         }
         actions={

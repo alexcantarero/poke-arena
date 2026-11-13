@@ -96,12 +96,13 @@ export default async function TopDecksPage({
 
   /* ------------------------------------------------------- último torneo */
   if (evento) {
-    /* v0.122 — dos: el último de 100 a 299 jugadores (el «semanal grande») y el
-       último de 300 o más (los grandes de verdad, más raros: se miran 60 días). */
+    /* v0.122 — dos: el último «semanal grande» y el último de los grandes de
+       verdad (más raros: se miran 60 días). v0.124 — el pequeño pasa de
+       100–299 a 150–300 jugadores; el grande, a más de 300. */
     const apiKey = process.env.LIMITLESS_API_KEY;
     const [mediano, grande] = await Promise.all([
-      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 100, maxPlayers: 299, days: 21 }),
-      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 300, days: 60 }),
+      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 150, maxPlayers: 300, days: 21 }),
+      fetchLastBigTournament({ format: formato, apiKey, minPlayers: 301, days: 60 }),
     ]);
     return (
       <>

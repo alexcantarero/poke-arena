@@ -32,6 +32,7 @@ import { CelebrarBall } from "@/components/CelebrarBall";
 import { AvisoVersion } from "@/components/AvisoVersion";
 import { AvisoLiga } from "@/components/AvisoLiga";
 import { AvisosJugador } from "@/components/AvisosJugador";
+import { DiscordMarca } from "@/components/DiscordMarca";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
@@ -138,10 +139,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={tr(lang, "dc.discord")}
+                title={tr(lang, "dc.discord")}
                 className="btn btn-ghost btn-sm px-2 text-xs font-bold"
               >
-                <Icon name="globe" className="size-4" />
-                <span className="barra-texto">{tr(lang, "dc.discord")}</span>
+                {/* v0.124 — el icono de Discord en vez de la palabra. */}
+                <DiscordMarca etiqueta={tr(lang, "dc.discord")} />
               </Link>
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
@@ -195,7 +197,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {avisoLiga && <AvisoLiga id={avisoLiga.id} nombre={avisoLiga.nombre} />}
           {/* v0.120 — nick de Limitless (importante) y rango del ladder (semanal). */}
           <AvisosJugador playerId={me.id} nick={me.limitlessHandle ?? null}
-            ladderActualizado={me.ladderEloUpdatedAt ? new Date(me.ladderEloUpdatedAt).toISOString() : null} />
+            ladderActualizado={me.ladderEloUpdatedAt ? new Date(me.ladderEloUpdatedAt).toISOString() : null}
+            ladderReset={cfg.ladderSince ? new Date(cfg.ladderSince).toISOString() : null} ladderRango={me.ladderElo ?? null} />
           {children}
         </main>
       </div>

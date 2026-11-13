@@ -381,6 +381,14 @@ export const matchCausas = pgTable("match_causas", {
   creadoAt: timestamp("creado_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.matchId, t.playerId] })]);
 
+/** v0.124 — La dirección postal de un torneo (migración 0036). Tabla aparte y
+    no una columna de `tournaments`: sin migrar, los torneos se leen igual (una
+    columna nueva sin migrar tumbaría todas las pantallas, como el 4/11). */
+export const tournamentDirecciones = pgTable("tournament_direcciones", {
+  tournamentId: text("tournament_id").primaryKey().references(() => tournaments.id, { onDelete: "cascade" }),
+  direccion: text("direccion").notNull(),
+});
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

@@ -211,3 +211,32 @@ export function conEspera(url: string): string {
 export function urlHilo(servidorId: string | null | undefined, hiloId: string): string | null {
   return servidorId && /^\d+$/.test(servidorId.trim()) && /^\d+$/.test(hiloId) ? `https://discord.com/channels/${servidorId.trim()}/${hiloId}` : null;
 }
+
+/* =========================================================================
+   v0.124 — Reset del ladder: el anuncio al hacerlo y el recordatorio de los
+   lunes mientras quede gente sin apuntar su rango nuevo.
+   ========================================================================= */
+
+/** El anuncio, en el momento del reset. */
+export function embedResetLadder(urlApp: string): Embed {
+  return {
+    title: "🔄 Reset del ladder: temporada nueva",
+    url: `${urlApp}/perfil`,
+    color: AMARILLO,
+    description: "Los rangos del ladder se han puesto a cero.\n**Apunta tu rango nuevo** en tu perfil (Rango del ladder) para que cuente en el ranking y en la gráfica.",
+    footer: { text: "PokeArena TCG · se recordará cada lunes mientras falte alguien" },
+  };
+}
+
+/** El recordatorio: quién falta. Nulo si ya lo ha puesto todo el mundo. */
+export function embedRecordatorioLadder(faltan: readonly string[], total: number, urlApp: string): Embed | null {
+  if (!faltan.length) return null;
+  const nombres = [...faltan].sort((a, b) => a.localeCompare(b, "es"));
+  return {
+    title: `⏳ Ladder: ${faltan.length} de ${total} sin apuntar su rango tras el reset`,
+    url: `${urlApp}/perfil`,
+    color: AMARILLO,
+    description: recortar(`Faltan: ${nombres.join(", ")}.\nSe apunta en tu perfil, en «Rango del ladder».`),
+    footer: { text: "PokeArena TCG · recordatorio de los lunes" },
+  };
+}

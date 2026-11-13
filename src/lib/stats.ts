@@ -234,6 +234,10 @@ function byDate(a: MatchFull, b: MatchFull) {
    3. BONUS POR RESULTADO, una vez por torneo y en su fecha, según el puesto
       (`BONUS_RESULTADO`). Lo online solo en torneos de 16 o más.
 
+   v0.124 — el rival de referencia ya no se compara tal cual con tu Elo: la
+   diferencia se recorta (ver ELO_DIF_FUERA), para que ganar y perder contra
+   alguien de fuera pesen casi igual.
+
    Los bonus solo suman: el Elo del grupo sube con la actividad. Es a
    propósito (la constancia cuenta) y lo compensa la FORMA (`lib/forma.ts`),
    que baja con la inactividad. Las cifras viven aquí, con sus pruebas en
@@ -279,12 +283,30 @@ export const ELO_GANA_PIERDE: Record<string, { gana: number; pierde: number }> =
   league_challenge: { gana: 1, pierde: 1 },
   store: { gana: 1, pierde: 1 },
   other: { gana: 1, pierde: 1 },
-  league_cup: { gana: 0.9, pierde: 1.1 },
+  league_cup: { gana: 1, pierde: 1 }, // v0.124: equilibrado, como la Challenge
   regional: { gana: 1.2, pierde: 0.6 },
   special: { gana: 1.2, pierde: 0.6 },
   international: { gana: 1.25, pierde: 0.55 },
   worlds: { gana: 1.3, pierde: 0.5 },
 };
+
+/* v0.124 — Contra alguien DE FUERA no se sabe su nivel, así que ganar y
+   perder pesan casi igual. El rival de referencia del evento solo inclina la
+   balanza: la diferencia con tu Elo se recorta a ±ELO_DIF_FUERA puntos (una
+   expectativa del 45 al 55 %), y en el top cut el rival vale ELO_PLUS_CORTE más.
+
+   El fallo que corrige (EL CASO DE LA CUP): con 1300 de Elo, el rival de una
+   Cup valía 1050 fijo; una victoria daba ~6 puntos y una derrota quitaba ~32.
+   Ahora da ~16 y quita ~20. Lo que da más y quita menos sigue siendo lo de
+   ELO_GANA_PIERDE (Regionales y superiores) y los bonus por puesto. */
+export const ELO_DIF_FUERA = 35;
+export const ELO_PLUS_CORTE = 50;
+
+/** v0.124 — la diferencia de Elo (rival − tú) que se usa contra un rival de fuera. */
+export function difRivalFuera(referencia: number, propio: number, corte: boolean): number {
+  const dif = Math.max(-ELO_DIF_FUERA, Math.min(ELO_DIF_FUERA, referencia - propio));
+  return dif + (corte ? ELO_PLUS_CORTE : 0);
+}
 
 /* v0.120 — Bonus por pasar al DÍA 2 (o, si no lo hay o no se pasó, por
    acabar con récord positivo) en los eventos de dos fases y en las Cups. */
@@ -472,10 +494,13 @@ export function eloTable(
          igual (y perder, además, ×0,75): jugar online es entrenar y mantiene
          la forma, y con un récord decente suma poco a poco. */
       const esOnline = claveEvento(tour) === "online";
-      const rival = m.opponentPlayerId && rating[m.opponentPlayerId] != null
-        ? rating[m.opponentPlayerId]
-        : esOnline ? rating[m.playerAId] + (corte ? 50 : 0) : rivalReferencia(tour, corte);
-      const expectedA = 1 / (1 + Math.pow(10, (rival - rating[m.playerAId]) / 400));
+      /* v0.124 — y en lo presencial, lo mismo con un matiz: el rival de
+         referencia del evento inclina la balanza, pero poco (ver ELO_DIF_FUERA). */
+      const propio = rating[m.playerAId];
+      const dif = m.opponentPlayerId && rating[m.opponentPlayerId] != null
+        ? rating[m.opponentPlayerId] - propio
+        : difRivalFuera(esOnline ? propio : rivalReferencia(tour, false), propio, corte);
+      const expectedA = 1 / (1 + Math.pow(10, dif / 400));
       // v0.120 — ganar y perder pesan distinto según el evento (ver ELO_GANA_PIERDE).
       const gp = ELO_GANA_PIERDE[claveEvento(tour)] ?? ELO_GANA_PIERDE.other;
       const bruto = scoreA - expectedA;

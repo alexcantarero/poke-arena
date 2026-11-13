@@ -1,9 +1,10 @@
 import "server-only";
-import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, competitions, decks, discordHilos, events, ligaDivisiones, ligaTemporadas, matches, players, tournamentResults, tournaments } from "@/db/schema";
+import { archetypes, competitions, decks, discordHilos, events, ligaDivisiones, ligaTemporadas, matches, players, settings, tournamentResults, tournaments } from "@/db/schema";
+import { resetReciente } from "./recordatorios";
 import {
-  conEspera, embedAgenda, embedEnfrentamiento, embedEventoCinturon, embedLiga, embedPendientes, embedTorneo, nombreHilo, semanaDe, urlHilo,
+  conEspera, embedAgenda, embedEnfrentamiento, embedEventoCinturon, embedLiga, embedPendientes, embedRecordatorioLadder, embedResetLadder, embedTorneo, nombreHilo, semanaDe, urlHilo,
   type Embed, type EventoAgenda, type EventoCinturon, type EventoLiga, type Pendiente, type ResultadoTorneo,
 } from "./discordMensajes";
 import { motivoDeEstado, normalizarWebhook, type MotivoDiscord } from "./discordWebhook";
@@ -252,6 +253,44 @@ export async function notificarLiga(evento: EventoLiga): Promise<boolean> {
 
 export async function notificarCambioCinturon(evento: EventoCinturon): Promise<boolean> {
   return enviar("resultados", embedEventoCinturon(evento, urlApp()));
+}
+
+/* =========================================================================
+   v0.124 — Reset del ladder. Va al canal de la LIGA (el de los avisos a los
+   jugadores); si no está puesto, al de la agenda, y si tampoco, al de
+   resultados. Así sale sin configurar nada nuevo.
+   ========================================================================= */
+async function enviarAvisoGeneral(embed: Embed): Promise<boolean> {
+  for (const canal of ["liga", "agenda", "resultados"] as const) {
+    if (!normalizarWebhook(process.env[VARIABLE[canal]])) continue;
+    return enviar(canal, embed);
+  }
+  return false;
+}
+
+/** El anuncio, justo al hacer el reset. Nunca rompe nada. */
+export async function notificarResetLadder(): Promise<boolean> {
+  try {
+    return await enviarAvisoGeneral(embedResetLadder(urlApp()));
+  } catch {
+    return false;
+  }
+}
+
+/** Los lunes, mientras el reset sea reciente y falte alguien por apuntar su rango. */
+export async function notificarPendientesLadder(ahora: Date): Promise<boolean> {
+  try {
+    const [cfg] = await db.select({ desde: settings.ladderSince }).from(settings).where(eq(settings.id, "default"));
+    if (!resetReciente(cfg?.desde ?? null, ahora.getTime())) return false;
+    const [todos, sinRango] = await Promise.all([
+      db.select({ id: players.id }).from(players).where(eq(players.active, true)),
+      db.select({ name: players.name }).from(players).where(and(eq(players.active, true), isNull(players.ladderElo))),
+    ]);
+    const e = embedRecordatorioLadder(sinRango.map((p) => p.name), todos.length, urlApp());
+    return e ? await enviarAvisoGeneral(e) : false;
+  } catch {
+    return false;
+  }
 }
 
 /** La agenda de la semana: eventos del calendario y torneos apuntados. */

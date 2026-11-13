@@ -552,3 +552,62 @@ export function tiendaDe(titulo: string): string {
   if (/^(pok[eé]mon\s+)?(tcg\s+)?(league\s+(challenge|cup)|liga|desaf[ií]o de liga|copa de liga)$/i.test(t)) return "";
   return t.length >= 3 ? t : "";
 }
+
+/* =========================================================================
+   v0.124 — Qué va en cada campo del torneo, tal cual lo pidió Ibai con el
+   ejemplo de Lorcanos:
+
+     «LORCANOS - TCG League Cup Season 1»
+     «CARRER D'IGNASI IGLESIAS, 10, 08912 BADALONA, BARCELONA, SPAIN»
+
+     Nombre          LORCANOS - TCG League Cup Season 1   (entero, sin recortar)
+     Tienda o sede   Lorcanos                             (el trozo que no es el evento)
+     Dirección       Carrer d'Ignasi Iglesias, 10, 08912 Badalona, Barcelona, España
+     Ciudad          Barcelona (Badalona)                 (la provincia y, entre paréntesis, el municipio)
+
+   Lo usan la importación del calendario y «Pegar del localizador» del
+   formulario de crear torneo, para que salga lo mismo por los dos caminos.
+   ========================================================================= */
+
+export type CamposTorneo = { nombre: string; tienda: string; direccion: string; ciudad: string; pais: string };
+
+/** Un trozo del nombre que habla del evento y no de la tienda. */
+const ES_EVENTO = /(^|[^a-záéíóúüñ])(cup|challenge|league|liga|copa|desaf[ií]o|tcg|torneo|tournament|season|temporada|pok[eé]mon|regional|championships?|campeonato|special|evento|internacional|international)(?![a-záéíóúüñ])/i;
+
+/** «LORCANOS» → «Lorcanos»; lo que ya trae minúsculas se respeta («Mythic Games»). */
+function legible(s: string): string {
+  return /[a-záéíóúüñ]/.test(s) ? s.trim() : tituloDireccion(s);
+}
+
+/**
+ * La tienda, cuando el nombre la trae separada por un guion, vaya delante o
+ * detrás: «LORCANOS - TCG League Cup Season 1» → «Lorcanos»; «League Cup
+ * Noviembre - Mythic Games» → «Mythic Games». Si todos los trozos hablan del
+ * evento («Porygon's Cup - Pokémon TCG League Challenge») no se inventa: vacío.
+ */
+export function tiendaDelNombre(nombre: string): string {
+  const trozos = nombre.split(/\s[-–|]\s/).map((t) => t.trim()).filter(Boolean);
+  if (trozos.length < 2) return "";
+  const tienda = trozos.find((t) => t.length >= 3 && !ES_EVENTO.test(t));
+  return tienda ? legible(tienda) : "";
+}
+
+const sinTildes = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+export function camposTorneo(e: Pick<EventoPegado, "store" | "title" | "location" | "kind">): CamposTorneo {
+  const grande = e.kind === "regional" || e.kind === "special" || e.kind === "international";
+  const det = detallesEvento(e);
+  // Lista de chat («CUP Domingo 4 - 10:30 Mythic (Calella)»): no hay dirección,
+  // `store` es la tienda (o la ciudad, en un Regional) y `location` la ciudad.
+  if (!det.cp && !e.location.includes(",")) {
+    return { nombre: e.title, tienda: grande ? "" : e.store, direccion: "", ciudad: e.location.trim(), pais: "" };
+  }
+  const nombre = (e.store || e.title).trim().replace(/^\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?\s*[-–·:]?\s*/, "") || e.title;
+  const ciudad = det.provincia && det.ciudad && sinTildes(det.provincia) !== sinTildes(det.ciudad)
+    ? `${det.provincia} (${det.ciudad})`
+    : det.ciudad || det.provincia;
+  const direccion = det.cp
+    ? [det.direccion, [det.cp, det.ciudad].filter(Boolean).join(" "), det.provincia, det.pais].filter(Boolean).join(", ")
+    : tituloDireccion(e.location);
+  return { nombre, tienda: grande ? "" : tiendaDelNombre(nombre), direccion, ciudad, pais: det.pais };
+}

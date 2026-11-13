@@ -9,46 +9,18 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { asistencias, events, matches, tournamentResults, tournaments } from "@/db/schema";
 import { EVENTOS_EUROPA_2027, TEMPORADA_EVENTOS } from "@/data/eventos-europa";
-import { newId, todayISO } from "@/lib/format";
 import { withFlash } from "@/lib/flash";
-import { claveDireccion, detallesEvento, parseEventosPegados } from "@/lib/eventosPegados";
+import { camposTorneo, claveDireccion, detallesEvento, parseEventosPegados } from "@/lib/eventosPegados";
+import { direccionesDeTorneos, guardarDireccion } from "@/lib/torneoDireccionDb";
 import { seasonOfDate } from "@/lib/cp";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
 import { esEstado, type EstadoAsistencia } from "@/lib/asistencia";
 import {
-  str, isoDate, refresh, requireManager, requireActor, safeBack, CALENDAR_EVENT_KINDS,
+  str, refresh, requireManager, requireActor,
   msj,
 } from "./_comun";
 
 /* ------------------------------------------------------------- eventos -- */
-
-export async function saveEvent(fd: FormData) {
-  // El calendario lo ve todo el mundo, así que lo escribe el organizador.
-  await requireManager();
-  const editing = str(fd, "id");
-  const id = editing || newId("e");
-  const values = {
-    title: str(fd, "title").slice(0, 120),
-    date: isoDate(fd, "date") ?? todayISO(),
-    endDate: isoDate(fd, "endDate", null),
-    kind: str(fd, "kind") || "round",
-    // Vacío es válido: una jornada de la liga no es ningún tipo de torneo
-    // del circuito. El color del calendario cae entonces al de `kind`.
-    tournamentKind: CALENDAR_EVENT_KINDS.includes(str(fd, "tournamentKind"))
-      ? str(fd, "tournamentKind")
-      : "",
-    location: str(fd, "location").slice(0, 120),
-    url: /^https?:\/\//i.test(str(fd, "url")) ? str(fd, "url").slice(0, 400) : "",
-    competitionId: str(fd, "competitionId") || null,
-    tournamentId: str(fd, "tournamentId") || null,
-    note: str(fd, "note").slice(0, 500),
-  };
-  if (!values.title) return;
-  if (editing) await db.update(events).set(values).where(eq(events.id, id));
-  else await db.insert(events).values({ id, ...values });
-  refresh();
-  redirect(withFlash("/calendario", "ok", editing ? "Evento guardado." : "Evento añadido."));
-}
 
 /**
  * Meter en el calendario los eventos oficiales de Europa.
@@ -132,10 +104,11 @@ export async function importPastedEvents(fd: FormData) {
     redirect(withFlash("/calendario", "error",
       "No he reconocido ningún torneo en lo pegado. Puedes pegar la lista del buscador oficial o un listado por meses (CHALLENGE / CUP / REGIONAL)."));
   }
-  const [yaRegistrados, toursExistentes, evOficiales] = await Promise.all([
+  const [yaRegistrados, toursExistentes, evOficiales, direcciones] = await Promise.all([
     db.select({ id: events.id }).from(events).where(inArray(events.id, eventos.map((e) => e.id))),
     db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind, venue: tournaments.venue }).from(tournaments),
     db.select({ id: events.id, date: events.date, tournamentKind: events.tournamentKind, title: events.title }).from(events),
+    direccionesDeTorneos(), // v0.124
   ]);
   const ya = new Set(yaRegistrados.map((r) => r.id));
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -154,11 +127,18 @@ export async function importPastedEvents(fd: FormData) {
        y no se duplica un torneo que ya está: mismo día y tipo, y mismo nombre
        O misma dirección (la tienda puede haberlo apuntado con otro nombre). */
     const det = detallesEvento(e);
+    /* v0.124 — cada dato en su campo (ver `camposTorneo`): el nombre entero, la
+       tienda en «Tienda o sede», la dirección aparte y «Provincia (municipio)». */
+    const campos = camposTorneo(e);
     const calleNueva = claveDireccion(det.direccion);
+    const mismaCalle = (t: { id: string; venue: string | null }) => calleNueva.length >= 6 && (
+      claveDireccion(direcciones.get(t.id) ?? "").startsWith(calleNueva)
+      || claveDireccion(t.venue ?? "").startsWith(calleNueva) // los de antes de la v0.124 la llevaban en la sede
+    );
     const tourCoincidente = toursExistentes.find((t) =>
       t.date === e.date && t.kind === e.kind && (
-        (Boolean(det.nombre) && (norm(t.name).includes(norm(det.nombre)) || norm(det.nombre).includes(norm(t.name))))
-        || (calleNueva.length >= 6 && claveDireccion(t.venue ?? "").startsWith(calleNueva))
+        [det.nombre, campos.nombre].some((n) => Boolean(n) && (norm(t.name).includes(norm(n)) || norm(n).includes(norm(t.name))))
+        || mismaCalle(t)
       )
     );
 
@@ -169,7 +149,7 @@ export async function importPastedEvents(fd: FormData) {
       tournamentId = `tp-${e.id}`;
       await db.insert(tournaments).values({
         id: tournamentId,
-        name: (det.nombre || e.store || e.title).slice(0, 120),
+        name: (campos.nombre || e.store || e.title).slice(0, 120),
         kind: e.kind,
         status: "draft",
         scope: "onsite",
@@ -178,21 +158,25 @@ export async function importPastedEvents(fd: FormData) {
         date: e.date,
         endDate: e.endDate ?? null,
         startTime: e.time ?? null,
-        venue: (det.sede || e.location).slice(0, 120),
-        city: det.ciudad.slice(0, 80),
-        country: det.pais,
-        organizer: det.tienda.slice(0, 80), // v0.123 — la tienda, si el nombre la trae
+        entryFeeCents: 0, // v0.124 — gratis mientras no se diga otra cosa
+        venue: campos.tienda.slice(0, 120),
+        city: campos.ciudad.slice(0, 80),
+        country: campos.pais,
+        organizer: campos.tienda.slice(0, 80), // v0.123 — la tienda, si el nombre la trae
         season: seasonOfDate(e.date),
         division: "masters",
         notes: [e.note, `Del localizador de eventos oficial · ${e.location}${e.time ? ` · ${e.time}` : ""}`].filter(Boolean).join("\n"),
         createdBy: actor.id,
       }).onConflictDoNothing();
+      await guardarDireccion(tournamentId, campos.direccion);
+      toursExistentes.push({ id: tournamentId, name: campos.nombre, date: e.date, kind: e.kind, venue: campos.tienda });
+      direcciones.set(tournamentId, campos.direccion);
       torneosCreados++;
     }
 
     const values = {
       // v0.120 — «League Challenge · Porygon's Cup (Mataró)» y la sede legible.
-      title: `${e.title.split(" · ")[0]} · ${det.nombre}${det.ciudad ? ` (${det.ciudad})` : ""}`.slice(0, 120),
+      title: `${e.title.split(" · ")[0]} · ${campos.tienda || det.nombre}${det.ciudad ? ` (${det.ciudad})` : ""}`.slice(0, 120),
       date: e.date,
       endDate: e.endDate ?? null,
       kind: "tourney",

@@ -25,7 +25,7 @@ test("una ronda ganada contra alguien de fuera sube el Elo, y más en un Regiona
   const enReg = eloTable([ronda("reg")], players, cfg, torneos).rating.a;
   // v0.115: K provisional (×2 en las 20 primeras) y rival de referencia por evento.
   assert.equal(enChal, 1024);   // 24 × 2 × (1 − 0,5) contra un 1000
-  assert.equal(enReg, 1098);    // v0.120: 24 × 2 (peso) × 2 (provisional) × 1,2 (victoria en Regional) × (1 − 0,15) contra un 1300
+  assert.equal(enReg, 1063);    // v0.124: 24 × 2 (peso) × 2 (provisional) × 1,2 (victoria en Regional) × (1 − 0,45): el rival de 1300 solo inclina hasta el 45 %
 });
 
 test("la ronda solo mueve a quien la apuntó, aunque el rival sea del grupo", () => {

@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { borrarTorneosAbandonados, cerrarTorneosTerminados, abrirTorneosDelDia } from "@/lib/limpiezaDb";
 import { sincronizarSeriesOnline } from "@/lib/seriesOnlineDb";
-import { crearHilosLiga, notificarAgendaSemana, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
+import { crearHilosLiga, notificarAgendaSemana, notificarPendientesLadder, notificarPendientesLiga, notificarResultadosTorneo } from "@/lib/discord";
 import { esLunesEnMadrid } from "@/lib/discordMensajes";
 import { guardarLecturaNeonDeHoy } from "@/lib/usoDb";
 import { iniciarSuizoCinturon, procesarPlazosCinturon } from "@/lib/cinturonDb";
@@ -56,11 +56,13 @@ export async function GET(req: NextRequest) {
   /* v0.59 — Discord: los resultados de cada torneo que se acaba de cerrar solo, y
      los lunes (hora de Madrid), las partidas de liga pendientes y la agenda de
      la semana. Cada aviso es opcional y nunca rompe el cron. */
-  const discord = { resultados: 0, pendientes: false, agenda: false, hilos: 0 };
+  const discord = { resultados: 0, pendientes: false, agenda: false, hilos: 0, ladder: false };
   for (const t of cerrados) if (await notificarResultadosTorneo(t.id)) discord.resultados++;
   if (esLunesEnMadrid(ahora)) {
     discord.pendientes = await notificarPendientesLiga();
     discord.agenda = await notificarAgendaSemana(ahora.toISOString().slice(0, 10));
+    // v0.124 — tras un reset del ladder, quién falta por apuntar su rango (tres semanas como mucho).
+    discord.ladder = await notificarPendientesLadder(ahora);
   }
   // v0.122 — los torneos online de los del grupo (por su nick de Limitless), cada día.
   let limitless: { mirados: number; nuevos: number; resultados: number } | null = null;

@@ -67,3 +67,14 @@ test("el cron de las 04:00 UTC del lunes ya es lunes en Madrid", () => {
   assert.equal(esLunesEnMadrid(new Date("2026-10-19T04:00:00Z")), true);
   assert.equal(esLunesEnMadrid(new Date("2026-10-18T21:00:00Z")), false); // domingo noche
 });
+
+test("v0.124 — reset del ladder: el anuncio y el recordatorio de quién falta", async () => {
+  const { embedResetLadder, embedRecordatorioLadder } = await import("../src/lib/discordMensajes.ts");
+  const a = embedResetLadder("https://app.test");
+  assert.equal(a.url, "https://app.test/perfil");
+  assert.match(a.description!, /Apunta tu rango/);
+  assert.equal(embedRecordatorioLadder([], 20, "https://app.test"), null); // todos lo han puesto: silencio
+  const r = embedRecordatorioLadder(["Zoe", "Alex"], 20, "https://app.test")!;
+  assert.match(r.title, /2 de 20/);
+  assert.match(r.description!, /Faltan: Alex, Zoe\./);
+});

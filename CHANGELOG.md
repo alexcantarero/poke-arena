@@ -2,6 +2,52 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.124.0] — 2026-11-13
+
+**Con migración**: `drizzle/0036_v0_124_0.sql` (tabla `tournament_direcciones`). Sin ella todo
+funciona, pero la dirección de los torneos no se guarda ni se ve. **Cambia el Elo** (se recalcula
+al desplegar). Paso manual opcional: `public/logos/discord.svg` (ver IMPLEMENTAR).
+
+### Arreglado
+
+- **EL CASO DE LA CUP — una victoria daba ~6 de Elo y una derrota quitaba ~32.** Contra alguien
+  de fuera el rival valía una cifra fija (1050 en una Cup); con el Elo ya por encima, ganar era
+  «lo esperado» y perder un desastre. Ahora la diferencia con el rival de referencia se recorta
+  a ±35 puntos (expectativa del 45 al 55 %): ganar y perder pesan casi igual (~16 / ~20 en ese
+  caso) y en el top cut el rival vale 50 más. La Cup pasa a ganar ×1 / perder ×1 (era 0,9 / 1,1).
+  Lo que da más y quita menos sigue siendo el Regional y superiores (×1,2 / ×0,6…) y los bonus
+  por puesto. `difRivalFuera` en `lib/stats.ts`, con prueba.
+
+### Añadido
+
+- **Aviso de reset del ladder**: al pulsar «nueva temporada» sale un anuncio en Discord (canal de
+  la liga; si no está, agenda o resultados) y, en la web, un aviso destacado a cada jugador que
+  aún no ha puesto su rango nuevo, durante tres semanas («Más tarde» lo calla un día). Los lunes
+  de esas tres semanas, Discord recuerda quién falta. Mientras sale el aviso de reset, el
+  recordatorio semanal del ladder se calla.
+- **Dirección del torneo**: campo propio en el formulario, visible en la ficha con enlace «Cómo
+  llegar». Tabla aparte (`tournament_direcciones`) para que el código no dependa de la migración.
+- **«Pegar del localizador de eventos» al crear un torneo**: se pega el bloque del buscador
+  oficial y se rellenan tipo, nombre, tienda, dirección, ciudad, fecha y hora (se analiza en el
+  navegador; no se consulta ninguna web).
+
+### Cambiado
+
+- **Qué va en cada campo al importar del localizador** (`camposTorneo`, con el ejemplo de
+  Lorcanos como prueba): el **nombre** entero («LORCANOS - TCG League Cup Season 1», ya no se
+  recorta); **Tienda o sede** = la tienda («Lorcanos», vaya delante o detrás del guion; si no se
+  distingue, vacío); **Dirección** = la dirección completa; **Ciudad** = «Barcelona (Badalona)»
+  (provincia y, entre paréntesis, el municipio); **precio 0** por defecto (se enseña «Gratis»).
+- **Top Decks → Último torneo**: el torneo pequeño pasa de 100–299 a **150–300** jugadores; el
+  grande, a más de 300.
+- **Icono de Discord** en el pie de la barra lateral en vez de la palabra (usa el fichero oficial
+  `public/logos/discord.svg`; si no está, se queda como antes).
+
+### Quitado
+
+- **«Añadir al calendario»** (el formulario del Calendario y su acción `saveEvent`): los torneos
+  que se crean o se importan ya salen solos. Quedan los dos importadores.
+
 ## [0.123.0] — 2026-11-12
 
 **Con migración**: `drizzle/0035_v0_123_0.sql` (tabla `match_causas`). Sin ella todo funciona,

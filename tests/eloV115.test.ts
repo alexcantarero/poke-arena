@@ -160,7 +160,7 @@ test("divisiones con los nombres de la web", () => {
 test("v0.120: en un Regional ganar suma más y perder quita menos; día 2 y récord positivo dan bonus", async () => {
   const { bonoTorneo, ELO_GANA_PIERDE } = await import("../src/lib/stats.ts");
   assert.ok(ELO_GANA_PIERDE.regional.gana > 1 && ELO_GANA_PIERDE.regional.pierde < 1);
-  assert.ok(ELO_GANA_PIERDE.league_cup.gana < 1 && ELO_GANA_PIERDE.league_cup.pierde > 1);
+  assert.deepEqual(ELO_GANA_PIERDE.league_cup, { gana: 1, pierde: 1 }); // v0.124
   assert.deepEqual(ELO_GANA_PIERDE.league_challenge, { gana: 1, pierde: 1 });
   assert.equal(bonoTorneo({ kind: "regional" }, { placement: 200, diaDos: true }), 20 + 60);
   assert.equal(bonoTorneo({ kind: "regional" }, { placement: 900, diaDos: false, positivo: true }), 25);
@@ -169,7 +169,7 @@ test("v0.120: en un Regional ganar suma más y perder quita menos; día 2 y réc
   const torneos = new Map([["reg", { kind: "regional", suizo: 9 }]]);
   const gana = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "a" })], players, cfg, torneos).history.a[1].delta!;
   const pierde = eloTable([m({ playerAId: "a", tournamentId: "reg", seriesResult: "b" })], players, cfg, torneos).history.a[1].delta!;
-  assert.ok(gana > Math.abs(pierde) * 4); // rival fuerte + más por ganar + menos por perder
+  assert.ok(gana > Math.abs(pierde) * 2); // v0.124: rival algo más fuerte + más por ganar + menos por perder
 });
 
 test("v0.122 — EL CASO DE IBAI: online ya no hunde el Elo; ganar y perder pesan igual, perder algo menos", () => {
@@ -185,4 +185,29 @@ test("v0.122 — EL CASO DE IBAI: online ya no hunde el Elo; ganar y perder pesa
   const h = eloTable([r("a", 1)[0]], players, alto, torneos).history.a;
   const hp = eloTable([r("b", 1)[0]], players, alto, torneos).history.a;
   assert.ok(Math.abs(hp[1].delta!) < h[1].delta!); // perder quita menos que lo que da ganar
+});
+
+test("v0.124 — EL CASO DE LA CUP: con 1300 de Elo, ganar una ronda ya no da 6 y perderla quita 32", async () => {
+  const { difRivalFuera, ELO_DIF_FUERA, ELO_PLUS_CORTE } = await import("../src/lib/stats.ts");
+  assert.equal(difRivalFuera(1050, 1300, false), -ELO_DIF_FUERA);
+  assert.equal(difRivalFuera(1300, 1000, false), ELO_DIF_FUERA);
+  assert.equal(difRivalFuera(1050, 1040, false), 10);
+  assert.equal(difRivalFuera(1050, 1300, true), -ELO_DIF_FUERA + ELO_PLUS_CORTE);
+  const torneos = new Map([["cup", { kind: "league_cup", suizo: 5 }]]);
+  // 25 partidas ya jugadas en la liga, para salir de la K provisional sin mover el Elo… casi.
+  const alto = { ...cfg, eloStart: 1300 };
+  const previas = Array.from({ length: 20 }, (_, i) => m({ playerAId: "a", playerBId: "b", competitionId: "c", seriesResult: i % 2 ? "a" : "b", date: "2026-08-01" }));
+  const delta = (res: string, round = 1) => {
+    const h = eloTable([...previas, m({ playerAId: "a", tournamentId: "cup", seriesResult: res, round, date: "2026-09-01" })], players, alto, torneos).history.a;
+    return h[h.length - 1].delta!;
+  };
+  const gana = delta("a"), pierde = Math.abs(delta("b"));
+  assert.ok(gana > 14 && gana < 19, String(gana));
+  assert.ok(pierde > 17 && pierde < 22, String(pierde));
+  assert.ok(pierde / gana < 1.3, `${pierde} / ${gana}`); // «bastante igual»
+  // En el top cut el rival vale más: ganar da más de lo que quita perder.
+  assert.ok(delta("a", 6) > Math.abs(delta("b", 6)));
+  // Con un Elo bajo es al revés, y con la misma proporción.
+  const bajo = eloTable([...previas, m({ playerAId: "a", tournamentId: "cup", seriesResult: "a", date: "2026-09-01" })], players, { ...cfg, eloStart: 900 }, torneos).history.a;
+  assert.ok(bajo[bajo.length - 1].delta! > 19 && bajo[bajo.length - 1].delta! < 21);
 });

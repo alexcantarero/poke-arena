@@ -71,3 +71,47 @@ Wednesday, November 25, 2026 6:00 PM`);
   assert.equal(ch.time, "18:00");
   assert.equal(detallesEvento(ch).ciudad, "Sabadell");
 });
+
+test("v0.124 — EL CASO DE LORCANOS: cada dato del localizador, en su campo del torneo", async () => {
+  const { camposTorneo, tiendaDelNombre } = await import("../src/lib/eventosPegados.ts");
+  const { eventos } = parseEventosPegados(`Copa de Liga
+LORCANOS - TCG League Cup Season 1
+CARRER D'IGNASI IGLESIAS, 10, 08912 BADALONA, BARCELONA, SPAIN
+sábado, 28 de noviembre de 2026 03:00 p.m.`);
+  assert.equal(eventos.length, 1);
+  assert.equal(eventos[0].kind, "league_cup");
+  assert.equal(eventos[0].date, "2026-11-28");
+  assert.equal(eventos[0].time, "15:00");
+  assert.deepEqual(camposTorneo(eventos[0]), {
+    nombre: "LORCANOS - TCG League Cup Season 1",
+    tienda: "Lorcanos",
+    direccion: "Carrer d'Ignasi Iglesias, 10, 08912 Badalona, Barcelona, España",
+    ciudad: "Barcelona (Badalona)",
+    pais: "España",
+  });
+  // La tienda, delante o detrás del guion; si no se distingue, no se inventa.
+  assert.equal(tiendaDelNombre("League Cup Noviembre - Mythic Games"), "Mythic Games");
+  assert.equal(tiendaDelNombre("12/11 Porygon's Cup - Pokémon TCG League Challenge"), "");
+  assert.equal(tiendaDelNombre("TCG League Challenge November"), "");
+});
+
+test("v0.124 — ciudad: capital de provincia sin paréntesis, extranjero sin provincia, y lista de chat", async () => {
+  const { camposTorneo } = await import("../src/lib/eventosPegados.ts");
+  const of = (store: string, location: string, kind = "league_cup") =>
+    camposTorneo({ store, title: `League Cup · ${store}`, location, kind } as never);
+  const bcn = of("League Cup Noviembre - Mythic Games", "CALLE MAYOR, 12, LOCAL 3, 08001 BARCELONA, BARCELONA, SPAIN");
+  assert.equal(bcn.ciudad, "Barcelona");
+  assert.equal(bcn.tienda, "Mythic Games");
+  assert.equal(bcn.nombre, "League Cup Noviembre - Mythic Games"); // entero: ya no se recorta
+  assert.equal(bcn.direccion, "Calle Mayor, 12, Local 3, 08001 Barcelona, Barcelona, España");
+  const stu = of("Regional Championship Stuttgart", "MESSEPIAZZA 1, 70629 STUTTGART, GERMANY", "regional");
+  assert.deepEqual([stu.ciudad, stu.pais, stu.tienda], ["Stuttgart", "Alemania", ""]);
+  // La fecha de delante no es parte del nombre.
+  assert.equal(of("12/11 Porygon's Cup - Pokémon TCG League Challenge", "RONDA FREDERIC MISTRAL, 26, 08304 MATARÓ, BARCELONA, SPAIN").nombre,
+    "Porygon's Cup - Pokémon TCG League Challenge");
+  // Lista de chat: «CUP Domingo 4 - 10:30 Mythic (Calella)».
+  const chat = camposTorneo({ store: "Mythic", title: "League Cup · Mythic", location: "Calella", kind: "league_cup" });
+  assert.deepEqual(chat, { nombre: "League Cup · Mythic", tienda: "Mythic", direccion: "", ciudad: "Calella", pais: "" });
+  const niza = camposTorneo({ store: "Niza", title: "Regional de Niza", location: "Niza", kind: "regional" });
+  assert.deepEqual([niza.nombre, niza.tienda, niza.ciudad], ["Regional de Niza", "", "Niza"]);
+});

@@ -10,6 +10,7 @@ import { suggestedRounds, suggestedTopCut } from "@/lib/sugerencias";
 import { isRegionalTournament, regionalStructure } from "@/lib/cut";
 import { familiaDe } from "@/lib/estructura";
 import { todayISO } from "@/lib/format";
+import { camposTorneo, parseEventosPegados } from "@/lib/eventosPegados";
 import { Icon } from "./icons";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -37,9 +38,14 @@ type Props = {
   plantilla?: Tournament;
   /** A dónde volver si se cancela. */
   back?: string;
+  /** v0.124 — la dirección guardada (va en su tabla, no en `tournaments`). */
+  direccion?: string;
 };
 
-export function TournamentForm({ season, tournament, back = "/torneos", plantilla}: Props) {
+/** v0.124 — lo que rellena «Pegar del localizador». `n` cambia en cada pegado para remontar los campos. */
+type Pegado = { n: number; name: string; venue: string; address: string; city: string; date: string; startTime: string; country: string };
+
+export function TournamentForm({ season, tournament, back = "/torneos", plantilla, direccion = "" }: Props) {
   /* v0.55 — de dónde salen los valores por defecto: el torneo que se edita o, si
      se crea uno nuevo, la plantilla. Lo que decide «editar» sigue siendo SOLO
      `tournament` (el id oculto, el botón), así que una plantilla nunca edita. */
@@ -57,6 +63,28 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
   );
   const [bestOfTop, setBestOfTop] = useState<number>(base?.bestOfTop ?? 0); // v0.57
   const [status, setStatus] = useState(base?.status ?? "open");
+
+  /* v0.124 — «Pegar del localizador»: el bloque del buscador oficial (tipo,
+     nombre, dirección, fecha) rellena los campos. Se analiza aquí, en el
+     navegador (la regla de siempre: pegar y analizar, nunca descargar). Los
+     campos son no controlados, así que se remontan con `key` al pegar. */
+  const [pegado, setPegado] = useState<Pegado | null>(null);
+  const [textoPegado, setTextoPegado] = useState("");
+  const [avisoPegado, setAvisoPegado] = useState<"ok" | "nada" | null>(null);
+  const rellenar = () => {
+    const e = parseEventosPegados(textoPegado).eventos[0];
+    if (!e) { setAvisoPegado("nada"); return; }
+    const c = camposTorneo(e);
+    setKind(e.kind);
+    setScope("onsite");
+    setBestOf(e.kind === "league_challenge" ? 1 : 3);
+    setPegado({
+      n: (pegado?.n ?? 0) + 1, name: c.nombre.slice(0, 120), venue: c.tienda, address: c.direccion, city: c.ciudad,
+      date: e.date, startTime: e.time ?? "", country: c.pais,
+    });
+    setAvisoPegado("ok");
+  };
+  const k = pegado?.n ?? 0;
 
   const [playerCount, setPlayerCount] = useState<string>(
     base?.playerCount != null ? String(base!.playerCount) : "",
@@ -108,14 +136,42 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
         <input type="hidden" name="season" value={tournament.season} />
       )}
       {tournament && <input type="hidden" name="country" value={tournament.country} />}
+      {!tournament && pegado?.country && <input type="hidden" name="country" value={pegado.country} />}
+
+      {!tournament && (
+        <details className="card">
+          <summary className="tap cursor-pointer justify-start px-4 text-sm font-semibold">
+            <Icon name="calendar" className="size-4" /> {tr(lng, "v124.pegarTitulo")}
+          </summary>
+          <div className="flex flex-col gap-2 border-t border-line-soft p-4">
+            <p className="text-xs text-muted">{tr(lng, "v124.pegarAyuda")}</p>
+            <textarea
+              className="input min-h-28 font-mono text-xs" value={textoPegado} aria-label={tr(lng, "v124.pegarTitulo")}
+              onChange={(e) => { setTextoPegado(e.target.value); setAvisoPegado(null); }}
+              placeholder={"Copa de Liga\nLORCANOS - TCG League Cup Season 1\nCARRER D'IGNASI IGLESIAS, 10, 08912 BADALONA, BARCELONA, SPAIN\nsábado, 28 de noviembre de 2026 03:00 p.m."}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="btn btn-sm" disabled={!textoPegado.trim()} onClick={rellenar}>
+                {tr(lng, "v124.pegarBoton")}
+              </button>
+              {avisoPegado && (
+                <span role="status" className={`text-xs font-semibold ${avisoPegado === "ok" ? "text-win" : "text-loss"}`}>
+                  {tr(lng, avisoPegado === "ok" ? "v124.pegarOk" : "v124.pegarNada")}
+                </span>
+              )}
+            </div>
+          </div>
+        </details>
+      )}
 
       <section className="card p-4">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="name">{tr(lng, "x.e68491e9")}</label>
             <input
+              key={`name-${k}`}
               className="input" id="name" name="name" required maxLength={120}
-              defaultValue={base?.name ?? ""}
+              defaultValue={pegado?.name ?? base?.name ?? ""}
               placeholder={tr(lng, "x.02760be0")}
             />
           </div>
@@ -198,13 +254,14 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="date">{tr(lng, "x.bcc47609")}</label>
-              <input className="input" id="date" name="date" type="date" defaultValue={base?.date ?? todayISO()} />
+              <input key={`date-${k}`} className="input" id="date" name="date" type="date" defaultValue={pegado?.date ?? base?.date ?? todayISO()} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="startTime">{tr(lng, "x.2c247b90")}</label>
               <input
+                key={`hora-${k}`}
                 className="input" id="startTime" name="startTime" type="time"
-                defaultValue={base?.startTime ?? ""}
+                defaultValue={pegado?.startTime ?? base?.startTime ?? ""}
               />
             </div>
           </div>
@@ -224,13 +281,15 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
                 <input
                   className="w-full bg-transparent outline-none" id="entryFee" name="entryFee"
                   type="number" min={0} step="0.01" inputMode="decimal"
+                  /* v0.124 — por defecto 0 (gratis); al editar, lo guardado (vacío si no se sabía). */
                   defaultValue={
-                    base?.entryFeeCents != null ? (base!.entryFeeCents / 100).toString() : ""
+                    base?.entryFeeCents != null ? (base!.entryFeeCents / 100).toString() : tournament ? "" : "0"
                   }
-                  placeholder="5"
+                  placeholder="0"
                 />
                 <span className="flex-none text-sm text-muted">€</span>
               </div>
+              <p className="text-xs text-muted">{tr(lng, "v124.precioAyuda")}</p>
             </div>
           </div>
 
@@ -380,15 +439,26 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="venue">{scope === "online" ? "Plataforma" : tr(lng, "x.34efdbdc")}</label>
               <input
-                className="input" id="venue" name="venue" defaultValue={base?.venue ?? ""}
+                key={`sede-${k}`}
+                className="input" id="venue" name="venue" maxLength={120} defaultValue={pegado?.venue ?? base?.venue ?? ""}
                 placeholder={scope === "online" ? "PTCG Live" : tr(lng, "x.79e6fa20")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="label" htmlFor="city">{tr(lng, "x.c6fbe2dc")}</label>
-              <input className="input" id="city" name="city" defaultValue={base?.city ?? ""} placeholder={tr(lng, "x.55e20c99")} />
+              <input key={`ciudad-${k}`} className="input" id="city" name="city" maxLength={80}
+                defaultValue={pegado?.city ?? base?.city ?? ""} placeholder={tr(lng, "v124.ciudadEj")} />
             </div>
           </div>
+
+          {/* v0.124 — la dirección, en su campo (antes iba mezclada en «Tienda o sede»). */}
+          {scope !== "online" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="label" htmlFor="address">{tr(lng, "v124.direccion")}</label>
+              <input key={`dir-${k}`} className="input" id="address" name="address" maxLength={200} autoComplete="off"
+                defaultValue={pegado?.address ?? direccion} placeholder={tr(lng, "v124.direccionEj")} />
+            </div>
+          )}
 
           {/* El estado solo se elige al crear. Después se mueve con los botones
               del ciclo, en la ficha: cerrar un torneo es una decisión, no un

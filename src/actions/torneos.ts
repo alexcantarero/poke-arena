@@ -28,6 +28,7 @@ import {
 } from "./_comun";
 import { saveMatch } from "./partidas";
 import { notificarResultadosTorneo } from "@/lib/discord";
+import { guardarDireccion } from "@/lib/torneoDireccionDb";
 
 export async function saveTournament(fd: FormData) {
   const actor = await requireActor();
@@ -108,6 +109,9 @@ export async function saveTournament(fd: FormData) {
       id, ...values, createdBy: actor.id, status: status ?? "open",
     });
   }
+  // v0.124 — la dirección va en su tabla (ver `torneoDireccionDb`). Solo si el
+  // formulario trae el campo: quien no lo pinte no la borra.
+  if (fd.has("address")) await guardarDireccion(id, str(fd, "address"));
 
   /* Corregir la asistencia o el tipo cambia lo que vale cada puesto, así que
      los CP guardados se vuelven a calcular. */
