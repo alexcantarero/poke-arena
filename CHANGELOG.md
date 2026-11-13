@@ -2,6 +2,26 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.129.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.** Dos cosas alrededor de un torneo: antes y después.
+
+### Añadido
+
+- **Preparación de torneo** (`/torneos/<id>/preparacion`, botón «Preparar el torneo» en la ficha
+  de un torneo que no está cerrado). Con tu mazo (el del torneo, o el que elijas arriba): el
+  campo esperado para ese tipo de torneo, tu % contra cada mazo al formato del torneo, las
+  partidas que hay detrás de cada cifra y, al lado, tu propio historial en ese cruce. Arriba, tu
+  % esperado por ronda contra el campo, «Cuidado con» y «A tu favor». Los números salen del
+  recomendador (mismas fuentes y pesos que Herramientas); `lib/preparacion.ts` solo los ordena
+  (4 pruebas). Un cruce con menos de 12 partidas se marca «Pocos datos», y «Cuidado con» ordena
+  por daño (cuota × lo que falta para el 50 %), no por el peor porcentaje.
+- **Informe post-torneo completo**: la imagen para compartir de un torneo cerrado lleva ahora
+  todas las rondas con el mazo de enfrente (una o dos columnas, hasta 16) y el **Elo ganado**
+  (sus rondas más el bonus por puesto), además del récord, el puesto y los CP. El Elo sale
+  también en la tarjeta de resumen de la ficha y en el texto de WhatsApp. `eloDeTorneo` y
+  `columnasDeRondas` en `lib/resumenTorneo.ts` (2 pruebas).
+
 ## [0.128.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.**

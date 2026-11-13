@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { archetypesOfMatch } from "@/lib/stats";
-import { resumenTorneo } from "@/lib/resumenTorneo";
+import { eloDeTorneo, resumenTorneo } from "@/lib/resumenTorneo";
 import { CompartirResumen } from "@/components/CompartirResumen";
 import { cargarDatosRecomendador } from "@/lib/recomendadorDatos";
 import { probsCruce, tipoRecomendador } from "@/lib/recomendador";
@@ -726,6 +726,10 @@ export default async function TournamentPage({
               </a>
             )}
             {/* v0.108 — el modo directo, a un toque, mientras el torneo está en curso. */}
+            {/* v0.129 — antes de jugarlo: qué te vas a cruzar y cómo te va contra cada mazo. */}
+            {me && status !== "closed" && (
+              <Link className="btn btn-sm" href={`/torneos/${t.id}/preparacion`}>{tr(lng, "v129.preparar")}</Link>
+            )}
             {me && status === "open" && (
               <Link className="btn btn-brand btn-sm" href={`/torneos/${t.id}?directo=1`}>
                 <span className="directo-punto" aria-hidden="true" /> {tr(lng, "dir.modo")}
@@ -760,7 +764,10 @@ export default async function TournamentPage({
         }));
         const cpMio = myResult ? effectiveCp(season, cpKindOf(t), myResult, t.playerCount) : 0;
         const record = `${rs.w}-${rs.l}${rs.t ? `-${rs.t}` : ""}`;
-        const texto = `${t.name}: ${record}${myResult?.placement ? ` · ${myResult.placement}.º` : ""}${cpMio ? ` · +${cpMio} CP` : ""}`;
+        // v0.129 — el Elo que te llevaste: sus rondas más el bonus por puesto.
+        const eloMio = me ? eloDeTorneo(snap.elo.history[me.id] ?? [], t.id, new Set(myRounds.map((r) => r.match.id))) : null;
+        const eloTxt = eloMio && eloMio.total !== 0 ? `${eloMio.total > 0 ? "+" : "−"}${Math.abs(eloMio.total)} Elo` : "";
+        const texto = `${t.name}: ${record}${myResult?.placement ? ` · ${myResult.placement}.º` : ""}${cpMio ? ` · +${cpMio} CP` : ""}${eloTxt ? ` · ${eloTxt}` : ""}`;
         return (
           <section className="card mb-5 p-4">
             <h2 className="mb-2 font-display text-lg font-bold">{tr(lng, "v90.resumen")}</h2>
@@ -768,6 +775,7 @@ export default async function TournamentPage({
               <span className="font-display text-4xl font-black tabular">{record}</span>
               {myResult?.placement != null && <span className="font-display text-2xl font-extrabold text-brand-strong">{myResult.placement}.º</span>}
               {cpMio > 0 && <span className="font-display text-2xl font-extrabold text-win">+{cpMio} CP</span>}
+              {eloTxt && <span className={`font-display text-2xl font-extrabold ${eloMio!.total > 0 ? "text-info" : "text-loss"}`}>{eloTxt}</span>}
             </div>
             <ul className="mb-3 text-sm">
               {rs.mejor && <li>{trf(lng, "v90.mejor", { m: rs.mejor.nombre, r: `${rs.mejor.w}-${rs.mejor.l}` })}</li>}
