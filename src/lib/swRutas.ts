@@ -86,3 +86,25 @@ export function nombreDeCache(buildId: string): string {
 export function cacheObsoleta(nombre: string, actual: string): boolean {
   return nombre.startsWith("pokearena-") && nombre !== actual;
 }
+
+/* =========================================================================
+   v0.125 — LA ÚNICA EXCEPCIÓN a «nada de HTML en caché»: el modo torneo.
+
+   `/torneos/<id>/modo` es la pantalla de apuntar rondas en la sala, donde no
+   hay cobertura. La propia pantalla guarda su HTML en la caché (lo hace ella,
+   con red, cada vez que se abre: ver `ModoTorneo.tsx`) y el worker SOLO lo
+   sirve cuando la red falla. Con red, va a la red como todo lo demás, así que
+   no puede enseñar una versión vieja estando conectado. La copia vive en la
+   caché del despliegue (se borra al desplegar) y se borra al llegar a
+   `/entrar`, que es donde se acaba tras cerrar sesión.
+   ========================================================================= */
+
+/** ¿Es la pantalla del modo torneo? Solo esa ruta exacta, sin nada detrás. */
+export function esModoSinConexion(pathname: string): boolean {
+  return /^\/torneos\/[^/]+\/modo\/?$/.test(pathname);
+}
+
+/** ¿Es la pantalla de entrar? Al llegar a ella se borran las copias del modo torneo. */
+export function esEntrar(pathname: string): boolean {
+  return pathname === "/entrar" || pathname === "/entrar/";
+}

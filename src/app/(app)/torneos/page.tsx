@@ -31,13 +31,13 @@ export default async function TournamentsPage({
   searchParams: Promise<{ jugador?: string; tipo?: string; estado?: string; desde?: string; hasta?: string; q?: string }>;
 }) {
   const lng = await getLang(); // v0.49
-  await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron
-  const arquetiposLista = await loadArchetypes(); // v0.85 — para apuntar resultados de Cup/Challenge
+  await limpiezaPerezosa(); // v0.78 — borra/cierra torneos aunque no corra el cron (v0.125: después de responder)
 
   /* v0.47 — Fase B: `snap` NO es el snapshot entero. Son torneos, resultados,
      jugadores y solo las rondas de torneo (`loadTorneosPantalla`), sin las
      jornadas de liga ni los amistosos, que aquí no se enseñan. */
-  const [snap, session, sp] = await Promise.all([loadTorneosPantalla(), readSession(), searchParams]);
+  // v0.125 — los arquetipos (para apuntar resultados de Cup/Challenge), en la misma tanda y no antes.
+  const [snap, session, sp, arquetiposLista] = await Promise.all([loadTorneosPantalla(), readSession(), searchParams, loadArchetypes()]);
   const season = snap.config.cpSeason;
   const table = getSeason(season);
   const me = session ? snap.playersById.get(session.playerId) : undefined;

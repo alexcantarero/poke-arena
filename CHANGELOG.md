@@ -2,6 +2,54 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.125.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.** Dos bloques: rendimiento y modo torneo.
+
+Medido en producción antes de tocar nada (13/11, desde España, v0.123): cualquier página —hasta
+una vacía como «Más» o el Glosario— tardaba **~0,85 s** en empezar a responder, y `/api/version`
+(sin base de datos) **~0,15 s**. Las funciones corrían en **`iad1` (Washington)**. Torneos, a
+quien le tocaba la limpieza, **3,2 s**.
+
+### Rendimiento
+
+- **El layout pide todo en UNA tanda** (antes, dos en cadena y hasta seis con el título del
+  perfil): el id del jugador ya viene en la cookie firmada, así que nada espera a
+  `currentPlayer()`. Los dos datos de tutoriales, en una consulta (`estadoTutoriales`); el aviso
+  de liga, en una y no dos. El título bajo el avatar va en un `<Suspense>` y ya no retrasa nada.
+- **La limpieza de torneos ya no bloquea la página** (`after()` de Next): Torneos y Calendario
+  esperaban a cuatro escrituras en cadena y a una llamada a Limitless antes de pintarse.
+- **Torneos carga en un solo viaje**: los juegos de las rondas se piden a la vez que las rondas
+  (subconsulta, en vez de esperar para un `IN (…)` con miles de ids), y los arquetipos, en la
+  misma tanda.
+- **Ajustes → Uso → «Distancia entre el servidor y la base de datos»**: mide una consulta mínima,
+  dice en qué región corre cada cosa y, si no coinciden, qué región poner en Vercel
+  (`lib/regiones.ts`, 3 pruebas). Mover las funciones junto a la base es el cambio que más
+  acelera la app y no es código: ver IMPLEMENTAR.
+
+### Añadido — Modo torneo (`/torneos/<id>/modo`)
+
+- **Apuntar la ronda con el pulgar**: tres botones grandes (gané / empate / perdí), el mazo del
+  rival a un toque (los más vistos en los torneos de los últimos 60 días, y un buscador), quién
+  empezó, y bye / no presentado. Solo rondas propias, en modo rápido.
+- **Funciona sin cobertura**: «Guardar» no espera a la red. La ronda entra en una cola del
+  teléfono (`lib/colaRondas.ts`, 6 pruebas) y el récord cambia al momento; sube sola al guardar,
+  al volver la red y al volver a la pantalla. Reenviar no duplica (índice único por torneo,
+  jugador y ronda).
+- **No pisa en silencio**: si en el servidor ya había otra ronda con ese número que el móvil no
+  conocía, se marca «Choca» y se elige («Usar la mía» / «Descartar»).
+- **La pantalla se abre sin conexión**: guarda su propio HTML y sus ficheros (hay que abrirla una
+  vez con red antes del torneo). Es la ÚNICA página que se guarda; el service worker solo sirve
+  la copia cuando la red falla, y se borra al desplegar y al cerrar sesión.
+- Carga con una sola tanda de consultas pequeñas (`loadModoTorneo`), sin el snapshot.
+- Botón «Apuntar rondas (modo torneo)» en la ficha del torneo en curso y en el modo directo.
+
+### Cambiado
+
+- `saveTournamentRound` se parte en un núcleo que no redirige (`guardarRondaNucleo`) y dos
+  entradas: el formulario de siempre (mismo comportamiento y mismos avisos) y
+  `subirRondaDeCola`, para la cola del modo torneo.
+
 ## [0.124.0] — 2026-11-13
 
 **Con migración**: `drizzle/0036_v0_124_0.sql` (tablas `tournament_direcciones` y

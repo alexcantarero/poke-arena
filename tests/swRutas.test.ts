@@ -73,11 +73,28 @@ test("sw.js no se ha separado de swRutas.ts", () => {
   assert.match(sw, /const NUNCA = \["\/api\/", "\/_next\/image", "\/_vercel\/"\];/);
 
   // Y las tres decisiones tienen que seguir estando.
-  for (const fn of ["function estrategiaDe", "function esNavegacion", "function cacheObsoleta"]) {
+  for (const fn of ["function estrategiaDe", "function esNavegacion", "function cacheObsoleta", "function esModoSinConexion", "function esEntrar"]) {
     assert.ok(sw.includes(fn), `falta ${fn} en sw.js`);
   }
 
   // La regla de oro, por si alguien añade una línea con buena intención.
   assert.ok(!/caches\.open\([^)]*\)\.then\([^)]*\.addAll/.test(sw),
     "sw.js no debe precargar una lista de rutas: eso sería guardar HTML");
+});
+
+test("v0.125 — la única página que se abre sin red es el modo torneo, y solo esa ruta exacta", async () => {
+  const { esModoSinConexion, esEntrar } = await import("../src/lib/swRutas.ts");
+  assert.equal(esModoSinConexion("/torneos/t-abc123/modo"), true);
+  assert.equal(esModoSinConexion("/torneos/t-abc123/modo/"), true);
+  assert.equal(esModoSinConexion("/torneos/t-abc123"), false);
+  assert.equal(esModoSinConexion("/torneos/t-abc123/editar"), false);
+  assert.equal(esModoSinConexion("/torneos/t-abc123/modo/otra"), false);
+  assert.equal(esModoSinConexion("/torneos//modo"), false);
+  assert.equal(esModoSinConexion("/ranking"), false);
+  assert.equal(esEntrar("/entrar"), true);
+  assert.equal(esEntrar("/entrar/x"), false);
+  // La copia del worker es la misma expresión, y solo se usa cuando la red falla.
+  const sw = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
+  assert.ok(sw.includes(String.raw`/^\/torneos\/[^/]+\/modo\/?$/.test(pathname)`));
+  assert.match(sw, /\.catch\(\(\) => \(esModoSinConexion\(ruta\)/);
 });

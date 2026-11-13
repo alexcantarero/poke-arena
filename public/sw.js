@@ -13,6 +13,9 @@
      Esos no pueden quedarse viejos: si cambia el contenido, cambia la URL.
    · Las páginas van SIEMPRE a la red. Nada de HTML en caché. Si no hay red,
      sale `/sin-conexion`.
+   · v0.125 — UNA excepción: el modo torneo (`/torneos/<id>/modo`). Esa
+     pantalla guarda su propio HTML (lo hace ella, con red) y aquí solo se
+     sirve cuando la red FALLA. Se borra al desplegar y al llegar a `/entrar`.
    · Nada de `/api/`: ahí van datos de la liga detrás del login.
    · `skipWaiting` + `clients.claim`: al desplegar, la versión nueva toma el
      control en cuanto se cierra la pestaña, sin quedarse esperando.
@@ -48,6 +51,21 @@ function esNavegacion(modo, destino) {
 
 function cacheObsoleta(nombre, actual) {
   return nombre.startsWith("pokearena-") && nombre !== actual;
+}
+
+function esModoSinConexion(pathname) {
+  return /^\/torneos\/[^/]+\/modo\/?$/.test(pathname);
+}
+
+function esEntrar(pathname) {
+  return pathname === "/entrar" || pathname === "/entrar/";
+}
+
+/* v0.125 — borra las copias del modo torneo (al cerrar sesión se acaba en /entrar). */
+function borrarModos() {
+  return caches.open(CACHE).then((c) => c.keys().then((reqs) => Promise.all(
+    reqs.filter((r) => esModoSinConexion(new URL(r.url).pathname)).map((r) => c.delete(r)),
+  ))).catch(() => undefined);
 }
 
 self.addEventListener("install", (e) => {
@@ -100,8 +118,17 @@ self.addEventListener("fetch", (e) => {
 
   // "red": siempre a la red. Sin red y navegando → página de sin conexión.
   if (esNavegacion(req.mode, req.destination)) {
+    const ruta = new URL(req.url).pathname;
     e.respondWith(
-      fetch(req).catch(() => caches.match(SIN_CONEXION).then((r) => r || Response.error())),
+      fetch(req)
+        .then((res) => {
+          if (esEntrar(ruta)) e.waitUntil(borrarModos());
+          return res;
+        })
+        // v0.125 — sin red: el modo torneo abre su copia guardada; el resto, la página de sin conexión.
+        .catch(() => (esModoSinConexion(ruta) ? caches.match(ruta, { ignoreVary: true }) : Promise.resolve(undefined))
+          .then((copia) => copia || caches.match(SIN_CONEXION))
+          .then((r) => r || Response.error())),
     );
   }
 });

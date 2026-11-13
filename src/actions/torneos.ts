@@ -25,6 +25,7 @@ import { TOURNAMENT_STATUSES } from "@/lib/types";
 import {
   str, int, maybeInt, isoDate, bool, timeOfDay, priceCents, deckOrArchetype, pick, refresh, requireActor, requireManager, owns, TOURNAMENT_KINDS, recalcTournamentCp, STATUS_FLOW, upsertResult, setDropped, syncTournamentRecord, confirmed,
   msj,
+  type Actor,
 } from "./_comun";
 import { saveMatch } from "./partidas";
 import { notificarResultadosTorneo } from "@/lib/discord";
@@ -375,26 +376,33 @@ export async function importLocalTournaments() {
  * Sin resultado la ronda se guarda abierta y se cierra luego: es justo lo que
  * pasa cuando apuntas el emparejamiento antes de empezar a jugar.
  */
-export async function saveTournamentRound(fd: FormData) {
-  const actor = await requireActor();
+/* v0.125 — El NÚCLEO de guardar una ronda, sin redirigir: devuelve qué pasó.
+   Lo usan dos caminos: el formulario de siempre (`saveTournamentRound`, que
+   redirige con el aviso) y la cola del modo torneo (`subirRondaDeCola`, que
+   responde al navegador para que reintente o enseñe el fallo). La lógica es la
+   misma línea por línea que antes; solo cambian las salidas. `silencioso` marca
+   los rechazos que el formulario nunca avisó (un POST a mano, no un despiste). */
+type ResultadoRonda =
+  | { ok: true; round: number; id: string }
+  | { ok: false; error: string; silencioso?: boolean };
+const calla = (error: string): ResultadoRonda => ({ ok: false, error, silencioso: true });
 
+async function guardarRondaNucleo(fd: FormData, actor: Actor): Promise<ResultadoRonda> {
   const tournamentId = str(fd, "tournamentId");
-  /* v0.108 — desde el modo directo, se vuelve al modo directo. */
-  const destinoRonda = str(fd, "directo") === "1" ? `/torneos/${tournamentId}?directo=1` : `/torneos/${tournamentId}`;
-  if (!tournamentId) return;
+  if (!tournamentId) return calla("Falta el torneo.");
   const tour = (await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)))[0];
-  if (!tour) return;
+  if (!tour) return calla("Ese torneo ya no existe.");
 
   // De quién es la ronda. La propia siempre; la de otro solo un organizador.
   const playerId = str(fd, "playerId") || actor.id;
-  if (!owns(actor, playerId)) return;
+  if (!owns(actor, playerId)) return calla("No puedes apuntar rondas de otra persona.");
 
   /* Solo un torneo abierto acepta rondas. Cerrado, porque es el sentido de
      cerrarlo —si se pudiera seguir escribiendo, «cerrado» sería un adorno—; y
      en borrador, porque la ficha ni siquiera enseña el formulario, así que una
      ronda ahí solo puede llegar por un POST a mano. */
   // v0.16: el organizador puede corregir rondas también con el torneo cerrado.
-  if (tour.status !== "open" && !canManageLeague(actor.role)) return;
+  if (tour.status !== "open" && !canManageLeague(actor.role)) return calla("El torneo no está en curso: no admite rondas.");
 
   const round = int(fd, "round", 1, 1, 50);
 
@@ -407,10 +415,12 @@ export async function saveTournamentRound(fd: FormData) {
     kind: tour.kind, playerCount: tour.playerCount, rounds: tour.rounds, topCut: tour.topCut,
   });
   if (tope != null && round > tope) {
-    redirect(withFlash(destinoRonda, "error",
-      familiaDe(tour.kind) === "challenge"
+    return {
+      ok: false,
+      error: familiaDe(tour.kind) === "challenge"
         ? `Este Challenge tiene ${tope} rondas y no hay top cut: la ronda ${round} no existe.`
-        : `Este torneo admite como mucho ${tope} rondas (suizo + top cut).`));
+        : `Este torneo admite como mucho ${tope} rondas (suizo + top cut).`,
+    };
   }
 
   // v0.57 — el formato de ESTA ronda: el del top cut si es del corte, el del suizo si no.
@@ -472,7 +482,7 @@ export async function saveTournamentRound(fd: FormData) {
       if (!["a", "b", "tie"].includes(winner)) continue;
       if (winner === "a") wonA++;
       if (winner === "b") wonB++;
-      if (wonA > need || wonB > need) return;
+      if (wonA > need || wonB > need) return calla("Marcador imposible para este formato.");
       rows.push({
         number: i + 1,
         winner,
@@ -550,8 +560,8 @@ export async function saveTournamentRound(fd: FormData) {
   const hayResultado = esBye || Boolean(np) || (mode === "quick" ? Boolean(seriesResult)
     : rows.length > 0 && (seriesResult != null
       || rows.filter((r) => r.winner === "a").length >= need || rows.filter((r) => r.winner === "b").length >= need));
-  if (!hayResultado) return redirect(withFlash(destinoRonda, "error", "Falta el resultado de la ronda."));
-  if (!esBye && !np && !rivalDeckId && !rivalArchId) return redirect(withFlash(destinoRonda, "error", "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo."));
+  if (!hayResultado) return { ok: false, error: "Falta el resultado de la ronda." };
+  if (!esBye && !np && !rivalDeckId && !rivalArchId) return { ok: false, error: "Falta el mazo del rival: elige el mazo o, al menos, el arquetipo." };
 
   const values = {
     competitionId: null,
@@ -602,14 +612,13 @@ export async function saveTournamentRound(fd: FormData) {
     existing.tournamentId !== tournamentId
     || existing.playerAId !== playerId
     || existing.playerBId !== null
-  )) return;
+  )) return calla("Esa ronda no es de este torneo o de este jugador.");
 
   /* v0.15 — el drop. Con «No he acabado el torneo» guardado no se aceptan
      rondas NUEVAS; corregir las que ya estaban sí. La ficha ya no enseña el
      formulario, pero esto es la comprobación de verdad. */
   if (!existing && existingResult?.dropped) {
-    redirect(withFlash(destinoRonda, "error",
-      await msj("x.85f12362")));
+    return { ok: false, error: await msj("x.85f12362") };
   }
 
   const id = existing?.id ?? newId("m");
@@ -678,8 +687,63 @@ export async function saveTournamentRound(fd: FormData) {
     justLocked ? archetypeAId : null,
   );
   refresh();
-  redirect(withFlash(destinoRonda, "ok", `Ronda ${round} guardada.`));
+  return { ok: true, round, id };
 }
+
+export async function saveTournamentRound(fd: FormData) {
+  const actor = await requireActor();
+  const tournamentId = str(fd, "tournamentId");
+  /* v0.108 — desde el modo directo, se vuelve al modo directo. */
+  const destinoRonda = str(fd, "directo") === "1" ? `/torneos/${tournamentId}?directo=1` : `/torneos/${tournamentId}`;
+  const r = await guardarRondaNucleo(fd, actor);
+  if (r.ok) return redirect(withFlash(destinoRonda, "ok", `Ronda ${r.round} guardada.`));
+  if (r.silencioso) return;
+  redirect(withFlash(destinoRonda, "error", r.error));
+}
+
+/* v0.125 — MODO TORNEO: subir una ronda de la cola del móvil.
+
+   El modo torneo guarda cada ronda en el teléfono y la sube cuando hay red,
+   así que esta acción NO redirige: responde, y el navegador decide (quitarla
+   de la cola, reintentar o enseñar el fallo). Solo rondas PROPIAS y en modo
+   rápido. Reenviar la misma ronda no la duplica (índice único por torneo,
+   jugador y número), y además:
+
+   · Si en el servidor ya hay una ronda con ese número que el móvil NO conocía
+     al apuntarla, y dice otra cosa, no se pisa: se devuelve `conflicto` y la
+     persona elige («usar la mía» reenvía con `forzar`).
+   · Si dice lo mismo, es que la subida anterior llegó y se perdió la
+     respuesta: se da por buena sin tocar nada. */
+export type RespuestaCola =
+  | { ok: true; yaEstaba?: boolean }
+  | { ok: false; error: string; conflicto?: { resultado: string | null; rival: string } };
+
+export async function subirRondaDeCola(fd: FormData): Promise<RespuestaCola> {
+  const actor = await requireActor();
+  fd.set("playerId", actor.id); // solo las propias, venga lo que venga
+  fd.set("mode", "quick");
+  fd.delete("matchId");
+  const tournamentId = str(fd, "tournamentId");
+  const round = int(fd, "round", 1, 1, 50);
+  if (str(fd, "conocida") !== "1" && str(fd, "forzar") !== "1") {
+    const [hay] = await db.select().from(matches).where(and(
+      eq(matches.tournamentId, tournamentId), eq(matches.playerAId, actor.id), eq(matches.round, round), isNull(matches.playerBId),
+    ));
+    if (hay) {
+      const rival = deckOrArchetype(fd, "opponentDeck");
+      const np = str(fd, "np");
+      const esperado = str(fd, "bye") === "1" || np === "rival" ? "a" : np === "yo" ? "b" : str(fd, "result");
+      const igual = hay.seriesResult === esperado
+        && (hay.deckBId ?? null) === (str(fd, "bye") === "1" || np ? null : rival.deckId)
+        && (hay.opponentArchetypeId ?? null) === (str(fd, "bye") === "1" || np ? null : rival.archetypeId);
+      if (igual) return { ok: true, yaEstaba: true };
+      return { ok: false, error: "En el servidor ya hay otra ronda con ese número.", conflicto: { resultado: hay.seriesResult, rival: hay.opponentName ?? "" } };
+    }
+  }
+  const r = await guardarRondaNucleo(fd, actor);
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
+}
+
 
 /**
  * v0.15.1 — Drop desde la ronda, en vez de apuntar la siguiente.

@@ -35,7 +35,9 @@ import { AvisosJugador } from "@/components/AvisosJugador";
 import { DiscordMarca } from "@/components/DiscordMarca";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
-import { cargarPendientesDe, currentPlayer, loadConfig, tutorialPendiente, tutorialesVistos } from "@/lib/data";
+import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig } from "@/lib/data";
+import { leerLogros } from "@/lib/logros";
+import type { Lang } from "@/lib/i18n";
 import { logout } from "@/actions";
 
 export const dynamic = "force-dynamic";
@@ -50,24 +52,30 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // jugador de la sesión y el nombre de la liga. Ahora son dos consultas
   // pequeñas. Una pantalla que de verdad necesite el snapshot lo sigue pidiendo
   // por su cuenta, y `cache()` evita repetir la fila de ajustes.
-  const [me, cfg, lang] = await Promise.all([currentPlayer(), loadConfig(), getLang()]);
+  /* v0.125 — TODO EN UNA SOLA TANDA. Medido en producción: cualquier página,
+     hasta una vacía, tardaba ~0,85 s en empezar a responder, y casi todo era
+     este layout esperando a la base en cadena: primero el jugador, después
+     otras seis lecturas (y el título del perfil, hasta cuatro más seguidas).
+     El id del jugador ya viene en la cookie firmada, así que nada tiene que
+     esperar a `currentPlayer()`: todo sale a la vez y la espera es la de UNA
+     consulta. Si la sesión resulta no valer, se redirige igual y lo leído se
+     tira. El título del perfil, que es lo único caro, va aparte y no bloquea
+     (`TituloBarra`, en un <Suspense>). */
+  const pid = session.playerId;
+  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga] = await Promise.all([
+    currentPlayer(), loadConfig(), getLang(), cookies(),
+    estadoTutoriales(pid), // v0.60 y v0.61, en una consulta
+    cargarPendientesDe(pid), // v0.54 — mis partidas sin resultado: el número del menú.
+    usoLigeroDeJugador(pid, null), // v0.94 — los logros se cuentan abajo, con la fila del jugador
+    avisoLigaPara(pid), // v0.116 — la inscripción a la liga, si no te has apuntado
+  ]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
   // v0.56 — la barra lateral plegada o no: la cookie se lee aquí para que la página llegue ya bien, sin parpadeo.
-  const barraMini = (await cookies()).get("arena-barra")?.value === "mini";
+  const barraMini = jar.get("arena-barra")?.value === "mini";
   if (!me) redirect("/entrar");
-  /* v0.95 — las cuatro lecturas del jugador, A LA VEZ. Iban una detrás de otra
-     (tutorial v0.60, páginas vistas v0.61, pendientes v0.54 y la Ball de la
-     v0.94): cuatro viajes seguidos a Neon en CADA página. En paralelo, la espera
-     es la del más lento. */
-  const [verTutorial, paginasVistas, misPendientes, usoLigero, tituloBarra, avisoLiga] = await Promise.all([
-    tutorialPendiente(me.id), // v0.60
-    tutorialesVistos(me.id), // v0.61
-    cargarPendientesDe(me.id), // v0.54 — mis partidas sin resultado: el número del menú.
-    usoLigeroDeJugador(me.id, me.logros), // v0.94
-    barraMini ? null : tituloParaBarra(me, cfg),
-    avisoLigaPara(me.id), // v0.116 — la inscripción a la liga, si no te has apuntado
-  ]);
+  const verTutorial = tutoriales.pendiente, paginasVistas = tutoriales.vistos;
+  const usoLigero = { ...conteoUso, logros: leerLogros(me.logros).length };
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const ballUso = nivelDeUso(usoLigero);
   const nombreBall = tr(lang, `logro.ball.${ballUso.nivel.ball}`);
@@ -125,12 +133,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   </span>
                 </span>
               </span>
-              {tituloBarra && (
-                <span className="barra-texto block min-w-0">
-                  <span className="perfil-titulo max-w-full truncate text-[10px]" data-tono={tituloBarra.tono}>
-                    {tr(lang, tituloBarra.clave)}
-                  </span>
-                </span>
+              {/* v0.125 — el título llega cuando esté: no retrasa la página. */}
+              {!barraMini && me.profileTitle && (
+                <Suspense fallback={null}><TituloBarra me={me} cfg={cfg} lang={lang} /></Suspense>
               )}
             </Link>
             <div className="barra-fila flex items-center justify-end gap-1 border-t border-line-soft pt-2">
@@ -227,5 +232,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </Suspense>
     </div>
     </LangProvider>
+  );
+}
+
+/* v0.125 — La etiqueta del título, bajo el avatar de la barra. Componente
+   aparte para ir dentro de un <Suspense>: calcularla puede costar varias
+   consultas seguidas (medallas), y antes las pagaba el arranque de CADA página. */
+async function TituloBarra({ me, cfg, lang }: {
+  me: Parameters<typeof tituloParaBarra>[0]; cfg: Parameters<typeof tituloParaBarra>[1]; lang: Lang;
+}) {
+  const titulo = await tituloParaBarra(me, cfg).catch(() => null);
+  if (!titulo) return null;
+  return (
+    <span className="barra-texto block min-w-0">
+      <span className="perfil-titulo max-w-full truncate text-[10px]" data-tono={titulo.tono}>
+        {tr(lang, titulo.clave)}
+      </span>
+    </span>
   );
 }

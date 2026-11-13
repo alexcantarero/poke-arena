@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db } from "@/db";
+import { after } from "next/server";
 import { matches, tournamentResults, tournaments } from "@/db/schema";
 import { torneosAbandonados, torneosParaCerrar } from "./limpieza";
 
@@ -63,13 +64,16 @@ export async function cerrarTorneosTerminados(ahora = new Date()): Promise<Array
  * Calendario se pasa la limpieza si hace más de 6 horas de la última (por
  * instancia del servidor: como mucho, unas pocas veces al día). Si falla, la
  * página se pinta igual.
+ *
+ * v0.125 — YA NO BLOQUEA LA PÁGINA. Se medía en producción: a quien le tocaba
+ * la limpieza (cada instancia nueva del servidor, o sea, a menudo) Torneos le
+ * tardaba más de 3 segundos, porque la página esperaba a cuatro escrituras en
+ * cadena y a una llamada a Limitless antes de empezar a pintarse. Ahora se
+ * lanza con `after()` de Next: la respuesta sale primero y la limpieza corre
+ * después. Lo que cambie se ve en la visita siguiente.
  */
 const SEIS_HORAS = 6 * 3600_000;
-export async function limpiezaPerezosa(): Promise<void> {
-  const g = globalThis as typeof globalThis & { __arenaLimpieza?: number };
-  const ahora = Date.now();
-  if (g.__arenaLimpieza && ahora - g.__arenaLimpieza < SEIS_HORAS) return;
-  g.__arenaLimpieza = ahora;
+async function pasarLimpieza(ahora: number): Promise<void> {
   try {
     await borrarTorneosAbandonados(new Date(ahora));
     await cerrarTorneosTerminados(new Date(ahora));
@@ -79,6 +83,18 @@ export async function limpiezaPerezosa(): Promise<void> {
     const { sincronizarSeriesOnline } = await import("./seriesOnlineDb");
     await sincronizarSeriesOnline();
   } catch { /* la próxima vez */ }
+}
+export async function limpiezaPerezosa(): Promise<void> {
+  const g = globalThis as typeof globalThis & { __arenaLimpieza?: number };
+  const ahora = Date.now();
+  if (g.__arenaLimpieza && ahora - g.__arenaLimpieza < SEIS_HORAS) return;
+  g.__arenaLimpieza = ahora;
+  try {
+    after(() => pasarLimpieza(ahora));
+  } catch {
+    // Fuera de una petición (`after` no disponible): se lanza sin esperar.
+    void pasarLimpieza(ahora);
+  }
 }
 
 /**

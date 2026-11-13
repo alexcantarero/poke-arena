@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { competitionPlayers, ligaDivisiones, ligaInscripciones, ligaTemporadas } from "@/db/schema";
 
@@ -87,12 +87,13 @@ export async function campeonatosDe(playerId: string): Promise<string[]> {
 /** Para el aviso de arriba: la temporada en inscripción a la que `playerId` aún no se ha apuntado. */
 export async function avisoLigaPara(playerId: string): Promise<{ id: string; nombre: string } | null> {
   try {
+    // v0.125 — una consulta y no dos en cadena: va en el layout, en cada página.
     const [t] = await db.select({ id: ligaTemporadas.id, nombre: ligaTemporadas.nombre }).from(ligaTemporadas)
-      .where(eq(ligaTemporadas.estado, "inscripcion")).limit(1);
-    if (!t) return null;
-    const [ya] = await db.select({ p: ligaInscripciones.playerId }).from(ligaInscripciones)
-      .where(and(eq(ligaInscripciones.temporadaId, t.id), eq(ligaInscripciones.playerId, playerId))).limit(1);
-    return ya ? null : t;
+      .where(and(
+        eq(ligaTemporadas.estado, "inscripcion"),
+        sql`NOT EXISTS (SELECT 1 FROM ${ligaInscripciones} WHERE ${ligaInscripciones.temporadaId} = ${ligaTemporadas.id} AND ${ligaInscripciones.playerId} = ${playerId})`,
+      )).limit(1);
+    return t ?? null;
   } catch {
     return null;
   }

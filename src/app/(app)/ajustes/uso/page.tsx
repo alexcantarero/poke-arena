@@ -4,6 +4,8 @@ import { canManageLeague } from "@/lib/auth";
 import { currentPlayer } from "@/lib/data";
 import { medirUso } from "@/lib/usoDb";
 import { estadoEsquema } from "@/lib/esquemaDb";
+import { medirLatencia } from "@/lib/latenciaDb";
+import { regionesCoinciden, veredictoLatencia, VERCEL_PARA_NEON } from "@/lib/regiones";
 import { estimarUso, proyectarPeriodo, serieDelPeriodo, SUPUESTOS, LIMITES, type ClaveUso, type FilaUso } from "@/lib/usoLimites";
 import { ROTOM_DE } from "@/lib/rotom";
 import { PageHead } from "@/components/ui";
@@ -42,6 +44,8 @@ export default async function UsoPage() {
 
   const ahora = new Date();
   const [u, esquema] = await Promise.all([medirUso(ahora), estadoEsquema()]);
+  // v0.125 — después y sola, para que las otras consultas no ensucien la medida.
+  const lat = await medirLatencia();
   const est = estimarUso(u);
   const fila = (k: ClaveUso) => est.filas.find((f) => f.clave === k) as FilaUso;
 
@@ -95,6 +99,34 @@ export default async function UsoPage() {
           </>
         )}
       </section>
+
+      {/* v0.125 — ¿Están el servidor y la base en el mismo sitio? Es lo que más
+          pesa en lo que tarda cada página, y se arregla en un ajuste de Vercel. */}
+      {lat && (() => {
+        const v = veredictoLatencia(lat.mediana);
+        const coinciden = regionesCoinciden(lat.regionFuncion, lat.regionBase);
+        const ideal = lat.regionBase ? VERCEL_PARA_NEON[lat.regionBase] : undefined;
+        return (
+          <section className={`card mb-4 p-4 ${v === "lejos" || coinciden === false ? "border-loss/50" : ""}`} aria-labelledby="uso-latencia" id="latencia">
+            <h2 id="uso-latencia" className="mb-1 font-display text-lg font-bold">{tr(lng, "v125.latTitulo")}</h2>
+            <p className="text-sm text-ink-2">
+              <span className={`chip mr-2 text-[10px] ${v === "bien" ? "chip-win" : v === "regular" ? "chip-brand" : "chip-loss"}`}>{tr(lng, `v125.lat.${v}`)}</span>
+              {trf(lng, "v125.latMedida", { ms: lat.mediana })}
+              <span className="ml-1 font-mono text-xs text-muted">({lat.ms.join(" · ")} ms)</span>
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {tr(lng, "v125.latFuncion")} <b className="font-mono text-ink-2">{lat.regionFuncion ?? "—"}</b>{" · "}
+              {tr(lng, "v125.latBase")} <b className="font-mono text-ink-2">{lat.regionBase ?? "—"}</b>
+            </p>
+            {coinciden === false && ideal && (
+              <p className="mt-2 text-sm font-semibold text-loss">
+                {trf(lng, "v125.latMover", { r: ideal.vercel, c: ideal.ciudad })}
+              </p>
+            )}
+            {coinciden !== false && v !== "bien" && <p className="mt-2 text-xs text-muted">{tr(lng, "v125.latDuda")}</p>}
+          </section>
+        );
+      })()}
 
       {/* La cabecera: el estado en una frase, con los Rotom. */}
       <section className="card mb-4 flex items-center gap-3 overflow-hidden p-4" aria-labelledby="uso-resumen">

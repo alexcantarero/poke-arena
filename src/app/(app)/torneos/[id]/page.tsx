@@ -606,7 +606,8 @@ export default async function TournamentPage({
         <div className="mb-3 flex items-center gap-2">
           <span className="directo-punto" aria-hidden="true" />
           <span className="text-xs font-bold uppercase tracking-[0.16em] text-loss">{tr(lng, "dir.enDirecto")}</span>
-          <Link href={`/torneos/${t.id}`} className="btn btn-ghost btn-sm ml-auto">{tr(lng, "dir.salir")}</Link>
+          <Link href={`/torneos/${t.id}/modo`} className="btn btn-sm ml-auto">{tr(lng, "v125.abrir")}</Link>
+          <Link href={`/torneos/${t.id}`} className="btn btn-ghost btn-sm">{tr(lng, "dir.salir")}</Link>
         </div>
         <h1 className="mb-3 flex items-center gap-2 font-display text-2xl font-black leading-tight">
           <TournamentEmblem kind={t.kind} scope={t.scope} size="sm" /> <span className="min-w-0">{t.name}</span>
@@ -728,6 +729,12 @@ export default async function TournamentPage({
             {me && status === "open" && (
               <Link className="btn btn-brand btn-sm" href={`/torneos/${t.id}?directo=1`}>
                 <span className="directo-punto" aria-hidden="true" /> {tr(lng, "dir.modo")}
+              </Link>
+            )}
+            {/* v0.125 — el modo torneo: apuntar rondas con el pulgar, también sin cobertura. */}
+            {me && status === "open" && (
+              <Link className="btn btn-sm" href={`/torneos/${t.id}/modo`} prefetch>
+                {tr(lng, "v125.abrir")}
               </Link>
             )}
             <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">

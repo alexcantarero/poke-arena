@@ -2,6 +2,14 @@
 
 Escrito el 13/10/2026, sobre la v0.28.0. Léelo entero antes de tocar `src/lib/data.ts`.
 
+> **v0.125 (13/11/2026) — lo que se midió y lo que cambió.** Con el snapshot ya en la caché de
+> datos (v0.85), lo que marcaba el suelo de CADA página no eran las tablas grandes sino dos cosas:
+> las funciones corrían en `iad1` (Washington) con los usuarios en España, y el layout hacía sus
+> lecturas en cadena. Hecho: el layout en una tanda, la limpieza de torneos con `after()`, Torneos
+> en un solo viaje, y un medidor en Ajustes → Uso que dice si el servidor y la base están en la
+> misma región. **Pendiente:** la ficha del torneo sigue con el snapshot (el recomendador de
+> cruces necesita el historial entero); Inicio, Ranking y Estadísticas, también.
+
 ## Por qué importa, en números
 
 La app está en **Vercel Hobby**, que incluye unas **4 horas de CPU activa al mes** y pausa el

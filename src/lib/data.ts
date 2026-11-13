@@ -922,16 +922,20 @@ export const loadEvents = cache(async () =>
  * tampoco: esa pantalla no baja al detalle de cada juego.
  */
 export const loadTournamentMatches = cache(async (): Promise<MatchFull[]> => {
-  const filas = await db.select().from(matches)
-    .where(sql`${matches.tournamentId} IS NOT NULL`)
-    .orderBy(asc(matches.date), asc(matches.round));
   /* v0.47 — con sus juegos: una ronda apuntada juego a juego no tiene el
      resultado de la serie escrito, y sin los juegos su récord saldría vacío.
-     Solo los de estas partidas, no la tabla entera. */
-  const ids = filas.map((m) => m.id);
-  const juegos = ids.length
-    ? await db.select().from(games).where(inArray(games.matchId, ids)).orderBy(asc(games.number))
-    : [];
+     Solo los de estas partidas, no la tabla entera.
+     v0.125 — las dos consultas A LA VEZ: antes los juegos esperaban a las
+     partidas para pedir un `IN (…)` con miles de ids (dos viajes en cadena y
+     una consulta enorme). Ahora la base resuelve el filtro con una subconsulta. */
+  const [filas, juegos] = await Promise.all([
+    db.select().from(matches)
+      .where(sql`${matches.tournamentId} IS NOT NULL`)
+      .orderBy(asc(matches.date), asc(matches.round)),
+    db.select().from(games)
+      .where(sql`${games.matchId} IN (SELECT ${matches.id} FROM ${matches} WHERE ${matches.tournamentId} IS NOT NULL)`)
+      .orderBy(asc(games.number)),
+  ]);
   const porPartida = new Map<string, Game[]>();
   for (const g of juegos as Game[]) {
     const l = porPartida.get(g.matchId);
@@ -987,6 +991,15 @@ export const cargarPendientesDe = cache(async (playerId: string) => {
     .limit(20);
 });
 
+/**
+ * v0.125 — Los dos datos de tutoriales en UNA consulta (el layout los pedía
+ * por separado: dos viajes a la base en cada página para leer la misma fila).
+ */
+export const estadoTutoriales = cache(async (playerId: string): Promise<{ pendiente: boolean; vistos: string[] }> => {
+  const r = await db.select({ visto: players.tutorialVistoAt, v: players.tutorialesVistos }).from(players).where(eq(players.id, playerId));
+  return { pendiente: r.length > 0 && r[0].visto == null, vistos: (r[0]?.v ?? "").split(",").filter(Boolean) };
+});
+
 /** v0.60 — ¿le toca el tutorial de primera vez? Consulta aparte y mínima: el dato no viaja con el resto del jugador. */
 export const tutorialPendiente = cache(async (playerId: string): Promise<boolean> => {
   const r = await db.select({ visto: players.tutorialVistoAt }).from(players).where(eq(players.id, playerId));
@@ -1029,3 +1042,47 @@ export async function loadMatchupImports() {
     return [];
   }
 }
+
+/* =========================================================================
+   v0.125 — MODO TORNEO: lo justo para apuntar rondas desde el móvil.
+
+   Una sola tanda de consultas pequeñas, todas a la vez y ninguna sobre el
+   historial entero: el torneo, MIS rondas (con sus juegos), mi resultado, los
+   arquetipos, los nombres de los mazos y los mazos rivales más vistos en los
+   torneos de los últimos 60 días (para ofrecerlos primero). Nada del
+   snapshot: es la pantalla que se abre con mala cobertura.
+   ========================================================================= */
+export const loadModoTorneo = cache(async (torneoId: string, playerId: string) => {
+  const hace60 = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
+  const [tRows, rondas, juegos, resultados, archs, mazos, vistos] = await Promise.all([
+    db.select().from(tournaments).where(eq(tournaments.id, torneoId)),
+    db.select().from(matches)
+      .where(and(eq(matches.tournamentId, torneoId), eq(matches.playerAId, playerId), sql`${matches.playerBId} IS NULL`))
+      .orderBy(asc(matches.round)),
+    db.select().from(games)
+      .where(sql`${games.matchId} IN (SELECT ${matches.id} FROM ${matches} WHERE ${matches.tournamentId} = ${torneoId} AND ${matches.playerAId} = ${playerId})`)
+      .orderBy(asc(games.number)) as Promise<Game[]>,
+    db.select().from(tournamentResults)
+      .where(and(eq(tournamentResults.tournamentId, torneoId), eq(tournamentResults.playerId, playerId))) as Promise<TournamentResult[]>,
+    loadArchetypes(),
+    db.select({ id: decks.id, name: decks.name, archetypeId: decks.archetypeId, playerId: decks.playerId, retired: decks.retired }).from(decks),
+    db.select({ a: matches.opponentArchetypeId, n: sql<number>`count(*)::int` }).from(matches)
+      .where(sql`${matches.tournamentId} IS NOT NULL AND ${matches.opponentArchetypeId} IS NOT NULL AND ${matches.date} >= ${hace60}`)
+      .groupBy(matches.opponentArchetypeId).orderBy(sql`count(*) desc`).limit(10),
+  ]);
+  const porPartida = new Map<string, Game[]>();
+  for (const g of juegos) {
+    const l = porPartida.get(g.matchId);
+    if (l) l.push(g); else porPartida.set(g.matchId, [g]);
+  }
+  const misRondas: MatchFull[] = rondas.map((m) => ({ ...m, games: porPartida.get(m.id) ?? [] }));
+  return {
+    torneo: tRows[0] ?? null,
+    misRondas,
+    miResultado: resultados[0] ?? null,
+    arquetipos: archs,
+    mazos,
+    /** Ids de arquetipo rival, del más visto al menos. */
+    masVistos: vistos.map((v) => v.a).filter((x): x is string => Boolean(x)),
+  };
+});
