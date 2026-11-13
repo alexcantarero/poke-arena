@@ -507,6 +507,12 @@ export default async function ProfilePage({
         </div>
       </div>
 
+      {/* v0.130 — el resumen de la temporada (y, en el perfil de otro, tus cruces con él). */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link href={`/perfil/${player.id}/temporada`} className="btn btn-sm">{tr(lang, "v130.resumenTemporada")}</Link>
+        {me && !isMe && <Link href={`/rivales#${player.id}`} className="btn btn-sm">{trf(lang, "v130.tuContra", { n: player.name })}</Link>}
+      </div>
+
       {/* ------------------------- torneos: lo que se enseña ------------------------ */}
       {placements.length > 0 && (
         <div id="cp-desglose" className="scroll-mt-24" data-paso="perfilGuia-5">

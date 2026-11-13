@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.130.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Tus rivales** (`/rivales`; botón en Ranking → Enfrentamientos directos y, en el perfil de
+  otro jugador, «Tú contra …»). Para cada jugador del grupo contra el que has jugado: tu marca,
+  el %, los últimos resultados, la racha, lo que juega últimamente (sus mazos en los torneos de
+  los últimos 120 días) y el desglose según su mazo y según el tuyo. Cuentan liga, amistosos y
+  rondas de torneo entre dos del grupo (una ronda apuntada desde los dos lados cuenta una vez).
+  **Cada uno ve solo sus propios cruces**: la página no acepta el id de nadie, sale de la
+  sesión. `lib/scouting.ts` (4 pruebas).
+- **Resumen de la temporada** (`/perfil/<id>/temporada`; botón en el perfil): partidas, % de
+  victorias, mejor racha, torneos, CP, mejor puesto (a igual puesto, el torneo más grande), mazo
+  más jugado, mejor y peor cruce (con 3 partidas o más), mes más activo y el Elo de principio a
+  fin con su pico. Con un recuento de medallas por escalón y enlace a la vitrina del perfil.
+  `?t=2026` enseña otra temporada. `lib/resumenTemporada.ts` (2 pruebas).
+
 ## [0.129.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.** Dos cosas alrededor de un torneo: antes y después.

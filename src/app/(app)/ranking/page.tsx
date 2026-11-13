@@ -552,6 +552,8 @@ export default async function RankingPage({
             <h2 className="text-lg font-bold">{tr(lng, "x.55125239")}</h2>
             <p className="text-xs text-muted">{tr(lng, "x.acd50f5b")}</p>
           </div>
+          {/* v0.130 — tus cruces con cada uno, con mazos y rachas: solo los ves tú. */}
+          {meId && <Link href="/rivales" className="btn btn-sm flex-none">{tr(lng, "v130.rivales")}</Link>}
         </div>
         <H2HHeatmap matriz={h2h} jugadores={h2hJugadores} hrefCelda={hrefCruce} activo={cruce} />
         {cruce && (
