@@ -65,10 +65,10 @@ export async function GET(req: NextRequest) {
     discord.ladder = await notificarPendientesLadder(ahora);
   }
   // v0.122 — los torneos online de los del grupo (por su nick de Limitless), cada día.
-  let limitless: { mirados: number; nuevos: number; resultados: number } | null = null;
+  let limitless: { mirados: number; nuevos: number; resultados: number; rondas: number } | null = null;
   try {
     const r = await importarDesdeLimitless({ dias: 2, maxTorneos: 100 });
-    limitless = { mirados: r.mirados, nuevos: r.nuevos, resultados: r.resultados };
+    limitless = { mirados: r.mirados, nuevos: r.nuevos, resultados: r.resultados, rondas: r.rondas };
   } catch { limitless = null; }
   // v0.117 — los posts del foro de Discord de los enfrentamientos de esta semana.
   discord.hilos = await crearHilosLiga(fechaMadrid, 6);

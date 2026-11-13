@@ -2,6 +2,31 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.127.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.** Al traer rondas nuevas, **se mueven el Elo y las
+estadísticas** de quien haya jugado torneos online.
+
+### Añadido
+
+- **Los torneos online traen también las RONDAS: resultado y mazo del rival.** Hasta ahora se
+  importaba solo el resultado final (puesto, récord y mazo). Ahora se piden los emparejamientos
+  del torneo (`/pairings`, una llamada más por torneo en el que jugó alguien del grupo) y se
+  cruzan con la clasificación, que dice qué mazo llevaba cada uno. Para cada jugador del grupo
+  se guarda una ronda por partida, igual que si la hubiera apuntado a mano: alimenta la matriz de
+  emparejamientos, el %V por arquetipo y el Elo. `rondasDeJugador` en `lib/limitlessImport.ts`
+  (3 pruebas); la forma de la respuesta es la de la documentación oficial de Limitless.
+  - Bye, empate, doble derrota y derrota por no presentarse, cada uno como lo que es.
+  - Top cut: la API cuenta el cuadro en directo como una sola ronda; aquí se numera seguido
+    detrás del suizo (T8 → T4 → T2), con su formato (Bo3 si la fase lo es).
+  - **No se guarda el nick ni el nombre del rival** («Rival R3»). Si el rival es alguien del
+    grupo, se enlaza con su jugador.
+  - Una ronda que ya existe (a mano o importada) no se pisa. Si el mazo del rival no está en el
+    catálogo, la ronda se guarda igual y su nombre queda en la nota.
+  - **Vale para los torneos ya importados**, también los antiguos: en cada pasada se completan
+    unos cuantos de los que no tienen rondas (25 con el botón de Ajustes, 10 con el cron diario),
+    hasta ponerse al día. El aviso dice cuántas rondas entraron y cuántas sin mazo identificado.
+
 ## [0.126.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.** **Cambia la Forma** (la cifra del ranking y de las

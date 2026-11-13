@@ -63,6 +63,8 @@ export type ResultadoImportado = {
   /** Slug del arquetipo en Limitless, para casarlo con el catálogo. */
   deckSlug: string | null;
   deckName: string | null;
+  /** v0.127 — su identificador en ESTA clasificación, para buscar sus rondas en los emparejamientos. */
+  nick: string;
 };
 
 export type TorneoImportado = {
@@ -140,6 +142,7 @@ export function vuestrosEnElTorneo(
       ties: fila.record?.ties ?? 0,
       deckSlug: fila.deck?.id ?? null,
       deckName: fila.deck?.name ?? null,
+      nick: fila.player ?? j.limitlessHandle ?? "",
     });
   }
 
@@ -189,4 +192,130 @@ export function importarTorneos(
     sinNadie,
     sinNick: jugadores.filter((j) => !nickNormal(j.limitlessHandle)).map((j) => j.name),
   };
+}
+
+/* =========================================================================
+   v0.127 — LAS RONDAS de cada uno en un torneo online, con el mazo rival.
+
+   Hasta ahora del torneo solo se traía el resultado final (puesto, récord y
+   mazo). Los emparejamientos también están publicados (`/pairings`: quién
+   jugó contra quién en cada ronda y quién ganó), y la clasificación dice qué
+   mazo llevaba cada uno. Cruzando las dos cosas sale, para cada jugador del
+   grupo, ronda a ronda: el resultado y el mazo de enfrente. Es lo que alimenta
+   la matriz de emparejamientos, el %V por arquetipo y el Elo.
+
+   La forma de `/pairings` es la de la documentación oficial
+   (docs.limitlesstcg.com/developer/tournaments, leída el 13/11/2026):
+     round · phase · table | match · player1 · player2 · winner
+     winner = nick del ganador, 0 = empate, −1 = doble derrota
+     sin player2 = bye, o derrota automática por no presentarse
+
+   PRIVACIDAD: el nick del rival solo se usa aquí dentro, para buscar su mazo
+   y para saber si es alguien del grupo. De esta función NO sale el nick ni el
+   nombre de nadie de fuera: sale el mazo.
+
+   EL NÚMERO DE RONDA: en el suizo es el de la API. En un cuadro en directo,
+   la API cuenta toda la eliminatoria como UNA ronda y distingue los cruces
+   por la etiqueta (`T8-1`, `T4-2`, `T2-1`). Como en la app cada ronda de un
+   jugador lleva un número distinto, las de eliminatoria se numeran seguidas
+   detrás del suizo, del cruce más grande al más pequeño (T8 → T4 → T2).
+   ========================================================================= */
+
+export type FilaEmparejamiento = {
+  round?: number | null;
+  phase?: number | null;
+  table?: number | null;
+  match?: string | null;
+  player1?: string | null;
+  player2?: string | null;
+  winner?: string | number | null;
+};
+
+export type RondaImportada = {
+  /** El número con el que se guarda (seguido, sin repetir). */
+  ronda: number;
+  /** La fase de la API (1 = suizo, normalmente), para saber el formato (Bo1/Bo3). */
+  fase: number;
+  /** Desde el lado del jugador del grupo: "a" ganó, "b" perdió, "tie" empató. */
+  resultado: "a" | "b" | "tie";
+  /** Ronda libre: victoria sin rival. */
+  bye: boolean;
+  /** Derrota automática sin jugar (no se presentó): cuenta en el récord, no como partida. */
+  sinJugar: boolean;
+  /** El mazo del rival, para casarlo con el catálogo. Nulo si no se sabe. */
+  rivalSlug: string | null;
+  rivalMazo: string | null;
+  /** Si el rival es alguien del grupo, su id en la app. */
+  rivalPlayerId: string | null;
+};
+
+/** De «T8-1» saca 8: cuanto más grande, antes se jugó. Sin número, 0. */
+function tamanoCruce(etiqueta: string | null | undefined): number {
+  const m = /(\d+)/.exec(etiqueta ?? "");
+  return m ? Number(m[1]) : 0;
+}
+
+export function rondasDeJugador(
+  emparejamientos: readonly FilaEmparejamiento[],
+  clasificacion: readonly FilaClasificacion[],
+  nick: string,
+  jugadores: readonly JugadorConNick[] = [],
+): RondaImportada[] {
+  const yo = nickNormal(nick);
+  if (!yo) return [];
+  const mazoDe = new Map<string, { id: string; name: string }>();
+  for (const f of clasificacion) {
+    const n = nickNormal(f.player);
+    if (n && f.deck?.id) mazoDe.set(n, f.deck);
+  }
+  const delGrupo = new Map<string, string>();
+  for (const j of jugadores) {
+    const n = nickNormal(j.limitlessHandle);
+    if (n) delGrupo.set(n, j.id);
+  }
+
+  const mias = emparejamientos
+    .map((e, i) => ({ e, i, p1: nickNormal(e.player1), p2: nickNormal(e.player2) }))
+    .filter((x) => x.p1 === yo || x.p2 === yo)
+    .sort((a, b) =>
+      (a.e.phase ?? 1) - (b.e.phase ?? 1)
+      || (a.e.round ?? 0) - (b.e.round ?? 0)
+      || tamanoCruce(b.e.match) - tamanoCruce(a.e.match)
+      || a.i - b.i);
+
+  const out: RondaImportada[] = [];
+  let ultima = 0;
+  for (const { e, p1, p2 } of mias) {
+    const rival = p1 === yo ? p2 : p1;
+    const w = e.winner;
+    const ganador = typeof w === "string" ? nickNormal(w) : "";
+    // El número: el de la API mientras avance; si se repite (cuadro), el siguiente.
+    const pedida = typeof e.round === "number" && e.round > 0 ? e.round : ultima + 1;
+    const ronda = pedida > ultima ? pedida : ultima + 1;
+    ultima = ronda;
+
+    let resultado: RondaImportada["resultado"];
+    let bye = false, sinJugar = false;
+    if (!rival) {
+      // Sin rival: bye si gana, derrota automática (no se presentó) si no.
+      if (ganador === yo) { resultado = "a"; bye = true; } else { resultado = "b"; sinJugar = true; }
+    } else if (w === 0 || w === "0") {
+      resultado = "tie";
+    } else if (w === -1 || w === "-1") {
+      resultado = "b"; // doble derrota: los dos pierden (se jugó, o se acabó el tiempo)
+    } else if (ganador === yo) {
+      resultado = "a";
+    } else if (ganador === rival) {
+      resultado = "b";
+    } else {
+      continue; // sin resultado todavía (torneo en curso) o un dato que no se entiende: no se inventa
+    }
+    const mazo = rival ? mazoDe.get(rival) ?? null : null;
+    out.push({
+      ronda, fase: e.phase ?? 1, resultado, bye, sinJugar,
+      rivalSlug: mazo?.id ?? null, rivalMazo: mazo?.name ?? null,
+      rivalPlayerId: rival ? delGrupo.get(rival) ?? null : null,
+    });
+  }
+  return out;
 }

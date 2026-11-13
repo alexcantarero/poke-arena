@@ -120,3 +120,63 @@ test("el resumen distingue «no jugó» de «no lo sabemos»", () => {
   // Cristina no tiene nick: no es que no jugara, es que no se la ha buscado.
   assert.deepEqual(r.sinNick, ["Cristina"]);
 });
+
+/* ------------------------------------------------------------------ v0.127 */
+
+test("v0.127 — las rondas de un jugador: resultado y mazo rival, sin que salga el nick de nadie de fuera", async () => {
+  const { rondasDeJugador } = await import("../src/lib/limitlessImport.ts");
+  const clasif = [
+    { player: "ibaim", deck: { id: "dragapult-ex", name: "Dragapult ex" } },
+    { player: "Rival1", deck: { id: "gardevoir-ex", name: "Gardevoir ex" } },
+    { player: "rival2", deck: { id: "raging-bolt", name: "Raging Bolt" } },
+    { player: "sinmazo", deck: null },
+    { player: "alexx", deck: { id: "gholdengo-ex", name: "Gholdengo ex" } },
+  ];
+  const pares = [
+    { round: 2, phase: 1, table: 4, player1: "rival2", player2: "IbaiM", winner: "rival2" },
+    { round: 1, phase: 1, table: 1, player1: "ibaim", player2: "rival1", winner: "ibaim" },
+    { round: 1, phase: 1, table: 2, player1: "otro", player2: "otra", winner: "otro" }, // no es mía
+    { round: 3, phase: 1, table: 3, player1: "ibaim", player2: "sinmazo", winner: 0 },
+    { round: 4, phase: 1, table: 9, player1: "ibaim", player2: null, winner: "ibaim" },
+    { round: 5, phase: 1, table: 2, player1: "alexx", player2: "ibaim", winner: -1 },
+  ];
+  const jugadores = [{ id: "p-ibai", name: "Ibai", limitlessHandle: "IbaiM" }, { id: "p-alex", name: "Alex", limitlessHandle: "Alexx" }];
+  const r = rondasDeJugador(pares, clasif, "IbaiM", jugadores);
+  assert.deepEqual(r.map((x) => [x.ronda, x.resultado, x.rivalSlug, x.bye, x.sinJugar, x.rivalPlayerId]), [
+    [1, "a", "gardevoir-ex", false, false, null],
+    [2, "b", "raging-bolt", false, false, null],
+    [3, "tie", null, false, false, null], // el rival no tenía mazo identificado
+    [4, "a", null, true, false, null], // bye
+    [5, "b", "gholdengo-ex", false, false, "p-alex"], // doble derrota, contra alguien del grupo
+  ]);
+  // Ningún nick de fuera en lo que sale.
+  assert.ok(!JSON.stringify(r).toLowerCase().includes("rival1"));
+  assert.deepEqual(rondasDeJugador(pares, clasif, "nadie"), []);
+  assert.deepEqual(rondasDeJugador(pares, clasif, ""), []);
+});
+
+test("v0.127 — el cuadro en directo: la API lo cuenta como UNA ronda; aquí se numera seguido, T8 → T4 → T2", async () => {
+  const { rondasDeJugador } = await import("../src/lib/limitlessImport.ts");
+  const clasif = [{ player: "yo", deck: { id: "a", name: "A" } }, { player: "x", deck: { id: "mx", name: "MX" } },
+    { player: "y", deck: { id: "my", name: "MY" } }, { player: "z", deck: { id: "mz", name: "MZ" } }];
+  const pares = [
+    { round: 6, phase: 2, match: "T2-1", player1: "z", player2: "yo", winner: "z" },
+    { round: 5, phase: 1, table: 1, player1: "yo", player2: "x", winner: "yo" },
+    { round: 6, phase: 2, match: "T8-3", player1: "yo", player2: "x", winner: "yo" },
+    { round: 6, phase: 2, match: "T4-1", player1: "y", player2: "yo", winner: "yo" },
+  ];
+  const r = rondasDeJugador(pares, clasif, "yo");
+  assert.deepEqual(r.map((x) => [x.ronda, x.fase, x.resultado, x.rivalSlug]), [
+    [5, 1, "a", "mx"], [6, 2, "a", "mx"], [7, 2, "a", "my"], [8, 2, "b", "mz"],
+  ]);
+});
+
+test("v0.127 — derrota automática por no presentarse, y una partida sin ganador todavía no se inventa", async () => {
+  const { rondasDeJugador } = await import("../src/lib/limitlessImport.ts");
+  const r = rondasDeJugador([
+    { round: 1, phase: 1, player1: "yo", player2: "", winner: null }, // sin rival y sin ganar: no presentado
+    { round: 2, phase: 1, player1: "yo", player2: "x", winner: null }, // en curso
+    { round: 3, phase: 1, player1: "x", player2: "yo", winner: "x" },
+  ], [], "yo");
+  assert.deepEqual(r.map((x) => [x.ronda, x.resultado, x.bye, x.sinJugar]), [[1, "b", false, true], [3, "b", false, false]]);
+});

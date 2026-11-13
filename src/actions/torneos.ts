@@ -835,12 +835,12 @@ export async function importarTorneosLimitless(fd: FormData) {
   // v0.122 — una VENTANA de días (antes: los 25–50 torneos más recientes de
   // toda la plataforma, unas horas). Ver `lib/importarLimitlessDb.ts`.
   const dias = Math.min(Math.max(1, Number(str(fd, "dias")) || 7), 30);
-  const r = await importarDesdeLimitless({ dias, maxTorneos: dias > 7 ? 250 : 150, actorId: actor.id });
+  const r = await importarDesdeLimitless({ dias, maxTorneos: dias > 7 ? 250 : 150, actorId: actor.id, maxAtrasados: 25 });
   if (!r.mirados && r.sinNick.length && !r.nuevos) {
     redirect(withFlash("/ajustes", "error", await msj("x.58ce5300")));
   }
   revalidatePath("/", "layout");
   const pendientes = r.sinNick.length ? ` Sin nick y por tanto sin buscar: ${r.sinNick.join(", ")}.` : "";
   redirect(withFlash("/ajustes", "ok",
-    `${r.mirados} torneos online mirados (${dias} días): ${r.nuevos} nuevo(s), ${r.actualizados} ya conocido(s), ${r.resultados} resultado(s) nuevo(s).${pendientes}`));
+    `${r.mirados} torneos online mirados (${dias} días): ${r.nuevos} nuevo(s), ${r.actualizados} ya conocido(s), ${r.resultados} resultado(s) nuevo(s), ${r.rondas} ronda(s) nueva(s)${r.rondasSinMazo ? ` (${r.rondasSinMazo} sin mazo rival identificado)` : ""}.${pendientes}`));
 }
