@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { subirRondaDeCola } from "@/actions";
 import {
@@ -28,7 +28,8 @@ import { useLang } from "@/components/LangProvider";
    texto a propósito.
    ========================================================================= */
 
-export type OpcionMazo = { valor: string; nombre: string };
+/** `color`: el de su tipo de energía; `sprite`: URL del Pokémon principal (vacíos si no hay). */
+export type OpcionMazo = { valor: string; nombre: string; color: string; sprite: string };
 export type RondaVista = { ronda: number; r: "w" | "l" | "t" | null; rival: string; mazoRival: string };
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -214,32 +215,45 @@ export function ModoTorneo({
     return [...m.values()].sort((a, b) => b.ronda - a.ronda);
   }, [rondas, cola, lng]);
 
-  const RES: Array<{ v: ResultadoCola; clave: string; tono: string }> = [
-    { v: "a", clave: "v125.gane", tono: "win" }, { v: "tie", clave: "v125.empate", tono: "tie" }, { v: "b", clave: "v125.perdi", tono: "loss" },
+  const RES: Array<{ v: ResultadoCola; clave: string; tono: string; signo: string }> = [
+    { v: "a", clave: "v126.victoria", tono: "win", signo: "▲" },
+    { v: "tie", clave: "v126.empate", tono: "tie", signo: "◆" },
+    { v: "b", clave: "v126.derrota", tono: "loss", signo: "▼" },
   ];
+
+  /* v0.126 — qué falta para poder guardar, dicho con palabras en la barra de abajo. */
+  const faltan: string[] = [];
+  if (!mazoFijado && !miMazo) faltan.push(tr(lng, "v126.faltaMiMazo"));
+  if (!especial && !resultado) faltan.push(tr(lng, "v126.faltaResultado"));
+  if (!especial && !rival) faltan.push(tr(lng, "v126.faltaRival"));
+  const resumen = especial
+    ? tr(lng, especial === "bye" ? "v125.bye" : especial === "np-rival" ? "v125.npRival" : "v125.npYo")
+    : [resultado ? tr(lng, RES.find((o) => o.v === resultado)!.clave) : "", nombreDe.get(rival) ?? ""].filter(Boolean).join(" · ");
+  let paso = 0;
+  const num = () => String(++paso).padStart(2, "0");
 
   return (
     <>
-      {/* ------------------------------------------------ récord y estado */}
-      <section className="card mb-3 grid grid-cols-3 divide-x divide-line-soft text-center" aria-label={tr(lng, "dir.tuRecord")}>
-        <div className="p-3">
-          <p className="label">{tr(lng, "dir.record")}</p>
-          <p className="font-display text-3xl font-black tabular">
-            <span className="text-win">{record.w}</span>-<span className="text-loss">{record.l}</span>-<span className="text-tie">{record.t}</span>
+      {/* ------------------------------------------------ HUD: récord y estado */}
+      <section className="mt-hud" aria-label={tr(lng, "dir.tuRecord")}>
+        <div>
+          <p className="mt-hud-rotulo">{tr(lng, "dir.record")}</p>
+          <p className="mt-hud-cifra">
+            <span className="text-win">{record.w}</span><i>-</i><span className="text-loss">{record.l}</span><i>-</i><span className="text-tie">{record.t}</span>
           </p>
         </div>
-        <div className="p-3">
-          <p className="label">{tr(lng, "dir.puntos")}</p>
-          <p className="font-display text-3xl font-black tabular">{record.puntos}</p>
+        <div>
+          <p className="mt-hud-rotulo">{tr(lng, "dir.puntos")}</p>
+          <p className="mt-hud-cifra">{record.puntos}</p>
         </div>
-        <div className="p-3">
-          <p className="label">{tr(lng, "dir.toca")}</p>
-          <p className="font-display text-3xl font-black tabular">{toca == null ? "—" : `R${toca}`}</p>
+        <div>
+          <p className="mt-hud-rotulo">{tr(lng, "dir.toca")}</p>
+          <p className="mt-hud-cifra mt-hud-toca">{toca == null ? "—" : `R${toca}`}</p>
         </div>
       </section>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
-        <span className={`chip ${enLinea ? "chip-win" : "chip-loss"}`}>{tr(lng, enLinea ? "v125.conRed" : "v125.sinRed")}</span>
+        <span className="mt-led" data-on={enLinea}>{tr(lng, enLinea ? "v125.conRed" : "v125.sinRed")}</span>
         {cargada && pendientes > 0 && (
           <span className="chip chip-brand">{subiendo ? tr(lng, "v125.subiendo") : trf(lng, "v125.porSubir", { n: pendientes })}</span>
         )}
@@ -251,22 +265,22 @@ export function ModoTorneo({
 
       {/* ------------------------------------------------ apuntar la ronda */}
       {!abierto || dropped ? (
-        <p className="card mb-4 p-4 text-sm text-muted">{tr(lng, dropped ? "v125.dropped" : "v125.cerrado")}</p>
+        <p className="mt-panel mb-4 text-sm text-muted">{tr(lng, dropped ? "v125.dropped" : "v125.cerrado")}</p>
       ) : rondaForm == null ? (
-        <p className="card mb-4 p-4 text-sm text-muted">{trf(lng, "v125.completo", { n: tope ?? 0 })}</p>
+        <p className="mt-panel mb-4 text-sm text-muted">{trf(lng, "v125.completo", { n: tope ?? 0 })}</p>
       ) : (
-        <section className="card mb-4 p-4" aria-labelledby="mt-ronda">
-          <div className="mb-3 flex items-center gap-2">
-            <h2 id="mt-ronda" className="font-display text-xl font-bold">
-              {trf(lng, editando != null ? "v125.corregirRonda" : "dir.apuntarRonda", { n: rondaForm })}
+        <section className="mt-panel mb-4" aria-labelledby="mt-ronda">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 id="mt-ronda" className="mt-ronda-titulo">
+              <span>{tr(lng, editando != null ? "v126.corrigiendo" : "v126.ronda")}</span> <b>{rondaForm}</b>
             </h2>
             {editando != null && <button type="button" className="btn btn-ghost btn-sm ml-auto" onClick={limpiar}>{tr(lng, "v125.cancelar")}</button>}
           </div>
 
           {!mazoFijado && (
-            <label className="mb-4 flex flex-col gap-1.5">
-              <span className="label">{tr(lng, "v125.miMazo")}</span>
-              <select className="input" value={miMazo} onChange={(e) => setMiMazo(e.target.value)}>
+            <div className="mt-paso" data-hecho={Boolean(miMazo)}>
+              <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.miMazo")}</p>
+              <select className="input" value={miMazo} onChange={(e) => setMiMazo(e.target.value)} aria-label={tr(lng, "v125.miMazo")}>
                 <option value="">{tr(lng, "v125.elige")}</option>
                 {misMazos.length > 0 && (
                   <optgroup label={tr(lng, "v125.misMazos")}>
@@ -277,42 +291,60 @@ export function ModoTorneo({
                   {arquetipos.map((a) => <option key={a.valor} value={a.valor}>{a.nombre}</option>)}
                 </optgroup>
               </select>
-              <span className="text-xs text-muted">{tr(lng, "v125.miMazoAyuda")}</span>
-            </label>
+              <p className="mt-1.5 text-xs text-muted">{tr(lng, "v125.miMazoAyuda")}</p>
+            </div>
           )}
-          {mazoFijado && <p className="mb-3 text-xs text-muted">{tr(lng, "v125.juegasCon")} <b className="text-ink-2">{mazoFijado}</b></p>}
+          {mazoFijado && <p className="mb-4 text-xs text-muted">{tr(lng, "v125.juegasCon")} <b className="text-ink-2">{mazoFijado}</b></p>}
 
           {!especial && (
             <>
-              <p className="label mb-1.5">{tr(lng, "v125.resultado")}</p>
-              <div className="mb-4 grid grid-cols-3 gap-2">
-                {RES.map((o) => (
-                  <button key={o.v} type="button" className="mt-res" data-tono={o.tono} aria-pressed={resultado === o.v}
-                    onClick={() => setResultado(o.v)}>{tr(lng, o.clave)}</button>
-                ))}
+              <div className="mt-paso" data-hecho={Boolean(resultado)}>
+                <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.resultado")}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {RES.map((o) => (
+                    <button key={o.v} type="button" className="mt-res" data-tono={o.tono} aria-pressed={resultado === o.v}
+                      onClick={() => setResultado(o.v)}>
+                      <span className="mt-res-signo" aria-hidden="true">{o.signo}</span>
+                      {tr(lng, o.clave)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <p className="label mb-1.5">{tr(lng, "v125.mazoRival")}</p>
-              <input className="input mb-2" type="search" inputMode="search" enterKeyHint="search" autoComplete="off"
-                value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tr(lng, "v125.buscarMazo")} aria-label={tr(lng, "v125.buscarMazo")} />
-              <div className="mb-4 flex flex-wrap gap-1.5">
-                {sugeridos.map((a) => (
-                  <button key={a.valor} type="button" className={`chip mt-chip ${rival === a.valor ? "chip-brand" : ""}`} aria-pressed={rival === a.valor}
-                    onClick={() => { setRival(a.valor); setBusca(""); }}>{a.nombre}</button>
-                ))}
-                {sugeridos.length === 0 && <span className="text-sm text-muted">{tr(lng, "v125.sinMazos")}</span>}
+              <div className="mt-paso" data-hecho={Boolean(rival)}>
+                <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.mazoRival")}</p>
+                <input className="input mb-2" type="search" inputMode="search" enterKeyHint="search" autoComplete="off"
+                  value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tr(lng, "v125.buscarMazo")} aria-label={tr(lng, "v125.buscarMazo")} />
+                <div className="grid grid-cols-2 gap-2">
+                  {sugeridos.map((a) => (
+                    <button key={a.valor} type="button" className="mt-mazo" aria-pressed={rival === a.valor}
+                      style={a.color ? ({ "--tipo": a.color } as CSSProperties) : undefined}
+                      onClick={() => { setRival(a.valor); setBusca(""); }}>
+                      {a.sprite && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={a.sprite} alt="" width={40} height={40} loading="lazy" decoding="async"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                      )}
+                      <span>{a.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+                {sugeridos.length === 0 && <p className="text-sm text-muted">{tr(lng, "v125.sinMazos")}</p>}
+                {!busca && <p className="mt-1.5 text-xs text-muted">{tr(lng, "v126.masVistos")}</p>}
               </div>
 
-              <p className="label mb-1.5">{tr(lng, "v125.quienEmpezo")}</p>
-              <div className="seg mb-4 w-full">
-                {([["a", "v125.yo"], ["b", "v125.elRival"], ["", "v125.noSe"]] as const).map(([v, k]) => (
-                  <button key={v || "ns"} type="button" data-on={primero === v} onClick={() => setPrimero(v)}>{tr(lng, k)}</button>
-                ))}
+              <div className="mt-paso" data-hecho={Boolean(primero)} data-opcional="true">
+                <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.quienEmpezo")}<em>{tr(lng, "v126.opcional")}</em></p>
+                <div className="seg w-full">
+                  {([["a", "v125.yo"], ["b", "v125.elRival"], ["", "v125.noSe"]] as const).map(([v, k]) => (
+                    <button key={v || "ns"} type="button" data-on={primero === v} onClick={() => setPrimero(v)}>{tr(lng, k)}</button>
+                  ))}
+                </div>
               </div>
             </>
           )}
 
-          <details className="mb-4 rounded-lg border border-line-soft" open={Boolean(especial) || undefined}>
+          <details className="mt-mas" open={Boolean(especial) || undefined}>
             <summary className="tap cursor-pointer justify-start px-3 text-sm font-semibold text-muted">{tr(lng, "v125.mas")}</summary>
             <div className="flex flex-col gap-3 border-t border-line-soft p-3">
               <label className="flex flex-col gap-1.5">
@@ -330,18 +362,13 @@ export function ModoTorneo({
               </div>
             </div>
           </details>
-
-          <button type="button" className="btn btn-brand mt-guardar w-full" disabled={!puedeGuardar} onClick={guardar}>
-            {trf(lng, "v125.guardar", { n: rondaForm })}
-          </button>
-          <p className="mt-2 text-center text-xs text-muted">{tr(lng, enLinea ? "v125.notaConRed" : "v125.notaSinRed")}</p>
         </section>
       )}
 
       {/* ------------------------------------------------ mis rondas */}
       {filas.length > 0 && (
-        <section className="card mb-4 overflow-hidden" aria-labelledby="mt-lista">
-          <div className="card-head"><h2 id="mt-lista" className="text-lg font-bold">{tr(lng, "v125.misRondas")}</h2></div>
+        <section className="mt-panel mb-4 !p-0" aria-labelledby="mt-lista">
+          <h2 id="mt-lista" className="mt-paso-titulo px-4 pt-4">{tr(lng, "v125.misRondas")}</h2>
           <ol className="divide-y divide-line-soft">
             {filas.map((f) => (
               <li key={f.ronda} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
@@ -379,9 +406,24 @@ export function ModoTorneo({
         </section>
       )}
 
-      <p className="mb-2 text-center text-xs text-muted">
+      <p className="mb-3 text-center text-xs text-muted">
         {tr(lng, guardadaOffline === "si" ? "v125.offlineLista" : guardadaOffline === "sinSoporte" ? "v125.offlineNo" : "v125.offlinePreparando")}
       </p>
+
+      {/* ------------------------------------------------ la barra de guardar, SIEMPRE a la vista y al alcance del pulgar */}
+      {abierto && !dropped && rondaForm != null && (
+        <div className="mt-barra" data-lista={puedeGuardar}>
+          <p className="mt-barra-estado" role="status" aria-live="polite">
+            {puedeGuardar
+              ? <><b>R{rondaForm}</b> · {resumen}</>
+              : <>{tr(lng, "v126.falta")} {faltan.join(" · ")}</>}
+          </p>
+          <button type="button" className="mt-guardar" disabled={!puedeGuardar} onClick={guardar}>
+            {trf(lng, "v125.guardar", { n: rondaForm })}
+          </button>
+          <p className="mt-barra-nota">{tr(lng, enLinea ? "v125.notaConRed" : "v125.notaSinRed")}</p>
+        </div>
+      )}
     </>
   );
 }

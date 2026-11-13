@@ -731,18 +731,26 @@ export default async function TournamentPage({
                 <span className="directo-punto" aria-hidden="true" /> {tr(lng, "dir.modo")}
               </Link>
             )}
-            {/* v0.125 — el modo torneo: apuntar rondas con el pulgar, también sin cobertura. */}
-            {me && status === "open" && (
-              <Link className="btn btn-sm" href={`/torneos/${t.id}/modo`} prefetch>
-                {tr(lng, "v125.abrir")}
-              </Link>
-            )}
             <Link className="btn btn-ghost btn-sm hidden md:inline-flex" href="/torneos">
               <Icon name="back" className="size-4" /> {tr(lng, "x.f02a0f3c")}
             </Link>
           </>
         }
       />
+
+      {/* v0.126 — APUNTAR LA RONDA, lo primero y bien grande: el día del torneo
+          es a lo que se viene a esta pantalla. Lleva al modo torneo (pulgar, y
+          sin cobertura). El formulario completo sigue más abajo. */}
+      {me && status === "open" && !myResult?.dropped && (
+        <Link className="cta-ronda" href={`/torneos/${t.id}/modo`} prefetch>
+          <span className="cta-ronda-num" aria-hidden="true">{topeAlcanzado ? "✓" : `R${nextRound}`}</span>
+          <span className="cta-ronda-texto">
+            <b>{topeAlcanzado ? tr(lng, "v126.ctaCorregir") : trf(lng, "v126.ctaApuntar", { n: nextRound })}</b>
+            <span>{tr(lng, "v126.ctaSub")}</span>
+          </span>
+          <span className="cta-ronda-flecha" aria-hidden="true">›</span>
+        </Link>
+      )}
 
       {/* v0.90 — el resumen de TU torneo cuando está cerrado, para compartir. */}
       {me && status === "closed" && myRounds.some((r) => r.result) && (() => {

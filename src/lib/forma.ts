@@ -11,7 +11,7 @@
 
    · POCAS PARTIDAS: se cuentan las de los últimos 90 días. Con 30 o más no
      resta nada; con menos, hasta 100 en proporción (0 partidas = −100).
-   · INACTIVIDAD: desde la semana sin jugar, poco a poco (ver FORMA_TRAMOS), hasta 150.
+   · INACTIVIDAD: −15 por cada 3 días completos sin jugar, hasta 150 (v0.126).
 
    No toca el Elo: en cuanto vuelves a jugar, la Forma se recupera sola.
    ========================================================================= */
@@ -19,26 +19,23 @@
 export const FORMA_VENTANA_DIAS = 90;
 export const FORMA_PARTIDAS_PLENAS = 30;
 export const FORMA_MAX_POCAS = 100;
-/* v0.120 — la inactividad empieza a contar a la SEMANA, poco a poco:
-     días 8–14: −1 por día · días 15–21: −2 por día · desde el 22: −4 por día,
-   hasta −150. Antes: 21 días de gracia y −5 por día de golpe. */
-export const FORMA_GRACIA_DIAS = 7;
-export const FORMA_TRAMOS: ReadonlyArray<{ hasta: number; porDia: number }> = [
-  { hasta: 14, porDia: 1 },
-  { hasta: 21, porDia: 2 },
-  { hasta: Infinity, porDia: 4 },
-];
+/* v0.126 — la inactividad se nota y es fácil de contar: −15 por cada 3 días
+   completos sin jugar, hasta −150 (un mes). Pedido por Ibai: con la regla de
+   la v0.120 (una semana de gracia y luego −1, −2 y −4 por día), a los 12 días
+   sin jugar solo restaba 5 puntos y «no quitaba nada».
+
+       días 0–2: 0 · 3–5: −15 · 6–8: −30 · 9–11: −45 · … · 30 o más: −150
+
+   Sigue sin tocar el Elo: al volver a jugar, lo de la inactividad se recupera
+   entero ese mismo día. */
+export const FORMA_CADA_DIAS = 3;
+export const FORMA_POR_TRAMO = 15;
 export const FORMA_MAX_INACTIVIDAD = 150;
 
 /** Lo que resta la inactividad tras `dias` sin jugar. */
 export function penalizacionInactividad(dias: number): number {
-  let total = 0, desde = FORMA_GRACIA_DIAS;
-  for (const t of FORMA_TRAMOS) {
-    if (dias <= desde) break;
-    total += (Math.min(dias, t.hasta) - desde) * t.porDia;
-    desde = t.hasta;
-  }
-  return Math.min(FORMA_MAX_INACTIVIDAD, Math.max(0, total));
+  if (!(dias > 0)) return 0;
+  return Math.min(FORMA_MAX_INACTIVIDAD, Math.floor(dias / FORMA_CADA_DIAS) * FORMA_POR_TRAMO);
 }
 
 const DIA = 86_400_000;

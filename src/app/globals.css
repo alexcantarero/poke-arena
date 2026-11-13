@@ -2255,29 +2255,132 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 
 /* =========================================================================
    v0.125 — MODO TORNEO (`/torneos/<id>/modo`): todo al alcance del pulgar.
-   Botones de resultado de 4,5 rem, chips de 2,75 rem y el botón de guardar
-   bien grande; campos a 16 px (si bajan, Safari iOS hace zoom).
+   v0.126 — con aspecto de HUD: fondo oscuro con rejilla, neón (amarillo
+   eléctrico para lo que se pulsa, cian para lo informativo), esquinas cortadas
+   y el color del tipo de energía en cada mazo. Siempre en oscuro (la página
+   pone `data-theme="dark"` en el contenedor). Reglas que mandan sobre la
+   estética: nada baja de 16 px en los campos (Safari iOS haría zoom), los
+   botones de resultado miden 5,5 rem, cada mazo 3,5 rem, y GUARDAR va en una
+   barra fija sobre la barra inferior, donde llega el pulgar.
    ========================================================================= */
-.modo-torneo .input { min-height: 3rem; font-size: 1rem; }
-.modo-torneo .seg > * { min-height: 3rem; }
+.modo-torneo {
+  --neo: #ffd23f; --neo-2: #22e6ff; --neo-3: #ff4fa3; --mt-fondo: #070b16; --mt-panel: #0d1426;
+  position: relative; margin-inline: -.25rem; padding: 1rem .85rem 1.1rem; border-radius: 1.1rem;
+  color: var(--ink); border: 1px solid rgb(34 230 255 / .22);
+  background:
+    radial-gradient(120% 55% at 100% 0%, rgb(34 230 255 / .13), transparent 60%),
+    radial-gradient(90% 45% at 0% 100%, rgb(255 79 163 / .10), transparent 60%),
+    repeating-linear-gradient(0deg, rgb(255 255 255 / .022) 0 1px, transparent 1px 3px),
+    linear-gradient(rgb(255 255 255 / .04) 1px, transparent 1px) 0 0 / 100% 28px,
+    linear-gradient(90deg, rgb(255 255 255 / .04) 1px, transparent 1px) 0 0 / 28px 100%,
+    var(--mt-fondo);
+}
+.modo-torneo :focus-visible { outline: 3px solid var(--neo-2); outline-offset: 2px; }
+.modo-torneo .input { min-height: 3rem; font-size: 1rem; background: #0a1020; border-color: rgb(255 255 255 / .14); }
+.modo-torneo .seg > * { min-height: 3rem; font-size: .95rem; }
 .modo-torneo .btn-sm { min-height: 2.75rem; }
+.mt-rotulo { font-family: var(--font-mono); font-size: .72rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--neo-2); }
+.mt-titulo { margin-bottom: .8rem; font-family: var(--font-display); font-size: 1.6rem; font-weight: 900; line-height: 1.1; text-shadow: 0 0 18px rgb(34 230 255 / .35); overflow-wrap: anywhere; }
+
+/* El HUD: récord, puntos y la ronda que toca. */
+.mt-hud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin-bottom: .7rem; text-align: center; }
+.mt-hud > div { padding: .55rem .3rem .6rem; background: rgb(13 20 38 / .85); border: 1px solid rgb(34 230 255 / .2); border-radius: .7rem;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+.mt-hud-rotulo { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.mt-hud-cifra { font-family: var(--font-display); font-size: 2.1rem; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.mt-hud-cifra i { font-style: normal; color: var(--muted); margin-inline: .08em; }
+.mt-hud-toca { color: var(--neo); text-shadow: 0 0 16px rgb(255 210 63 / .5); }
+.mt-led { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .6rem; border-radius: 9999px; font-family: var(--font-mono); font-size: .7rem;
+  font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border: 1px solid rgb(255 255 255 / .14); color: var(--ink-2); }
+.mt-led::before { content: ""; width: .55rem; height: .55rem; border-radius: 9999px; background: var(--loss); box-shadow: 0 0 8px var(--loss); }
+.mt-led[data-on="true"]::before { background: var(--win); box-shadow: 0 0 8px var(--win); }
+
+/* Los paneles y los pasos numerados. */
+.mt-panel { padding: 1rem .9rem; background: rgb(13 20 38 / .88); border: 1px solid rgb(255 255 255 / .09); border-top: 2px solid var(--neo-2); border-radius: .2rem .9rem .9rem .9rem; }
+.mt-ronda-titulo { display: flex; align-items: baseline; gap: .6rem; }
+.mt-ronda-titulo span { font-family: var(--font-mono); font-size: .8rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-2); }
+.mt-ronda-titulo b { font-family: var(--font-display); font-size: 3rem; font-weight: 900; line-height: .9; color: var(--neo); text-shadow: 0 0 22px rgb(255 210 63 / .45); }
+.mt-paso { margin-bottom: 1.25rem; }
+.mt-paso-titulo { display: flex; align-items: center; gap: .55rem; margin-bottom: .55rem; font-family: var(--font-mono); font-size: .8rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.mt-paso-titulo span { display: inline-grid; place-items: center; min-width: 1.9rem; height: 1.5rem; padding-inline: .3rem; border: 1px solid var(--neo-2); color: var(--neo-2);
+  border-radius: .3rem; font-size: .72rem; letter-spacing: .04em; }
+.mt-paso[data-hecho="true"] .mt-paso-titulo span { background: var(--win); border-color: var(--win); color: #04130c; }
+.mt-paso-titulo em { margin-left: auto; font-style: normal; font-size: .66rem; letter-spacing: .08em; color: var(--muted); }
+
+/* Resultado: tres teclas enormes. El color dice cuál es; el texto y el signo, también. */
 .mt-res {
-  min-height: 4.5rem; border-radius: .9rem; border: 2px solid var(--line); background: var(--surface-2);
-  font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: var(--ink);
-  touch-action: manipulation; transition: transform .08s ease, background-color .12s ease, border-color .12s ease;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
+  min-height: 5.5rem; padding: .4rem .2rem; border: 2px solid color-mix(in oklab, var(--mt) 60%, transparent);
+  background: color-mix(in oklab, var(--mt) 9%, var(--mt-panel)); color: var(--mt);
+  font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  touch-action: manipulation; transition: transform .08s ease, background-color .12s ease, filter .12s ease;
 }
+.mt-res-signo { font-size: 1.35rem; line-height: 1; }
 .mt-res:active { transform: scale(.97); }
-.mt-res[data-tono="win"] { --mt: var(--win); } .mt-res[data-tono="tie"] { --mt: var(--tie); } .mt-res[data-tono="loss"] { --mt: var(--loss); }
-/* El texto sobre el color: `--ground` da casi blanco en claro y casi negro en oscuro, donde
-   los tonos de victoria y derrota son claros (blanco encima no llegaba a 4,5:1). */
-.mt-res[aria-pressed="true"] { border-color: var(--mt); background: var(--mt); color: var(--ground, #fff); box-shadow: 0 0 0 3px color-mix(in oklab, var(--mt) 30%, transparent); }
-.mt-res[aria-pressed="true"]::after { content: " ✓"; }
-.mt-chip { min-height: 2.75rem; padding-inline: .9rem; font-size: .9rem; touch-action: manipulation; }
-.mt-guardar { min-height: 3.75rem; font-size: 1.1rem; font-weight: 800; }
-.mt-letra {
-  display: inline-grid; place-items: center; flex: none; width: 1.9rem; height: 1.9rem; border-radius: .5rem;
-  font-weight: 800; font-size: .85rem; color: var(--ground, #fff); background: var(--muted);
+.mt-res[data-tono="win"] { --mt: var(--win); } .mt-res[data-tono="tie"] { --mt: #9fb0d0; } .mt-res[data-tono="loss"] { --mt: var(--loss); }
+.mt-res[aria-pressed="true"] { background: var(--mt); color: #06101c; border-color: var(--mt); filter: drop-shadow(0 0 10px color-mix(in oklab, var(--mt) 70%, transparent)); }
+
+/* Mazo del rival: sprite, nombre y, en el borde, el color de su tipo de energía. */
+.mt-mazo {
+  display: flex; align-items: center; gap: .5rem; min-height: 3.5rem; padding: .35rem .6rem .35rem .5rem; text-align: left;
+  background: var(--mt-panel); border: 1px solid rgb(255 255 255 / .12); border-left: 4px solid var(--tipo, var(--neo-2)); border-radius: .5rem;
+  color: var(--ink); font-size: .88rem; font-weight: 700; line-height: 1.15; touch-action: manipulation;
 }
-.mt-letra[data-r="w"] { background: var(--win); } .mt-letra[data-r="l"] { background: var(--loss); } .mt-letra[data-r="t"] { background: var(--tie); }
+.mt-mazo img { width: 2.5rem; height: 2.5rem; flex: none; object-fit: contain; }
+.mt-mazo span { min-width: 0; overflow-wrap: anywhere; }
+.mt-mazo[aria-pressed="true"] { border-color: var(--neo); border-left-color: var(--tipo, var(--neo)); background: color-mix(in oklab, var(--neo) 15%, var(--mt-panel));
+  box-shadow: 0 0 0 1px var(--neo), 0 0 18px rgb(255 210 63 / .3); }
+.mt-mazo[aria-pressed="true"]::after { content: "✓"; margin-left: auto; flex: none; color: var(--neo); font-weight: 900; }
+.mt-mas { border: 1px dashed rgb(255 255 255 / .16); border-radius: .6rem; }
+.mt-chip { min-height: 2.75rem; padding-inline: .9rem; font-size: .9rem; touch-action: manipulation; }
+
+/* La barra de guardar: fija sobre la barra inferior del móvil. */
+.mt-barra {
+  position: sticky; bottom: calc(var(--spacing-nav, 0px) + env(safe-area-inset-bottom) + .5rem); z-index: 20;
+  padding: .6rem .7rem .55rem; background: rgb(7 11 22 / .94); backdrop-filter: blur(10px);
+  border: 1px solid rgb(255 79 163 / .45); border-radius: 1rem; box-shadow: 0 -10px 30px rgb(0 0 0 / .55);
+}
+.mt-barra[data-lista="true"] { border-color: rgb(255 210 63 / .7); }
+@media (min-width: 768px) { .mt-barra { bottom: 1rem; } }
+.mt-barra-estado { margin-bottom: .45rem; font-family: var(--font-mono); font-size: .78rem; text-align: center; color: var(--neo-3); overflow-wrap: anywhere; }
+.mt-barra[data-lista="true"] .mt-barra-estado { color: var(--ink); }
+.mt-barra-estado b { color: var(--neo); }
+.mt-barra-nota { margin-top: .35rem; font-size: .68rem; text-align: center; color: var(--muted); }
+.mt-guardar {
+  width: 100%; min-height: 4rem; border: 0; border-radius: .8rem; touch-action: manipulation;
+  font-family: var(--font-display); font-size: 1.3rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
+  color: #1a1200; background: linear-gradient(135deg, #ffe066, #ffb22e); box-shadow: 0 0 0 1px rgb(255 224 102 / .6), 0 0 26px rgb(255 190 50 / .45);
+  animation: mt-latido 1.8s ease-in-out infinite;
+}
+.mt-guardar:active { transform: scale(.985); }
+.mt-guardar:disabled { color: var(--muted); background: #18203a; box-shadow: none; animation: none; }
+@keyframes mt-latido { 50% { box-shadow: 0 0 0 1px rgb(255 224 102 / .9), 0 0 40px rgb(255 190 50 / .7); } }
+
+.mt-letra {
+  display: inline-grid; place-items: center; flex: none; width: 1.9rem; height: 1.9rem; border-radius: .4rem;
+  font-weight: 800; font-size: .85rem; color: #06101c; background: var(--muted);
+}
+.mt-letra[data-r="w"] { background: var(--win); } .mt-letra[data-r="l"] { background: var(--loss); } .mt-letra[data-r="t"] { background: #9fb0d0; }
 .mt-letra[data-r="n"] { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
-@media (prefers-reduced-motion: reduce) { .mt-res { transition: none; } .mt-res:active { transform: none; } }
+
+/* v0.126 — la llamada a apuntar la ronda, en la ficha del torneo en curso: lo
+   más importante de esa pantalla el día del torneo, y antes era un botón más. */
+.cta-ronda {
+  display: flex; align-items: center; gap: .9rem; margin-bottom: 1rem; padding: .9rem 1rem; min-height: 4.75rem; border-radius: 1rem;
+  color: #1a1200; background: linear-gradient(135deg, #ffe066, #ffb22e);
+  box-shadow: 0 0 0 1px rgb(255 224 102 / .6), 0 8px 26px rgb(255 178 46 / .35); touch-action: manipulation;
+}
+.cta-ronda:active { transform: scale(.99); }
+.cta-ronda-num { flex: none; display: grid; place-items: center; min-width: 3.4rem; height: 3.4rem; padding-inline: .3rem; border-radius: .8rem; background: #1a1200; color: #ffd23f;
+  font-family: var(--font-display); font-size: 1.7rem; font-weight: 900; }
+.cta-ronda-texto { min-width: 0; flex: 1; }
+.cta-ronda-texto b { display: block; font-family: var(--font-display); font-size: 1.35rem; font-weight: 900; line-height: 1.1; text-transform: uppercase; letter-spacing: .03em; }
+.cta-ronda-texto span { display: block; font-size: .8rem; font-weight: 600; opacity: .85; }
+.cta-ronda-flecha { flex: none; font-size: 1.6rem; font-weight: 900; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-res, .mt-guardar { transition: none; animation: none; }
+  .mt-res:active, .mt-guardar:active, .cta-ronda:active { transform: none; }
+}

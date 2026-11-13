@@ -86,7 +86,8 @@ export function TorneosEnDirecto({ snap, meId, lang }: { snap: Snapshot; meId: s
               )}
               <div className="mt-auto flex flex-wrap gap-2 p-3">
                 {estoy && (
-                  <Link href={`/torneos/${t.id}?directo=1`} className="btn btn-brand min-h-12 flex-1 text-base">
+                  /* v0.126 — al modo torneo: es la pantalla hecha para apuntar la ronda. */
+                  <Link href={`/torneos/${t.id}/modo`} className="btn btn-brand min-h-12 flex-1 text-base">
                     <Icon name="plus" className="size-5" /> {tr(lang, "dir.apuntar")}
                   </Link>
                 )}

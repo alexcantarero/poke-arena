@@ -5,6 +5,8 @@ import { currentPlayer, loadModoTorneo } from "@/lib/data";
 import { roundResult } from "@/lib/stats";
 import { maxRondasDe } from "@/lib/estructura";
 import { ARCHETYPE_PREFIX, asStatus } from "@/lib/types";
+import { spriteUrl, typeOf } from "@/lib/pokemon";
+import { isOtherArchetype } from "@/components/ui";
 import { ModoTorneo, type OpcionMazo, type RondaVista } from "@/components/ModoTorneo";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
@@ -52,9 +54,14 @@ export default async function ModoTorneoPage({ params }: { params: Promise<{ id:
   const fijado = nombreDeMazo(d.miResultado?.deckId ?? null, d.miResultado?.archetypeId ?? null)
     || nombreDeMazo(d.misRondas[0]?.deckAId ?? null, d.misRondas[0]?.archetypeAId ?? null);
 
-  const arquetipos: OpcionMazo[] = d.arquetipos.map((a) => ({ valor: `${ARCHETYPE_PREFIX}${a.id}`, nombre: a.name }));
+  /* v0.126 — cada mazo con su sprite y el color de su tipo de energía (sin red
+     el sprite no carga y se queda el nombre con su color). */
+  const arquetipos: OpcionMazo[] = d.arquetipos.map((a) => ({
+    valor: `${ARCHETYPE_PREFIX}${a.id}`, nombre: a.name, color: typeOf(a.type).color,
+    sprite: a.main && !isOtherArchetype(a.name) ? spriteUrl(a.main) : "",
+  }));
   const misMazos: OpcionMazo[] = d.mazos.filter((m) => m.playerId === me.id && !m.retired)
-    .map((m) => ({ valor: m.id, nombre: m.name }))
+    .map((m) => ({ valor: m.id, nombre: m.name, color: "", sprite: "" }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   const frecuentes = d.masVistos.filter((a) => arqPorId.has(a)).map((a) => `${ARCHETYPE_PREFIX}${a}`);
 
@@ -62,13 +69,15 @@ export default async function ModoTorneoPage({ params }: { params: Promise<{ id:
   const tope = maxRondasDe({ kind: t.kind, playerCount: t.playerCount, rounds: t.rounds, topCut: t.topCut });
 
   return (
-    <div className="modo-torneo">
-      <div className="mb-3 flex items-center gap-2">
+    /* v0.126 — siempre en oscuro (`data-theme`), sea cual sea el tema: es una
+       pantalla tipo HUD, y en una sala con focos el oscuro deslumbra menos. */
+    <div className="modo-torneo" data-theme="dark">
+      <div className="mb-2 flex items-center gap-2">
         <span className="directo-punto" aria-hidden="true" />
-        <span className="text-xs font-bold uppercase tracking-[0.16em] text-loss">{tr(lng, "v125.modo")}</span>
+        <span className="mt-rotulo">{tr(lng, "v125.modo")}</span>
         <Link href={`/torneos/${t.id}`} className="btn btn-ghost btn-sm ml-auto">{tr(lng, "v125.ficha")}</Link>
       </div>
-      <h1 className="mb-3 font-display text-2xl font-black leading-tight">{t.name}</h1>
+      <h1 className="mt-titulo">{t.name}</h1>
       <ModoTorneo
         torneoId={t.id} playerId={me.id} abierto={estado === "open"} dropped={Boolean(d.miResultado?.dropped)}
         tope={tope} rondas={rondas} mazoFijado={fijado}

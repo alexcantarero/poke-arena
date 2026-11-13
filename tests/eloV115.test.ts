@@ -123,16 +123,20 @@ test("forma: pocas partidas restan en proporción", () => {
   assert.equal(f.forma, 1050);
 });
 
-test("forma (v0.120): a la semana empieza a bajar, poco a poco, hasta 150", () => {
-  assert.equal(penalizacionInactividad(7), 0);
-  assert.equal(penalizacionInactividad(8), 1);
-  assert.equal(penalizacionInactividad(14), 7);
-  assert.equal(penalizacionInactividad(21), 21);
-  assert.equal(penalizacionInactividad(22), 25);
+test("forma (v0.126): −15 por cada 3 días sin jugar, hasta 150", () => {
+  // v0.126 — −15 por cada 3 días completos sin jugar, hasta −150.
+  assert.equal(penalizacionInactividad(0), 0);
+  assert.equal(penalizacionInactividad(2), 0);
+  assert.equal(penalizacionInactividad(3), 15);
+  assert.equal(penalizacionInactividad(5), 15);
+  assert.equal(penalizacionInactividad(6), 30);
+  assert.equal(penalizacionInactividad(12), 60); // EL CASO DE ROL (13/11): 12 días sin jugar restaban 5
+  assert.equal(penalizacionInactividad(29), 135);
+  assert.equal(penalizacionInactividad(30), 150);
   assert.equal(penalizacionInactividad(400), 150);
   const a = formaDe(1200, Array.from({ length: 40 }, () => "2026-10-09"), "2026-11-09"); // 31 días
   assert.equal(a.diasSinJugar, 31);
-  assert.equal(a.penInactividad, 61);
+  assert.equal(a.penInactividad, 150);
   const b = formaDe(1200, ["2026-01-01"], "2026-11-09");
   assert.equal(b.penInactividad, 150);
   assert.equal(b.penPocas, 100);

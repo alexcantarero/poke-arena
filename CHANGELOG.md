@@ -2,6 +2,38 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.126.0] — 2026-11-13
+
+**Sin migración ni dependencias nuevas.** **Cambia la Forma** (la cifra del ranking y de las
+divisiones) de quien lleve 3 días o más sin jugar.
+
+Medido en producción tras pasar las funciones de Vercel de `iad1` a **`fra1`** (lo hizo Ibai en
+Settings → Functions; es configuración, no código): las páginas pasan de ~0,85 s a **~0,12 s** en
+empezar a responder, y `/api/version` de ~0,15 s a ~0,08 s.
+
+### Cambiado
+
+- **La inactividad se nota: −15 por cada 3 días completos sin jugar, hasta −150.** Antes había
+  una semana de gracia y luego −1, −2 y −4 por día: a los 12 días restaba 5 puntos. Ahora, 60.
+  Sigue sin tocar el Elo: al volver a jugar se recupera entero. `lib/forma.ts`, con prueba.
+- **La gráfica «Evolución del Elo» termina HOY, en la Forma.** Acababa en la última partida de
+  cada uno con su Elo, así que quien no jugaba seguía arriba y parecía que la inactividad no
+  restaba. Ahora la línea baja hasta hoy (y no se corta en ese tramo), y la cifra de cada chip
+  es la Forma, la misma del ranking.
+- **Modo torneo, rediseñado** (HUD oscuro con neón, siempre en oscuro): pasos numerados que se
+  ponen en verde al completarse (resultado → mazo del rival → quién empezó, opcional), teclas de
+  resultado de 5,5 rem con color, signo y texto, cada mazo con su sprite y el color de su tipo de
+  energía, y **GUARDAR en una barra fija sobre la barra inferior**, que dice lo que falta o lo que
+  se va a guardar.
+- **«Apuntar la ronda N», lo primero y en grande en la ficha del torneo en curso** (antes era un
+  botón pequeño entre otros). «Apuntar mi ronda» de Inicio lleva también al modo torneo.
+
+### Quitado
+
+- **«Pegar del localizador» de Torneos → Nuevo** (v0.124): hacía lo mismo que «Challenges y Cups
+  de la zona» del Calendario, que además crea todos los torneos de una vez. Queda ese camino. El
+  campo Dirección y el precio 0 por defecto del formulario se quedan.
+
 ## [0.125.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.** Dos bloques: rendimiento y modo torneo.

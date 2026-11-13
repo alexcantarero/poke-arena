@@ -628,18 +628,34 @@ export function eloChartData(snap: Snapshot) {
       const t = p.tournamentId ? snap.toursById.get(p.tournamentId) : undefined;
       return t ? { ...p, torneo: t.name, tipo: t.kind } : p;
     });
+  /* v0.126 — EL PUNTO DE HOY. La gráfica acababa en la última partida de cada
+     uno, con su Elo: quien llevaba semanas sin jugar seguía viéndose arriba y
+     parecía que la inactividad no restaba nada (sí restaba, pero solo en la
+     Forma del ranking). Ahora cada línea termina hoy, en su FORMA: si no has
+     jugado, la línea baja. La cifra de cada chip es también la Forma, la misma
+     del ranking. */
+  const hoy = todayISO();
+  const xHoy = (fechas.length ? fechas[fechas.length - 1][0] : 0) + 1;
   const series = snap.players
     .filter((p) => p.active && por.has(p.id))
-    .map((p, i) => ({
-      id: p.id,
-      name: p.name,
-      color: p.color || `var(--series-${(i % 7) + 1})`,
-      actual: snap.elo.rating[p.id] ?? null,
-      puntos: conTorneo(por.get(p.id)!),
-    }));
+    .map((p, i) => {
+      const f = snap.forma[p.id];
+      const puntos = conTorneo(por.get(p.id)!);
+      const resta = f ? f.penPocas + f.penInactividad : 0;
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color || `var(--series-${(i % 7) + 1})`,
+        actual: f?.forma ?? snap.elo.rating[p.id] ?? null,
+        puntos: f
+          ? [...puntos, { t: xHoy, elo: f.forma, hoy: true, ...(resta ? { delta: -resta } : {}),
+            torneo: f.diasSinJugar ? `hoy · ${f.diasSinJugar} días sin jugar` : "hoy" }]
+          : puntos,
+      };
+    });
   // Con el eje en nº de partida, el corte del Elo ya está fuera (las partidas
   // anteriores no cuentan): no hay línea de reset que pintar.
-  return { series, resets: [] as number[], fechas };
+  return { series, resets: [] as number[], fechas: [...fechas, [xHoy, hoy] as [number, string]] };
 }
 
 /* ================================================================ v0.23 -- */

@@ -30,7 +30,8 @@ export type SerieLadder = {
   color: string;
   /** Rango actual (null si no tiene: p. ej. tras un reset). */
   actual: number | null;
-  puntos: Array<{ t: number; elo: number | null; matchId?: string | null; delta?: number | null; torneo?: string; tipo?: string }>;
+  /** `hoy` (v0.126): el último punto del Elo, la Forma de hoy; la línea llega hasta él aunque haya un hueco largo. */
+  puntos: Array<{ t: number; elo: number | null; matchId?: string | null; delta?: number | null; torneo?: string; tipo?: string; hoy?: boolean }>;
 };
 
 const EJE = { fontSize: 11, fill: "var(--muted)" } as const;
@@ -129,7 +130,8 @@ export function LadderChart({
     pts.forEach((p, i) => {
       if (i > 0) {
         const a = fechaPunto(pts[i - 1].t), b = fechaPunto(p.t);
-        if (a && b && (Date.parse(b) - Date.parse(a)) / 86400000 > HUECO_DIAS) {
+        // v0.126 — hasta el punto de HOY no se corta: esa bajada es justo lo que hay que ver.
+        if (!p.hoy && a && b && (Date.parse(b) - Date.parse(a)) / 86400000 > HUECO_DIAS) {
           out.push({ t: (pts[i - 1].t + p.t) / 2, elo: null });
         }
       }
