@@ -15,7 +15,8 @@
 
 const DIA = 86_400_000;
 
-export const LADDER_CADA_DIAS = 7;
+/* v0.131 — cada 3 días (era una vez por semana): pedido por Ibai, para que el ladder y su bonus de Forma estén al día. */
+export const LADDER_CADA_DIAS = 3;
 export const NICK_POSPONER_DIAS = 1;
 
 const ms = (x: string | Date | null | undefined): number | null => {

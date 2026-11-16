@@ -313,8 +313,10 @@ export const loadSnapshot = cache(async () => {
         eloCache ??= eloTable(matchesFull, playerRows, config, tourWeights);
         const hoy = todayISO();
         const out: Record<string, Forma> = {};
+        // v0.131 — con el rango del ladder de cada uno: llegar a una etapa suma a la Forma.
+        const ladder = new Map<string, number | null>(playerRows.map((p) => [p.id, p.ladderElo ?? null]));
         for (const id of Object.keys(eloCache.rating)) {
-          out[id] = formaDe(eloCache.rating[id], eloCache.actividad[id] ?? [], hoy);
+          out[id] = formaDe(eloCache.rating[id], eloCache.actividad[id] ?? [], hoy, ladder.get(id));
         }
         formaCache = out;
       }
@@ -641,7 +643,7 @@ export function eloChartData(snap: Snapshot) {
     .map((p, i) => {
       const f = snap.forma[p.id];
       const puntos = conTorneo(por.get(p.id)!);
-      const resta = f ? f.penPocas + f.penInactividad : 0;
+      const resta = f ? f.penPocas + f.penInactividad - f.bonusLadder : 0;
       return {
         id: p.id,
         name: p.name,
@@ -1101,4 +1103,27 @@ export const loadModoTorneo = cache(async (torneoId: string, playerId: string) =
     /** Ids de arquetipo rival, del más visto al menos. */
     masVistos: vistos.map((v) => v.a).filter((x): x is string => Boolean(x)),
   };
+});
+
+/* =========================================================================
+   v0.131 — Para el centro de avisos: los torneos pasados (últimos 30 días) a
+   los que este jugador dijo «iré» y en los que no tiene resultado. Una
+   consulta pequeña; va en el layout, en la misma tanda que las demás.
+   ========================================================================= */
+export const torneosSinResultadoDe = cache(async (playerId: string): Promise<Array<{ id: string; nombre: string; fecha: string }>> => {
+  try {
+    const hoy = todayISO();
+    const desde = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const filas = await db.select({ id: tournaments.id, nombre: tournaments.name, fecha: tournaments.date })
+      .from(tournaments)
+      .where(sql`${tournaments.date} < ${hoy} AND ${tournaments.date} >= ${desde}
+        AND EXISTS (SELECT 1 FROM ${asistencias} WHERE ${asistencias.playerId} = ${playerId} AND ${asistencias.estado} = 'si'
+          AND ${asistencias.item} = 'torneo:' || ${tournaments.id})
+        AND NOT EXISTS (SELECT 1 FROM ${tournamentResults} WHERE ${tournamentResults.tournamentId} = ${tournaments.id} AND ${tournamentResults.playerId} = ${playerId})`)
+      .orderBy(desc(tournaments.date))
+      .limit(10);
+    return filas;
+  } catch {
+    return []; // sin la tabla de asistencias (migración 0030), no hay aviso
+  }
 });

@@ -2,6 +2,37 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.131.0] — 2026-11-16
+
+**Sin migración ni dependencias nuevas.** **Cambia la Forma** de quien tenga 1500 o más en el
+ladder (sube).
+
+### Añadido
+
+- **Centro de avisos** (`/avisos`, con una **campana y su contador** en el menú lateral y en la
+  cabecera del móvil): todo lo pendiente en un sitio. Te falta el resultado de un torneo al que
+  dijiste «iré» (últimos 30 días), tus partidas de liga sin resultado, el ladder, un reset
+  reciente, la inscripción a la liga y el nick de Limitless. No hay nada guardado: cada aviso se
+  deduce del estado real y desaparece al hacer lo que pide (`lib/avisos.ts`, 4 pruebas). No es
+  una notificación push del sistema.
+- **El ladder suma a la Forma**: al llegar a 1500 (+10), 1600 (+25), 1700 (+40), 1800 (+70),
+  1900 (+100) y 2000 (+150). Cuenta la etapa más alta que alcanza el rango que tienes puesto
+  ahora (no se suman entre sí); si bajas de la etapa o hay reset del ladder, el bonus se va. No
+  toca el Elo. `bonusLadder` en `lib/forma.ts`, con prueba.
+- **CP por puesto en la ficha del torneo** (mientras no esté cerrado): lo que da cada posición
+  con la gente apuntada, hasta qué puesto se puntúa y cuántos jugadores faltan para que pague el
+  tramo siguiente. Con enlace a la calculadora suiza. `tablaDePremios` en `lib/cp.ts` (4
+  pruebas, una de ellas fija las tablas de 2027 de Challenge y Cup contra las oficiales).
+- **CP totales en «Camino al Mundial»** (Ranking): junto al puesto de Europa y España, los CP de
+  la temporada de cada uno.
+
+### Cambiado
+
+- **El recordatorio del ladder pasa de una vez por semana a cada 3 días**, y «Recordar la semana
+  que viene» pasa a «Recordar en 3 días».
+- **Añadir participante a un torneo** (organizadores): el nombre se **escribe**, con
+  sugerencias, en vez de buscarlo en un desplegable de 38 personas.
+
 ## [0.130.0] — 2026-11-13
 
 **Sin migración ni dependencias nuevas.**

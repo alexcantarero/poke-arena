@@ -35,7 +35,9 @@ import { AvisosJugador } from "@/components/AvisosJugador";
 import { DiscordMarca } from "@/components/DiscordMarca";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
-import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig } from "@/lib/data";
+import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig, torneosSinResultadoDe } from "@/lib/data";
+import { avisosDe } from "@/lib/avisos";
+import { resetReciente, tocaRecordarLadder } from "@/lib/recordatorios";
 import { leerLogros } from "@/lib/logros";
 import type { Lang } from "@/lib/i18n";
 import { logout } from "@/actions";
@@ -62,12 +64,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      tira. El título del perfil, que es lo único caro, va aparte y no bloquea
      (`TituloBarra`, en un <Suspense>). */
   const pid = session.playerId;
-  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga] = await Promise.all([
+  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga, sinResultado] = await Promise.all([
     currentPlayer(), loadConfig(), getLang(), cookies(),
     estadoTutoriales(pid), // v0.60 y v0.61, en una consulta
     cargarPendientesDe(pid), // v0.54 — mis partidas sin resultado: el número del menú.
     usoLigeroDeJugador(pid, null), // v0.94 — los logros se cuentan abajo, con la fila del jugador
     avisoLigaPara(pid), // v0.116 — la inscripción a la liga, si no te has apuntado
+    torneosSinResultadoDe(pid), // v0.131 — dijiste «iré» y no hay resultado
   ]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
@@ -76,6 +79,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!me) redirect("/entrar");
   const verTutorial = tutoriales.pendiente, paginasVistas = tutoriales.vistos;
   const usoLigero = { ...conteoUso, logros: leerLogros(me.logros).length };
+  /* v0.131 — cuántos avisos tiene (la campana). La misma cuenta que la página
+     `/avisos`, con lo que este layout ya ha leído: ni una consulta más que la
+     de los torneos sin resultado. */
+  const ahoraMs = Date.now();
+  const nAvisos = avisosDe({
+    playerId: me.id, torneosSinResultado: sinResultado, pendientesLiga: misPendientes.length,
+    resetLadder: me.ladderElo == null && resetReciente(cfg.ladderSince, ahoraMs),
+    ladderToca: tocaRecordarLadder(me.ladderEloUpdatedAt, null, ahoraMs),
+    inscripcion: avisoLiga, faltaNick: !(me.limitlessHandle ?? "").trim(),
+  }).length;
+  const campana = (
+    <Link href="/avisos" className="campana" aria-label={nAvisos ? `${tr(lang, "v131.avisos")}: ${nAvisos}` : tr(lang, "v131.avisos")} title={tr(lang, "v131.avisos")}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" /><path d="M10 20a2 2 0 0 0 4 0" />
+      </svg>
+      {nAvisos > 0 && <span className="campana-n">{nAvisos > 9 ? "9+" : nAvisos}</span>}
+    </Link>
+  );
   const estacion = estacionDe(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()));
   const ballUso = nivelDeUso(usoLigero);
   const nombreBall = tr(lang, `logro.ball.${ballUso.nivel.ball}`);
@@ -150,6 +171,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 {/* v0.124 — el icono de Discord en vez de la palabra. */}
                 <DiscordMarca etiqueta={tr(lang, "dc.discord")} />
               </Link>
+              {campana}
               {conIngles && <LangToggle lang={lang} />}
               <ThemeToggle />
               <form action={logout}>
@@ -183,7 +205,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             <span aria-hidden="true">{estacion.emblema}</span>
           </SeasonPokemonTrigger>
-          {conIngles && <LangToggle lang={lang} />}
+          {campana}
+              {conIngles && <LangToggle lang={lang} />}
           <ThemeToggle />
           <Link className="btn btn-ghost btn-sm px-2" href="/mas" aria-label={tr(lang, "nav.moreSections")} data-tour="mas">
             <Icon name="more" className="size-5" />

@@ -215,3 +215,17 @@ test("v0.124 — EL CASO DE LA CUP: con 1300 de Elo, ganar una ronda ya no da 6 
   const bajo = eloTable([...previas, m({ playerAId: "a", tournamentId: "cup", seriesResult: "a", date: "2026-09-01" })], players, { ...cfg, eloStart: 900 }, torneos).history.a;
   assert.ok(bajo[bajo.length - 1].delta! > 19 && bajo[bajo.length - 1].delta! < 21);
 });
+
+test("v0.131 — el ladder suma a la Forma: el bonus de la etapa más alta alcanzada", async () => {
+  const { bonusLadder, formaDe } = await import("../src/lib/forma.ts");
+  assert.deepEqual([null, 550, 1499, 1500, 1577, 1600, 1799, 1800, 1999, 2000, 2400].map((r) => bonusLadder(r)),
+    [0, 0, 0, 10, 10, 25, 40, 70, 100, 150, 150]);
+  const hoy = "2026-11-16";
+  const fechas = Array.from({ length: 12 }, () => "2026-11-15");
+  const sin = formaDe(1300, fechas, hoy);
+  const con = formaDe(1300, fechas, hoy, 1820);
+  assert.deepEqual([sin.bonusLadder, con.bonusLadder, con.forma - sin.forma], [0, 70, 70]);
+  // El bonus no tapa la inactividad: se suman las dos cosas.
+  const parado = formaDe(1300, ["2026-11-04"], hoy, 1600);
+  assert.equal(parado.forma, 1300 - parado.penPocas - parado.penInactividad + 25);
+});

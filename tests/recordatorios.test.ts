@@ -4,12 +4,13 @@ import { resetReciente, tocaAvisarReset, tocaPedirNick, tocaRecordarLadder } fro
 
 const ahora = Date.parse("2026-11-09T12:00:00Z");
 
-test("ladder: nunca puesto o de hace 7 días → recordar; pospuesto → 7 días de silencio", () => {
+test("ladder: nunca puesto o de hace 3 días → recordar; pospuesto → 3 días de silencio", () => {
   assert.equal(tocaRecordarLadder(null, null, ahora), true);
-  assert.equal(tocaRecordarLadder("2026-11-05T10:00:00Z", null, ahora), false);
-  assert.equal(tocaRecordarLadder("2026-11-02T11:00:00Z", null, ahora), true);
+  // v0.131 — cada 3 días (era una vez por semana).
+  assert.equal(tocaRecordarLadder("2026-11-07T10:00:00Z", null, ahora), false);
+  assert.equal(tocaRecordarLadder("2026-11-05T10:00:00Z", null, ahora), true);
   assert.equal(tocaRecordarLadder(null, "2026-11-08T10:00:00Z", ahora), false);
-  assert.equal(tocaRecordarLadder(null, "2026-11-01T10:00:00Z", ahora), true);
+  assert.equal(tocaRecordarLadder(null, "2026-11-05T10:00:00Z", ahora), true);
   assert.equal(tocaRecordarLadder(new Date("2026-11-08T10:00:00Z"), null, ahora), false);
 });
 

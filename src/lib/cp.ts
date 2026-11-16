@@ -175,6 +175,56 @@ export function tierFor(
   return null;
 }
 
+/* =========================================================================
+   v0.131 — La tabla de premios de UN torneo: qué da cada puesto con la gente
+   que hay apuntada, hasta qué puesto se puntúa y cuánta gente falta para que
+   pague el tramo siguiente. Es lo que se quiere saber antes de la ronda 1:
+   «¿cómo tengo que quedar, como mínimo, para llevarme puntos?».
+
+   Sale de las mismas tablas y del mismo kicker que `tierFor`, así que no
+   puede decir otra cosa que lo que luego se cobra. Las tablas de 2027 de
+   Challenge y Cup se contrastaron con las oficiales el 16/11/2026.
+   ========================================================================= */
+export type FilaPremio = {
+  from: number; to: number; cp: number;
+  /** Gente que hace falta para que este tramo pague (0 = siempre). */
+  minPlayers: number;
+  /** ¿Paga con la asistencia actual? */
+  cobra: boolean;
+  /** Jugadores que faltan para que pague (0 si ya paga o si no se sabe la asistencia). */
+  faltan: number;
+  invite: boolean;
+};
+export type TablaPremios = {
+  filas: FilaPremio[];
+  /** El último puesto que se lleva puntos con esta asistencia; null si ninguno. */
+  ultimoPuesto: number | null;
+  /** El primer tramo que todavía no paga, si lo hay. */
+  siguiente: FilaPremio | null;
+  /** false cuando no se ha apuntado cuánta gente hay: solo se sabe lo que paga siempre. */
+  conAsistencia: boolean;
+};
+
+export function tablaDePremios(season: number, kind: string, playerCount: number | null | undefined): TablaPremios | null {
+  const def = resolveEventDef(season, kind);
+  if (!def?.tiers?.length) return null;
+  const hay = playerCount != null && playerCount > 0;
+  const n = hay ? playerCount! : 0;
+  const filas: FilaPremio[] = def.tiers.map((t) => {
+    const cobra = t.minPlayers <= 0 || n >= t.minPlayers;
+    return { from: t.from, to: t.to, cp: t.cp, minPlayers: t.minPlayers, cobra, faltan: cobra || !hay ? 0 : t.minPlayers - n, invite: Boolean(t.invite) };
+  });
+  const pagan = filas.filter((f) => f.cobra);
+  const ultimo = pagan.length ? Math.max(...pagan.map((f) => f.to)) : null;
+  return {
+    filas,
+    // No se puede quedar más abajo que el último: con 20 personas, el tramo 17–32 llega hasta el 20.º.
+    ultimoPuesto: ultimo == null ? null : hay ? Math.min(ultimo, n) : ultimo,
+    siguiente: filas.find((f) => !f.cobra) ?? null,
+    conAsistencia: hay,
+  };
+}
+
 /**
  * CP que corresponden a un puesto, aplicando el kicker de asistencia.
  * Devuelve null cuando no se puede calcular (tipo sin tabla, sin puesto).

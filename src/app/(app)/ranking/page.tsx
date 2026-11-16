@@ -607,6 +607,11 @@ export default async function RankingPage({
                         </span>
                       )}
                     </span>
+                    {/* v0.131 — sus CP totales de la temporada (los que calcula la app), junto al puesto. */}
+                    <span className="flex w-12 flex-none flex-col items-center text-center xs:w-14">
+                      <span className="font-display text-lg font-extrabold leading-none tabular text-brand-strong">{playerCp(snap, p.id).total}</span>
+                      <span className="text-[10px] text-muted">CP</span>
+                    </span>
                     <span className="flex w-14 flex-none flex-col items-center text-center xs:w-16">
                       <span className="font-display text-lg font-extrabold leading-none tabular">
                         {p.rankEurope != null ? `${p.rankEurope}.º` : "—"}

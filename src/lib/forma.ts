@@ -50,10 +50,31 @@ export type Forma = {
   diasSinJugar: number | null;
   penPocas: number;
   penInactividad: number;
+  /** v0.131 — lo que suma el rango del ladder (0 si no llega a la primera etapa). */
+  bonusLadder: number;
 };
 
-/** La Forma de un jugador con su Elo y las fechas de sus partidas que contaron. */
-export function formaDe(elo: number, fechas: string[], hoy: string): Forma {
+/* v0.131 — EL LADDER SUMA. Quien sube en el ladder del juego ha estado
+   entrenando en competitivo, y eso es actividad aunque no sean partidas de la
+   liga. Pedido por Ibai con estas cifras: al llegar a cada etapa, la Forma
+   lleva este bonus (el de la etapa más alta alcanzada, no la suma de todas).
+   Sale del rango que cada uno tiene puesto AHORA: si baja de la etapa o llega
+   un reset del ladder (que deja a todos sin rango), el bonus se va con él.
+   No toca el Elo. */
+export const FORMA_LADDER: ReadonlyArray<readonly [rango: number, bonus: number]> = [
+  [1500, 10], [1600, 25], [1700, 40], [1800, 70], [1900, 100], [2000, 150],
+];
+
+/** El bonus de Forma que da un rango del ladder (0 por debajo de la primera etapa o sin rango). */
+export function bonusLadder(rango: number | null | undefined): number {
+  if (rango == null || !Number.isFinite(rango)) return 0;
+  let bonus = 0;
+  for (const [etapa, b] of FORMA_LADDER) if (rango >= etapa) bonus = b;
+  return bonus;
+}
+
+/** La Forma de un jugador con su Elo y las fechas de sus partidas que contaron (y, v0.131, su rango del ladder). */
+export function formaDe(elo: number, fechas: string[], hoy: string, rangoLadder?: number | null): Forma {
   const th = t(hoy);
   const validas = fechas.filter((f) => f && !Number.isNaN(t(f)) && t(f) <= th);
   const recientes = validas.filter((f) => th - t(f) < FORMA_VENTANA_DIAS * DIA).length;
@@ -63,5 +84,6 @@ export function formaDe(elo: number, fechas: string[], hoy: string): Forma {
   const penInactividad = diasSinJugar == null
     ? FORMA_MAX_INACTIVIDAD
     : penalizacionInactividad(diasSinJugar);
-  return { forma: Math.round(elo - penPocas - penInactividad), elo, recientes, diasSinJugar, penPocas, penInactividad };
+  const bonus = bonusLadder(rangoLadder);
+  return { forma: Math.round(elo - penPocas - penInactividad + bonus), elo, recientes, diasSinJugar, penPocas, penInactividad, bonusLadder: bonus };
 }

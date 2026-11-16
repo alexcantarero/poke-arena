@@ -15,7 +15,7 @@ import {
   deckOptions,
   loadSnapshot,
 } from "@/lib/data";
-import { awardsCp, cpKindOf, effectiveCp, getSeason, tierFor } from "@/lib/cp";
+import { awardsCp, cpKindOf, effectiveCp, getSeason, tablaDePremios, tierFor } from "@/lib/cp";
 import { fmtDateLong, todayISO } from "@/lib/format";
 import { recordOf, roundsOf } from "@/lib/stats";
 import { clasificacionDirecto, recordTexto } from "@/lib/enDirecto";
@@ -122,6 +122,8 @@ export default async function TournamentPage({
     cpManual: boolean;
   }) => effectiveCp(season, cpKind, r, t.playerCount);
   const totalCp = t.results.reduce((a, r) => a + cpDe(r), 0);
+  // v0.131 — lo que da cada puesto con la asistencia apuntada (null si este tipo de torneo no da CP).
+  const premios = tablaDePremios(season, cpKind, t.playerCount);
 
   // Mis rondas. El récord sale de ellas, nunca se teclea.
   const myRounds = me ? roundsOf(snap.matches, t.id, me.id) : [];
@@ -217,9 +219,14 @@ export default async function TournamentPage({
       .filter((p) => p.active && !participantIds.has(p.id))
       .sort((a, b) => a.name.localeCompare(b.name, "es"))
     : [];
-  const anadido = manager && status !== "draft" && q.anadir && candidatos.some((p) => p.id === q.anadir)
-    ? q.anadir
-    : null;
+  /* v0.131 — `anadir` puede traer el id (enlaces de antes) o el NOMBRE, que es
+     lo que ahora se escribe: exacto primero y, si no, el único que empiece así. */
+  const pedido = (q.anadir ?? "").trim().toLowerCase();
+  const porNombre = pedido
+    ? candidatos.find((p) => p.id === q.anadir || p.name.toLowerCase() === pedido)
+      ?? (() => { const c = candidatos.filter((p) => p.name.toLowerCase().startsWith(pedido)); return c.length === 1 ? c[0] : undefined; })()
+    : undefined;
+  const anadido = manager && status !== "draft" && porNombre ? porNombre.id : null;
   if (anadido) participantIds.add(anadido);
 
   /* v0.16 — Panel de organizador en el bloque de cada jugador: apuntarle la
@@ -756,6 +763,39 @@ export default async function TournamentPage({
         </Link>
       )}
 
+      {/* v0.131 — CP POR PUESTO: qué da cada posición con la gente que hay, hasta
+          qué puesto se puntúa y cuánta gente falta para el tramo siguiente. */}
+      {premios && status !== "closed" && (
+        <section className="card mb-5 p-4" aria-labelledby="premios-cp">
+          <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="premios-cp" className="font-display text-lg font-bold">{tr(lng, "v131.premios")}</h2>
+            <span className="text-sm text-muted">
+              {premios.conAsistencia
+                ? trf(lng, "v131.premiosCon", { n: t.playerCount ?? 0 })
+                : tr(lng, "v131.premiosSin")}
+            </span>
+            <Link href="/herramientas" className="btn btn-ghost btn-sm ml-auto">{tr(lng, "v131.calculadora")}</Link>
+          </div>
+          <div className="premios-cp">
+            {premios.filas.map((f) => (
+              <div key={f.from} data-cobra={f.cobra}>
+                <b className={f.cobra ? "text-win" : ""}>{f.cp}</b>
+                <span>{f.from === f.to ? `${f.from}.º` : `${f.from}–${f.to}.º`}</span>
+                {!f.cobra && <span>{trf(lng, "v131.desde", { n: f.minPlayers })}</span>}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-sm">
+            {premios.ultimoPuesto != null && premios.conAsistencia && (
+              <b>{trf(lng, "v131.puntuaHasta", { n: premios.ultimoPuesto })} </b>
+            )}
+            {premios.siguiente && premios.conAsistencia && (
+              <span className="text-muted">{trf(lng, "v131.faltanPara", { n: premios.siguiente.faltan, a: premios.siguiente.from, b: premios.siguiente.to, cp: premios.siguiente.cp })}</span>
+            )}
+          </p>
+        </section>
+      )}
+
       {/* v0.90 — el resumen de TU torneo cuando está cerrado, para compartir. */}
       {me && status === "closed" && myRounds.some((r) => r.result) && (() => {
         const rs = resumenTorneo(myRounds.filter((r) => r.result).map((r) => {
@@ -929,10 +969,13 @@ export default async function TournamentPage({
                     {fase !== "dia1" && <input type="hidden" name="fase" value={fase} />}
                     <label className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <span className="label">{tr(lang, "tour.addPlayerPick")}</span>
-                      <select className="input" name="anadir" required defaultValue={anadido ?? ""}>
-                        <option value="" disabled>—</option>
-                        {candidatos.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
+                      {/* v0.131 — se ESCRIBE el nombre (con 38 jugadores, el desplegable era
+                          eterno); la lista sugiere mientras se teclea. Sin JavaScript. */}
+                      <input className="input" name="anadir" required list="candidatos-torneo" autoComplete="off"
+                        defaultValue={anadido ? snap.playersById.get(anadido)?.name ?? "" : ""} placeholder={tr(lang, "v131.escribeNombre")} />
+                      <datalist id="candidatos-torneo">
+                        {candidatos.map((p) => <option key={p.id} value={p.name} />)}
+                      </datalist>
                     </label>
                     <button className="btn btn-brand" type="submit">{tr(lang, "tour.addPlayerGo")}</button>
                   </form>
