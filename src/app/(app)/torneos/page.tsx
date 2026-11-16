@@ -208,11 +208,22 @@ export default async function TournamentsPage({
             </label>
             <label className="col-span-2 flex flex-col gap-1 sm:col-span-1">
               <span className="label">{tr(lng, "loc.mazo")}</span>
-              <select className="input" name="arquetipo" required defaultValue="">
-                <option value="" disabled>—</option>
-                {[...arquetiposLista].sort((a, b) => a.name.localeCompare(b.name)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              {/* v0.133 — se ESCRIBE el nombre (hay más de cien arquetipos); la lista sugiere al teclear. */}
+              <input className="input" name="arquetipo" required list="arquetipos-locales" autoComplete="off" placeholder={tr(lng, "v133.escribeMazo")} />
+              <datalist id="arquetipos-locales">
+                {[...arquetiposLista].sort((a, b) => a.name.localeCompare(b.name)).map((a) => <option key={a.id} value={a.name} />)}
+              </datalist>
             </label>
+            {/* v0.133 — el récord, si se sabe: rondas ganadas, perdidas y empatadas. */}
+            <fieldset className="col-span-2 flex flex-col gap-1 sm:col-span-3">
+              <legend className="label mb-1">{tr(lng, "v133.record")}</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {([["v", "v133.ganadas"], ["d", "v133.perdidas"], ["e", "v133.empatadas"]] as const).map(([n, k]) => (
+                  <input key={n} className="input text-center tabular" type="number" name={n} min={0} max={20} inputMode="numeric"
+                    placeholder={tr(lng, k)} aria-label={tr(lng, k)} />
+                ))}
+              </div>
+            </fieldset>
             <button className="btn btn-brand col-span-2 sm:col-span-3" type="submit">{tr(lng, "loc.guardar")}</button>
           </form>
         </details>

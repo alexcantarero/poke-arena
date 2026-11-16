@@ -2415,3 +2415,29 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .premios-cp > div[data-cobra="false"] { opacity: .55; border-style: dashed; }
 .premios-cp b { display: block; font-family: var(--font-display); font-size: 1.35rem; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .premios-cp span { display: block; font-size: .72rem; color: var(--muted); }
+
+/* =========================================================================
+   v0.133 — LAS GRÁFICAS DE LÍNEAS COMO UN CUADRO DE MANDO (Elo y ladder):
+   panel oscuro con rejilla fina, líneas con brillo y una tira de cifras
+   arriba (quién va primero, quién sube y quién baja). Siempre en oscuro
+   (`data-theme="dark"` en el contenedor), como el modo torneo.
+   ========================================================================= */
+.bi-chart {
+  margin: .5rem .5rem .25rem; border-radius: .9rem; color: var(--ink);
+  border: 1px solid rgb(34 230 255 / .22);
+  background:
+    radial-gradient(110% 60% at 100% 0%, rgb(34 230 255 / .10), transparent 60%),
+    radial-gradient(90% 50% at 0% 100%, rgb(255 79 163 / .08), transparent 60%),
+    linear-gradient(rgb(255 255 255 / .03) 1px, transparent 1px) 0 0 / 100% 24px,
+    #070b16;
+}
+.bi-chart .recharts-line-curve { filter: drop-shadow(0 0 4px rgb(255 255 255 / .28)); }
+.bi-chart .recharts-cartesian-axis-tick text { fill: #9fb0d0; font-family: var(--font-mono); font-size: 10.5px; }
+.bi-chart .recharts-cartesian-axis-line, .bi-chart .recharts-cartesian-axis-tick-line { stroke: rgb(34 230 255 / .3); }
+.bi-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .5rem; margin-bottom: .6rem; }
+.bi-cifras > div { padding: .45rem .6rem .5rem; border: 1px solid rgb(34 230 255 / .2); border-radius: .5rem; background: rgb(13 20 38 / .8);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); }
+.bi-cifras span { display: block; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: #9fb0d0; }
+.bi-cifras b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; line-height: 1.15; margin-right: .4rem; }
+.bi-cifras i { font-style: normal; font-family: var(--font-display); font-size: 1.15rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .bi-chart .recharts-line-curve { filter: none; } }

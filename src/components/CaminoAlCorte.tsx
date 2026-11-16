@@ -46,6 +46,8 @@ export type RondaJugada = {
 };
 
 type Props = {
+  /** v0.133 — empezar plegado (la ficha del torneo); lo que el usuario elija después se recuerda. */
+  plegado?: boolean;
   /** Tipo de torneo. Decide cuál de las tres tablas del reglamento se usa. */
   kind: string;
   playerCount: number | null | undefined;
@@ -83,11 +85,12 @@ export type Pestana = "dia1" | "dia2" | "general";
 export function CaminoAlCorte({
   kind, playerCount, rondas, rondasTotales, topCut, rondasFase2,
   paso2Puntos, paso2Top, cortePuntos, storageKey = "camino",
-  pestana: pestanaUrl, hrefFase,
+  pestana: pestanaUrl, hrefFase, plegado = false,
 }: Props) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
-  const [abierto, setAbierto] = useState(true);
+  // v0.133 — en la ficha llega plegado (ocupaba media pantalla); quien lo abra, se le recuerda.
+  const [abierto, setAbierto] = useState(!plegado);
   const [pestanaLocal, setPestana] = useState<Pestana>(pestanaUrl ?? "dia1");
   const pestana = pestanaUrl ?? pestanaLocal;
 

@@ -11,6 +11,7 @@ import {
   consistencia, premiosDeCarta, premiosDeDos, probCorteDesde, simularSuizo, type ResultadoSuizo,
 } from "@/lib/herramientas";
 import { estructuraDe, TOP_CUT_MAXIMO_TCG } from "@/lib/estructura";
+import { latestSeason, tablaDePremios } from "@/lib/cp";
 import { pct } from "@/lib/format";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -45,7 +46,10 @@ function Campo({ label, value, onChange, min = 0, max = 9999, ayuda }: {
   );
 }
 
-export function Herramientas({ mazos, inicial, mazoInicial, datos }: { mazos: MazoHerramienta[]; inicial?: string; mazoInicial?: string; datos?: DatosRecomendador | null }) {
+/** v0.133 — con qué abrir la calculadora suiza cuando se llega desde un torneo. */
+export type SuizaInicial = { tipo?: string; jugadores?: number; v?: number; d?: number; e?: number; temporada?: number };
+
+export function Herramientas({ mazos, inicial, mazoInicial, datos, suiza }: { suiza?: SuizaInicial; mazos: MazoHerramienta[]; inicial?: string; mazoInicial?: string; datos?: DatosRecomendador | null }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
   const [pestana, setPestana] = useState<Pestana>(
     inicial === "suiza" || inicial === "consistencia" || inicial === "premios" || inicial === "manos" ? inicial : mazoInicial ? "manos" : "recomendador");
@@ -74,7 +78,7 @@ export function Herramientas({ mazos, inicial, mazoInicial, datos }: { mazos: Ma
         ))}
       </nav>
       {pestana === "recomendador" && <Recomendador datos={datos ?? null} />}
-      {pestana === "suiza" && <Suiza />}
+      {pestana === "suiza" && <Suiza inicial={suiza} />}
       {pestana === "consistencia" && <ConsistenciaPanel />}
       {pestana === "premios" && <PremiosPanel />}
       {pestana === "manos" && <Manos mazos={mazos} mazoInicial={mazoInicial} />}
@@ -88,19 +92,24 @@ const TIPOS = [
   ["", "hr.sz.tipoLibre"], ["league_challenge", "hr.sz.challenge"], ["league_cup", "hr.sz.cup"], ["regional", "hr.sz.regional"],
 ] as const;
 
-function Suiza() {
+function Suiza({ inicial }: { inicial?: SuizaInicial }) {
   const lng = useLang(); // v0.49
-  const [tipo, setTipo] = useState<string>("league_cup");
-  const [jugadores, setJugadores] = useState("32");
+  /* v0.133 — desde la ficha de un torneo llega ya rellena (tipo, gente y tu
+     récord) y calcula sola: allí solo queda un enlace, no el bloque entero. */
+  const tipoInicial = inicial?.tipo && TIPOS.some(([k]) => k === inicial.tipo) ? inicial.tipo : inicial?.tipo ? "" : "league_cup";
+  const [tipo, setTipo] = useState<string>(tipoInicial);
+  const [jugadores, setJugadores] = useState(String(inicial?.jugadores ?? 32));
   const [rondasLibre, setRondasLibre] = useState("5");
   const [corteLibre, setCorteLibre] = useState("8");
   const [empate, setEmpate] = useState("3");
   const [res, setRes] = useState<ResultadoSuizo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [calculando, setCalculando] = useState(false);
-  const [v, setV] = useState("0"), [d, setD] = useState("0"), [e, setE] = useState("0");
+  const [v, setV] = useState(String(inicial?.v ?? 0)), [d, setD] = useState(String(inicial?.d ?? 0)), [e, setE] = useState(String(inicial?.e ?? 0));
 
   const N = Math.round(n(jugadores));
+  // v0.133 — los CP de cada puesto con esa gente (misma tabla y mismo kicker que la ficha del torneo).
+  const premios = tipo ? tablaDePremios(inicial?.temporada ?? latestSeason(), tipo, N) : null;
   const est = tipo ? estructuraDe(N, tipo) : null;
   const rondas = est ? est.total : Math.round(n(rondasLibre));
   const corte = est ? est.topCut : Math.round(n(corteLibre));
@@ -119,6 +128,10 @@ function Suiza() {
       setRes(r); setCalculando(false);
     }, 20);
   };
+
+  // v0.133 — si viene de un torneo, la simulación arranca sola.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (inicial?.jugadores) calcular(); }, []);
 
   const ptsAhora = Math.round(n(v)) * 3 + Math.round(n(e));
   const jugadas = Math.round(n(v)) + Math.round(n(d)) + Math.round(n(e));
@@ -143,6 +156,23 @@ function Suiza() {
         {!est && <Campo label={tr(lng, "hr.sz.corte")} value={corteLibre} onChange={(x) => { setCorteLibre(x); setRes(null); }} min={0} max={512} />}
         <Campo label={tr(lng, "hr.sz.empates")} value={empate} onChange={(x) => { setEmpate(x); setRes(null); }} min={0} max={50} ayuda={tr(lng, "hr.sz.empatesAyuda")} />
       </div>
+      {premios && N > 0 && (
+        <div>
+          <p className="label mb-1.5">
+            {tr(lng, "v131.premios")}
+            {premios.ultimoPuesto != null && <span className="ml-2 font-normal normal-case text-muted">{trf(lng, "v131.puntuaHasta", { n: premios.ultimoPuesto })}</span>}
+          </p>
+          <div className="premios-cp">
+            {premios.filas.map((f) => (
+              <div key={f.from} data-cobra={f.cobra}>
+                <b className={f.cobra ? "text-win" : ""}>{f.cp}</b>
+                <span>{f.from === f.to ? `${f.from}.º` : `${f.from}–${f.to}.º`}</span>
+                {!f.cobra && <span>{trf(lng, "v131.desde", { n: f.minPlayers })}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {est && (
         <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-2">
           {est.umbral != null

@@ -10,7 +10,7 @@ import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Herramientas" };
 
-export default async function HerramientasPage({ searchParams }: { searchParams: Promise<{ h?: string; mazo?: string }> }) {
+export default async function HerramientasPage({ searchParams }: { searchParams: Promise<{ h?: string; mazo?: string; tipo?: string; jug?: string; v?: string; d?: string; e?: string; t?: string }> }) {
   const lng = await getLang(); // v0.49
   const q = await searchParams;
   const [snap, me] = await Promise.all([loadSnapshot(), currentPlayer()]);
@@ -26,7 +26,13 @@ export default async function HerramientasPage({ searchParams }: { searchParams:
   return (
     <>
       <PageHead title={tr(lng, "hr.titulo")} sub={tr(lng, "hr.sub")} />
-      <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} datos={datos} />
+      <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} datos={datos}
+        /* v0.133 — desde un torneo: la calculadora suiza ya rellena. */
+        suiza={q.jug && Number(q.jug) > 0 ? {
+          tipo: (q.tipo ?? "").slice(0, 30), jugadores: Math.min(5000, Math.round(Number(q.jug))),
+          v: Math.max(0, Math.round(Number(q.v) || 0)), d: Math.max(0, Math.round(Number(q.d) || 0)), e: Math.max(0, Math.round(Number(q.e) || 0)),
+          temporada: Number(q.t) > 2000 ? Number(q.t) : undefined,
+        } : undefined} />
     </>
   );
 }

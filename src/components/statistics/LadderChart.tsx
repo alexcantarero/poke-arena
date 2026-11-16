@@ -178,8 +178,27 @@ export function LadderChart({
 
   // v0.132 — dónde ha quedado la etiqueta final de cada línea, para que no se pisen (se rehace en cada pintado).
   const etiquetasY = new Map<string, number>();
+  /* v0.133 — LA TIRA DE CIFRAS, como en un cuadro de mando: de las líneas que
+     se ven, quién va primero, quién ha subido más y quién ha bajado más entre
+     el primer punto y el último de lo que hay en pantalla. */
+  const cifras = visibles.map((s) => {
+    const vals = s.puntos.filter((p) => p.elo != null).map((p) => p.elo as number);
+    return vals.length ? { s, fin: vals[vals.length - 1], cambio: Math.round(vals[vals.length - 1] - vals[0]) } : null;
+  }).filter((x): x is NonNullable<typeof x> => x != null);
+  const lider = [...cifras].sort((a, b) => b.fin - a.fin)[0];
+  const sube = [...cifras].sort((a, b) => b.cambio - a.cambio)[0];
+  const baja = [...cifras].sort((a, b) => a.cambio - b.cambio)[0];
   return (
-    <div className="px-3 pb-3 pt-2 xs:px-4">
+    /* v0.133 — panel de cuadro de mando: siempre en oscuro, rejilla fina y líneas con brillo. */
+    <div className="bi-chart px-3 pb-3 pt-3 xs:px-4" data-theme="dark">
+      {cifras.length > 1 && (
+        <div className="bi-cifras">
+          <div><span>{tr(lng, "v133.bi.lider")}</span><b style={{ color: colorDe(lider.s) }}>{lider.s.name.split(" ")[0]}</b><i>{Math.round(lider.fin)}</i></div>
+          {sube && sube.cambio > 0 && <div><span>{tr(lng, "v133.bi.sube")}</span><b style={{ color: colorDe(sube.s) }}>{sube.s.name.split(" ")[0]}</b><i className="text-win">+{sube.cambio}</i></div>}
+          {baja && baja.cambio < 0 && <div><span>{tr(lng, "v133.bi.baja")}</span><b style={{ color: colorDe(baja.s) }}>{baja.s.name.split(" ")[0]}</b><i className="text-loss">{baja.cambio}</i></div>}
+          <div><span>{tr(lng, "v133.bi.enPantalla")}</span><b>{cifras.length}</b></div>
+        </div>
+      )}
       <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
         {/* v0.120 — atajos */}
         <div className="mb-1 flex w-full flex-wrap items-center gap-1.5">
@@ -247,7 +266,7 @@ export function LadderChart({
         <div className="h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart margin={{ top: 8, right: 64, left: -12, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
+              <CartesianGrid strokeDasharray="2 4" stroke="rgb(34 230 255 / 0.16)" />
               <XAxis
                 dataKey="t" type="number" scale={porOrden ? "linear" : "time"}
                 domain={porOrden ? ["dataMin", "dataMax"] : [tMin, tMax]}
@@ -261,7 +280,8 @@ export function LadderChart({
                     const t = Number(label);
                     const title = etiquetaX(t);
                     return (
-                      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: 10, fontSize: 12 }}>
+                      <div style={{ background: "rgb(7 11 22 / 0.96)", border: "1px solid rgb(34 230 255 / 0.45)", borderRadius: 8, padding: 10, fontSize: 12,
+                        boxShadow: "0 0 18px rgb(34 230 255 / 0.18)", color: "#e9edfa" }}>
                         <p style={{ margin: 0, fontWeight: "bold", marginBottom: 4 }}>{title}</p>
                         {[...payload].sort((a: any, b: any) => (b.value ?? 0) - (a.value ?? 0)).map((p: any, i: number) => (
                           <div key={i} style={{ color: p.color }}>
@@ -294,7 +314,7 @@ export function LadderChart({
                 const c = colorDe(s);
                 return (
                   <Line key={s.id} data={s.puntos} dataKey="elo" name={s.name} type={porOrden ? "linear" : "stepAfter"} /* v0.51: un rango se mantiene hasta que se cambia; la curva suavizada se inventaba una caída gradual */
-                    stroke={c} strokeWidth={foco === s.id ? 3.5 : 2.5} strokeOpacity={opacidad(s.id)}
+                    stroke={c} strokeWidth={foco === s.id ? 4 : 2.75} strokeOpacity={opacidad(s.id)}
                     dot={(d: { cx?: number; cy?: number; index?: number; payload?: { tipo?: string; elo?: number | null } }) => {
                       const k = `${s.id}-${d.index}`;
                       if (d.cx == null || d.cy == null || d.payload?.elo == null) return <g key={k} />;

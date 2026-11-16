@@ -781,7 +781,11 @@ export default async function TournamentPage({
                 ? trf(lng, "v131.premiosCon", { n: t.playerCount ?? 0 })
                 : tr(lng, "v131.premiosSin")}
             </span>
-            <Link href="/herramientas" className="btn btn-ghost btn-sm ml-auto">{tr(lng, "v131.calculadora")}</Link>
+            {/* v0.133 — la calculadora se abre ya con este torneo: tipo, gente y tu récord. */}
+            <Link className="btn btn-sm ml-auto"
+              href={`/herramientas?h=suiza&tipo=${encodeURIComponent(cpKind)}&jug=${t.playerCount ?? 0}&v=${myRecord.wins}&d=${myRecord.losses}&e=${myRecord.ties}&t=${season}`}>
+              {tr(lng, "v131.calculadora")}
+            </Link>
           </div>
           <div className="premios-cp">
             {premios.filas.map((f) => (
@@ -902,6 +906,7 @@ export default async function TournamentPage({
           enseñarse solo. */}
       {me && status !== "draft" && (
         <CaminoAlCorte
+          plegado // v0.133 — en la ficha, plegado: los CP por puesto y la calculadora van arriba
           kind={t.kind}
           playerCount={t.playerCount}
           rondasTotales={t.rounds} // lo configurado a mano manda sobre la tabla

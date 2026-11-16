@@ -388,12 +388,25 @@ export async function apuntarResultadoLocal(fd: FormData) {
   const fecha = isoDate(fd, "fecha");
   const puesto = maybeInt(fd, "puesto", 1, 512);
   const jugadores = maybeInt(fd, "jugadores", 2, 2000);
-  const archId = str(fd, "arquetipo");
-  if (!tienda || !fecha || puesto == null || !archId) {
+  /* v0.133 — el mazo llega ESCRITO (el nombre, con sugerencias) y no elegido de
+     un desplegable de más de cien: se busca por id (formularios de antes), por
+     nombre exacto sin mayúsculas ni acentos y, si no, el único que lo contenga. */
+  const pedido = str(fd, "arquetipo").trim();
+  if (!tienda || !fecha || puesto == null || !pedido) {
     return redirect(withFlash("/torneos", "error", "Faltan datos: tienda, fecha, puesto y mazo."));
   }
-  const arch = (await db.select().from(archetypes).where(eq(archetypes.id, archId)))[0];
-  if (!arch) return redirect(withFlash("/torneos", "error", "Ese mazo no existe."));
+  const plano = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  const todos = await db.select().from(archetypes);
+  const contienen = todos.filter((a) => plano(a.name).includes(plano(pedido)));
+  const arch = todos.find((a) => a.id === pedido) ?? todos.find((a) => plano(a.name) === plano(pedido)) ?? (contienen.length === 1 ? contienen[0] : undefined);
+  if (!arch) {
+    return redirect(withFlash("/torneos", "error", contienen.length > 1
+      ? `Hay ${contienen.length} mazos que contienen «${pedido}»: elige uno de la lista.`
+      : `No hay ningún mazo llamado «${pedido}» en el catálogo.`));
+  }
+  // v0.133 — el récord, si se sabe (rondas ganadas, perdidas y empatadas).
+  const v = maybeInt(fd, "v", 0, 20), d = maybeInt(fd, "d", 0, 20), e = maybeInt(fd, "e", 0, 20);
+  const conRecord = v != null || d != null || e != null;
   const slug = tienda.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   const nombre = `${tipo === "league_cup" ? "League Cup" : "League Challenge"} ${tienda}`;
   const id = `loc-${tipo === "league_cup" ? "cup" : "ch"}-${fecha}-${slug}`;
@@ -413,7 +426,8 @@ export async function apuntarResultadoLocal(fd: FormData) {
   await db.insert(metaEntries).values({
     eventId, placement: puesto, copies: 1, archetypeId: arch.id, archetypeName: arch.name,
     main: arch.main, secondary: arch.secondary ?? "",
+    ...(conRecord ? { wins: v ?? 0, losses: d ?? 0, ties: e ?? 0 } : {}),
   });
   refresh(); revalidateTag("meta");
-  redirect(withFlash("/torneos", "ok", `Apuntado: ${puesto}.º con ${arch.name} en ${nombre}.`));
+  redirect(withFlash("/torneos", "ok", `Apuntado: ${puesto}.º con ${arch.name}${conRecord ? ` (${v ?? 0}-${d ?? 0}-${e ?? 0})` : ""} en ${nombre}.`));
 }

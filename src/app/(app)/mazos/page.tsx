@@ -7,6 +7,7 @@ import { archetypeStats, isPlayed } from "@/lib/stats";
 import { fmtDate, pct, wrColor } from "@/lib/format";
 import { prettyPokemon, typeOf } from "@/lib/pokemon";
 import type { Deck } from "@/lib/types";
+import { clavePrincipal } from "@/lib/versiones";
 import { Empty, PageHead, SectionTitle, Sprites } from "@/components/ui";
 import { MetaTabs } from "@/components/MetaTabs";
 import { ScopeTabs } from "@/components/ScopeTabs";
@@ -95,9 +96,7 @@ export default async function DecksPage({
      indicar nada al crear el mazo, sale de su arquetipo. */
   const principalDe = (d: Deck): { clave: string; nombre: string } => {
     const a = snap.archById.get(d.archetypeId);
-    const padre = a?.parentId ? snap.archById.get(a.parentId) : undefined;
-    if (padre) return { clave: `p:${padre.id}`, nombre: padre.name };
-    return a?.main ? { clave: `l:${a.main}`, nombre: prettyPokemon(a.main) } : { clave: `a:${d.archetypeId}`, nombre: a?.name ?? "—" };
+    return clavePrincipal(a, a?.parentId ? snap.archById.get(a.parentId) : undefined, prettyPokemon, d.archetypeId);
   };
   const rank = { fav: 0, mine: 1, shared: 2, other: 3 } as const;
   const filtrados = snap.decks.filter((d) => inView(d) && hit(d));
@@ -204,6 +203,10 @@ export default async function DecksPage({
             {abreGrupo && (
               <li className="col-span-full mt-2 flex items-baseline gap-2 border-b border-line-soft pb-1 first:mt-0">
                 <h2 className="font-display text-lg font-extrabold">{principal.nombre}</h2>
+                {/* v0.133 — todas sus versiones, comparadas: cartas que cambian, comentarios y estadísticas. */}
+                <Link href={`/mazos/versiones?de=${encodeURIComponent(principal.clave)}`} className="ml-auto text-xs font-semibold text-info hover:underline">
+                  {tr(lng, "v133.comparar")}
+                </Link>
                 <span className="text-xs text-muted">
                   {trf(lng, (cuantos.get(principal.clave) ?? 1) === 1 ? "v132.unaVersion" : "v132.versiones", { n: cuantos.get(principal.clave) ?? 1 })}
                 </span>

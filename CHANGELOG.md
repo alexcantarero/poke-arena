@@ -2,6 +2,32 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.133.0] — 2026-11-16
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **Versiones de un mazo, comparadas** (`/mazos/versiones?de=…`; enlace «Comparar versiones» en
+  cada grupo de la biblioteca). Todas las versiones de un arquetipo principal: sus partidas en la
+  app y su %, su marca en el PTCG Live, sus comentarios y **qué cartas cambian** respecto a la
+  versión de referencia (la más usada), más el total agrupado del arquetipo. No hay tabla nueva:
+  cada mazo guardado ya era una versión. `lib/versiones.ts` (3 pruebas).
+- **Calculadora suiza desde el torneo**: el botón de la ficha la abre ya con el tipo, la gente y
+  tu récord, calcula sola y enseña además los **CP por puesto**.
+- **Resultados locales (Cups y Challenges)**: el mazo **se escribe** con sugerencias, en vez de
+  elegirlo en un desplegable de más de cien, y se puede apuntar el **récord** (rondas ganadas,
+  perdidas y empatadas).
+- `docs/14-roadmap-publico.md`: qué falta para abrir la app al público, por fases.
+
+### Cambiado
+
+- **Gráficas de Elo y ladder, como un cuadro de mando**: panel oscuro con rejilla fina, líneas
+  con brillo y una tira de cifras arriba (quién va primero, quién sube más y quién baja más en lo
+  que hay en pantalla).
+- **El camino al corte llega plegado en la ficha del torneo** (ocupaba media pantalla); lo que
+  cada uno elija después se le recuerda. En el modo directo sigue abierto.
+
 ## [0.132.0] — 2026-11-16
 
 **Sin migración ni dependencias nuevas.**
