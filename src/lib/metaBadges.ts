@@ -83,6 +83,8 @@ export type Umbrales = {
   minParaCuota: number;
   /** Plazas mínimas del corte para hablar de «espejo». Dos ya es espejo. */
   minParaEspejo: number;
+  /** v0.132 — cuota máxima del campo (0..1) para que llegar al corte sea «una sorpresa». */
+  maxCuotaSorpresa: number;
 };
 
 export const UMBRALES: Umbrales = {
@@ -90,6 +92,7 @@ export const UMBRALES: Umbrales = {
   minParaDecepcion: 15,
   minParaCuota: 10,
   minParaEspejo: 2,
+  maxCuotaSorpresa: 0.03,
 };
 
 export type Insignia = {
@@ -113,6 +116,8 @@ export type Insignias = {
   infrajugado: Insignia | null;
   /** Copó el corte. */
   espejo: Insignia | null;
+  /** v0.132 — Aparición inesperada: llegó al corte y casi nadie lo llevaba. */
+  sorpresa: Insignia | null;
 };
 
 /** Qué parte de sus mazos pasó a Día 2. Nulo si no hay con qué calcularlo. */
@@ -150,6 +155,7 @@ export function insigniasDe(
   let sobrejugado: Insignia | null = null;
   let infrajugado: Insignia | null = null;
   let espejo: Insignia | null = null;
+  let sorpresa: Insignia | null = null;
 
   for (const f of filas) {
     /* --- rendimiento, siempre contra la media del campo --- */
@@ -186,9 +192,23 @@ export function insigniasDe(
     if (f.cut >= u.minParaEspejo && (!espejo || f.cut > espejo.valor)) {
       espejo = { fila: f, valor: f.cut, unidad: "plazas" };
     }
+
+    /* --- v0.132 — la sorpresa: en el corte con una cuota mínima del campo ---
+       No pide un mínimo de pilotos (justo al revés que «rindió»): la gracia es
+       que lo llevaban tres. Gana el mejor puesto; a igual puesto, el más raro.
+       Mide ESTE evento: no sabe si ese mazo había hecho corte otras veces. */
+    if (f.cut >= 1 && campo.decks > 0 && f.field > 0) {
+      const c = cuota(f, campo);
+      if (c <= u.maxCuotaSorpresa) {
+        const puesto = f.bestFinish ?? 9e9, previo = sorpresa?.fila.bestFinish ?? 9e9;
+        if (!sorpresa || puesto < previo || (puesto === previo && c < sorpresa.valor)) {
+          sorpresa = { fila: f, valor: c, unidad: "pct" };
+        }
+      }
+    }
   }
 
-  return { tasaCampo, top, decepcion, sobrejugado, infrajugado, espejo };
+  return { tasaCampo, top, decepcion, sobrejugado, infrajugado, espejo, sorpresa };
 }
 
 /**

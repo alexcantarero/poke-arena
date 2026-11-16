@@ -15,7 +15,7 @@ import { TORNEOS_ZONA_2026, yaExiste } from "@/data/torneos-zona-2026";
 import { newId, todayISO } from "@/lib/format";
 import { cpKindOf, seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
-import { importarDesdeLimitless } from "@/lib/importarLimitlessDb";
+import { completarRondasOnline, importarDesdeLimitless, type ResumenRondasOnline } from "@/lib/importarLimitlessDb";
 import { leerCausas, PREFIJO_NO_PRESENTADO } from "@/lib/causasDerrota";
 import { guardarCausas } from "@/lib/causasDb";
 
@@ -841,12 +841,34 @@ export async function limpiarTorneosAbandonados() {
      lo hace solo el cron de limpieza si nadie apuntó nada en tres días.
    ========================================================================= */
 
+/**
+ * v0.132 — Completar las RONDAS de los torneos online ya importados (resultado
+ * y mazo rival de cada ronda, desde los emparejamientos de Limitless). Con
+ * `tournamentId`, solo ese torneo; sin él, unos cuantos de los pendientes.
+ */
+export async function completarRondasLimitless(fd: FormData) {
+  const actor = await requireManager();
+  const torneoId = str(fd, "tournamentId") || null;
+  const vuelta = torneoId ? `/torneos/${torneoId}` : "/ajustes#fuentes";
+  let r: ResumenRondasOnline;
+  try {
+    r = await completarRondasOnline({ max: 12, actorId: actor.id, torneoId });
+  } catch (e) {
+    console.error("[rondas online]", e instanceof Error ? e.message : e);
+    return redirect(withFlash(vuelta, "error", "No se han podido traer las rondas de Limitless. Prueba otra vez en un momento."));
+  }
+  refresh();
+  redirect(withFlash(vuelta, "ok", torneoId
+    ? `${r.rondas} ronda(s) nueva(s)${r.sinMazo ? ` (${r.sinMazo} sin mazo rival identificado)` : ""}. Si alguien sigue sin rondas, es que Limitless no tiene sus emparejamientos o no ha puesto su nick.`
+    : `${r.torneos} torneo(s) revisados, ${r.rondas} ronda(s) nueva(s)${r.sinMazo ? ` (${r.sinMazo} sin mazo rival identificado)` : ""}. Quedan ${r.quedan} torneo(s) por completar${r.quedan ? ": vuelve a pulsar" : ""}.`));
+}
+
 export async function importarTorneosLimitless(fd: FormData) {
   const actor = await requireManager();
   // v0.122 — una VENTANA de días (antes: los 25–50 torneos más recientes de
   // toda la plataforma, unas horas). Ver `lib/importarLimitlessDb.ts`.
   const dias = Math.min(Math.max(1, Number(str(fd, "dias")) || 7), 30);
-  const r = await importarDesdeLimitless({ dias, maxTorneos: dias > 7 ? 250 : 150, actorId: actor.id, maxAtrasados: 25 });
+  const r = await importarDesdeLimitless({ dias, maxTorneos: dias > 7 ? 250 : 150, actorId: actor.id });
   if (!r.mirados && r.sinNick.length && !r.nuevos) {
     redirect(withFlash("/ajustes", "error", await msj("x.58ce5300")));
   }

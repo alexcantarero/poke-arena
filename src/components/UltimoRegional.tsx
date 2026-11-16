@@ -140,7 +140,7 @@ export function UltimoRegional(p: Props) {
 
             {/* v0.72 — de 2 en 2 también en el móvil, y más compactas: antes cada
                 una ocupaba media pantalla y había que hacer mucho scroll. */}
-            <div className="grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-5 xl:grid-cols-4">
+            <div className={`grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-5 ${ins?.sorpresa ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
               <TarjetaInsignia
                 titulo={tr(L, "ur.mirror")} tono="brand" ins={ins?.espejo ?? null}
                 grande={(i) => trf(L, "ur.outOf", { a: i.valor, b: p.corteTamano })}
@@ -169,6 +169,16 @@ export function UltimoRegional(p: Props) {
                   : ""}
                 vacia={tr(L, "ur.overplayedEmpty")}
               />
+              {/* v0.132 — aparición inesperada: en el corte y casi nadie lo llevaba. Solo si la hay. */}
+              {ins?.sorpresa && (
+                <TarjetaInsignia
+                  titulo={tr(L, "v132.sorpresa")} tono="win" ins={ins.sorpresa}
+                  grande={(i) => (i.fila.bestFinish ? `#${i.fila.bestFinish}` : trf(L, "ur.outOf", { a: i.fila.cut, b: p.corteTamano }))}
+                  pequeno={tr(L, "v132.sorpresaSmall")}
+                  pie={(i) => trf(L, "v132.sorpresaPie", { n: i.fila.field, p: pctTxt(i.valor) })}
+                  vacia=""
+                />
+              )}
             </div>
 
             {p.corte.length > 0 && (

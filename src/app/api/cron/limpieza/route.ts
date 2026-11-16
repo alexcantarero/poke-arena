@@ -1,4 +1,4 @@
-import { importarDesdeLimitless } from "@/lib/importarLimitlessDb";
+import { completarRondasOnline, importarDesdeLimitless } from "@/lib/importarLimitlessDb";
 import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -66,6 +66,12 @@ export async function GET(req: NextRequest) {
   }
   // v0.122 — los torneos online de los del grupo (por su nick de Limitless), cada día.
   let limitless: { mirados: number; nuevos: number; resultados: number; rondas: number } | null = null;
+  // v0.132 — ANTES de la importación (que es larga): las rondas de los torneos online que aún no las tienen.
+  let rondasOnline: { torneos: number; rondas: number; quedan: number } | null = null;
+  try {
+    const c = await completarRondasOnline({ max: 6 });
+    rondasOnline = { torneos: c.torneos, rondas: c.rondas, quedan: c.quedan };
+  } catch { rondasOnline = null; }
   try {
     const r = await importarDesdeLimitless({ dias: 2, maxTorneos: 100 });
     limitless = { mirados: r.mirados, nuevos: r.nuevos, resultados: r.resultados, rondas: r.rondas };
@@ -90,6 +96,7 @@ export async function GET(req: NextRequest) {
     series,
     discord,
     limitless,
+    rondasOnline,
     usoNeon,
     cinturon,
     plazoCinturon: plazoCinturon?.kind ?? null,

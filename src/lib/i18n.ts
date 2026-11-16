@@ -2767,6 +2767,14 @@ const ES = {
   "v131.faltanPara": "Faltan {n} jugadores para que el {a}–{b}.º dé {cp} CP.",
   "v131.calculadora": "Calculadora suiza",
   "v131.escribeNombre": "Escribe el nombre…",
+  "v132.completarRondas": "Completar rondas de torneos online",
+  "v132.completarRondasAyuda": "Trae de Limitless el resultado y el mazo rival de cada ronda en los torneos online que aún no las tienen. Unos cuantos por pulsación.",
+  "v132.traerRondas": "Traer las rondas de Limitless",
+  "v132.sorpresa": "Sorpresa",
+  "v132.sorpresaSmall": "en el top cut",
+  "v132.sorpresaPie": "{n} listas · {p} del campo",
+  "v132.unaVersion": "1 versión",
+  "v132.versiones": "{n} versiones",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -5508,6 +5516,14 @@ const EN: Record<I18nKey, string> = {
   "v131.faltanPara": "{n} more players are needed for places {a}–{b} to give {cp} CP.",
   "v131.calculadora": "Swiss calculator",
   "v131.escribeNombre": "Type the name…",
+  "v132.completarRondas": "Complete rounds of online tournaments",
+  "v132.completarRondasAyuda": "Fetches from Limitless each round's result and opponent deck for online tournaments that don't have them yet. A few per click.",
+  "v132.traerRondas": "Fetch rounds from Limitless",
+  "v132.sorpresa": "Surprise",
+  "v132.sorpresaSmall": "in the top cut",
+  "v132.sorpresaPie": "{n} lists · {p} of the field",
+  "v132.unaVersion": "1 version",
+  "v132.versiones": "{n} versions",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

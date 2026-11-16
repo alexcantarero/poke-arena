@@ -32,7 +32,7 @@ import { RondasDelGrupo } from "@/components/RondasDelGrupo";
 import { RoundForm } from "@/components/RoundForm";
 import { bestOfDeRonda, etapaDeRonda, familiaDe, formaDe, maxRondasDe } from "@/lib/estructura";
 import type { Pestana } from "@/components/CaminoAlCorte";
-import { deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
+import { completarRondasLimitless, deleteTournament, deleteTournamentResult, deleteTournamentRound, undoDrop } from "@/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Icon } from "@/components/icons";
 import { num } from "@/lib/format";
@@ -733,6 +733,13 @@ export default async function TournamentPage({
               </a>
             )}
             {/* v0.108 — el modo directo, a un toque, mientras el torneo está en curso. */}
+            {/* v0.132 — torneo online importado: traer (o completar) las rondas de todos desde Limitless. */}
+            {manager && t.id.startsWith("ltl-") && (
+              <form action={completarRondasLimitless}>
+                <input type="hidden" name="tournamentId" value={t.id} />
+                <button className="btn btn-sm" type="submit">{tr(lng, "v132.traerRondas")}</button>
+              </form>
+            )}
             {/* v0.129 — antes de jugarlo: qué te vas a cruzar y cómo te va contra cada mazo. */}
             {me && status !== "closed" && (
               <Link className="btn btn-sm" href={`/torneos/${t.id}/preparacion`}>{tr(lng, "v129.preparar")}</Link>

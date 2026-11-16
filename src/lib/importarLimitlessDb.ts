@@ -53,7 +53,7 @@ export type ResumenLimitless = {
 };
 
 export async function importarDesdeLimitless(
-  { dias = 7, maxTorneos = 150, actorId = null, maxAtrasados = 10 }: { dias?: number; maxTorneos?: number; actorId?: string | null; maxAtrasados?: number },
+  { dias = 7, maxTorneos = 150, actorId = null }: { dias?: number; maxTorneos?: number; actorId?: string | null },
 ): Promise<ResumenLimitless> {
   const apiKey = process.env.LIMITLESS_API_KEY;
   const jugadores = await db
@@ -150,12 +150,6 @@ export async function importarDesdeLimitless(
     rondasNuevas += g.rondas; rondasSinMazo += g.sinMazo;
   }
 
-  /* v0.127 — y los torneos que YA estaban importados de antes y se quedaron sin
-     rondas (los de fuera de esta ventana): unos pocos en cada pasada, del más
-     reciente al más antiguo, hasta ponerse al día. */
-  const yaVistos = new Set(resumen.torneos.map((x) => x.id));
-  const atrasados = await completarRondasAtrasadas({ excluir: yaVistos, max: maxAtrasados, jugadores, arquetipoDe, creador, apiKey });
-  rondasNuevas += atrasados.rondas; rondasSinMazo += atrasados.sinMazo;
   return { mirados: entradas.length, nuevos, actualizados, resultados, rondas: rondasNuevas, rondasSinMazo, sinNick: resumen.sinNick };
 }
 
@@ -230,52 +224,82 @@ async function guardarRondas(o: {
   return { rondas, sinMazo };
 }
 
-/**
- * v0.127 — Los torneos importados ANTES de que se trajeran las rondas: se
- * buscan los `ltl-…` en los que algún resultado no tiene ninguna ronda y se
- * completan pidiendo su clasificación y sus emparejamientos por id (sin
- * recorrer ventanas de días). `max` torneos por pasada.
- */
-async function completarRondasAtrasadas(o: {
-  excluir: Set<string>; max: number; jugadores: JugadorGrupo[];
-  arquetipoDe: (slug: string | null, nombre: string | null) => Catalogado;
-  creador: string | null; apiKey?: string;
-}): Promise<{ rondas: number; sinMazo: number }> {
-  let rondas = 0, sinMazo = 0;
-  if (o.max <= 0) return { rondas, sinMazo };
-  try {
-    const pendientes = await db.select({ id: tournaments.id, date: tournaments.date, playerCount: tournaments.playerCount, name: tournaments.name })
-      .from(tournaments)
-      .where(sql`${tournaments.id} LIKE 'ltl-%' AND EXISTS (
-        SELECT 1 FROM ${tournamentResults}
-        WHERE ${tournamentResults.tournamentId} = ${tournaments.id}
-          AND NOT EXISTS (SELECT 1 FROM ${matches} WHERE ${matches.tournamentId} = ${tournaments.id} AND ${matches.playerAId} = ${tournamentResults.playerId})
-      )`)
-      /* Al azar y no por fecha: un torneo sin emparejamientos publicados (o del que
-         alguien se retiró antes de jugar) seguiría «pendiente» siempre, y con un
-         orden fijo taparía a los demás en cada pasada. */
-      .orderBy(sql`random()`)
-      .limit(o.max + o.excluir.size);
-    for (const t of pendientes.filter((x) => !o.excluir.has(x.id)).slice(0, o.max)) {
-      const remoteId = t.id.slice(4);
-      try {
-        const [clasificacion, detalles] = await Promise.all([
-          fetchStandings(remoteId, o.apiKey),
-          fetchTournamentDetails(remoteId, o.apiKey).catch(() => null),
-        ]);
-        const vuestros = vuestrosEnElTorneo(
-          { id: remoteId, name: t.name, date: t.date, format: "", players: t.playerCount ?? 0 }, clasificacion, o.jugadores,
-        );
-        if (!vuestros) continue;
-        const g = await guardarRondas({
-          torneoId: t.id, remoteId, fecha: t.date, clasificacion, resultados: vuestros.resultados,
-          fases: detalles?.phases ?? [], jugadores: o.jugadores, arquetipoDe: o.arquetipoDe, creador: o.creador, apiKey: o.apiKey,
-        });
-        rondas += g.rondas; sinMazo += g.sinMazo;
-      } catch { /* este torneo, en la próxima pasada */ }
+/* =========================================================================
+   v0.132 — COMPLETAR LAS RONDAS de los torneos online ya importados.
+
+   EL FALLO (visto en producción el 16/11/2026, con la v0.130): solo tenía
+   rondas el torneo más reciente; los anteriores seguían con «Sin rondas
+   apuntadas». La API respondía bien (comprobado con cinco torneos reales:
+   `round, phase, table|match, winner, player1, player2`, como dice su
+   documentación). Lo que fallaba era el CUÁNDO: completar los atrasados iba
+   AL FINAL de la importación por ventana, detrás de hasta 250 clasificaciones,
+   y ni el cron ni el botón de Ajustes llegaban a tiempo.
+
+   Ahora es un paso propio y corto, que no recorre ninguna ventana: busca los
+   torneos `ltl-…` en los que algún resultado no tiene rondas y, para cada uno,
+   pide su clasificación y sus emparejamientos por id. Tres caminos:
+     · el cron, ANTES de la importación (unos pocos al día);
+     · el botón «Completar rondas» de Ajustes (unos cuantos por pulsación, y
+       dice cuántos quedan);
+     · el botón de la ficha de un torneo online (ese torneo, ahora).
+   ========================================================================= */
+export type ResumenRondasOnline = { torneos: number; rondas: number; sinMazo: number; quedan: number };
+
+const PENDIENTE_DE_RONDAS = sql`${tournaments.id} LIKE 'ltl-%' AND EXISTS (
+  SELECT 1 FROM ${tournamentResults}
+  WHERE ${tournamentResults.tournamentId} = ${tournaments.id}
+    AND NOT EXISTS (SELECT 1 FROM ${matches} WHERE ${matches.tournamentId} = ${tournaments.id} AND ${matches.playerAId} = ${tournamentResults.playerId})
+)`;
+
+export async function completarRondasOnline(
+  { max = 8, actorId = null, torneoId = null }: { max?: number; actorId?: string | null; torneoId?: string | null },
+): Promise<ResumenRondasOnline> {
+  const out: ResumenRondasOnline = { torneos: 0, rondas: 0, sinMazo: 0, quedan: 0 };
+  const apiKey = process.env.LIMITLESS_API_KEY;
+  const jugadores = await db
+    .select({ id: players.id, name: players.name, limitlessHandle: players.limitlessHandle })
+    .from(players).where(eq(players.active, true));
+  if (!jugadores.some((j) => (j.limitlessHandle ?? "").trim())) return out;
+  const catalogo = await db.select().from(archetypes);
+  const porSlug = new Map<string, (typeof catalogo)[number]>(catalogo.filter((a) => a.limitlessId).map((a) => [a.limitlessId!, a]));
+  const porNombre = new Map<string, (typeof catalogo)[number]>(catalogo.map((a) => [norm(a.name), a]));
+  const arquetipoDe = (slug: string | null, nombre: string | null) =>
+    (slug ? porSlug.get(slug) : undefined) ?? (nombre ? porNombre.get(norm(nombre)) : undefined) ?? null;
+  const creador = actorId ?? (await db.select({ id: players.id }).from(players)
+    .where(eq(players.role, "owner")).orderBy(asc(players.createdAt)).limit(1))[0]?.id ?? null;
+
+  const campos = { id: tournaments.id, date: tournaments.date, playerCount: tournaments.playerCount, name: tournaments.name };
+  const lista = torneoId
+    ? await db.select(campos).from(tournaments).where(eq(tournaments.id, torneoId))
+    /* Al azar y no por fecha: un torneo sin emparejamientos publicados (o del que
+       alguien se retiró antes de jugar) seguiría «pendiente» siempre, y con un
+       orden fijo taparía a los demás en cada pasada. */
+    : await db.select(campos).from(tournaments).where(PENDIENTE_DE_RONDAS).orderBy(sql`random()`).limit(Math.max(1, max));
+
+  for (const t of lista) {
+    if (!t.id.startsWith("ltl-")) continue;
+    const remoteId = t.id.slice(4);
+    try {
+      const [clasificacion, detalles] = await Promise.all([
+        fetchStandings(remoteId, apiKey),
+        fetchTournamentDetails(remoteId, apiKey).catch(() => null),
+      ]);
+      const vuestros = vuestrosEnElTorneo(
+        { id: remoteId, name: t.name, date: t.date, format: "", players: t.playerCount ?? 0 }, clasificacion, jugadores,
+      );
+      if (!vuestros) continue;
+      const g = await guardarRondas({
+        torneoId: t.id, remoteId, fecha: t.date, clasificacion, resultados: vuestros.resultados,
+        fases: detalles?.phases ?? [], jugadores, arquetipoDe, creador, apiKey,
+      });
+      out.torneos++; out.rondas += g.rondas; out.sinMazo += g.sinMazo;
+    } catch (e) {
+      console.warn("[limitless] rondas de", t.id, e instanceof Error ? e.message : e);
     }
-  } catch (e) {
-    console.warn("[limitless] rondas atrasadas", e instanceof Error ? e.message : e);
   }
-  return { rondas, sinMazo };
+  try {
+    const [q] = await db.select({ n: sql<number>`count(*)::int` }).from(tournaments).where(PENDIENTE_DE_RONDAS);
+    out.quedan = q?.n ?? 0;
+  } catch { out.quedan = 0; }
+  return out;
 }

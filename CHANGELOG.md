@@ -2,6 +2,37 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.132.0] — 2026-11-16
+
+**Sin migración ni dependencias nuevas.**
+
+### Arreglado
+
+- **EL CASO DE LAS RONDAS QUE NO LLEGABAN — los torneos online antiguos seguían sin rondas.**
+  Visto en producción (v0.130): solo tenía rondas el torneo más reciente. La API de Limitless
+  respondía bien (comprobada con cinco torneos reales: la forma es la documentada). Fallaba el
+  cuándo: completar los torneos atrasados iba al final de la importación por ventana, detrás de
+  hasta 250 clasificaciones, y no llegaba a ejecutarse. Ahora es un paso propio y corto
+  (`completarRondasOnline`), con tres caminos: el cron lo hace ANTES de la importación (6 al
+  día), **Ajustes → «Completar rondas de torneos online»** (12 por pulsación, y dice cuántos
+  quedan) y, en la ficha de un torneo online, **«Traer las rondas de Limitless»** (ese torneo,
+  ahora; solo organizadores).
+
+### Añadido
+
+- **Tarjeta «Sorpresa» en El último Regional**: el mazo que llegó al top cut con una cuota
+  mínima del campo (3 % o menos). Gana el mejor puesto y, a igual puesto, el más raro. Sale solo
+  si la hay. Mide ese evento: no sabe si el mazo había hecho corte otras veces.
+  `lib/metaBadges.ts` (2 pruebas, una con el caso de Gdansk).
+- **Mazos agrupados por arquetipo principal**: en la biblioteca, cada grupo lleva su cabecera
+  («Slowking · 3 versiones») y dentro van sus mazos. El principal es el arquetipo padre si lo
+  tiene puesto y, si no, su Pokémon líder; no hay que indicar nada al crear el mazo.
+
+### Cambiado
+
+- **Gráficas de Elo y ladder**: las etiquetas del final de cada línea ya no se pisan cuando dos
+  acaban cerca; cada una se baja lo justo y un trazo fino la une a su punto. Algo más grandes.
+
 ## [0.131.0] — 2026-11-16
 
 **Sin migración ni dependencias nuevas.** **Cambia la Forma** de quien tenga 1500 o más en el

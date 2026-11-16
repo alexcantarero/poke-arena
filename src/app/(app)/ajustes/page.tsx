@@ -18,7 +18,7 @@ import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
-import { importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
+import { completarRondasLimitless, importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
 import { clearEloReset, limpiarTorneosAbandonados, purgePlayer, resetElo, resetLadderSeason, resetLeague, saveSettings, syncLimitlessIrl, wipeSeason } from "@/actions";
 import { deleteMetaEvent, importarTrainerHill, borrarImportacionCruces } from "@/actions";
 import { Icon } from "@/components/icons";
@@ -362,6 +362,11 @@ export default async function SettingsPage() {
               <button className="btn btn-brand" type="submit">
                 <Icon name="refresh" className="size-4" /> {tr(lng, "x.0baa275c")}
               </button>
+            </form>
+            {/* v0.132 — las rondas (resultado y mazo rival) de los torneos online que aún no las tienen. */}
+            <form action={completarRondasLimitless} className="mt-3 flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
+              <button className="btn" type="submit"><Icon name="refresh" className="size-4" /> {tr(lng, "v132.completarRondas")}</button>
+              <span className="text-xs text-muted">{tr(lng, "v132.completarRondasAyuda")}</span>
             </form>
           </div>
 

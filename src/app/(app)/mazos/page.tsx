@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { loadSnapshot } from "@/lib/data";
 import { canManageLeague, readSession } from "@/lib/auth";
@@ -10,7 +11,7 @@ import { Empty, PageHead, SectionTitle, Sprites } from "@/components/ui";
 import { MetaTabs } from "@/components/MetaTabs";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { Icon } from "@/components/icons";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const metadata = { title: "Mazos" };
@@ -87,13 +88,36 @@ export default async function DecksPage({
       || (a?.secondary ?? "").includes(needle);
   };
 
+  /* v0.132 — UN ARQUETIPO PRINCIPAL, y dentro sus versiones. Antes cada mazo de
+     Slowking era una tarjeta suelta entre las demás; ahora van juntos bajo
+     «Slowking · 3 versiones». El principal es el arquetipo padre si lo tiene
+     puesto (Ajustes → arquetipos) y, si no, su Pokémon líder: no hay que
+     indicar nada al crear el mazo, sale de su arquetipo. */
+  const principalDe = (d: Deck): { clave: string; nombre: string } => {
+    const a = snap.archById.get(d.archetypeId);
+    const padre = a?.parentId ? snap.archById.get(a.parentId) : undefined;
+    if (padre) return { clave: `p:${padre.id}`, nombre: padre.name };
+    return a?.main ? { clave: `l:${a.main}`, nombre: prettyPokemon(a.main) } : { clave: `a:${d.archetypeId}`, nombre: a?.name ?? "—" };
+  };
   const rank = { fav: 0, mine: 1, shared: 2, other: 3 } as const;
-  const decks = snap.decks
-    .filter((d) => inView(d) && hit(d))
-    .sort((a, b) =>
-      Number(a.retired) - Number(b.retired)
+  const filtrados = snap.decks.filter((d) => inView(d) && hit(d));
+  // Cada grupo va donde iría su mejor mazo (tus favoritos y los tuyos, primero); dentro, el orden de siempre.
+  const mejorDelGrupo = new Map<string, number>();
+  const cuantos = new Map<string, number>();
+  for (const d of filtrados) {
+    const k = principalDe(d).clave;
+    const r = (d.retired ? 10 : 0) + rank[groupOf(d)];
+    mejorDelGrupo.set(k, Math.min(mejorDelGrupo.get(k) ?? 99, r));
+    cuantos.set(k, (cuantos.get(k) ?? 0) + 1);
+  }
+  const decks = filtrados.sort((a, b) => {
+    const ka = principalDe(a), kb = principalDe(b);
+    return (mejorDelGrupo.get(ka.clave)! - mejorDelGrupo.get(kb.clave)!)
+      || ka.nombre.localeCompare(kb.nombre, "es") || ka.clave.localeCompare(kb.clave)
+      || Number(a.retired) - Number(b.retired)
       || rank[groupOf(a)] - rank[groupOf(b)]
-      || a.name.localeCompare(b.name, "es"));
+      || a.name.localeCompare(b.name, "es");
+  });
 
   // Los contadores de las pestañas se cuentan sobre TODO, no sobre lo buscado:
   // un «Míos · 0» al filtrar por texto haría pensar que no tienes mazos.
@@ -158,8 +182,10 @@ export default async function DecksPage({
       )}
 
       <ul className="mt-3 mb-6 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-        {decks.map((d) => {
+        {decks.map((d, i) => {
           const group = groupOf(d);
+          const principal = principalDe(d);
+          const abreGrupo = i === 0 || principalDe(decks[i - 1]).clave !== principal.clave;
           const arch = snap.archById.get(d.archetypeId);
           const owner = d.playerId ? snap.playersById.get(d.playerId) : undefined;
           const total = (d.listJson as { total?: number } | null)?.total ?? 0;
@@ -174,8 +200,16 @@ export default async function DecksPage({
           // El borde de la izquierda es lo que distingue de un vistazo un mazo
           // tuyo de uno de la estantería común, sin tener que leer nada.
           return (
+            <Fragment key={d.id}>
+            {abreGrupo && (
+              <li className="col-span-full mt-2 flex items-baseline gap-2 border-b border-line-soft pb-1 first:mt-0">
+                <h2 className="font-display text-lg font-extrabold">{principal.nombre}</h2>
+                <span className="text-xs text-muted">
+                  {trf(lng, (cuantos.get(principal.clave) ?? 1) === 1 ? "v132.unaVersion" : "v132.versiones", { n: cuantos.get(principal.clave) ?? 1 })}
+                </span>
+              </li>
+            )}
             <li
-              key={d.id}
               className={`card flex items-center gap-2 border-l-4 p-2.5 ${
                 group === "mine" || group === "fav" ? "border-l-brand-line"
                   : d.playerId == null ? "border-l-info"
@@ -229,6 +263,7 @@ export default async function DecksPage({
                 </form>
               )}
             </li>
+            </Fragment>
           );
         })}
       </ul>

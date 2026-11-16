@@ -176,6 +176,8 @@ export function LadderChart({
   const yMin = elos.length ? Math.max(0, Math.floor((Math.min(...elos) - 30) / 50) * 50) : 0;
   const yMax = elos.length ? Math.ceil((Math.max(...elos) + 30) / 50) * 50 : 2100;
 
+  // v0.132 — dónde ha quedado la etiqueta final de cada línea, para que no se pisen (se rehace en cada pintado).
+  const etiquetasY = new Map<string, number>();
   return (
     <div className="px-3 pb-3 pt-2 xs:px-4">
       <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={tr(lng, "x.1467d2cd")}>
@@ -310,12 +312,25 @@ export function LadderChart({
                     }}
                     activeDot={{ r: 4.5 }}
                     onMouseEnter={() => setFoco(s.id)} onMouseLeave={() => setFoco(null)}
-                    label={(p: { index?: number; x?: number | string; y?: number | string; value?: unknown }) =>
-                      p.index === ultimo && visibles.length <= 8 && p.x != null && p.y != null ? (
-                        <text x={Number(p.x) + 5} y={Number(p.y) + 3.5} fontSize={10} fontWeight={700} fill={c} opacity={opacidad(s.id)}>
-                          {`${s.name.split(" ")[0]} ${p.value}`}
-                        </text>
-                      ) : <g />}
+                    label={(p: { index?: number; x?: number | string; y?: number | string; value?: unknown }) => {
+                      if (!(p.index === ultimo && visibles.length <= 8 && p.x != null && p.y != null)) return <g />;
+                      /* v0.132 — las etiquetas del final se pisaban cuando dos líneas
+                         acababan cerca («Peru 330» sobre «Alex 300»). Cada una se
+                         baja lo justo para no tocar a las ya colocadas, y un
+                         trazo fino la une a su punto si se ha movido. */
+                      const y0 = Number(p.y) + 4;
+                      let y = y0;
+                      const otras = [...etiquetasY.entries()].filter(([id]) => id !== s.id).map(([, v]) => v);
+                      for (let k = 0; k < 12 && otras.some((o) => Math.abs(o - y) < 12); k++) y += 12;
+                      etiquetasY.set(s.id, y);
+                      const x = Number(p.x);
+                      return (
+                        <g opacity={opacidad(s.id)}>
+                          {y !== y0 && <line x1={x + 2} y1={y0 - 4} x2={x + 5} y2={y - 4} stroke={c} strokeWidth={1} />}
+                          <text x={x + 6} y={y} fontSize={11} fontWeight={700} fill={c}>{`${s.name.split(" ")[0]} ${p.value}`}</text>
+                        </g>
+                      );
+                    }}
                     connectNulls={false} isAnimationActive animationDuration={700} />
                 );
               })}
