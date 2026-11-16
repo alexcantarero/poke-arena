@@ -2441,3 +2441,10 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .bi-cifras b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; line-height: 1.15; margin-right: .4rem; }
 .bi-cifras i { font-style: normal; font-family: var(--font-display); font-size: 1.15rem; font-weight: 900; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .bi-chart .recharts-line-curve { filter: none; } }
+
+/* v0.134 — los textos legales (`/privacidad`, `/condiciones`): prosa legible, sin más. */
+.legal h2 { margin-top: 1.6rem; margin-bottom: .4rem; font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; }
+.legal p, .legal li { font-size: .95rem; line-height: 1.6; color: var(--ink-2); }
+.legal p + p { margin-top: .6rem; }
+.legal ul { margin: .4rem 0 .4rem 1.2rem; list-style: disc; display: flex; flex-direction: column; gap: .3rem; }
+.legal b { color: var(--ink); }

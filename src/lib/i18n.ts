@@ -2798,6 +2798,17 @@ const ES = {
   "v133.bi.sube": "Más sube",
   "v133.bi.baja": "Más baja",
   "v133.bi.enPantalla": "En pantalla",
+  "v134.titulo": "Privacidad y tus datos",
+  "v134.privacidad": "Política de privacidad",
+  "v134.condiciones": "Condiciones de uso",
+  "v134.descargar": "Descargar mis datos",
+  "v134.descargarAyuda": "Un fichero con tu perfil, tus partidas, tus resultados, tus mazos y tu ladder.",
+  "v134.borrar": "Borrar mi cuenta",
+  "v134.borrarExplica": "Se borra todo lo que te identifica (nombre, correo, contraseña, avatar, biografía, nicks, puestos y rango) y la cuenta queda cerrada. Tus partidas siguen, sin tu nombre, porque también son las de tus rivales. Tus mazos pasan a la biblioteca de la liga. No se puede deshacer.",
+  "v134.tuContrasena": "Tu contraseña",
+  "v134.escribeNombre": "Escribe tu nombre para confirmar: {n}",
+  "v134.borrarDefinitivo": "Borrar mi cuenta para siempre",
+  "v134.borrando": "Borrando…",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -5570,6 +5581,17 @@ const EN: Record<I18nKey, string> = {
   "v133.bi.sube": "Biggest rise",
   "v133.bi.baja": "Biggest drop",
   "v133.bi.enPantalla": "On screen",
+  "v134.titulo": "Privacy and your data",
+  "v134.privacidad": "Privacy policy",
+  "v134.condiciones": "Terms of use",
+  "v134.descargar": "Download my data",
+  "v134.descargarAyuda": "A file with your profile, matches, results, decks and ladder.",
+  "v134.borrar": "Delete my account",
+  "v134.borrarExplica": "Everything that identifies you is removed (name, email, password, avatar, bio, nicknames, rankings and ladder rank) and the account is closed. Your matches stay, without your name, because they are your opponents' too. Your decks move to the league library. This cannot be undone.",
+  "v134.tuContrasena": "Your password",
+  "v134.escribeNombre": "Type your name to confirm: {n}",
+  "v134.borrarDefinitivo": "Delete my account forever",
+  "v134.borrando": "Deleting…",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

@@ -2,65 +2,57 @@
 
 Escrita el 16/11/2026, con la app en la v0.133. Responde a «¿podríamos subir esto ya al público?».
 
+## Actualización del 16/11/2026 (v0.134)
+
+Decisiones de Ibai y lo que cambia:
+
+- **Habrá UNA sola liga, con divisiones.** No hace falta el modelo de varias ligas: desaparece el
+  bloqueo técnico más grande. Lo que sí queda es que la liga aguante más gente (rendimiento y
+  moderación).
+- **Lo legal ya está en la app** (v0.134): política de privacidad y condiciones de uso públicas,
+  descargar mis datos y borrar mi cuenta desde Ajustes. Faltan dos variables de entorno con quién
+  responde de los datos, y que alguien que sepa revise los textos.
+- **pokemontcg.io ya no se usa** desde la v0.123 (las cartas salen de TCGdex).
+- **La clave pública de Limitless está pedida**, sin respuesta todavía. La app funciona sin ella.
+- **La marca sigue abierta.** Retocar la Poké Ball no la convierte en un diseño propio; para una
+  ficha pública en una tienda, lo prudente es un icono y un nombre que no dependan de la marca.
+
 ## La respuesta corta
 
-**Todavía no, tal cual.** La app funciona bien para vuestro grupo, pero está construida para UNA
-liga y con marcas que no son nuestras. Abrirla hoy tendría cuatro problemas, por orden de gravedad:
-
-1. **Una sola liga.** Hay una única configuración, un único ranking y un único Elo. Un segundo
-   grupo vería y mezclaría sus datos con los vuestros. Es el cambio técnico más grande.
-2. **Marca y propiedad intelectual.** El nombre «PokéArena», la Poké Ball del icono, los sprites y
-   las imágenes de carta son de The Pokémon Company. En privado nadie mira; en una tienda de
-   aplicaciones o con tráfico, sí. Hace falta otro nombre, otro icono y decidir qué imágenes se
-   pueden seguir usando.
-3. **Legal y datos personales.** No hay política de privacidad, ni condiciones de uso, ni forma de
-   borrar la cuenta desde la propia app, ni tratamiento de menores. Con público, es obligatorio.
-4. **Las fuentes de datos están pensadas para uso privado.** La API de Limitless da su clave a
-   proyectos públicos (habría que pedirla), Ciphermaniac pide atribución y moderación, y
-   pokemontcg.io deja de funcionar el 1/3/2027 (hay que pasar a TCGdex antes).
-
-Además: Vercel Hobby es solo para uso personal no comercial, y no hay pruebas automáticas del
-build (cada versión se compila por primera vez en tu ordenador).
+Para vuestro grupo y gente que entre por invitación, **ya se puede usar tal cual**. Para una ficha
+pública en Play Store quedan tres cosas: la marca (nombre e icono), que el hosting permita ese uso
+(Vercel Hobby es personal y no comercial) y pruebas automáticas del build.
 
 ## Fases
 
-### Fase 0 — Estabilizar lo que hay (1–2 semanas)
+### Fase 0 — Estabilizar (1–2 semanas)
 
-- Aplicar y probar las versiones pendientes; dos semanas sin tocar nada más que fallos.
-- **Build y pruebas automáticas en cada subida** (GitHub Actions: `npm run verificar` y
-  `npm run build`). Es lo que más riesgo quita, y es gratis.
-- Copia de seguridad semanal de la base (Neon permite ramas; un script que exporte a fichero).
-- Pasar las imágenes de carta de pokemontcg.io a TCGdex.
+- Aplicar y probar las versiones pendientes; dos semanas arreglando solo fallos.
+- **Build y pruebas automáticas en cada subida** (GitHub Actions). Es lo que más riesgo quita.
+- Copia de seguridad semanal de la base.
+- Poner `LEGAL_RESPONSABLE` y `LEGAL_CONTACTO` en Vercel y revisar los textos legales.
 
-### Fase 1 — Varias ligas (4–6 semanas)
+### Fase 1 — Que la liga aguante más gente (3–4 semanas)
 
-- Cada dato cuelga de una liga (`league_id` en las tablas principales) y cada consulta filtra por
-  ella. Es una migración grande: se hace en una rama de Neon, con vuestra liga como la primera.
-- Crear una liga, invitar por enlace, y que cada uno pueda estar en varias.
-- El Elo, la Forma, los avisos y el cron, por liga.
 - Rendimiento: dejar de cargar el historial entero en Inicio, Ranking y Estadísticas.
+- Moderación: denunciar un resultado, historial de cambios de un organizador, límites de alta.
+- Alta abierta con aprobación de un organizador, además de la invitación.
+- Divisiones: ascensos y descensos automáticos al cerrar temporada, si no están ya.
 
-### Fase 2 — Marca y legal (2–3 semanas, en paralelo)
+### Fase 2 — Marca (1–2 semanas, en paralelo)
 
-- Nombre e icono propios; revisar textos, colores y qué imágenes de terceros se mantienen.
-- Política de privacidad, condiciones de uso, borrado de cuenta y exportación de mis datos.
-- Pedir la clave de la API de Limitless como proyecto público y escribir a Ciphermaniac.
-- Aviso claro de que no es un producto oficial ni está afiliado.
+- Nombre e icono propios para la ficha de la tienda y la app instalada.
+- Aviso de «no oficial» (ya está en los textos legales) también en la ficha.
 
-### Fase 3 — Beta cerrada (4 semanas)
+### Fase 3 — Prueba cerrada en Play Store (4 semanas)
 
-- Dos o tres grupos de fuera (otra tienda, otra ciudad) usando la app de verdad.
-- Play Store en **prueba cerrada** (12 testers durante 14 días es justo lo que pide Google para
-  una cuenta personal nueva): sirve a la vez de requisito y de beta.
-- Medir: cuánto tarda cada página, qué se usa y qué no, qué preguntan.
-- Pasar de Vercel Hobby a un plan que permita uso no personal, si va a haber gente de fuera.
+- 12 testers durante 14 días: es el requisito de Google y sirve de beta.
+- Medir tiempos de carga y qué se usa.
 
-### Fase 4 — Abrir (cuando la beta no dé sorpresas)
+### Fase 4 — Abrir
 
 - Página pública de presentación (hoy todo está tras el inicio de sesión).
-- Producción en Play Store. iOS, más adelante: la web instalada ya funciona en iPhone.
-- Decidir el modelo: gratis con límites generosos y, si acaso, donaciones. Cobrar cambia las
-  reglas de casi todas las fuentes de datos.
+- Producción en Play Store.
 
 ## Lo que haría único el producto
 

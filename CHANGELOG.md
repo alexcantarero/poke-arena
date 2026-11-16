@@ -2,6 +2,31 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.134.0] — 2026-11-16
+
+**Sin migración ni dependencias nuevas.** Dos variables de entorno nuevas, opcionales:
+`LEGAL_RESPONSABLE` y `LEGAL_CONTACTO` (quién responde de los datos y cómo escribirle).
+
+### Añadido — lo legal
+
+- **Política de privacidad** (`/privacidad`) y **condiciones de uso** (`/condiciones`): páginas
+  públicas, enlazadas desde la pantalla de entrar y desde Ajustes. Son un punto de partida para
+  una liga de aficionados, no asesoramiento jurídico: conviene que alguien que sepa las revise
+  antes de abrir la app. Incluyen el aviso de aplicación no oficial.
+- **Ajustes → Tu cuenta → «Privacidad y tus datos»**:
+  - **Descargar mis datos** (`/api/mis-datos`): un JSON con tu perfil, tus partidas, tus
+    resultados, tus mazos y tu ladder. Solo los propios; sin la contraseña.
+  - **Borrar mi cuenta**: pide la contraseña y escribir el nombre. Es una anonimización: se quita
+    todo lo que identifica a la persona (nombre, correo, contraseña, avatar, biografía, nicks,
+    puestos, rango) y la cuenta queda cerrada; sus partidas siguen sin su nombre, porque también
+    son las de sus rivales, y sus mazos pasan a la biblioteca de la liga. No deja a la liga sin
+    dueño. `cuentaAnonima` en `lib/legal.ts` (2 pruebas).
+
+### Cambiado
+
+- `docs/14-roadmap-publico.md`: una sola liga con divisiones (no hace falta el modelo de varias
+  ligas), lo legal hecho y pokemontcg.io ya retirada desde la v0.123.
+
 ## [0.133.0] — 2026-11-16
 
 **Sin migración ni dependencias nuevas.**

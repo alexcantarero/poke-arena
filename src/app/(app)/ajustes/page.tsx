@@ -16,6 +16,7 @@ import { EVENTOS_EUROPA_2027 } from "@/data/eventos-europa";
 import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
+import { BorrarCuenta } from "@/components/BorrarCuenta";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
 import { completarRondasLimitless, importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
@@ -130,6 +131,20 @@ export default async function SettingsPage() {
       </Grupo>
       <Grupo id="cuenta" titulo={tr(lng, "x.e92a19d9")}>
       <PasswordForm />
+
+      {/* v0.134 — privacidad y datos: los textos legales, descargar lo mío y borrar la cuenta. */}
+      <div className="card mt-3 flex flex-col gap-3 p-4" id="privacidad">
+        <h3 className="font-display text-base font-bold">{tr(lng, "v134.titulo")}</h3>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <Link href="/privacidad" className="underline underline-offset-2">{tr(lng, "v134.privacidad")}</Link>
+          <Link href="/condiciones" className="underline underline-offset-2">{tr(lng, "v134.condiciones")}</Link>
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/api/mis-datos" className="btn btn-sm" download>{tr(lng, "v134.descargar")}</a>
+          <span className="text-xs text-muted">{tr(lng, "v134.descargarAyuda")}</span>
+        </div>
+      </div>
+      <div className="mt-3"><BorrarCuenta nombre={me.name} /></div>
 
       </Grupo>
       <Link href="/reglas" className="card mb-3 flex w-full items-center justify-between px-4 py-3 hover:ring-1 hover:ring-info/50">

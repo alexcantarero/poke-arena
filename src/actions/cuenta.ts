@@ -7,7 +7,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { decks, invites, matches, passwordResets, playerFavorites, players, settings, tournamentResults } from "@/db/schema";
+import { asistencias, deckFavorites, decks, invites, ladderEntries, matches, passwordResets, playerFavorites, playerNombresOficiales, players, settings, tournamentResults } from "@/db/schema";
+import { cuentaAnonima } from "@/lib/legal";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { hashResetToken, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES, isOwner, newInviteToken, normalizeEmail, passwordProblem, verifyPassword, writeSession } from "@/lib/auth";
 import { newId, todayISO } from "@/lib/format";
@@ -404,6 +405,43 @@ export async function purgePlayer(fd: FormData) {
   await db.delete(players).where(eq(players.id, id));
   refresh();
   redirect("/ajustes");
+}
+
+/**
+ * v0.134 — BORRAR MI CUENTA. La propia, y solo la propia.
+ *
+ * Es una anonimización (ver `cuentaAnonima` en `lib/legal.ts`): se quita todo
+ * lo que identifica a la persona y la cuenta queda cerrada, pero sus partidas
+ * siguen —sin su nombre— porque también son las de sus rivales. Pide la
+ * contraseña y escribir el nombre, y no deja a la liga sin dueño.
+ */
+export async function borrarMiCuenta(_prev: FormState, fd: FormData): Promise<FormState> {
+  const actor = await requireActor();
+  if (!(await verifyPassword(String(fd.get("password") ?? ""), actor.passwordHash))) {
+    return { error: "La contraseña no es correcta." };
+  }
+  if (!confirmed(fd, actor.name)) return { error: "Escribe tu nombre tal cual para confirmar." };
+  if (isOwner(actor.role) && (await ownerCount()) <= 1) {
+    return { error: "Eres el único dueño de la liga: pasa antes el papel de dueño a otra persona." };
+  }
+  const id = actor.id;
+  // Lo que cuelga de la persona y no hace falta para que cuadren las cuentas de nadie.
+  const limpiar = [
+    () => db.delete(asistencias).where(eq(asistencias.playerId, id)),
+    () => db.delete(deckFavorites).where(eq(deckFavorites.playerId, id)),
+    () => db.delete(ladderEntries).where(eq(ladderEntries.playerId, id)),
+    () => db.delete(playerNombresOficiales).where(eq(playerNombresOficiales.playerId, id)),
+    () => db.delete(passwordResets).where(eq(passwordResets.playerId, id)),
+    // Sus mazos pasan a la biblioteca de la liga, sin sus comentarios.
+    () => db.update(decks).set({ playerId: null, notes: "" }).where(eq(decks.playerId, id)),
+  ];
+  for (const paso of limpiar) {
+    try { await paso(); } catch (e) { console.warn("[borrar cuenta]", e instanceof Error ? e.message : e); }
+  }
+  await db.update(players).set(cuentaAnonima(id, actor.sessionVersion ?? 1)).where(eq(players.id, id));
+  await clearSession();
+  refresh();
+  redirect(withFlash("/entrar", "ok", "Tu cuenta se ha borrado."));
 }
 
 /* ================================================================ v0.17 -- */

@@ -56,6 +56,12 @@ export default async function LoginPage() {
       <p className="mt-1 text-center text-sm text-muted">
         <Link href="/" className="underline underline-offset-2">{tr(lng, "x.84a715a7")}</Link>
       </p>
+      {/* v0.134 — lo legal, a la vista antes de entrar. */}
+      <p className="mt-6 text-center text-xs text-muted">
+        <Link href="/privacidad" className="underline underline-offset-2">{tr(lng, "v134.privacidad")}</Link>
+        {" · "}
+        <Link href="/condiciones" className="underline underline-offset-2">{tr(lng, "v134.condiciones")}</Link>
+      </p>
     </main>
   );
 }
