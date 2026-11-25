@@ -72,7 +72,6 @@ export function ModoTorneo({
   const [editando, setEditando] = useState<number | null>(null);
   const [resultado, setResultado] = useState<ResultadoCola | "">("");
   const [rival, setRival] = useState("");
-  const [busca, setBusca] = useState("");
   const [primero, setPrimero] = useState<"" | "a" | "b">("");
   const [oponente, setOponente] = useState("");
   const [especial, setEspecial] = useState<EspecialCola>("");
@@ -179,18 +178,9 @@ export function ModoTorneo({
   const pendientes = cola.filter((r) => r.estado !== "conflicto").length;
   const nombreDe = useMemo(() => new Map([...arquetipos, ...misMazos].map((o) => [o.valor, o.nombre])), [arquetipos, misMazos]);
 
-  const sugeridos = useMemo(() => {
-    const q = sinAcentos(busca);
-    if (q) return arquetipos.filter((a) => sinAcentos(a.nombre).includes(q)).slice(0, 12);
-    const frec = frecuentes.map((v) => arquetipos.find((a) => a.valor === v)).filter((x): x is OpcionMazo => Boolean(x)).slice(0, 8);
-    const lista = frec.length ? frec : arquetipos.slice(0, 8);
-    // El elegido siempre a la vista, aunque no esté entre los más vistos.
-    const elegido = rival ? arquetipos.find((a) => a.valor === rival) : undefined;
-    return elegido && !lista.some((a) => a.valor === rival) ? [elegido, ...lista] : lista;
-  }, [busca, arquetipos, frecuentes, rival]);
 
   const limpiar = () => {
-    setEditando(null); setResultado(""); setRival(""); setBusca(""); setPrimero(""); setOponente(""); setEspecial("");
+    setEditando(null); setResultado(""); setRival(""); setPrimero(""); setOponente(""); setEspecial("");
     setDetalle(false); setJuegos([JUEGO_VACIO]); setCausas(null);
   };
 
@@ -242,7 +232,7 @@ export function ModoTorneo({
     const js = enCola?.juegos ?? srv?.juegos ?? [];
     setEditando(ronda);
     setResultado(esp ? "" : enCola ? enCola.resultado : srv?.r ? DE_LETRA[srv.r] : "");
-    setRival(enCola?.rival ?? srv?.rivalValor ?? ""); setBusca(""); setPrimero(enCola?.primero ?? srv?.primero ?? "");
+    setRival(enCola?.rival ?? srv?.rivalValor ?? ""); setPrimero(enCola?.primero ?? srv?.primero ?? "");
     setOponente(enCola?.oponente ?? (srv && !/^(NPC|Rival R)\s?\d+$|^BYE$/.test(srv.rival) ? srv.rival : ""));
     setEspecial(esp);
     setDetalle(js.length > 0); setJuegos(js.length ? js : [JUEGO_VACIO]); setCausas(enCola?.causas ?? null);
@@ -330,17 +320,9 @@ export function ModoTorneo({
           {!mazoFijado && (
             <div className="mt-paso" data-hecho={Boolean(miMazo)}>
               <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.miMazo")}</p>
-              <select className="input" value={miMazo} onChange={(e) => setMiMazo(e.target.value)} aria-label={tr(lng, "v125.miMazo")}>
-                <option value="">{tr(lng, "v125.elige")}</option>
-                {misMazos.length > 0 && (
-                  <optgroup label={tr(lng, "v125.misMazos")}>
-                    {misMazos.map((m) => <option key={m.valor} value={m.valor}>{m.nombre}</option>)}
-                  </optgroup>
-                )}
-                <optgroup label={tr(lng, "v125.arquetipos")}>
-                  {arquetipos.map((a) => <option key={a.valor} value={a.valor}>{a.nombre}</option>)}
-                </optgroup>
-              </select>
+              {/* v0.135 — se escribe y filtra (con cien mazos, un desplegable en el móvil no se puede usar). */}
+              <ListaMazos opciones={[...misMazos, ...arquetipos]} valor={miMazo} alElegir={setMiMazo}
+                sugeridas={misMazos.map((m) => m.valor)} rotuloSugeridas={tr(lng, "v125.misMazos")} />
               <p className="mt-1.5 text-xs text-muted">{tr(lng, "v125.miMazoAyuda")}</p>
             </div>
           )}
@@ -363,24 +345,16 @@ export function ModoTorneo({
 
               <div className="mt-paso" data-hecho={Boolean(rival)}>
                 <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v125.mazoRival")}</p>
-                <input className="input mb-2" type="search" inputMode="search" enterKeyHint="search" autoComplete="off"
-                  value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tr(lng, "v125.buscarMazo")} aria-label={tr(lng, "v125.buscarMazo")} />
-                <div className="grid grid-cols-2 gap-2">
-                  {sugeridos.map((a) => (
-                    <button key={a.valor} type="button" className="mt-mazo" aria-pressed={rival === a.valor}
-                      style={a.color ? ({ "--tipo": a.color } as CSSProperties) : undefined}
-                      onClick={() => { setRival(a.valor); setBusca(""); }}>
-                      {a.sprite && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={a.sprite} alt="" width={40} height={40} loading="lazy" decoding="async"
-                          onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                      )}
-                      <span>{a.nombre}</span>
-                    </button>
-                  ))}
-                </div>
-                {sugeridos.length === 0 && <p className="text-sm text-muted">{tr(lng, "v125.sinMazos")}</p>}
-                {!busca && <p className="mt-1.5 text-xs text-muted">{tr(lng, "v126.masVistos")}</p>}
+                {/* v0.135 — lista de texto que se filtra al escribir, sin iconos: en el móvil es lo que se puede usar. */}
+                <ListaMazos opciones={arquetipos} valor={rival} alElegir={setRival}
+                  sugeridas={frecuentes} rotuloSugeridas={tr(lng, "v135.masVistos")} />
+              </div>
+
+              {/* v0.135 — el nombre del rival, a la vista (antes iba escondido en «Más»). */}
+              <div className="mt-paso" data-opcional="true" data-hecho={Boolean(oponente.trim())}>
+                <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, "v135.nombreRival")}<em>{tr(lng, "v126.opcional")}</em></p>
+                <input className="input" value={oponente} maxLength={60} autoComplete="off" enterKeyHint="done"
+                  onChange={(e) => setOponente(e.target.value)} placeholder={tr(lng, "v135.nombreRivalEj")} aria-label={tr(lng, "v135.nombreRival")} />
               </div>
 
               <div className="mt-paso" data-hecho={Boolean(primero)} data-opcional="true">
@@ -464,10 +438,28 @@ export function ModoTorneo({
             </div>
           )}
 
-          {/* v0.128 — ETIQUETAS de la derrota o el empate (las mismas de la ficha y de Estadísticas). */}
+          {/* v0.128 — ETIQUETAS de la derrota o el empate (las mismas de la ficha y de Estadísticas).
+              v0.135 — con los PREMIOS al lado: cuántos cogió cada uno en un Bo1 (escribe en el detalle). */}
           {perdida && (
             <div className="mt-paso" data-opcional="true" data-hecho={Boolean(causas?.length)}>
               <p className="mt-paso-titulo"><span>{num()}</span>{tr(lng, resultado === "tie" ? "v123.causasEmpateYo" : "v123.causasYo")}</p>
+              {unJuego ? (
+                <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                  {([["pa", "v128.premiosYo"], ["pb", "v128.premiosRival"]] as const).map(([campo, k]) => (
+                    <div key={campo}>
+                      <p className="mt-mini">{tr(lng, k)}</p>
+                      <div className="mt-premios" role="group" aria-label={tr(lng, k)}>
+                        {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                          <button key={n} type="button" aria-pressed={detalle && juegos[0][campo] === n}
+                            onClick={() => { const v = detalle && juegos[0][campo] === n ? null : n; setDetalle(true); cambiaJuego(0, campo === "pa" ? { pa: v } : { pb: v }); }}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !detalle && (
+                <button type="button" className="btn btn-sm mb-3" onClick={() => setDetalle(true)}>{tr(lng, "v135.premiosBo3")}</button>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 {CAUSAS_DERROTA.map((c) => {
                   const on = (causas ?? []).includes(c);
@@ -483,12 +475,8 @@ export function ModoTorneo({
           )}
 
           <details className="mt-mas" open={Boolean(especial) || undefined}>
-            <summary className="tap cursor-pointer justify-start px-3 text-sm font-semibold text-muted">{tr(lng, "v125.mas")}</summary>
+            <summary className="tap cursor-pointer justify-start px-3 text-sm font-semibold text-muted">{tr(lng, "v135.mas")}</summary>
             <div className="flex flex-col gap-3 border-t border-line-soft p-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="label">{tr(lng, "v125.nombreRival")}</span>
-                <input className="input" value={oponente} maxLength={60} autoComplete="off" onChange={(e) => setOponente(e.target.value)} />
-              </label>
               <div>
                 <p className="label mb-1.5">{tr(lng, "v123.rondaEspecial")}</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -563,5 +551,69 @@ export function ModoTorneo({
         </div>
       )}
     </>
+  );
+}
+
+/* =========================================================================
+   v0.135 — ELEGIR UN MAZO ESCRIBIENDO. Una caja de texto y, debajo, una lista
+   de nombres (sin sprites) que se filtra al teclear: sin teclear, las
+   sugeridas (los mazos más vistos, o los tuyos). Tocar uno lo elige. Pensado
+   para el móvil: nada de desplegables de cien filas ni hojas que tapa el
+   teclado. El borde de color de cada fila es el de su tipo de energía.
+   ========================================================================= */
+function ListaMazos({ opciones, valor, alElegir, sugeridas, rotuloSugeridas }: {
+  opciones: OpcionMazo[]; valor: string; alElegir: (v: string) => void; sugeridas: string[]; rotuloSugeridas: string;
+}) {
+  const lng = useLang();
+  const [q, setQ] = useState("");
+  const [abierta, setAbierta] = useState(false);
+  const caja = useRef<HTMLInputElement>(null);
+  const elegida = opciones.find((o) => o.valor === valor);
+  const filas = useMemo(() => {
+    const n = sinAcentos(q);
+    if (n) {
+      const empiezan = opciones.filter((o) => sinAcentos(o.nombre).startsWith(n));
+      const contienen = opciones.filter((o) => !sinAcentos(o.nombre).startsWith(n) && sinAcentos(o.nombre).includes(n));
+      const vistos = new Set<string>();
+      return [...empiezan, ...contienen].filter((o) => (vistos.has(o.valor) ? false : (vistos.add(o.valor), true))).slice(0, 40);
+    }
+    const porValor = new Map(opciones.map((o) => [o.valor, o]));
+    const sug = sugeridas.map((v) => porValor.get(v)).filter((x): x is OpcionMazo => Boolean(x)).slice(0, 8);
+    return sug.length ? sug : opciones.slice(0, 8);
+  }, [q, opciones, sugeridas]);
+  const elegir = (v: string) => { alElegir(v); setQ(""); setAbierta(false); caja.current?.blur(); };
+
+  if (elegida && !abierta) {
+    return (
+      <div className="mt-elegida" style={elegida.color ? ({ "--tipo": elegida.color } as CSSProperties) : undefined}>
+        <span className="min-w-0 flex-1 truncate font-semibold">✓ {elegida.nombre}</span>
+        <button type="button" className="btn btn-ghost btn-sm flex-none" onClick={() => { setAbierta(true); setTimeout(() => caja.current?.focus(), 0); }}>
+          {tr(lng, "v135.cambiar")}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <input ref={caja} className="input" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off"
+        autoCapitalize="off" spellCheck={false} data-1p-ignore data-lpignore="true"
+        value={q} onChange={(e) => { setQ(e.target.value); setAbierta(true); }}
+        onFocus={(e) => { setAbierta(true); const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 250); }}
+        onKeyDown={(e) => { if (e.key === "Enter" && filas[0]) { e.preventDefault(); elegir(filas[0].valor); } }}
+        placeholder={tr(lng, "v125.buscarMazo")} aria-label={tr(lng, "v125.buscarMazo")} />
+      {!q && <p className="mt-2 mb-1 text-xs text-muted">{rotuloSugeridas}</p>}
+      <ul className="mt-lista" role="listbox">
+        {filas.map((o) => (
+          <li key={o.valor}>
+            <button type="button" role="option" aria-selected={o.valor === valor} onClick={() => elegir(o.valor)}
+              style={o.color ? ({ "--tipo": o.color } as CSSProperties) : undefined}>
+              {o.nombre}
+            </button>
+          </li>
+        ))}
+        {filas.length === 0 && <li className="px-3 py-3 text-sm text-muted">{tr(lng, "v125.sinMazos")}</li>}
+      </ul>
+      {elegida && <button type="button" className="btn btn-ghost btn-sm mt-1" onClick={() => setAbierta(false)}>{tr(lng, "v125.cancelar")}</button>}
+    </div>
   );
 }

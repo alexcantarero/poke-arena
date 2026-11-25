@@ -1,0 +1,109 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261125210742
+Nombre de usuario: elzorro1-PC\elzorro1
+Usuario RunAs: elzorro1-PC\elzorro1
+Nombre de la configuración: 
+Máquina: ELZORRO1-PC (Microsoft Windows NT 10.0.22631.0)
+Aplicación host: powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\elzorro1\OneDrive\Escritorio\PokeArenaTCG\aplicar-v0.135.ps1
+Id. de proceso: 14364
+PSVersion: 5.1.22621.6133
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.22621.6133
+BuildVersion: 10.0.22621.6133
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Comprobando el repositorio
+Version actual: 0.134.0
+Rama: development
+Aviso: tienes cambios sin commitear. Entraran en el mismo commit de la v0.135:
+   ?? .clasp.json
+   ?? Beautify.js
+   ?? BehaviorDashboard.html
+   ?? CHAMPION_DATA.js
+   ?? Code.js
+   ?? EpicRanking.html
+   ?? Fantasy.html
+   ?? GlobalDashboard.html
+   ?? GlobalHistory.html
+   ?? Grafico_General.html
+   ?? GraphicsMenu.html
+   ?? IMPLEMENTAR-v0.132.0.md
+   ?? LeagueMenu.html
+   ?? MarketDashboard.html
+   ?? MatchDetails.html
+   ?? Match_Inspector.html
+   ?? PlayerProfile.html
+   ?? RoflParser.html
+   ?? RouletteDialog.html
+   ?? SynergyDashboard.html
+   ?? TeamVote.html
+   ?? VotingBooth.html
+   ?? WebApp.html
+   ?? _v0.135/
+   ?? analytics.html
+   ?? aplicar-v0.135.bat
+   ?? aplicar-v0.135.log
+   ?? aplicar-v0.135.ps1
+   ?? appsscript.json
+   ?? dashboard.html
+   ?? index.html
+   ?? roadmap-publico.md
+
+==> Copiando los ficheros de la v0.135
+  + CHANGELOG.md
+  + IMPLEMENTAR-v0.135.0.md
+  + package-lock.json
+  + package.json
+  + drizzle\0037_v0_135_0.sql
+  + scripts\migrar.mjs
+  + src\actions\cuenta.ts
+  + src\actions\metagame.ts
+  + src\actions\torneos.ts
+  + src\app\globals.css
+  + src\app\layout.tsx
+  + src\app\robots.ts
+  + src\app\sitemap.ts
+  + src\app\(app)\layout.tsx
+  + src\app\(app)\ajustes\page.tsx
+  + src\app\(app)\avisos\page.tsx
+  + src\app\(app)\perfil\[id]\page.tsx
+  + src\app\(app)\torneos\page.tsx
+  + src\app\(app)\torneos\duplicados\page.tsx
+  + src\app\condiciones\page.tsx
+  + src\app\entrar\page.tsx
+  + src\app\privacidad\page.tsx
+  + src\app\registro\page.tsx
+  + src\components\DeckPicker.tsx
+  + src\components\ModoTorneo.tsx
+  + src\components\RegisterForm.tsx
+  + src\components\TournamentForm.tsx
+  + src\db\schema.ts
+  + src\lib\ajustesExtraDb.ts
+  + src\lib\avisos.ts
+  + src\lib\duplicados.ts
+  + src\lib\esquemaEsperado.ts
+  + src\lib\i18n.ts
+  + tests\avisos.test.ts
+  + tests\duplicados.test.ts
+35 ficheros copiados.
+
+==> Borrando lo que ya no hace falta
+  - IMPLEMENTAR-v0.133.0.md
+
+==> npm run verificar  (codificacion + acciones + textos + pruebas + tipos)
+
+
+==> npm run build
+
+
+ERROR: El build ha fallado: NO se ha hecho commit. Si tienes abierto "npm run dev", cierralo (Windows bloquea la carpeta .next) y vuelve a lanzar el .bat.
+Detalle completo en aplicar-v0.135.log
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261125210843
+**********************

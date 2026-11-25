@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Oswald:wght@500&display=swap" rel="stylesheet">
+  <style>
+    /* Reutilizamos tus variables y fondo */
+    :root { --bg-dark: #0f172a; --bg-panel: #1e293b; --text-main: #f1f5f9; --text-muted: #94a3b8; --gold: #fbbf24; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+
+    .header { text-align: center; margin-bottom: 40px; margin-top: 20px; }
+    .title { font-family: 'Oswald'; font-size: 3em; color: var(--gold); margin: 0; text-transform: uppercase; text-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+    .subtitle { color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-size: 0.9em; cursor: pointer; text-decoration: underline; }
+
+    /* Grid para los botones de gráficos */
+    .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+    
+    .tool-card {
+        background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 15px;
+        cursor: pointer; transition: all 0.2s ease; backdrop-filter: blur(5px);
+    }
+    .tool-card:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.9); border-color: var(--gold); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    
+    .tool-icon { font-size: 2em; }
+    .tool-info h3 { margin: 0; font-family: 'Oswald'; font-size: 1.2em; color: #fff; }
+    .tool-info p { margin: 5px 0 0; font-size: 0.8em; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+      <div class="title">CENTRO DE DATOS</div>
+      <div class="subtitle" onclick="goHome()">« VOLVER AL INICIO</div>
+  </div>
+
+  <div class="tools-grid">
+      <div class="tool-card" onclick="navigate('analytics')">
+          <div class="tool-icon">📊</div>
+          <div class="tool-info"><h3>CENTRO DE ANALÍTICAS</h3><p>Tus métricas individuales.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('dashboard')">
+          <div class="tool-icon" style="color: var(--point-accent);">💫</div>
+          <div class="tool-info"><h3>STATS PERSONALES</h3><p>Resumen de KDA, WR y Puntos.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('synergy')">
+          <div class="tool-icon">💕</div>
+          <div class="tool-info"><h3>ANALIZADOR DE SINERGIAS</h3><p>Compatibilidad entre dúos.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('behavior')">
+          <div class="tool-icon">🧠</div>
+          <div class="tool-info"><h3>PSICOLOGÍA & TILT</h3><p>Análisis de comportamiento.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('inspector')">
+          <div class="tool-icon">🔎</div>
+          <div class="tool-info"><h3>INSPECTOR PARTIDAS</h3><p>Detalle profundo de partidas.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('global')">
+          <div class="tool-icon">🌍</div>
+          <div class="tool-info"><h3>DASHBOARD GLOBAL</h3><p>Estado general de la liga.</p></div>
+      </div>
+      
+      <div class="tool-card" onclick="navigate('general')">
+          <div class="tool-icon">🏆</div>
+          <div class="tool-info"><h3>SALÓN DE LA FAMA</h3><p>Evolución histórica.</p></div>
+      </div>
+
+      <div class="tool-card" onclick="navigate('match_details')">
+          <div class="tool-icon">🔬</div> 
+          <div class="tool-info"><h3>INSPECTOR PRO</h3><p>Estadísticas avanzadas por partida.</p></div>
+      </div>
+
+    
+  </div>
+
+  <script>
+    function navigate(route) {
+       google.script.run.withSuccessHandler(url => {
+          window.open(url + "?p=" + route, "_top");
+       }).getScriptUrl();
+    }
+    
+    function goHome() {
+       google.script.run.withSuccessHandler(url => {
+          window.open(url, "_top");
+       }).getScriptUrl();
+    }
+  </script>
+</body>
+</html>

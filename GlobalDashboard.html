@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoloQ Pro Analytics v12.1</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;       
+      --bg-card: #1e293b;       
+      --accent: #38bdf8;        
+      --gold: #fbbf24;          
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+    }
+
+    h1, h2, h3, h4, h5 {
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    h2 {
+        color: var(--gold);
+        border-left: 4px solid var(--accent);
+        padding-left: 15px;
+        margin-top: 50px;
+        margin-bottom: 25px;
+        font-size: 1.5rem;
+    }
+
+    /* Tarjetas */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+    }
+
+    /* Bordes superiores de color para KPIs */
+    .card.c-blue { border-top: 4px solid #38bdf8; }
+    .card.c-red { border-top: 4px solid #f87171; }
+    .card.c-gold { border-top: 4px solid #fbbf24; }
+    .card.c-purple { border-top: 4px solid #a855f7; }
+    .card.c-green { border-top: 4px solid #34d399; }
+
+    .card-title {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .card-value {
+        font-family: 'Oswald', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .card-sub {
+        font-size: 0.85rem;
+        color: var(--accent);
+        margin-top: 5px;
+    }
+
+    /* Tablas */
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+    }
+    .table-dark {
+        --bs-table-bg: var(--bg-card);
+        --bs-table-border-color: var(--border-color);
+    }
+    .table-dark th {
+        color: var(--accent);
+        font-family: 'Oswald', sans-serif;
+        font-weight: 400;
+        text-transform: uppercase;
+        background-color: #162032;
+    }
+    
+    /* Gráficos */
+    .chart-container { 
+        position: relative; 
+        width: 100%; 
+        min-height: 300px; 
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 15px;
+    }
+    .chart-full { height: 400px; }
+    .chart-tall { height: 600px; } /* Más alto para las etiquetas */
+    
+    /* Loader */
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 9999; display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    #error-box { display:none; max-width: 600px; text-align: center; }
+
+    /* Estilos tabla anidada */
+    .toggle-btn {
+        background: var(--bg-dark); color: var(--accent); border: 1px solid var(--border-color);
+        width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; font-weight: bold;
+    }
+    .toggle-btn:hover { background: var(--accent); color: var(--bg-dark); }
+    .sub-row { display: none; }
+    .sub-row.visible { display: table-row; }
+    .sub-table th { font-size: 0.75rem; color: var(--text-muted); }
+    .sub-table td { font-size: 0.85rem; }
+    .cell-number { font-family: 'Oswald', sans-serif; letter-spacing: 0.5px; }
+
+  </style>
+</head>
+<body>
+
+<div id="loading" class="loading-overlay">
+  <div id="spinner-container">
+      <div class="spinner-border text-info" style="width: 4rem; height: 4rem;" role="status"></div>
+      <h4 class="mt-3 text-info">Procesando Big Data...</h4>
+  </div>
+  <div id="error-box" class="alert alert-danger mt-3"></div>
+</div>
+
+<div class="container py-5">
+  
+  <div class="d-flex justify-content-between align-items-center mb-5 border-bottom border-secondary pb-3">
+    <div>
+      <h1 class="mb-0" style="color: var(--accent); font-size: 2.5rem;">
+        <i class="bi bi-bar-chart-fill me-2"></i> SoloQ <span style="color:white">Global Dashboard</span>
+      </h1>
+      <small class="text-muted">Centro de Inteligencia Competitiva v12.1</small>
+    </div>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="google.script.host.close()">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="dashboard-content" style="display:none;">
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card c-blue p-3 text-center h-100">
+                <div class="card-title">Partidas Totales</div>
+                <div class="card-value" id="s-total-games">0</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-purple p-3 text-center h-100">
+                <div class="card-title">Kills Totales</div>
+                <div class="card-value" id="s-total-kills">0</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-green p-3 text-center h-100">
+                <div class="card-title">Mejor KDA Global</div>
+                <div class="card-value" id="s-best-kda">0</div>
+                <div class="card-sub" id="p-best-kda">N/A</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-blue p-3 text-center h-100">
+                <div class="card-title">Maratón (Tiempo)</div>
+                <div class="card-value" id="s-longest-game">0'</div>
+                <div class="card-sub" id="p-longest-game">N/A</div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-6">
+            <div class="card c-gold p-3 text-center h-100">
+                <div class="card-title">👑 Máx. Puntos</div>
+                <div class="card-value text-warning" id="s-max-points">0</div>
+                <div class="card-sub" id="p-max-points">N/A</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-red p-3 text-center h-100">
+                <div class="card-title">💀 Mín. Puntos</div>
+                <div class="card-value text-danger" id="s-min-points">0</div>
+                <div class="card-sub" id="p-min-points">N/A</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-purple p-3 text-center h-100">
+                <div class="card-title">Daño Máximo</div>
+                <div class="card-value" id="s-record-damage">0</div>
+                <div class="card-sub" id="p-record-damage">N/A</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card c-red p-3 text-center h-100">
+                <div class="card-title">Max Kills (Partida)</div>
+                <div class="card-value" id="s-record-kills">0</div>
+                <div class="card-sub" id="p-record-kills">N/A</div>
+            </div>
+        </div>
+    </div>
+
+    <h2>🧬 Matriz de Estilo: Impacto vs Riesgo</h2>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="chart-container chart-full">
+                <canvas id="chartScatter"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <h2>📊 Comparativa Global</h2>
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartGamesPerPlayer"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartWinRate"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartAvgKDA"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartRoleDist"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <h2>🔥 Récords Personales (Máximos Históricos)</h2>
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartMaxKills"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <canvas id="chartMaxDamage"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <h2>🏆 Clasificación Detallada de Jugadores</h2>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0" id="player-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Invocador</th>
+                            <th class="text-center">Partidas</th>
+                            <th class="text-center text-info">Win Rate</th>
+                            <th class="text-center text-warning">Avg KDA</th>
+                            <th class="text-center text-primary">Max KDA</th> <th class="text-center text-danger">Max Kills</th>
+                            <th class="text-end text-success">Max Daño</th>
+                            <th class="text-center">Champs Únicos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="player-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <h2>🎭 Análisis por Campeón (Min. 3 Partidas)</h2>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0" id="champ-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>Campeón</th>
+                            <th class="text-center">Total Partidas</th>
+                            <th class="text-center">Win Rate Global</th>
+                            <th class="text-center">KDA Global</th>
+                            <th class="text-center text-warning">Avg Pts</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="champ-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5 mt-4 border-top border-secondary pt-4">
+        <div class="col-12">
+            <h2 class="mt-0" style="border-color: #a855f7; color: #a855f7;">🏷️ Factores de Rendimiento (Etiquetas)</h2>
+            <p class="text-muted ms-3">Análisis de las notas/etiquetas que más aparecen en las partidas ganadas y perdidas.</p>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 p-3" style="border-top: 4px solid #34d399;">
+                <h5 class="card-title text-success mb-3" style="font-size:1rem;">✅ Etiquetas frecuentes en VICTORIAS</h5>
+                <div class="chart-container chart-tall" style="border:none; box-shadow:none;">
+                    <canvas id="chartTopTagsWin"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 p-3" style="border-top: 4px solid #f87171;">
+                <h5 class="card-title text-danger mb-3" style="font-size:1rem;">❌ Etiquetas frecuentes en DERROTAS</h5>
+                <div class="chart-container chart-tall" style="border:none; box-shadow:none;">
+                    <canvas id="chartTopTagsLoss"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  </div> </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // --- Configuracion Global Chart.js para Modo Oscuro ---
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#334155';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  
+  const COLORS = [
+    '#38bdf8', '#f472b6', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#9ca3af', '#6366f1', '#ec4899', '#14b8a6'
+  ];
+
+  window.addEventListener('load', () => {
+    // Llamada segura
+    google.script.run
+      .withSuccessHandler(onDataLoaded)
+      .withFailureHandler(showFatalError)
+      .getGlobalChallengeStats();
+  });
+
+  function showFatalError(err) {
+    document.getElementById('spinner-container').style.display = 'none';
+    const box = document.getElementById('error-box');
+    box.style.display = 'block';
+    box.innerHTML = `<strong>Error Critico:</strong> ${err.message}`;
+  }
+
+function onDataLoaded(data) {
+    console.log("RECIBIDO:", data); // Para depurar
+
+    if (!data || !data.globalStats) {
+        showFatalError({message: "El servidor devolvio datos vacios."});
+        return;
+    }
+
+    try {
+        const gs = data.globalStats;
+        const players = data.statsByPlayer || {};
+        
+        // 1. Asignacion de Valores a las Tarjetas (KPIs)
+        setText('s-total-games', gs.totalGames || 0);
+        setText('s-total-kills', (gs.totalKills || 0).toLocaleString());
+        
+        // Maximo Puntos (Tarjeta Dorada)
+        if (gs.maxPoints) {
+            setText('s-max-points', parseFloat(gs.maxPoints.value).toFixed(1));
+            setText('p-max-points', ` ${gs.maxPoints.player || 'N/A'} (${gs.maxPoints.champ})`);
+        }
+        
+        // Minimo Puntos (Tarjeta Roja)
+        if (gs.minPoints) {
+            setText('s-min-points', parseFloat(gs.minPoints.value).toFixed(1));
+            setText('p-min-points', ` ${gs.minPoints.player || 'N/A'} (${gs.minPoints.champ})`);
+        }
+
+        // Record de Dano
+        if (gs.recordDamage) {
+            setText('s-record-damage', ((gs.recordDamage.value || 0)/1000).toFixed(1) + 'k');
+            setText('p-record-damage', ` ${gs.recordDamage.player || 'N/A'} (${gs.recordDamage.champ})`);
+        }
+
+        // Record de Kills en una partida
+        if (gs.recordKills) {
+             setText('s-record-kills', gs.recordKills.value || 0);
+             setText('p-record-kills', ` ${gs.recordKills.player || 'N/A'} (${gs.recordKills.champ})`);
+        }
+
+        // Mejor KDA Global
+        if (gs.bestKDA) {
+            setText('s-best-kda', parseFloat(gs.bestKDA.value).toFixed(2));
+            setText('p-best-kda', ` ${gs.bestKDA.player || 'N/A'}`);
+        }
+        
+        // Partida mas Larga
+        if (gs.longestGame) {
+            setText('s-longest-game', (gs.longestGame.value || 0) + "'");
+            setText('p-longest-game', ` ${gs.longestGame.player || 'N/A'}`);
+        }
+
+        // 2. Preparar Lista Jugadores
+        const pList = Object.keys(players).map(k => ({name:k, ...players[k]})).sort((a,b) => b.winRate - a.winRate);
+        const pNames = pList.map(p => p.name);
+
+        // 3. Renderizar Graficos con Try-Catch individual
+        safeRender(() => {
+            const scatterData = pList.map(p => ({x: p.games, y: p.winRate, r: 8, player: p.name}));
+            createBubble('chartScatter', scatterData);
+        }, "Scatter");
+
+        safeRender(() => createBar('chartGamesPerPlayer', 'Partidas', pNames, pList.map(p=>p.games), COLORS[0]), "Games");
+        safeRender(() => createBar('chartWinRate', 'Win Rate (%)', pNames, pList.map(p=>p.winRate), COLORS[1], '%'), "WR");
+        safeRender(() => createBar('chartAvgKDA', 'KDA', pNames, pList.map(p=>p.avgKDA), COLORS[2]), "KDA");
+        
+        safeRender(() => {
+            new Chart(document.getElementById('chartRoleDist'), { 
+                type: 'doughnut', 
+                data: { labels: Object.keys(data.roleDistribution||{}), datasets: [{ data: Object.values(data.roleDistribution||{}), backgroundColor: COLORS, borderWidth:0 }] }, 
+                options: { plugins: { legend: { position:'right', labels:{color:'#94a3b8'} } } } 
+            });
+        }, "Roles");
+
+        safeRender(() => createBar('chartMaxKills', 'Max Kills', pNames, pList.map(p=>p.maxKills), COLORS[5]), "MaxKills");
+        safeRender(() => createBar('chartMaxDamage', 'Max Dano', pNames, pList.map(p=>p.maxDamage), COLORS[4]), "MaxDmg");
+
+        // 4. Tablas
+        renderPlayerTable(pList);
+        renderChampTable(data.championStats || []);
+
+        // 5. ETIQUETAS (TAGS) - SECCION NUEVA
+        safeRender(() => {
+            const tagsWin = (data.tagStats || [])
+                .sort((a,b) => b.wins - a.wins) // Ordenar por victorias
+                .slice(0, 18); // Top 18
+
+            const tagsLoss = (data.tagStats || [])
+                .sort((a,b) => b.losses - a.losses) // Ordenar por derrotas
+                .slice(0, 18); // Top 18
+
+            createHBar('chartTopTagsWin', '', tagsWin.map(t=>t.tag), tagsWin.map(t=>t.wins), '#34d399');
+            createHBar('chartTopTagsLoss', '', tagsLoss.map(t=>t.tag), tagsLoss.map(t=>t.losses), '#f87171');
+        }, "Tags");
+
+        // Todo OK -> Mostrar
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard-content').style.display = 'block';
+
+    } catch (e) {
+        showFatalError(e);
+    }
+  }
+
+  // --- Funciones de Renderizado Seguro ---
+  function safeRender(fn, name) {
+      try { fn(); } catch(e) { console.warn(`Error pintando grafico ${name}:`, e); }
+  }
+
+  function renderPlayerTable(list) {
+      const tbody = document.getElementById('player-table-body');
+      tbody.innerHTML = '';
+      
+      list.forEach((s, i) => {
+          const medal = i === 0 ? '' : (i === 1 ? '' : (i === 2 ? '' : `#${i + 1}`));
+          
+          // --- LOGICA DE COLORES KDA (ESCALA) ---
+          const kdaVal = parseFloat(s.avgKDA);
+          let kdaColor = '#38bdf8'; // Por defecto Azul (>= 4.5)
+
+          if (kdaVal < 1.8) {
+              kdaColor = '#f87171'; // Rojo (Peligro)
+          } else if (kdaVal < 3.0) {
+              kdaColor = '#fbbf24'; // Amarillo (Medio)
+          } else if (kdaVal < 4.5) {
+              kdaColor = '#34d399'; // Verde (Bueno)
+          }
+          // Si es >= 4.5 se queda el Azul (Excelente)
+          
+          // Obtener Max KDA
+          const maxKdaVal = s.bestKDA || 0;
+
+          tbody.innerHTML += `<tr>
+              <td class="fw-bold text-warning">${medal}</td>
+              <td class="fw-bold text-white">${s.name}</td>
+              <td class="text-center cell-number">${s.games}</td>
+              <td class="text-center cell-number" style="color:${getColor(s.winRate)}">${parseFloat(s.winRate).toFixed(1)}%</td>
+              
+              <td class="text-center cell-number fw-bold" style="color:${kdaColor}; text-shadow: 0px 0px 5px ${kdaColor}40;">
+                  ${kdaVal.toFixed(2)}
+              </td>
+              
+              <td class="text-center cell-number text-primary">${parseFloat(maxKdaVal).toFixed(2)}</td>
+              <td class="text-center text-danger cell-number">${s.maxKills || 0}</td>
+              <td class="text-end text-success cell-number">${(s.maxDamage||0).toLocaleString()}</td>
+              <td class="text-center text-muted">${s.uniqueChamps || 0}</td>
+          </tr>`;
+      });
+  }
+
+  function renderChampTable(list) {
+      const tbody = document.getElementById('champ-table-body');
+      tbody.innerHTML = ''; 
+
+      list.slice(0, 50).forEach((c, i) => {
+          const rowId = `sub-${i}`;
+          
+          // 1. Convertimos a numero para poder redondear
+          const cKdaVal = parseFloat(c.kda || 0);
+          const cPtsVal = parseFloat(c.avgPoints || 0);
+
+          // --- LOGICA DE COLOR KDA ---
+          let cColor = '#38bdf8';
+          if (cKdaVal < 1.8) cColor = '#f87171';
+          else if (cKdaVal < 3.0) cColor = '#fbbf24';
+          else if (cKdaVal < 4.5) cColor = '#34d399';
+
+          // --- LOGICA DE COLOR PUNTOS ---
+          let ptsColor = '#34d399'; 
+          if (cPtsVal < 0) ptsColor = '#f87171'; 
+          if (cPtsVal >= 4.0) ptsColor = '#fbbf24'; 
+
+          // Generar filas de jugadores (Sub-tabla)
+          const pRows = (c.players || []).map(p => {
+             const pKdaVal = parseFloat(p.kda || 0);
+             const pPtsVal = parseFloat(p.avgPoints || 0);
+
+             // Color KDA Jugador
+             let pColor = '#38bdf8';
+             if (pKdaVal < 1.8) pColor = '#f87171';
+             else if (pKdaVal < 3.0) pColor = '#fbbf24';
+             else if (pKdaVal < 4.5) pColor = '#34d399';
+
+             // Color Puntos Jugador
+             let pPtsColor = pPtsVal >= 0 ? '#34d399' : '#f87171';
+             if (pPtsVal >= 4.0) pPtsColor = '#fbbf24';
+
+             return `
+                <tr>
+                    <td>${p.name}</td>
+                    <td class="text-center">${p.games}</td>
+                    <td class="text-center" style="color:${getColor(p.winRate)}">${p.winRate.toFixed(0)}%</td>
+                    
+                    <td class="text-center" style="color:${pColor}">${pKdaVal.toFixed(1)}</td>
+                    
+                    <td class="text-center fw-bold" style="color:${pPtsColor}">${pPtsVal.toFixed(2)}</td>
+                </tr>`;
+          }).join('');
+
+          // Fila Principal
+          tbody.innerHTML += `
+            <tr class="align-middle">
+                <td><button class="toggle-btn" onclick="toggle('${rowId}',this)">+</button></td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold text-info">${c.champion}</span>
+                    </div>
+                </td>
+                <td class="text-center">${c.games}</td>
+                <td class="text-center" style="color:${getColor(c.winRate)}">${c.winRate.toFixed(0)}%</td>
+                
+                <td class="text-center" style="color:${cColor}">${cKdaVal.toFixed(1)}</td>
+                
+                <td class="text-center fw-bold fs-5" style="color:${ptsColor}">${cPtsVal.toFixed(2)}</td>
+            </tr>
+            <tr id="${rowId}" class="sub-row">
+                <td colspan="6">
+                    <div style="padding:10px 20px; background:rgba(0,0,0,0.2);">
+                        <table class="table table-sm table-dark mb-0" style="background:transparent;">
+                            <thead>
+                                <tr>
+                                    <th style="color:#94a3b8">Invocador</th>
+                                    <th class="text-center" style="color:#94a3b8">Games</th>
+                                    <th class="text-center" style="color:#94a3b8">WR</th>
+                                    <th class="text-center" style="color:#94a3b8">KDA</th>
+                                    <th class="text-center" style="color:#fbbf24">Avg Pts</th>
+                                </tr>
+                            </thead>
+                            <tbody>${pRows}</tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>`;
+      });
+  }
+
+  // --- Helpers ---
+  function setText(id, v) { const e = document.getElementById(id); if(e) e.innerText = v; }
+  function getColor(wr) { return wr >= 60 ? '#34d399' : (wr >= 50 ? '#fbbf24' : '#f87171'); }
+  function toggle(id, btn) { const el = document.getElementById(id); el.classList.toggle('visible'); btn.innerText = el.classList.contains('visible') ? '-' : '+'; }
+
+  function createBar(id, lbl, labels, data, col, sfx='') {
+     const ctx = document.getElementById(id); if(!ctx) return;
+     new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: lbl, data: data, backgroundColor: col, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio:false, plugins:{legend:{display:false}, title:{display:true, text:lbl, color:'white'}}, scales:{x:{grid:{display:false}}, y:{ticks:{callback:v=>v+sfx}, grid:{color:'#334155'}}} } });
+  }
+  function createHBar(id, lbl, labels, data, col) {
+     const ctx = document.getElementById(id); if(!ctx) return;
+     new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: lbl, data: data, backgroundColor: col, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio:false, plugins:{legend:{display:false}, title:{display:!!lbl, text:lbl, color:'white'}}, scales:{x:{grid:{color:'#334155'}}} } });
+  }
+  function createBubble(id, data) {
+     const ctx = document.getElementById(id); if(!ctx) return;
+     new Chart(ctx, { type: 'bubble', data: { datasets: [{ label: 'Players', data: data, backgroundColor: COLORS[0]+'80', borderColor: COLORS[0] }] }, options: { responsive: true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw.player}: ${c.raw.x} Games, ${c.raw.y.toFixed(1)}% WR`}}}, scales:{x:{title:{display:true, text:'Partidas'}}, y:{title:{display:true, text:'Win Rate %'}}} } });
+  }
+</script>
+</body>
+</html>

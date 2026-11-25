@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inspector de Partidas v3.0</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Beaufort+LoL:wght@500;700&family=Spiegel:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #091428;
+      --bg-card: #1e2328;
+      --gold-lol: #c8aa6e;
+      --text-main: #f0e6d2;
+      --text-muted: #a09b8c;
+      --border-color: #463714;
+      --win-color: #2b7a78;
+      --loss-color: #9e2a2b;
+    }
+
+    body {
+      font-family: 'Spiegel', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      margin: 0; padding: 20px;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .header-box { text-align: center; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+    h2 { font-family: 'Beaufort LoL', serif; color: var(--gold-lol); font-size: 2.2rem; margin: 0; text-transform: uppercase; text-shadow: 0 2px 4px black; }
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
+
+    /* INPUT */
+    .input-group { position: relative; max-width: 400px; margin: 0 auto 30px auto; }
+    select {
+      width: 100%; padding: 12px 20px;
+      background: #010a13; border: 1px solid var(--gold-lol); color: var(--gold-lol);
+      font-family: 'Beaufort LoL', serif; font-size: 1.1rem;
+      border-radius: 4px; appearance: none; cursor: pointer;
+    }
+    select:focus { outline: none; box-shadow: 0 0 15px rgba(200, 170, 110, 0.4); }
+    .select-arrow { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--gold-lol); pointer-events: none; }
+
+    /* MATCH LIST */
+    .match-list { display: flex; flex-direction: column; gap: 12px; max-width: 850px; margin: 0 auto; }
+
+    /* CARD */
+    .match-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 5px; overflow: hidden; transition: 0.2s;
+    }
+    .match-card:hover { transform: translateY(-2px); border-color: var(--gold-lol); }
+    .match-card.win { border-left: 5px solid var(--win-color); }
+    .match-card.loss { border-left: 5px solid var(--loss-color); }
+
+    /* HEADER DE LA CARTA */
+    .match-header {
+      display: grid; grid-template-columns: 60px 1fr 120px 90px; gap: 15px;
+      padding: 12px 15px; cursor: pointer; align-items: center;
+      background: linear-gradient(to right, rgba(20,20,20,0.8), transparent);
+    }
+    .match-header:hover { background-color: rgba(255,255,255,0.03); }
+
+    /* 1. CAMPEON */
+    .champ-box { position: relative; width: 50px; height: 50px; }
+    .champ-img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; border: 1px solid #444; }
+    .role-badge {
+      position: absolute; bottom: -5px; right: -5px;
+      background: #000; border: 1px solid var(--gold-lol); color: var(--gold-lol);
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 10px;
+    }
+
+    /* 2. INFO */
+    .info-main { display: flex; flex-direction: column; justify-content: center; }
+    .champ-name { font-family: 'Beaufort LoL'; font-weight: 700; font-size: 1.1rem; color: #fff; }
+    .result-badge { 
+      font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; 
+      text-transform: uppercase; margin-left: 8px; vertical-align: middle;
+    }
+    .badge-win { background: var(--win-color); }
+    .badge-loss { background: var(--loss-color); }
+    .meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* 3. KDA */
+    .kda-box { text-align: center; }
+    .kda-text { font-weight: 700; font-size: 1.05rem; color: #eee; }
+    .kda-sub { font-size: 0.75rem; color: var(--text-muted); }
+    /* Barra KDA */
+    .kda-bar { display: flex; height: 4px; width: 100%; margin-top: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .kb-k { background: #0ac8b9; }
+    .kb-d { background: #e74c3c; }
+    .kb-a { background: #9b59b6; }
+
+    /* 4. PUNTOS */
+    .pts-box { text-align: right; }
+    .pts-val { font-family: 'Beaufort LoL'; font-size: 1.6rem; font-weight: 700; }
+    .pts-pos { color: #0ac8b9; text-shadow: 0 0 8px rgba(10, 200, 185, 0.4); }
+    .pts-neg { color: #e74c3c; text-shadow: 0 0 8px rgba(231, 76, 60, 0.4); }
+
+    /* DETALLES */
+    .details { display: none; background: #121212; padding: 15px; border-top: 1px solid #333; }
+    .details.active { display: block; animation: fade 0.3s; }
+    @keyframes fade { from {opacity:0} to {opacity:1} }
+
+    /* GRID STATS */
+    .stats-row { 
+      display: flex; justify-content: space-around; margin-bottom: 15px; 
+      background: #1c2328; padding: 10px; border-radius: 4px; border: 1px solid #333;
+    }
+    .stat-item { text-align: center; }
+    .stat-lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    .stat-val { font-family: 'Beaufort LoL'; font-size: 1.1rem; color: #fff; }
+    .gold-txt { color: #fbbf24; }
+
+    /* FACTURA */
+    .bill-header { 
+      font-family: 'Beaufort LoL'; font-size: 0.9rem; color: var(--gold-lol); 
+      border-bottom: 1px solid #333; margin-bottom: 8px; padding-bottom: 4px; letter-spacing: 1px;
+    }
+    .bill-item { 
+      display: flex; justify-content: space-between; font-size: 0.85rem; 
+      padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); 
+    }
+    .bi-desc { color: #ccc; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot.pos { background: #0ac8b9; box-shadow: 0 0 4px #0ac8b9; }
+    .dot.neg { background: #e74c3c; box-shadow: 0 0 4px #e74c3c; }
+    .dot.neu { background: #666; }
+
+    .bi-val { font-family: 'Beaufort LoL'; font-weight: 700; }
+    .v-pos { color: #0ac8b9; }
+    .v-neg { color: #e74c3c; }
+    .v-neu { color: #666; }
+
+    #loader { display: none; text-align: center; padding: 30px; color: var(--gold-lol); }
+    .empty { text-align: center; padding: 40px; color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <h2>Inspector de Partidas</h2>
+    <p class="subtitle">Analiza el rendimiento detallado y la economía.</p>
+  </div>
+
+  <div class="input-group">
+    <select id="playerSelect" onchange="loadPlayerHistory()">
+      <option value="" disabled selected>✨ Selecciona un Invocador...</option>
+    </select>
+    <div class="select-arrow">▼</div>
+  </div>
+
+  <div id="loader">Cargando datos del servidor...</div>
+  <div id="matchContainer" class="match-list"></div>
+
+  <script>
+    // Configuracion de Iconos
+    const roleIcons = {
+      'TOP': '🛡️', 'JUNGLE': '🌲', 'MID': '🔥', 'MIDDLE': '🔥',
+      'ADC': '🏹', 'BOTTOM': '🏹', 'BOT': '🏹',
+      'SUPPORT': '💖', 'UTILITY': '💖'
+    };
+
+    function getChampUrl(name) {
+      if (!name) return 'https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/29.png';
+      let clean = name.replace(/[^a-zA-Z0-9]/g, '');
+      if (clean === 'Fiddlesticks') clean = 'FiddleSticks';
+      if (clean === 'Wukong') clean = 'MonkeyKing';
+      if (clean === 'RenataGlasc') clean = 'Renata';
+      return `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${clean}.png`;
+    }
+
+    // --- INICIALIZACION ---
+    document.addEventListener('DOMContentLoaded', () => {
+      google.script.run
+        .withSuccessHandler(populateList)
+        .withFailureHandler(err => alert("Error cargando jugadores: " + err.message))
+        .getInspectorPlayerList();
+    });
+
+    function populateList(players) {
+      const sel = document.getElementById('playerSelect');
+      sel.innerHTML = '<option value="" disabled selected> Selecciona un Invocador...</option>';
+      if(!players || players.length === 0) return;
+      
+      players.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.innerText = p;
+        sel.appendChild(opt);
+      });
+    }
+
+    function loadPlayerHistory() {
+      const player = document.getElementById('playerSelect').value;
+      if(!player) return;
+      
+      const cont = document.getElementById('matchContainer');
+      cont.innerHTML = '';
+      document.getElementById('loader').style.display = 'block';
+
+      google.script.run
+        .withSuccessHandler(drawMatches)
+        .withFailureHandler(err => {
+           document.getElementById('loader').style.display = 'none';
+           cont.innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+        })
+        .getInspectorHistory(player);
+    }
+
+    function drawMatches(history) {
+      const cont = document.getElementById('matchContainer');
+      document.getElementById('loader').style.display = 'none';
+
+      if (!history || history.length === 0) {
+        cont.innerHTML = '<div class="empty">No hay partidas registradas para este jugador.</div>';
+        return;
+      }
+
+      history.forEach(m => {
+        const isWin = m.result === 'Win' || m.result === 'Victory';
+        const pts = parseFloat(m.points);
+        const ptsClass = pts >= 0 ? 'pts-pos' : 'pts-neg';
+        const ptsSign = pts > 0 ? '+' : '';
+        const roleIcon = roleIcons[(m.lane || 'MID').toUpperCase()] || '';
+
+        // Barras KDA
+        const parts = m.kda.split('/');
+        const k = Number(parts[0]), d = Number(parts[1]), a = Number(parts[2]);
+        const total = k + d + a || 1;
+        const kp = (k/total)*100, dp = (d/total)*100, ap = (a/total)*100;
+        const ratio = d === 0 ? "Perfect" : ((k+a)/d).toFixed(2);
+
+        // Desglose
+        let billHtml = '';
+        if (m.breakdown && m.breakdown.length > 0) {
+          billHtml = m.breakdown.map(item => {
+            const val = parseFloat(item.val);
+            let cls = 'v-neu', dot = 'neu', sgn = '';
+            if (val > 0) { cls = 'v-pos'; dot = 'pos'; sgn = '+'; }
+            if (val < 0) { cls = 'v-neg'; dot = 'neg'; }
+            
+            return `
+              <div class="bill-item">
+                <span class="bi-desc"><div class="dot ${dot}"></div> ${item.desc}</span>
+                <span class="bi-val ${cls}">${sgn}${val}</span>
+              </div>
+            `;
+          }).join('');
+        } else {
+          billHtml = '<div class="bill-item" style="color:#666">Sin detalles de puntos.</div>';
+        }
+
+        // HTML Tarjeta
+        const div = document.createElement('div');
+        div.className = `match-card ${isWin?'win':'loss'}`;
+        div.innerHTML = `
+          <div class="match-header" onclick="this.nextElementSibling.classList.toggle('active')">
+            
+            <div class="champ-box">
+              <img src="${getChampUrl(m.champion)}" class="champ-img">
+              <div class="role-badge">${roleIcon}</div>
+            </div>
+
+            <div class="info-main">
+              <div class="champ-name">
+                ${m.champion} 
+                <span class="result-badge ${isWin?'badge-win':'badge-loss'}">${isWin?'VICTORIA':'DERROTA'}</span>
+              </div>
+              <div class="meta">
+                 ${m.date.split(' ')[0]} &nbsp;  &nbsp;  ${m.duration} min
+              </div>
+            </div>
+
+            <div class="kda-box">
+              <div class="kda-text">${m.kda}</div>
+              <div class="kda-sub">${ratio} KDA</div>
+              <div class="kda-bar">
+                <div class="kb-k" style="width:${kp}%"></div>
+                <div class="kb-d" style="width:${dp}%"></div>
+                <div class="kb-a" style="width:${ap}%"></div>
+              </div>
+            </div>
+
+            <div class="pts-box">
+              <div class="pts-val ${ptsClass}">${ptsSign}${pts}</div>
+            </div>
+          </div>
+
+          <div class="details">
+            <div class="stats-row">
+              <div class="stat-item">
+                <div class="stat-lbl">FARM</div>
+                <div class="stat-val">${m.cs}</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-lbl">VISION</div>
+                <div class="stat-val">${m.vision}</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-lbl">ORO</div>
+                <div class="stat-val gold-txt">${m.gold !== '-' ? (m.gold/1000).toFixed(1)+'k' : '-'}</div>
+              </div>
+            </div>
+
+            <div class="bill-header">FACTURA DE PUNTOS</div>
+            ${billHtml}
+          </div>
+        `;
+        cont.appendChild(div);
+      });
+    }
+  </script>
+
+</body>
+</html>

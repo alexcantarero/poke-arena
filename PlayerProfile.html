@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:title" content="<?= playerName ?> · Wargods Premier">
+  <meta property="og:description" content="Perfil completo de estadísticas de la liga.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --panel2: #162032;
+      --accent: #0AC8B9; --gold: #fbbf24; --text: #f1f5f9;
+      --wg-orange: #fbb040; --wg-blue: #1a3760;
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    .font-oswald { font-family:'Oswald',sans-serif; }
+
+    /* ─── stat cards ─── */
+    .sc {
+      background:rgba(30,41,59,0.85); border:1px solid rgba(51,65,85,0.6);
+      border-radius:12px; padding:14px 10px; text-align:center;
+      transition:border-color .2s, transform .2s;
+    }
+    .sc:hover { border-color:rgba(100,140,200,.5); transform:translateY(-2px); }
+    .sc-label { font-size:.62rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#64748b; margin-bottom:4px; }
+    .sc-value { font-family:'Oswald',sans-serif; font-size:1.55rem; font-weight:700; line-height:1; }
+    .sc-sub { font-size:.62rem; color:#475569; margin-top:3px; }
+
+    /* ─── champion row ─── */
+    .cr { display:flex; align-items:center; gap:10px; padding:8px 6px; border-bottom:1px solid rgba(51,65,85,.4); }
+    .cr:last-child { border-bottom:none; }
+    .wr-bar { flex:1; height:5px; background:rgba(51,65,85,.5); border-radius:3px; overflow:hidden; }
+    .wr-fill { height:100%; border-radius:3px; transition:width .5s ease; }
+
+    /* ─── match rows ─── */
+    .mr { display:flex; align-items:center; gap:6px; padding:8px 10px; border-radius:8px; font-size:.8rem; }
+    .mr-w { background:rgba(16,185,129,.06); border-left:3px solid #10b981; }
+    .mr-l { background:rgba(239,68,68,.06); border-left:3px solid #ef4444; }
+
+    /* ─── card area for download ─── */
+    #card-preview-area { position:absolute; left:-9999px; top:0; }
+
+    /* ─── section headers ─── */
+    .section-hdr { font-family:'Oswald',sans-serif; color:#fff; letter-spacing:.12em; margin-bottom:14px; text-transform:uppercase; font-size:.8rem; display:flex; align-items:center; gap:8px; }
+    .section-hdr::after { content:''; flex:1; height:1px; background:rgba(51,65,85,.6); }
+
+    /* ─── tier badge ─── */
+    .div-badge { font-size:.65rem; font-weight:800; letter-spacing:.1em; padding:2px 8px; border-radius:4px; }
+    .div-Premier   { background:#7c3aed22; border:1px solid #7c3aed; color:#a78bfa; }
+    .div-Aspirante { background:#0ea5e922; border:1px solid #0ea5e9; color:#38bdf8; }
+    .div-Elite     { background:#f59e0b22; border:1px solid #f59e0b; color:#fbbf24; }
+    .div-Promesas  { background:#10b98122; border:1px solid #10b981; color:#34d399; }
+    .div-Academia  { background:#64748b22; border:1px solid #64748b; color:#94a3b8; }
+
+    /* ─── spin anim ─── */
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spin { animation:spin 1s linear infinite; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div style="background:linear-gradient(90deg,#0f172a,#1a3760); border-bottom:1px solid rgba(251,176,64,.3); padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
+  <div class="font-oswald" style="font-size:1.2rem; color:var(--wg-orange); letter-spacing:.1em;">
+    WAR<span style="color:#fff;">GODS</span><span style="color:var(--wg-orange); font-size:.7em; margin-left:6px;">PREMIER LEAGUE</span>
+  </div>
+  <a href="<?= ScriptApp.getService().getUrl() ?>" style="color:#94a3b8; font-size:.8rem; font-weight:700; text-decoration:none; transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+    ← Volver a la Liga
+  </a>
+</div>
+
+<!-- LOADING -->
+<div id="loading" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; color:var(--wg-orange);">
+  <div class="spin" style="font-size:3rem; margin-bottom:16px;">⚙️</div>
+  <div class="font-oswald" style="font-size:1.3rem; letter-spacing:.15em;">CARGANDO PERFIL...</div>
+</div>
+
+<!-- MAIN PROFILE -->
+<div id="profile" style="display:none; max-width:960px; margin:0 auto; padding:24px 16px;">
+
+  <!-- HERO BANNER -->
+  <div id="hero" style="position:relative; border-radius:16px; overflow:hidden; border:1px solid rgba(51,65,85,.7); margin-bottom:20px;">
+    <!-- Splash BG -->
+    <div id="splash-bg" style="position:absolute; inset:0; background-size:cover; background-position:center top; opacity:.18; z-index:1;"></div>
+    <!-- Gradient overlay -->
+    <div style="position:absolute; inset:0; background:linear-gradient(to right, rgba(15,23,42,.98) 0%, rgba(15,23,42,.8) 50%, rgba(15,23,42,.5) 100%); z-index:2;"></div>
+    <!-- Content -->
+    <div style="position:relative; z-index:3; display:flex; flex-wrap:wrap; align-items:center; gap:20px; padding:24px;">
+      <!-- Champ icon -->
+      <div style="position:relative; flex-shrink:0;">
+        <img id="champ-icon" style="width:100px; height:100px; border-radius:50%; border:3px solid var(--wg-orange); object-fit:cover; box-shadow:0 0 20px rgba(251,176,64,.4);" src="" onerror="this.style.display='none'">
+        <div id="role-badge" style="position:absolute; bottom:-4px; right:-4px; width:28px; height:28px; border-radius:50%; background:var(--panel); border:2px solid var(--wg-orange); display:flex; align-items:center; justify-content:center; font-size:.9rem;"></div>
+      </div>
+      <!-- Info -->
+      <div style="flex:1; min-width:200px;">
+        <div id="archetype-label" style="font-size:.65rem; font-weight:800; letter-spacing:.18em; margin-bottom:6px; text-transform:uppercase;"></div>
+        <div id="player-name" class="font-oswald" style="font-size:2.4rem; color:#fff; letter-spacing:.05em; line-height:1;"></div>
+        <!-- Team + division -->
+        <div style="display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <div id="team-pill" style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.4); border:1px solid rgba(51,65,85,.6); border-radius:20px; padding:5px 12px;">
+            <img id="team-logo" style="width:22px; height:22px; object-fit:contain; display:none;" src="">
+            <span id="team-name" class="font-oswald" style="font-size:.85rem; letter-spacing:.08em; color:#cbd5e1;"></span>
+          </div>
+          <span id="div-badge" class="div-badge"></span>
+        </div>
+        <!-- Badges row -->
+        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+          <span id="badge-mvp" style="background:rgba(251,176,64,.15); border:1px solid var(--wg-orange); color:var(--wg-orange); font-size:.75rem; font-weight:800; padding:4px 10px; border-radius:20px;"></span>
+          <span id="badge-wr" style="background:rgba(16,185,129,.12); border:1px solid #10b981; color:#34d399; font-size:.75rem; font-weight:800; padding:4px 10px; border-radius:20px;"></span>
+          <span id="badge-pts" style="background:rgba(168,85,247,.12); border:1px solid #a855f7; color:#c084fc; font-size:.75rem; font-weight:800; padding:4px 10px; border-radius:20px;"></span>
+          <span id="badge-trend" style="font-size:.75rem; font-weight:800; padding:4px 10px; border-radius:20px;"></span>
+        </div>
+      </div>
+      <!-- Action buttons -->
+      <div style="display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+        <a id="btn-opgg" href="#" target="_blank" style="background:#1a78c2; color:#fff; padding:8px 16px; border-radius:8px; font-size:.8rem; font-weight:800; text-decoration:none; display:flex; align-items:center; gap:6px; box-shadow:0 0 12px rgba(26,120,194,.4);">
+          🌐 OP.GG Multi
+        </a>
+        <button onclick="copyProfileUrl()" style="background:rgba(51,65,85,.8); border:1px solid rgba(71,85,105,.6); color:#e2e8f0; padding:8px 16px; border-radius:8px; font-size:.8rem; font-weight:700; cursor:pointer;">
+          🔗 Copiar enlace
+        </button>
+        <button onclick="downloadCard()" id="btn-download" style="background:linear-gradient(135deg,var(--wg-orange),#f97316); color:#000; padding:8px 16px; border-radius:8px; font-size:.8rem; font-weight:800; cursor:pointer; border:none;">
+          📸 Descargar cromo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS GRID PRINCIPAL (KDA + Core) -->
+  <div style="margin-bottom:20px;">
+    <div class="section-hdr">⚔️ Estadísticas principales</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;">
+      <div class="sc"><div class="sc-label">Kills/P</div><div id="s-kills" class="sc-value" style="color:#f87171;"></div><div class="sc-sub">Bajas por partida</div></div>
+      <div class="sc"><div class="sc-label">Deaths/P</div><div id="s-deaths" class="sc-value" style="color:#94a3b8;"></div><div class="sc-sub">Muertes por partida</div></div>
+      <div class="sc"><div class="sc-label">Assists/P</div><div id="s-assists" class="sc-value" style="color:#60a5fa;"></div><div class="sc-sub">Asistencias/P</div></div>
+      <div class="sc"><div class="sc-label">KDA Ratio</div><div id="s-kda" class="sc-value" style="color:#34d399;"></div><div id="s-kda-txt" class="sc-sub"></div></div>
+      <div class="sc"><div class="sc-label">Kill Part.</div><div id="s-kp" class="sc-value" style="color:#c084fc;"></div><div class="sc-sub">Participación</div></div>
+      <div class="sc"><div class="sc-label">Winrate</div><div id="s-wr" class="sc-value" style="color:#34d399;"></div><div id="s-wr-sub" class="sc-sub"></div></div>
+    </div>
+  </div>
+
+  <!-- STATS GRID RENDIMIENTO -->
+  <div style="margin-bottom:20px;">
+    <div class="section-hdr">📊 Rendimiento en partida</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;">
+      <div class="sc"><div class="sc-label">DPM</div><div id="s-dpm" class="sc-value" style="color:#f87171;"></div><div class="sc-sub">Daño por minuto</div></div>
+      <div class="sc"><div class="sc-label">GPM</div><div id="s-gpm" class="sc-value" style="color:#fbbf24;"></div><div class="sc-sub">Oro por minuto</div></div>
+      <div class="sc"><div class="sc-label">CS/min</div><div id="s-cs" class="sc-value" style="color:#60a5fa;"></div><div class="sc-sub">Farm por minuto</div></div>
+      <div class="sc"><div class="sc-label">Visión/min</div><div id="s-vspm" class="sc-value" style="color:#22d3ee;"></div><div class="sc-sub">VS por minuto</div></div>
+      <div class="sc"><div class="sc-label">Wards/P</div><div id="s-wards" class="sc-value" style="color:#a78bfa;"></div><div class="sc-sub">Colocados/P</div></div>
+      <div class="sc"><div class="sc-label">Pinks/P</div><div id="s-pinks" class="sc-value" style="color:#f472b6;"></div><div class="sc-sub">Pinks control</div></div>
+    </div>
+  </div>
+
+  <!-- STATS GRID IMPACTO -->
+  <div style="margin-bottom:20px;">
+    <div class="section-hdr">🏆 Impacto y logros</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;">
+      <div class="sc"><div class="sc-label">Pentas</div><div id="s-pentas" class="sc-value" style="color:#fb923c;"></div><div class="sc-sub">Penta Kills</div></div>
+      <div class="sc"><div class="sc-label">MVPs</div><div id="s-mvps" class="sc-value" style="color:#fbbf24;"></div><div class="sc-sub">Votos MVP</div></div>
+      <div class="sc"><div class="sc-label">1er Sangre</div><div id="s-fb" class="sc-value" style="color:#f87171;"></div><div class="sc-sub">First Bloods</div></div>
+      <div class="sc"><div class="sc-label">Daño Obj.</div><div id="s-dmgobj" class="sc-value" style="color:#f59e0b;"></div><div class="sc-sub">A objetivos (total)</div></div>
+      <div class="sc"><div class="sc-label">Daño Trs.</div><div id="s-dmgtur" class="sc-value" style="color:#fb923c;"></div><div class="sc-sub">A torretas (total)</div></div>
+      <div class="sc"><div class="sc-label">Partidas</div><div id="s-games" class="sc-value" style="color:#f1f5f9;"></div><div id="s-games-sub" class="sc-sub"></div></div>
+    </div>
+  </div>
+
+  <!-- ESTILO DE JUEGO + ETIQUETAS -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+    <div style="background:rgba(30,41,59,.85); border:1px solid rgba(51,65,85,.6); border-radius:12px; padding:18px;">
+      <div class="section-hdr">🎮 Estilo de juego</div>
+      <div id="playstyle-body"></div>
+    </div>
+    <div style="background:rgba(30,41,59,.85); border:1px solid rgba(51,65,85,.6); border-radius:12px; padding:18px;">
+      <div class="section-hdr">🏷️ Etiquetas más repetidas</div>
+      <div id="top-tags-body" style="display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; min-height:60px;"></div>
+    </div>
+  </div>
+
+  <!-- RADAR + CHAMPION POOL -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+
+    <!-- Radar -->
+    <div style="background:rgba(30,41,59,.85); border:1px solid rgba(51,65,85,.6); border-radius:12px; padding:18px;">
+      <div class="section-hdr">⬡ Radar de rendimiento</div>
+      <div style="height:240px;"><canvas id="radar-chart"></canvas></div>
+    </div>
+
+    <!-- Champion pool -->
+    <div style="background:rgba(30,41,59,.85); border:1px solid rgba(51,65,85,.6); border-radius:12px; padding:18px;">
+      <div class="section-hdr">⚔️ Pool de campeones</div>
+      <div id="champ-list" style="display:flex; flex-direction:column; gap:2px;"></div>
+    </div>
+  </div>
+
+  <!-- RECENT MATCHES -->
+  <div style="background:rgba(30,41,59,.85); border:1px solid rgba(51,65,85,.6); border-radius:12px; padding:18px; margin-bottom:20px;">
+    <div class="section-hdr">📋 Últimas partidas</div>
+    <div id="recent-matches"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align:center; color:#334155; font-size:.72rem; padding-bottom:20px;">
+    Wargods Premier League · Stats actualizadas por jornada
+    <br><a href="<?= ScriptApp.getService().getUrl() ?>" style="color:#64748b; font-weight:700; text-decoration:none;">← Clasificación completa</a>
+  </div>
+</div>
+
+<!-- ERROR STATE -->
+<div id="error-state" style="display:none; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; color:#64748b;">
+  <div style="font-size:4rem; margin-bottom:16px;">❌</div>
+  <div class="font-oswald" style="font-size:1.4rem; letter-spacing:.1em;">JUGADOR NO ENCONTRADO</div>
+  <p id="error-msg" style="font-size:.85rem; color:#475569; margin-top:8px;"></p>
+  <a href="<?= ScriptApp.getService().getUrl() ?>" style="margin-top:16px; color:var(--wg-orange); font-weight:700;">← Volver a la liga</a>
+</div>
+
+<!-- CARD AREA (for html2canvas) -->
+<div id="card-preview-area"></div>
+
+<script>
+  const PLAYER_NAME = <?= JSON.stringify(playerName) ?>;
+  const RIOT_VER = '15.4.1';
+
+  // ─── Helpers ───
+  const champIcon = (c) => {
+    if (!c) return '';
+    let n = String(c).replace(/[^a-zA-Z0-9]/g,'');
+    if (n.toLowerCase()==='wukong') n='MonkeyKing';
+    return `https://ddragon.leagueoflegends.com/cdn/${RIOT_VER}/img/champion/${n}.png`;
+  };
+  const champSplash = (c) => {
+    if (!c) return '';
+    let n = String(c).replace(/[^a-zA-Z0-9]/g,'');
+    if (n.toLowerCase()==='wukong') n='MonkeyKing';
+    return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${n}_0.jpg`;
+  };
+  const fmtK = (n) => n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n);
+
+  const ROLE_ICONS = { TOP:'🛡️', JGL:'🌲', JUNGLE:'🌲', MID:'🔥', MIDDLE:'🔥', ADC:'🏹', BOTTOM:'🏹', SUP:'💖', SUPPORT:'💖', SUPP:'💖', FILL:'🎲' };
+  const ROLE_SHORT = { SUPPORT:'SUP', UTILITY:'SUP', SUPP:'SUP', JUNGLE:'JGL', JNG:'JGL', MIDDLE:'MID', BOTTOM:'ADC', BOT:'ADC', TOP:'TOP', MID:'MID', ADC:'ADC', JGL:'JGL', FILL:'FILL' };
+
+  function normalRole(r) {
+    return ROLE_SHORT[String(r||'FILL').toUpperCase()] || 'FILL';
+  }
+
+  function getArchetype(p) {
+    const kp = parseFloat(p.kp)||0, vspm = parseFloat(p.vspm)||0,
+          cs = parseFloat(p.cs)||0, dpm = parseFloat(p.dpm)||0,
+          kda = parseFloat(p.kdaNum)||0,
+          k = parseFloat((p.kdaText||'0').split('/')[0])||0;
+    if (k >= 6 && dpm >= 600)   return { name:'EL VERDUGO',    hex:'#ef4444', icon:'🗡️' };
+    if (vspm >= 1.5 && kp > 70) return { name:'EL ARQUITECTO', hex:'#a855f7', icon:'🏛️' };
+    if (cs >= 7.5 && kp < 55)   return { name:'EL MERCENARIO', hex:'#fbbf24', icon:'💰' };
+    if (kda <= 3 && kp >= 60)   return { name:'EL BASTIÓN',   hex:'#10b981', icon:'🛡️' };
+    return { name:'EL GUERRERO', hex:'#38bdf8', icon:'⚔️' };
+  }
+
+  // ─── Estilo de juego: usa datos ya recogidos por partida pero que hasta ahora no se
+  // mostraban en el perfil (reparto de daño físico/mágico/verdadero, ratio de first
+  // blood/first tower). Los mismos normalizadores que ya usa el Radar de rendimiento de
+  // esta página (vspm*5, cs*1.3, 10-avgDeaths*1.5) para que ambos bloques sean coherentes.
+  // Nota: curación, mitigación y tiempo de CC NO se usan aquí porque el .rofl moderno no
+  // los incluye — siempre saldrían a 0 y darían un resultado falso.
+  function getPlaystyleProfile(p) {
+    const vspm = parseFloat(p.vspm) || 0;
+    const cs = parseFloat(p.cs) || 0;
+    const avgD = parseFloat(p.avgDeaths) || 0;
+    const fbRate = parseFloat(p.fbRate) || 0;
+    const ftRate = parseFloat(p.ftRate) || 0;
+
+    const traits = [
+      { key: 'vision', score: Math.min(10, vspm * 5), icon: '👁️', name: 'Centinela', desc: 'Controla la visión del mapa mejor que la mayoría.' },
+      { key: 'farm', score: Math.min(10, cs * 1.3), icon: '🌾', name: 'Recolector', desc: 'Saca partidas de farmeo muy por encima de la media.' },
+      { key: 'surv', score: Math.max(0, 10 - avgD * 1.5), icon: '🧿', name: 'Superviviente', desc: 'Rara vez muere: prioriza estar vivo para el equipo.' },
+      { key: 'fb', score: Math.min(10, fbRate / 10), icon: '⚡', name: 'Cazador', desc: 'Suele estar detrás de la primera sangre de la partida.' },
+      { key: 'ft', score: Math.min(10, ftRate / 10), icon: '🏯', name: 'Derribador', desc: 'Encabeza la caída de las primeras torres.' }
+    ];
+    let mainTrait = traits.reduce((a, b) => (b.score > a.score ? b : a), traits[0]);
+    if (mainTrait.score < 3) mainTrait = { key: 'versatil', score: mainTrait.score, icon: '🎯', name: 'Versátil', desc: 'Aporta un poco de todo sin depender de un solo rasgo.' };
+
+    const ds = p.dmgSplit || {};
+    const totalDmg = (ds.physicalAvg || 0) + (ds.magicAvg || 0) + (ds.trueAvg || 0);
+    let dmgType = null;
+    if (totalDmg > 0) {
+      const opts = [
+        { name: 'Físico', icon: '🗡️', val: ds.physicalAvg || 0 },
+        { name: 'Mágico', icon: '🔮', val: ds.magicAvg || 0 },
+        { name: 'Verdadero', icon: '💥', val: ds.trueAvg || 0 }
+      ];
+      dmgType = opts.reduce((a, b) => (b.val > a.val ? b : a), opts[0]);
+      dmgType.pct = Math.round((dmgType.val / totalDmg) * 100);
+    }
+
+    return { mainTrait, dmgType, traits };
+  }
+
+  function divClass(div) {
+    if (!div) return '';
+    if (div.startsWith('Premier'))   return 'div-Premier';
+    if (div.startsWith('Aspirante')) return 'div-Aspirante';
+    if (div.includes('lite'))        return 'div-Elite';
+    if (div.startsWith('Promesas'))  return 'div-Promesas';
+    if (div.startsWith('Academia'))  return 'div-Academia';
+    return '';
+  }
+
+  // ─── Render ───
+  function renderProfile(p) {
+    document.getElementById('loading').style.display = 'none';
+    if (p.error) {
+      const es = document.getElementById('error-state');
+      es.style.display = 'flex';
+      document.getElementById('error-msg').textContent = p.error;
+      return;
+    }
+    document.getElementById('profile').style.display = 'block';
+
+    const arch = getArchetype(p);
+    const mainChamp = (p.champDetails && p.champDetails.length > 0)
+      ? p.champDetails[0].name
+      : (p.champs ? p.champs.split(',')[0].trim() : '');
+    const role = normalRole(p.mainRole || p.role);
+
+    // Splash + icon
+    document.getElementById('splash-bg').style.backgroundImage = `url('${champSplash(mainChamp)}')`;
+    document.getElementById('champ-icon').src = champIcon(mainChamp);
+    document.getElementById('role-badge').textContent = ROLE_ICONS[role] || '🎲';
+
+    // Name + archetype
+    document.getElementById('player-name').textContent = p.name;
+    document.getElementById('archetype-label').innerHTML =
+      `<span style="color:${arch.hex}">${arch.icon} ${arch.name}</span>`;
+
+    // Team
+    document.getElementById('team-name').textContent = p.team || 'Agente Libre';
+    if (p.teamLogo) {
+      const tl = document.getElementById('team-logo');
+      tl.src = p.teamLogo.replace(/open\?id=/g,'uc?id=').replace(/file\/d\/(.*?)\/view.*/g,'uc?id=$1');
+      tl.style.display = 'block';
+      tl.onerror = () => tl.style.display = 'none';
+    }
+
+    // Division badge
+    const db = document.getElementById('div-badge');
+    if (p.division) {
+      db.textContent = p.division;
+      db.className = 'div-badge ' + divClass(p.division);
+    }
+
+    // KDA parts
+    let avgK='—', avgD='—', avgA='—';
+    if (p.kdaText && p.kdaText.includes('/')) {
+      [avgK, avgD, avgA] = p.kdaText.split('/');
+    }
+
+    // Badges
+    document.getElementById('badge-mvp').textContent = `🏆 ${p.mvps||0} MVP${(p.mvps||0)!==1?'s':''}`;
+    document.getElementById('badge-wr').textContent = `${p.winrate||0}% WR`;
+    document.getElementById('badge-pts').textContent = `${p.points||0} PTS/P`;
+    const trendEl = document.getElementById('badge-trend');
+    if (p.trend === 'ON_FIRE') { trendEl.textContent='🔥 En racha'; trendEl.style.cssText='background:rgba(239,68,68,.15);border:1px solid #ef4444;color:#fca5a5;font-size:.75rem;font-weight:800;padding:4px 10px;border-radius:20px;'; }
+    else if (p.trend === 'COLD') { trendEl.textContent='❄️ Bache'; trendEl.style.cssText='background:rgba(56,189,248,.1);border:1px solid #38bdf8;color:#7dd3fc;font-size:.75rem;font-weight:800;padding:4px 10px;border-radius:20px;'; }
+
+    // OP.GG link
+    const opggNames = (p.champs || p.name).split(',').slice(0,5).map(n=>encodeURIComponent(n.trim())).join(',');
+    document.getElementById('btn-opgg').href = 'https://www.op.gg/multisearch/euw?summoners=' + opggNames;
+
+    // ─── STATS PRINCIPALES ───
+    document.getElementById('s-kills').textContent   = avgK;
+    document.getElementById('s-deaths').textContent  = avgD;
+    document.getElementById('s-assists').textContent = avgA;
+    document.getElementById('s-kda').textContent     = (parseFloat(p.kdaNum)||0).toFixed(2);
+    document.getElementById('s-kda-txt').textContent = p.kdaText || '';
+    document.getElementById('s-kp').textContent      = (p.kp||0) + '%';
+    document.getElementById('s-wr').textContent      = (p.winrate||0) + '%';
+    document.getElementById('s-wr-sub').textContent  = `${p.games||0} partidas`;
+
+    // ─── STATS RENDIMIENTO ───
+    document.getElementById('s-dpm').textContent   = fmtK(p.dpm||0);
+    document.getElementById('s-gpm').textContent   = fmtK(p.gpm||0);
+    document.getElementById('s-cs').textContent    = parseFloat(p.cs||0).toFixed(1);
+    document.getElementById('s-vspm').textContent  = parseFloat(p.vspm||0).toFixed(2);
+    document.getElementById('s-wards').textContent = p.wardsPerGame || '—';
+    const pinksPerGame = p.games > 0 ? (p.pinks / p.games).toFixed(1) : '—';
+    document.getElementById('s-pinks').textContent = pinksPerGame;
+
+    // ─── STATS IMPACTO ───
+    document.getElementById('s-pentas').textContent  = p.pentas || 0;
+    document.getElementById('s-mvps').textContent    = p.mvps   || 0;
+    document.getElementById('s-fb').textContent      = p.firstBloods || 0;
+    document.getElementById('s-dmgobj').textContent  = fmtK(p.dmgObj || 0);
+    document.getElementById('s-dmgtur').textContent  = fmtK(p.dmgTurrets || 0);
+    document.getElementById('s-games').textContent   = p.games || 0;
+    document.getElementById('s-games-sub').textContent = p.team || '';
+
+    // ─── ESTILO DE JUEGO ───
+    const playstyle = getPlaystyleProfile(p);
+    const psBody = document.getElementById('playstyle-body');
+    const barRow = (t) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+        <span style="width:20px;text-align:center;">${t.icon}</span>
+        <span style="width:88px;font-size:.68rem;color:#94a3b8;">${t.name}</span>
+        <div style="flex:1;height:6px;background:rgba(51,65,85,.5);border-radius:3px;overflow:hidden;">
+          <div style="width:${(t.score/10*100).toFixed(0)}%;height:100%;background:${t.key===playstyle.mainTrait.key?'#fbb040':'#475569'};border-radius:3px;"></div>
+        </div>
+      </div>`;
+    psBody.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="font-size:2.2rem;line-height:1;">${playstyle.mainTrait.icon}</div>
+        <div>
+          <div class="font-oswald" style="font-size:1.2rem;color:#fbb040;letter-spacing:.05em;">${playstyle.mainTrait.name}${playstyle.dmgType ? ' ' + playstyle.dmgType.name : ''}</div>
+          <div style="font-size:.72rem;color:#94a3b8;">${playstyle.mainTrait.desc}${playstyle.dmgType ? ' Su daño es mayoritariamente ' + playstyle.dmgType.name.toLowerCase() + ' (' + playstyle.dmgType.pct + '%).' : ''}</div>
+        </div>
+      </div>
+      ${playstyle.traits.map(barRow).join('')}
+    `;
+
+    // ─── ETIQUETAS MÁS REPETIDAS ───
+    const tagsBody = document.getElementById('top-tags-body');
+    if (p.topTags && p.topTags.length > 0) {
+      tagsBody.innerHTML = p.topTags.map(t => `
+        <div style="background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.4); border-radius:20px; padding:6px 14px; display:flex; align-items:center; gap:6px;">
+          <span style="font-size:.78rem; font-weight:700; color:#6ee7b7;">${escHtml(t.tag)}</span>
+          <span style="font-size:.68rem; font-weight:800; color:#34d399; background:rgba(16,185,129,.2); border-radius:10px; padding:1px 6px;">x${t.count}</span>
+        </div>`).join('');
+    } else {
+      tagsBody.innerHTML = '<div style="color:#475569;font-size:.8rem;">Aún no hay suficientes etiquetas registradas.</div>';
+    }
+
+    // ─── CHAMPION POOL ───
+    const champList = document.getElementById('champ-list');
+    champList.innerHTML = '';
+    const champSrc = (p.champDetails && p.champDetails.length > 0)
+      ? p.champDetails
+      : (p.champs ? p.champs.split(',').slice(0,6).map(c=>({name:c.trim(),played:1,wins:1,wr:50,kda:0,avgK:0,avgD:0,avgA:0})) : []);
+    champSrc.slice(0,7).forEach(ch => {
+      const wrc = ch.wr >= 60 ? '#10b981' : ch.wr >= 50 ? '#fbbf24' : '#ef4444';
+      champList.innerHTML += `         <div class="cr" style="gap:8px;">           <img src="${champIcon(ch.name)}" style="width:32px;height:32px;border-radius:50%;border:2px solid #334155;flex-shrink:0;" onerror="this.style.display='none'">           <div style="flex:1;min-width:0;">             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">               <span style="font-size:.8rem;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">${ch.name}</span>               <span style="font-size:.7rem;color:${wrc};font-weight:800;">${ch.wr}%</span>             </div>             <div class="wr-bar"><div class="wr-fill" style="width:${ch.wr}%;background:${wrc};"></div></div>             <div style="display:flex;gap:8px;margin-top:2px;font-size:.62rem;color:#64748b;">               <span>${ch.played}P</span>               <span>KDA ${ch.kda}</span>               <span style="color:#f87171;">${ch.avgK}/${ch.avgD}/${ch.avgA}</span>               ${ch.dpm > 0 ? `<span>${fmtK(ch.dpm)} DPM</span>` : ''}             </div>           </div>         </div>`;
+    });
+
+    // ─── RECENT MATCHES ───
+    const matchDiv = document.getElementById('recent-matches');
+    matchDiv.innerHTML = '';
+    const recentSrc = p.recentMatches || [];
+    if (!recentSrc.length) {
+      matchDiv.innerHTML = '<div style="color:#475569;text-align:center;padding:16px;font-size:.85rem;">Sin historial reciente disponible</div>';
+    } else {
+      recentSrc.forEach(m => {
+        const isW = m.result === 'Win';
+        const kdaN = typeof m.kdaNum === 'number' ? m.kdaNum.toFixed(2) : m.kdaNum;
+        const kdaColor = m.kdaNum >= 5 ? '#10b981' : m.kdaNum >= 3 ? '#fbbf24' : '#94a3b8';
+        matchDiv.innerHTML += `           <div class="mr ${isW ? 'mr-w':'mr-l'}" style="margin-bottom:4px; flex-wrap:wrap;">             <img src="${champIcon(m.champion)}" style="width:26px;height:26px;border-radius:50%;border:1px solid #334155;flex-shrink:0;">             <span style="font-size:.72rem;font-weight:800;color:${isW?'#6ee7b7':'#fca5a5'};min-width:52px;">${isW?'VICTORIA':'DERROTA'}</span>             <span style="color:#94a3b8;font-size:.75rem;flex:1;min-width:80px;">${m.champion}</span>             <span style="font-family:monospace;font-size:.78rem;color:#e2e8f0;min-width:70px;">${m.kda}</span>             <span style="font-size:.72rem;color:${kdaColor};font-weight:700;min-width:50px;">KDA ${kdaN}</span>             <span style="font-size:.72rem;color:#fbbf24;min-width:45px;">${m.dpm>0?fmtK(m.dpm)+' DPM':''}</span>             <span style="font-size:.72rem;color:#60a5fa;min-width:40px;">${m.cs>0?parseFloat(m.cs).toFixed(1)+'/m':''}</span>             <span style="font-size:.72rem;color:#c084fc;min-width:38px;">${m.kp>0?m.kp+'% KP':''}</span>             <span style="font-size:.72rem;color:${isW?'#6ee7b7':'#f87171'};font-weight:700;min-width:48px;text-align:right;">${m.points>0?'+':''}<b>${m.points}</b>p</span>             ${m.date ? `<span style="font-size:.65rem;color:#475569;min-width:40px;text-align:right;">${m.date}</span>` : ''}           </div>`;
+      });
+    }
+
+    // ─── RADAR ───
+    const rCtx = document.getElementById('radar-chart');
+    if (rCtx) {
+      const kp = parseFloat(p.kp)||0;
+      const dpm = parseFloat(p.dpm)||0;
+      const vspm = parseFloat(p.vspm)||0;
+      const cs = parseFloat(p.cs)||0;
+      const kdaN = parseFloat(p.kdaNum)||0;
+      const avgD = parseFloat(p.avgDeaths||3);
+      new Chart(rCtx.getContext('2d'), {
+        type:'radar',
+        data:{
+          labels:['Daño','KDA','Visión','Farm','Supervivencia','KP'],
+          datasets:[{
+            data:[
+              Math.min(10,dpm/80),
+              Math.min(10,kdaN*1.5),
+              Math.min(10,vspm*5),
+              Math.min(10,cs*1.3),
+              Math.max(0,10-avgD*1.5),
+              Math.min(10,kp/10)
+            ],
+            backgroundColor:arch.hex+'28', borderColor:arch.hex,
+            pointBackgroundColor:arch.hex, pointRadius:4, borderWidth:2
+          }]
+        },
+        options:{
+          maintainAspectRatio:false,
+          scales:{ r:{
+            angleLines:{color:'rgba(255,255,255,.07)'},
+            grid:{color:'rgba(255,255,255,.07)'},
+            pointLabels:{color:'#94a3b8', font:{family:'Oswald',size:12}},
+            ticks:{display:false, max:10, min:0}
+          }},
+          plugins:{legend:{display:false}}
+        }
+      });
+    }
+
+    // Store data for card generation
+    window._profileData = p;
+    window._profileArch = arch;
+  }
+
+  function copyProfileUrl() {
+    navigator.clipboard.writeText(window.location.href)
+      .then(()=>alert('✅ Enlace copiado al portapapeles'))
+      .catch(()=>prompt('Copia este enlace:', window.location.href));
+  }
+
+  // ─── DESCARGAR CROMO (card FUT style) ───
+  function downloadCard() {
+    const p = window._profileData;
+    if (!p) { alert('Perfil aún cargando, espera un momento.'); return; }
+
+    const btn = document.getElementById('btn-download');
+    btn.textContent = '⏳ Generando...';
+    btn.disabled = true;
+
+    const arch = window._profileArch || { name:'JUGADOR', hex:'#fbb040', icon:'⭐' };
+    const role = normalRole(p.mainRole || p.role);
+
+    const mainChamp = (p.champDetails && p.champDetails.length > 0)
+      ? p.champDetails[0].name
+      : (p.champs ? p.champs.split(',')[0].trim() : '');
+
+    const roleIcons = { TOP:'🛡️', JGL:'🌲', MID:'🔥', ADC:'🏹', SUP:'💖', FILL:'🎲' };
+
+    // KDA parts
+    let avgK=0, avgD=0, avgA=0;
+    if (p.kdaText && p.kdaText.includes('/')) {
+      [avgK, avgD, avgA] = p.kdaText.split('/').map(Number);
+    }
+    const kpReal = parseFloat(p.kp)||0;
+    const vspm   = parseFloat(p.vspm)||0;
+    const dpm    = parseFloat(p.dpm)||0;
+    const cs     = parseFloat(p.cs)||0;
+    const gpm    = parseFloat(p.gpm)||0;
+    const kdaNum = parseFloat(p.kdaNum)||0;
+
+    // OVR score (same formula as LeagueMenu)
+    const ovr = calculateOVR(p);
+
+    // Role-based stats
+    const statsMap = {
+      TOP: [{l:'KIL',v:avgK.toFixed(1)},{l:'KDA',v:kdaNum.toFixed(1)},{l:'DPM',v:fmtK(dpm)},{l:'CS/M',v:cs.toFixed(1)},{l:'KP%',v:kpReal+'%'},{l:'VIS',v:vspm.toFixed(2)}],
+      JGL: [{l:'KDA',v:kdaNum.toFixed(1)},{l:'KP%',v:kpReal+'%'},{l:'AST',v:avgA.toFixed(1)},{l:'VIS',v:vspm.toFixed(2)},{l:'GPM',v:fmtK(gpm)},{l:'DPM',v:fmtK(dpm)}],
+      MID: [{l:'KIL',v:avgK.toFixed(1)},{l:'KDA',v:kdaNum.toFixed(1)},{l:'DPM',v:fmtK(dpm)},{l:'GPM',v:fmtK(gpm)},{l:'KP%',v:kpReal+'%'},{l:'CS/M',v:cs.toFixed(1)}],
+      ADC: [{l:'KIL',v:avgK.toFixed(1)},{l:'KDA',v:kdaNum.toFixed(1)},{l:'DPM',v:fmtK(dpm)},{l:'GPM',v:fmtK(gpm)},{l:'KP%',v:kpReal+'%'},{l:'CS/M',v:cs.toFixed(1)}],
+      SUP: [{l:'AST',v:avgA.toFixed(1)},{l:'KDA',v:kdaNum.toFixed(1)},{l:'VIS',v:vspm.toFixed(2)},{l:'KP%',v:kpReal+'%'},{l:'PTS',v:p.points||0},{l:'GPM',v:fmtK(gpm)}],
+      FILL:[{l:'KIL',v:avgK.toFixed(1)},{l:'KDA',v:kdaNum.toFixed(1)},{l:'DPM',v:fmtK(dpm)},{l:'CS/M',v:cs.toFixed(1)},{l:'KP%',v:kpReal+'%'},{l:'VIS',v:vspm.toFixed(2)}]
+    };
+    const sc = statsMap[role] || statsMap['FILL'];
+
+    // Team logo
+    let teamLogoUrl = p.teamLogo || '';
+    if (!teamLogoUrl) teamLogoUrl = 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/rewards/logos/tier2-1.png';
+    else teamLogoUrl = teamLogoUrl.replace(/open\?id=/g,'uc?id=').replace(/file\/d\/(.*?)\/view.*/g,'uc?id=$1');
+
+    const cSplash = champSplash(mainChamp);
+    const cIcon   = champIcon(mainChamp);
+
+    // Build card HTML (500x750)
+    const area = document.getElementById('card-preview-area');
+    area.innerHTML = `
+<div style="width:500px;height:750px;position:relative;font-family:'Oswald',sans-serif;border-radius:24px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.9);">
+  <!-- BORDER GLOW -->
+  <div style="position:absolute;inset:0;border:4px solid ${arch.hex};border-radius:24px;z-index:20;pointer-events:none;box-shadow:inset 0 0 30px ${arch.hex}30;"></div>
+  <!-- BG BASE -->
+  <div style="position:absolute;inset:0;background:linear-gradient(160deg,#0f172a 0%,#1a3760 50%,#0f172a 100%);"></div>
+  <!-- CHAMP SPLASH BG -->
+  <img src="${cSplash}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;opacity:.35;mix-blend-mode:luminosity;">
+  <!-- VIGNETTE -->
+  <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.1) 0%,rgba(15,23,42,.5) 40%,rgba(15,23,42,.97) 70%,rgba(15,23,42,1) 100%);"></div>
+  <!-- TOP STRIP: OVR + ROLE + LOGO -->
+  <div style="position:absolute;top:0;left:0;right:0;height:54%;z-index:5;display:flex;">
+    <!-- LEFT: OVR + ROLE + TEAM -->
+    <div style="width:38%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:24px;gap:4px;background:linear-gradient(to right,rgba(15,23,42,.85),transparent);">
+      <div style="font-size:90px;font-weight:900;line-height:.9;color:#fff;text-shadow:0 0 30px ${arch.hex},0 0 60px ${arch.hex}88;">${ovr}</div>
+      <div style="font-size:28px;font-weight:700;color:${arch.hex};letter-spacing:.12em;">${role}</div>
+      <div style="width:1px;height:20px;background:${arch.hex}80;margin:6px 0;"></div>
+      <img src="${teamLogoUrl}" crossorigin="anonymous" style="width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(255,255,255,.3));" onerror="this.style.display='none'">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#94a3b8;text-align:center;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${(p.team||'').toUpperCase()}</div>
+    </div>
+    <!-- RIGHT: Champ icon -->
+    <div style="flex:1;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px 16px 10px 0;">
+      <img src="${cIcon}" crossorigin="anonymous" style="width:160px;height:160px;border-radius:50%;border:5px solid ${arch.hex};box-shadow:0 8px 30px rgba(0,0,0,.8),0 0 20px ${arch.hex}60;object-fit:cover;">
+    </div>
+  </div>
+  <!-- NAME + ARCHETYPE SECTION -->
+  <div style="position:absolute;top:52%;left:0;right:0;z-index:6;text-align:center;padding:0 12px;">
+    <div style="background:rgba(0,0,0,.7);backdrop-filter:blur(4px);border-top:2px solid ${arch.hex}80;border-bottom:2px solid ${arch.hex}80;padding:10px 0;">
+      <div style="font-size:36px;font-weight:900;color:#fff;letter-spacing:3px;text-transform:uppercase;text-shadow:2px 2px 6px #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;">${escHtml(p.name)}</div>
+      <div style="font-size:14px;font-weight:700;letter-spacing:6px;color:${arch.hex};margin-top:-2px;">${arch.icon} ${arch.name}</div>
+      <div style="font-size:10px;letter-spacing:4px;color:#64748b;margin-top:2px;">${(p.division||'WPL').toUpperCase()} · ${p.winrate||0}% WR · ${p.games||0}P</div>
+    </div>
+  </div>
+  <!-- STATS GRID (6 stats en 2 columnas) -->
+  <div style="position:absolute;bottom:24px;left:0;right:0;z-index:6;padding:0 20px;display:flex;gap:16px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+      ${[sc[0],sc[2],sc[4]].map(s=>`
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:30px;font-weight:900;color:#fff;text-shadow:0 0 10px rgba(0,0,0,.8);">${s.v}</span>
+          <span style="font-size:13px;font-weight:700;color:${arch.hex};letter-spacing:.08em;">${s.l}</span>
+        </div>`).join('')}
+    </div>
+    <div style="width:1px;background:${arch.hex}60;"></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+      ${[sc[1],sc[3],sc[5]].map(s=>`
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:30px;font-weight:900;color:#fff;text-shadow:0 0 10px rgba(0,0,0,.8);">${s.v}</span>
+          <span style="font-size:13px;font-weight:700;color:${arch.hex};letter-spacing:.08em;">${s.l}</span>
+        </div>`).join('')}
+    </div>
+  </div>
+  <!-- WPL WATERMARK -->
+  <div style="position:absolute;top:12px;right:14px;z-index:10;font-size:9px;font-weight:700;letter-spacing:.18em;color:${arch.hex}99;text-transform:uppercase;">WARGODS PREMIER</div>
+</div>`;
+
+    setTimeout(() => {
+      html2canvas(area.firstElementChild, {
+        backgroundColor: null, scale: 2, useCORS: true, allowTaint: false, logging: false
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `WPL_${p.name.replace(/[^a-zA-Z0-9]/g,'_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '📸 Descargar cromo';
+        btn.disabled = false;
+        area.innerHTML = '';
+      }).catch(()=>{
+        btn.textContent = '📸 Descargar cromo';
+        btn.disabled = false;
+        alert('Error generando la imagen. Inténtalo de nuevo.');
+      });
+    }, 600);
+  }
+
+  function calculateOVR(p) {
+    const kp  = parseFloat(p.kp)||0;
+    const kda = parseFloat(p.kdaNum)||0;
+    const dpm = parseFloat(p.dpm)||0;
+    const cs  = parseFloat(p.cs)||0;
+    const wr  = parseFloat(p.winrate)||0;
+    const vs  = parseFloat(p.vspm)||0;
+    let ovr = 50
+      + Math.min(15, kda * 2)
+      + Math.min(10, kp / 10)
+      + Math.min(10, dpm / 100)
+      + Math.min(5, cs * 0.6)
+      + Math.min(5, wr / 20)
+      + Math.min(5, vs * 3);
+    return Math.min(99, Math.round(ovr));
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ─── Boot ───
+  google.script.run
+    .withSuccessHandler(renderProfile)
+    .withFailureHandler(function(err) {
+      document.getElementById('loading').style.display = 'none';
+      const es = document.getElementById('error-state');
+      es.style.display = 'flex';
+      document.getElementById('error-msg').textContent = err.message || 'Error desconocido';
+    })
+    .getPublicPlayerProfile(PLAYER_NAME);
+</script>
+</body>
+</html>
+

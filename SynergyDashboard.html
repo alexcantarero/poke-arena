@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Oswald:wght@500&display=swap" rel="stylesheet">
+    <style>
+      /* --- TEMA OSCURO UNIFICADO --- */
+      :root { --bg-dark: #0f172a; --card-bg: #1e293b; --text-main: #f1f5f9; --text-muted: #94a3b8; --accent: #38bdf8; --green: #10b981; --red: #ef4444; --gold: #fbbf24; }
+      
+      body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text-main); padding: 20px; margin: 0; }
+      
+      .header-box { text-align: center; margin-bottom: 30px; }
+      h2 { font-family: 'Oswald', sans-serif; color: var(--accent); margin: 0; font-size: 2em; text-transform: uppercase; letter-spacing: 1px; }
+      p.subtitle { color: var(--text-muted); margin-top: 5px; font-size: 0.95em; }
+
+      /* GRID DE TARJETAS */
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+
+      .card {
+        background: var(--card-bg); border: 1px solid #334155; border-radius: 12px; padding: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); transition: transform 0.2s; position: relative; overflow: hidden;
+      }
+      .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+
+      /* CABECERA DE LA CARTA (NOMBRES) */
+      .duo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+      .duo-names { font-family: 'Oswald'; font-size: 1.3em; color: white; display: flex; align-items: center; gap: 8px; }
+      .heart-icon { font-size: 1.2em; animation: pulse 2s infinite; }
+
+      /* ESTADÍSTICAS */
+      .stats-row { display: flex; justify-content: space-between; text-align: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px; }
+      .stat-item { display: flex; flex-direction: column; }
+      .stat-val { font-weight: 800; font-size: 1.2em; color: var(--text-main); }
+      .stat-lbl { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; }
+
+      /* BARRA DE COMPATIBILIDAD */
+      .compatibility-box { margin-bottom: 15px; }
+      .comp-bar-bg { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+      .comp-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+      .comp-text { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
+
+      /* ANÁLISIS DE CARRY (MOCHILA) */
+      .carry-analysis { font-size: 0.85em; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 8px; border-radius: 6px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+      .backpack-icon { font-size: 1.2em; }
+      
+      /* TAGS DE ESTADO */
+      .status-badge { position: absolute; top: 10px; right: 10px; font-size: 0.7em; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; color: #000; }
+
+      @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+      .loader { text-align: center; margin-top: 50px; font-size: 1.2em; color: var(--accent); }
+    </style>
+  </head>
+  <body>
+
+    <div class="header-box">
+      <h2>💞 Sinergias de Equipo</h2>
+      <p class="subtitle">Análisis de dúos: ¿Bromance épico o relación tóxica?</p>
+    </div>
+
+    <div id="loading" class="loader">💘 Calculando compatibilidad amorosa...</div>
+    <div id="content" class="grid-container"></div>
+
+    <script>
+      google.script.run
+        .withSuccessHandler(renderSynergies)
+        .withFailureHandler(showSynergyError)
+        .getSynergyData();
+
+      function showSynergyError(error) {
+        console.error('Error cargando sinergias:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').innerHTML = '<p style="text-align:center; color:#ef4444; grid-column: 1/-1;">⚠️ Error al cargar las sinergias: ' + (error && error.message ? error.message : error) + '</p>';
+      }
+
+      function renderSynergies(data) {
+        const container = document.getElementById('content');
+        document.getElementById('loading').style.display = 'none';
+
+        if (!data || data.length === 0) {
+          container.innerHTML = '<p style="text-align:center; color:#94a3b8; grid-column: 1/-1;">No hay suficientes partidas de duo registradas.</p>';
+          return;
+        }
+
+        // --- FILTRADO DE ERRORES (BUGS) ---
+        // Filtramos si p1 es igual a p2 (el bug de "Atomic & Atomic")
+        const cleanData = data.filter(item => item.p1 !== item.p2);
+
+        // Ordenamos por cantidad de partidas (Los duos mas frecuentes primero)
+        cleanData.sort((a, b) => b.games - a.games);
+
+        cleanData.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          
+          // 1. Logica de Colores y Emoticonos segun WinRate
+          let themeColor = '#94a3b8'; // Gris default
+          let heartIcon = '';
+          let statusText = item.tag; // Usamos el tag que viene del backend por defecto
+          
+          const wr = parseFloat(item.winRate);
+          
+          if (wr >= 65) { 
+              themeColor = '#fbbf24'; heartIcon = ''; statusText = "POWER COUPLE"; 
+          } else if (wr >= 50) { 
+              themeColor = '#10b981'; heartIcon = ''; 
+          } else if (wr < 40) { 
+              themeColor = '#ef4444'; heartIcon = ''; statusText = "TOXICOS";
+          }
+
+          // 2. Logica de "Mochila" (Quien carrilea a quien)
+          // Convertimos a numeros por si vienen como strings
+          const p1Avg = parseFloat(item.p1_avg || 0);
+          const p2Avg = parseFloat(item.p2_avg || 0);
+          const diff = Math.abs(p1Avg - p2Avg).toFixed(1);
+          
+          let carryHtml = `<span style="color:#94a3b8"> Rendimiento parejo (Diferencia: ${diff})</span>`;
+          
+          if (diff > 1.5) { // Si la diferencia es mayor a 1.5 puntos de media
+              const carrier = p1Avg > p2Avg ? item.p1 : item.p2;
+              const weight = p1Avg > p2Avg ? item.p2 : item.p1;
+              carryHtml = `<span style="color:${themeColor}"><span class="backpack-icon"></span> <b>${carrier}</b> esta carrileando a ${weight} (+${diff} pts)</span>`;
+          }
+
+          card.style.borderColor = themeColor + '44'; // Borde sutil
+
+          card.innerHTML = `
+            <div class="status-badge" style="background:${themeColor}">${statusText}</div>
+            
+            <div class="duo-header">
+                <div class="duo-names">
+                    ${item.p1} <span class="heart-icon" style="color:${themeColor}">${heartIcon}</span> ${item.p2}
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-val">${item.games}</span>
+                    <span class="stat-lbl">Partidas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val" style="color:${themeColor}">${item.winRate}%</span>
+                    <span class="stat-lbl">Win Rate</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">${(parseFloat(item.points_gained || 0)).toFixed(0)}</span>
+                    <span class="stat-lbl">Puntos Totales</span>
+                </div>
+            </div>
+
+            <div class="compatibility-box">
+                <div class="comp-text">
+                    <span>Sinergia</span>
+                    <span>${item.winRate}%</span>
+                </div>
+                <div class="comp-bar-bg">
+                    <div class="comp-bar-fill" style="width: ${item.winRate}%; background: ${themeColor}; box-shadow: 0 0 10px ${themeColor};"></div>
+                </div>
+            </div>
+
+            <div class="carry-analysis">
+                ${carryHtml}
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -8,9 +8,14 @@ import { RegisterForm } from "@/components/RegisterForm";
 import { Wordmark } from "@/components/Wordmark";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { registroLibre } from "@/lib/ajustesExtraDb";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Unirte a la liga" };
+export const metadata = {
+  title: "Crear cuenta",
+  description: "Únete a la liga de Pokémon TCG de PokeArena: ranking, Elo, torneos, Championship Points y estadísticas de mazos.",
+  robots: { index: true, follow: true }, // v0.135 — pública: que se encuentre en Google
+};
 
 /**
  * Alta escribiendo el código a mano.
@@ -36,6 +41,7 @@ export default async function RegisterCodePage({
   const cfgRows = await db.select().from(settings).where(eq(settings.id, "default"));
   const cfg = cfgRows[0];
   const open = cfg?.registrationOpen ?? true;
+  const libre = open && await registroLibre(); // v0.135 — sin invitación
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
@@ -46,10 +52,9 @@ export default async function RegisterCodePage({
           <>
             <h1 className="text-2xl font-bold">{tr(lng, "x.4ba24099")}</h1>
             <p className="mt-1.5 mb-5 text-sm text-ink-2">
-              Necesitas un código de invitación. Si te han mandado un enlace, ábrelo y esto se
-              rellena solo; si solo tienes el código, pégalo aquí.
+              {libre ? tr(lng, "v135.registroLibre") : tr(lng, "v135.registroCodigo")}
             </p>
-            <RegisterForm token={codigo ?? ""} askForToken />
+            <RegisterForm token={codigo ?? ""} askForToken libre={libre} />
           </>
         ) : (
           <>

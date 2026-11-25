@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoloQ Pro Analytics v2</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;       
+      --bg-card: #1e293b;       
+      --accent: #38bdf8;        
+      --gold: #fbbf24;          
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+    }
+
+    h1, h2, h3, h4, h5 {
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Tarjetas */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+    }
+
+    .card-title {
+      color: var(--gold);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+
+    /* Botones de Selección */
+    .btn-check:checked + .btn-outline-custom {
+      background-color: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+      font-weight: bold;
+    }
+    
+    .btn-outline-custom {
+      color: var(--text-muted);
+      border-color: var(--border-color);
+      background-color: rgba(255,255,255,0.05);
+    }
+    
+    .btn-outline-custom:hover {
+      color: #fff;
+      background-color: var(--border-color);
+    }
+
+    /* Loader */
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 9999; display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    /* Stats */
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Botón Acción */
+    .btn-action {
+      background: linear-gradient(45deg, #2563eb, #3b82f6);
+      border: none; color: white; font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+      color: white;
+    }
+
+    .chart-container { position: relative; width: 100%; }
+  </style>
+</head>
+<body>
+
+<div id="loading" class="loading-overlay">
+  <div class="spinner-border text-info" style="width: 4rem; height: 4rem;" role="status"></div>
+  <h4 class="mt-3 text-info">Analizando Datos...</h4>
+</div>
+
+<div class="container py-5">
+  
+  <div class="d-flex justify-content-between align-items-center mb-5 border-bottom border-secondary pb-3">
+    <div>
+      <h1 class="mb-0" style="color: var(--accent); font-size: 2.5rem;">
+        <i class="bi bi-bar-chart-fill me-2"></i> SoloQ <span style="color:white">Analytics</span>
+      </h1>
+      <small class="text-muted">Centro de Inteligencia Competitiva</small>
+    </div>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="window.top.close()">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="card-title mb-0 border-0 text-white"><i class="bi bi-people-fill me-2"></i> Comparar Jugadores</h5>
+      <div>
+         <button class="btn btn-link text-decoration-none text-info btn-sm" onclick="selectAll(true)">Todo</button>
+         <span class="text-muted">|</span>
+         <button class="btn btn-link text-decoration-none text-muted btn-sm" onclick="selectAll(false)">Nada</button>
+      </div>
+    </div>
+    
+    <div id="player-selector" class="d-flex flex-wrap gap-2">
+      <span class="text-muted fst-italic">Cargando invocadores...</span>
+    </div>
+    
+    <div class="mt-4 border-top border-secondary pt-3">
+      <button class="btn btn-action px-4 py-2 w-100" onclick="loadComparison()">
+        <i class="bi bi-arrow-repeat me-1"></i> GENERAR INFORME
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4" id="stats-cards"></div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="card h-100 p-3">
+        <h5 class="card-title"><i class="bi bi-graph-up-arrow me-2"></i> Evolución de Puntos</h5>
+        <div class="chart-container" style="height: 400px;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100 p-3">
+        <h5 class="card-title"><i class="bi bi-radar me-2"></i> Perfil de Jugador</h5>
+        <div class="chart-container" style="height: 400px; display:flex; justify-content:center;">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0 text-white"><i class="bi bi-grid-3x3-gap-fill me-2"></i> Matriz de Estilo (Impacto vs Riesgo)</h5>
+            <small class="text-muted" style="font-size:0.8rem">
+                <span class="text-info">Arriba-Izq: MVP</span> | 
+                <span class="text-danger">Abajo-Der: Feeder</span>
+            </small>
+        </div>
+        <div class="chart-container" style="height: 500px;">
+          <canvas id="scatterChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+     <div class="col-md-6">
+       <div class="card p-3">
+             <h5 class="card-title"><i class="bi bi-trophy-fill me-2"></i> Win Rate (%)</h5>
+             <div class="chart-container" style="height: 300px;">
+                <canvas id="winRateChart"></canvas>
+             </div>
+       </div>
+     </div>
+     <div class="col-md-6">
+       <div class="card p-3">
+             <h5 class="card-title"><i class="bi bi-swords me-2"></i> KDA Ratio</h5>
+             <div class="chart-container" style="height: 300px;">
+                <canvas id="kdaChart"></canvas>
+             </div>
+       </div>
+     </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // Configuracion Chart.js para Dark Mode
+  Chart.defaults.color = '#94a3b8'; 
+  Chart.defaults.borderColor = '#334155'; 
+  Chart.defaults.font.family = "'Inter', sans-serif";
+
+  let allPlayers = [];
+  let historyChartInst = null;
+  let radarChartInst = null;
+  let wrChartInst = null;
+  let kdaChartInst = null;
+  let scatterChartInst = null;
+
+  // Paleta de colores Neon
+  const PLAYER_COLORS = [
+    '#38bdf8', '#f472b6', '#a78bfa', '#34d399', 
+    '#fbbf24', '#f87171', '#9ca3af', '#fb923c'
+  ];
+
+  window.onload = function() {
+    google.script.run
+      .withSuccessHandler(populatePlayerList)
+      .withFailureHandler(showAnalyticsError)
+      .getPlayerList();
+  };
+
+  function showAnalyticsError(error) {
+    console.error('Error cargando analytics:', error);
+    document.getElementById('loading').style.display = 'none';
+    const container = document.getElementById('player-selector');
+    if (container) {
+      container.innerHTML = '<div class="text-danger">⚠️ Error al cargar los datos: ' + (error && error.message ? error.message : error) + '</div>';
+    } else {
+      alert('❌ Error al cargar los datos: ' + (error && error.message ? error.message : error));
+    }
+  }
+
+  function populatePlayerList(players) {
+    allPlayers = players;
+    const container = document.getElementById('player-selector');
+    container.innerHTML = '';
+
+    if (!Array.isArray(players) || players.length === 0 || players[0].startsWith('Error')) {
+        container.innerHTML = '<div class="text-danger">Error cargando jugadores.</div>';
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+
+    players.forEach((p, index) => {
+        const isChecked = index < 3 ? 'checked' : ''; 
+        const html = `
+          <input type="checkbox" class="btn-check" id="btn-check-${index}" autocomplete="off" value="${p}" ${isChecked}>
+          <label class="btn btn-outline-custom" for="btn-check-${index}">${p}</label>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+
+    loadComparison();
+  }
+
+  function selectAll(select) {
+      document.querySelectorAll('#player-selector .btn-check').forEach(cb => cb.checked = select);
+  }
+
+  function loadComparison() {
+    const selected = Array.from(document.querySelectorAll('#player-selector .btn-check:checked')).map(cb => cb.value);
+
+    if (selected.length === 0) {
+        alert(" Por favor, selecciona al menos un jugador.");
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'flex';
+    google.script.run
+      .withSuccessHandler(renderDashboard)
+      .withFailureHandler(showAnalyticsError)
+      .getComparisonData(selected);
+  }
+
+  function renderDashboard(data) {
+    renderStatsCards(data);
+    renderHistoryChart(data);
+    renderRadarChart(data);
+    renderBarCharts(data);
+    renderScatterChart(data); // Matriz de estilo
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  function renderStatsCards(data) {
+      const container = document.getElementById('stats-cards');
+      container.innerHTML = '';
+      const players = Object.values(data);
+      players.sort((a, b) => b.currentPoints - a.currentPoints);
+
+      players.forEach(p => {
+          const wr = parseFloat(p.winRate);
+          const wrColor = wr >= 55 ? '#4ade80' : (wr >= 50 ? '#fbbf24' : '#f87171');
+          
+          const html = `
+            <div class="col-xl-3 col-md-4 col-sm-6">
+              <div class="card p-3 h-100" style="border-top: 3px solid ${wrColor};">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="fw-bold text-white mb-0 text-truncate" title="${p.name}">${p.name}</h5>
+                    <span class="badge bg-dark border border-secondary">${p.tier}</span>
+                </div>
+                <div class="d-flex justify-content-between mt-2 text-center">
+                    <div>
+                        <div class="stat-value text-info">${p.currentPoints}</div>
+                        <div class="stat-label">Puntos</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" style="color: ${wrColor}">${p.winRate}%</div>
+                        <div class="stat-label">Winrate</div>
+                    </div>
+                </div>
+                <div class="mt-2 text-center">
+                     <small class="text-muted" style="font-size:0.75rem">${p.gamesPlayed} Partidas  KDA: ${p.kdaRatio}</small>
+                </div>
+              </div>
+            </div>
+          `;
+          container.insertAdjacentHTML('beforeend', html);
+      });
+  }
+
+  function renderHistoryChart(data) {
+      const ctx = document.getElementById('historyChart').getContext('2d');
+      if (historyChartInst) historyChartInst.destroy();
+
+      const datasets = Object.values(data).map((p, i) => ({
+          label: p.name,
+          data: p.pointsHistory,
+          borderColor: PLAYER_COLORS[i % PLAYER_COLORS.length],
+          backgroundColor: PLAYER_COLORS[i % PLAYER_COLORS.length],
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          fill: false
+      }));
+
+      historyChartInst = new Chart(ctx, {
+          type: 'line',
+          data: { datasets: datasets },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                  legend: { labels: { color: '#fff', usePointStyle: true } },
+                  tooltip: {
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      titleColor: '#38bdf8',
+                      bodyColor: '#fff',
+                      borderColor: '#334155',
+                      borderWidth: 1,
+                      callbacks: {
+                          label: function(context) {
+                              return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' pts';
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  x: {
+                      type: 'time',
+                      time: { unit: 'day', tooltipFormat: 'dd MMM' },
+                      grid: { color: '#1e293b' },
+                      ticks: { color: '#94a3b8' }
+                  },
+                  y: { grid: { color: '#1e293b' } }
+              }
+          }
+      });
+  }
+
+  function renderRadarChart(data) {
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      if (radarChartInst) radarChartInst.destroy();
+
+      const datasets = Object.values(data).map((p, i) => {
+          const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+          const wrNorm = Math.min(100, parseFloat(p.winRate));
+          const kdaNorm = Math.min(100, parseFloat(p.kdaRatio) * 10);
+          const gamesNorm = Math.min(100, p.gamesPlayed * 2);
+
+          return {
+              label: p.name,
+              data: [wrNorm, kdaNorm, gamesNorm],
+              borderColor: color,
+              backgroundColor: color + '20',
+              pointBackgroundColor: color,
+              borderWidth: 2
+          };
+      });
+
+      radarChartInst = new Chart(ctx, {
+          type: 'radar',
+          data: {
+              labels: ['Win Rate %', 'KDA Impacto', 'Experiencia'],
+              datasets: datasets
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                  r: {
+                      angleLines: { color: '#334155' },
+                      grid: { color: '#334155' },
+                      pointLabels: { color: '#fff', font: { size: 12, weight: 'bold'} },
+                      ticks: { display: false },
+                      suggestedMin: 0,
+                      suggestedMax: 100
+                  }
+              }
+          }
+      });
+  }
+
+  function renderScatterChart(data) {
+      const ctx = document.getElementById('scatterChart').getContext('2d');
+      if (scatterChartInst) scatterChartInst.destroy();
+
+      const players = Object.values(data);
+      const scatterData = players.map((p, i) => {
+          const games = Math.max(1, p.gamesPlayed);
+          const avgDeaths = p.deaths / games;
+          const participation = (p.kills + p.assists) / games;
+
+          return {
+              label: p.name,
+              data: [{ x: avgDeaths, y: participation }],
+              backgroundColor: PLAYER_COLORS[i % PLAYER_COLORS.length],
+              borderColor: '#fff',
+              borderWidth: 2,
+              pointRadius: 8,
+              pointHoverRadius: 12
+          };
+      });
+
+      scatterChartInst = new Chart(ctx, {
+          type: 'scatter',
+          data: { datasets: scatterData },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  legend: { position: 'bottom', labels: { color: '#fff', usePointStyle: true } },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              return context.dataset.label + 
+                                     `: ${context.parsed.y.toFixed(1)} K+A / ${context.parsed.x.toFixed(1)} Muertes`;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  x: {
+                      title: { display: true, text: 'Muertes Promedio (Riesgo) ', color: '#ef4444' },
+                      grid: { color: '#334155' },
+                      ticks: { color: '#94a3b8' }
+                  },
+                  y: {
+                      title: { display: true, text: 'Kills + Asistencias Promedio (Impacto) ', color: '#10b981' },
+                      grid: { color: '#334155' },
+                      ticks: { color: '#94a3b8' }
+                  }
+              }
+          }
+      });
+  }
+
+  function renderBarCharts(data) {
+      const players = Object.values(data);
+      const labels = players.map(p => p.name);
+      const bgColors = players.map((_, i) => PLAYER_COLORS[i % PLAYER_COLORS.length]);
+
+      if (wrChartInst) wrChartInst.destroy();
+      wrChartInst = new Chart(document.getElementById('winRateChart'), {
+          type: 'bar',
+          data: {
+              labels: labels,
+              datasets: [{
+                  label: 'Win Rate %',
+                  data: players.map(p => parseFloat(p.winRate)),
+                  backgroundColor: bgColors,
+                  borderRadius: 4
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              indexAxis: 'y',
+              plugins: { legend: { display: false } },
+              scales: { x: { min: 0, max: 100, grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+          }
+      });
+
+      if (kdaChartInst) kdaChartInst.destroy();
+      kdaChartInst = new Chart(document.getElementById('kdaChart'), {
+          type: 'bar',
+          data: {
+              labels: labels,
+              datasets: [{
+                  label: 'KDA Ratio',
+                  data: players.map(p => parseFloat(p.kdaRatio)),
+                  backgroundColor: bgColors,
+                  borderRadius: 4
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              indexAxis: 'y',
+              plugins: { legend: { display: false } },
+              scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+          }
+      });
+  }
+</script>
+</body>
+</html>

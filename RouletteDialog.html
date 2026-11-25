@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+<base target="_top">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap');
+
+  /* Estilos generales de la ventana */
+  body {
+    background-color: #1a1a2e; /* Fondo oscuro */
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  h2 { color: #f1c40f; text-shadow: 0 0 10px #f1c40f; margin-bottom: 10px; }
+
+  /* El contenedor principal de la ruleta (la "ventana" de visión) */
+  .roulette-container {
+    width: 400px;
+    height: 100px;
+    background-color: #16213e;
+    border: 4px solid #f1c40f;
+    border-radius: 8px;
+    overflow: hidden; /* Esconde lo que se sale de la caja */
+    position: relative;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
+  }
+
+  /* La flecha que indica el ganador */
+  .marker-line {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 100%;
+    background-color: red;
+    z-index: 10;
+    box-shadow: 0 0 10px red;
+  }
+  .marker-arrow {
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: red;
+      z-index: 11;
+  }
+
+  /* La tira larga que contiene todos los items y se moverá */
+  .roulette-strip {
+    display: flex;
+    height: 100%;
+    /* La transición mágica: empieza rápido, frena lento (cubic-bezier) */
+    transition: transform 6s cubic-bezier(0.1, 0.7, 0.1, 1);
+    will-change: transform; /* Optimización para navegadores */
+  }
+
+  /* El estilo de cada cuadradito de item */
+  .item-card {
+    min-width: 90px;
+    height: 80px;
+    margin: 10px 5px;
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    border: 2px solid #7f8c8d;
+    border-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 5px;
+    box-sizing: border-box;
+    white-space: normal; /* Permite que el texto ocupe varias líneas */
+    overflow-wrap: break-word;
+  }
+
+  /* Estilos para rarezas (opcional, añade color al borde según el item) */
+  .rarity-common { border-color: #95a5a6; }
+  .rarity-rare { border-color: #3498db; box-shadow: inset 0 0 10px rgba(52, 152, 219, 0.5); }
+  .rarity-epic { border-color: #9b59b6; box-shadow: inset 0 0 10px rgba(155, 89, 182, 0.5); }
+  .rarity-legendary { border-color: #f1c40f; box-shadow: inset 0 0 15px rgba(241, 196, 15, 0.7); color: #f1c40f;}
+
+
+  #result-message {
+    margin-top: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2ecc71;
+    opacity: 0; /* Invisible al principio */
+    transition: opacity 0.5s ease-in;
+    text-shadow: 0 0 10px #2ecc71;
+  }
+  
+  .close-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none; /* Oculto hasta el final */
+  }
+</style>
+</head>
+<body>
+
+  <h2>🎰 Abriendo Cofre... 🎰</h2>
+  
+  <div class="roulette-container">
+    <div class="marker-arrow">▼</div>
+    <div class="marker-line"></div>
+    <div class="roulette-strip" id="strip">
+      </div>
+  </div>
+
+  <div id="result-message"></div>
+  <button class="close-btn" onclick="google.script.host.close()">CERRAR</button>
+
+<script>
+  // Esta funcion se llama automaticamente al cargar el dialogo
+  // Recibe los datos enviados desde el script .gs
+  function initRoulette(possibleLootStr, winnerItem) {
+    const stripElement = document.getElementById('strip');
+    const resultMsgElement = document.getElementById('result-message');
+    const closeBtn = document.querySelector('.close-btn');
+    
+    // Convertir la cadena separada por comas en un array
+    const possibleLoot = possibleLootStr.split(',');
+
+    // 1. Construir la tira de la ruleta
+    // Necesitamos una tira muy larga para que la animacion dure.
+    // Repetimos la lista de loot posible muchas veces.
+    let rouletteItems = [];
+    // Repetimos la lista 50 veces para hacer bulto antes del ganador
+    for (let i = 0; i < 50; i++) {
+        rouletteItems = rouletteItems.concat(possibleLoot);
+    }
+    // Insertamos el item ganador en una posicion especifica cerca del final (ej. indice 125)
+    const winningIndex = rouletteItems.length - Math.floor(possibleLoot.length / 2); // Aseguramos que este cerca del final
+    rouletteItems[winningIndex] = winnerItem;
+    // Anadimos unos pocos mas despues para que no se acabe de golpe
+    rouletteItems = rouletteItems.concat(possibleLoot.slice(0, 5));
+
+
+    // 2. Generar el HTML para cada item
+    rouletteItems.forEach((itemName, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.classList.add('item-card');
+      itemDiv.textContent = itemName;
+      
+      // LOGICA DE RAREZA SIMPLE (Puedes personalizar esto)
+      // Si el nombre contiene "Legendario" o "Skin", le pone borde dorado.
+      if (itemName.includes('Legendario') || itemName.includes('Skin')) {
+          itemDiv.classList.add('rarity-legendary');
+      } else if (itemName.includes('Epico') || itemName.includes('Hype')) {
+          itemDiv.classList.add('rarity-epic');
+      } else if (itemName.includes('Raro')) {
+           itemDiv.classList.add('rarity-rare');
+      } else {
+          itemDiv.classList.add('rarity-common');
+      }
+
+      // Marcamos el div ganador para buscarlo luego
+      if (index === winningIndex) {
+        itemDiv.id = 'winner-card';
+      }
+      
+      stripElement.appendChild(itemDiv);
+    });
+
+    // 3. Calcular la animacion
+    // Necesitamos que el navegador renderice primero para saber donde esta el ganador
+    setTimeout(() => {
+      const winnerCard = document.getElementById('winner-card');
+      const containerWidth = document.querySelector('.roulette-container').offsetWidth;
+      const cardWidth = winnerCard.offsetWidth + 10; // Ancho + margen horizontal
+      
+      // Calculo matematico:
+      // Queremos que el centro del item ganador quede en el centro del contenedor.
+      // Posicion del item = (Indice del ganador * ancho de tarjeta)
+      // Offset para centrar = (Ancho contenedor / 2) - (Ancho tarjeta / 2)
+      const finalPosition = (winningIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
+      
+      // Forzamos un pequeno reflow antes de iniciar la animacion
+      stripElement.getBoundingClientRect();
+
+      // APLICAR LA ANIMACION: Movemos la tira hacia la izquierda
+      stripElement.style.transform = `translateX(-${finalPosition}px)`;
+
+    }, 500); // Pequena pausa antes de empezar a girar
+
+    // 4. Mostrar resultado al terminar (6 segundos despues, igual que la transicion CSS)
+    stripElement.addEventListener('transitionend', () => {
+       resultMsgElement.textContent = `!Has ganado: ${winnerItem}!`;
+       resultMsgElement.style.opacity = 1;
+       closeBtn.style.display = 'block'; // Mostrar boton cerrar
+       
+       // Efecto de parpadeo en el ganador
+       const winnerCard = document.getElementById('winner-card');
+       winnerCard.style.animation = "blink-winner 1s infinite alternate";
+    }, {once: true});
+  }
+</script>
+<style>
+@keyframes blink-winner {
+    from { filter: brightness(1); transform: scale(1); }
+    to { filter: brightness(1.5); box-shadow: 0 0 30px white; transform: scale(1.1); }
+}
+</style>
+</body>
+</html>

@@ -6,11 +6,13 @@ import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
 export function RegisterForm({
-  token, askForToken = false,
+  token, askForToken = false, libre = false,
 }: {
   token: string;
   /** true en `/registro`, donde el código se escribe a mano. */
   askForToken?: boolean;
+  /** v0.135 — registro libre: el código es opcional. */
+  libre?: boolean;
 }) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
@@ -30,9 +32,9 @@ export function RegisterForm({
     <form action={action} className="flex flex-col gap-4">
       {askForToken ? (
         <div className="flex flex-col gap-1.5">
-          <label className="label" htmlFor="code">{tr(lng, "x.f0ea57e1")}</label>
+          <label className="label" htmlFor="code">{tr(lng, "x.f0ea57e1")}{libre && <span className="ml-1 normal-case text-muted">({tr(lng, "v135.opcional")})</span>}</label>
           <input
-            className="input font-mono text-sm" id="code" required
+            className="input font-mono text-sm" id="code" required={!libre}
             autoComplete="off" autoCapitalize="none" spellCheck={false}
             value={code} onChange={(e) => setCode(e.target.value)}
             placeholder={tr(lng, "x.578da78c")}
@@ -40,6 +42,8 @@ export function RegisterForm({
         </div>
       ) : null}
       <input type="hidden" name="token" value={askForToken ? cleanCode : token} />
+      {/* v0.135 — campo trampa contra robots: fuera de la vista y del teclado. */}
+      <input type="text" name="web" tabIndex={-1} autoComplete="off" aria-hidden="true" className="trampa" defaultValue="" />
 
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor="name">{tr(lng, "x.ae4670b4")}</label>

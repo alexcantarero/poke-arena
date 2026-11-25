@@ -23,8 +23,10 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  // v0.135 — la URL buena, para los enlaces canónicos y las vistas previas (APP_URL en Vercel).
+  ...((process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL) ? { metadataBase: new URL(process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL!) } : {}),
   title: { default: "PokeArena TCG", template: "%s · PokeArena TCG" },
-  description: "Liga privada de Pokémon TCG: ranking, resultados, torneos y estadísticas.",
+  description: "Liga de Pokémon TCG: ranking, resultados, torneos y estadísticas.",
   applicationName: "PokeArena TCG",
   manifest: "/manifest.webmanifest",
   /* v0.50 — el logo de la app en la pestaña del navegador y en el iPhone. El SVG

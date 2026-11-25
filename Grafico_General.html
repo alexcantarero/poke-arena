@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #6366f1;
+            
+            /* NUEVA PALETA DE ROLES */
+            --color-top: #ef4444;    /* Rojo */
+            --color-jng: #22c55e;    /* Verde */
+            --color-mid: #a855f7;    /* Morado */
+            --color-bot: #3b82f6;    /* Azul */
+            --color-sup: #eab308;    /* Amarillo */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+        }
+
+        #loader {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.5rem; color: var(--accent-color); font-weight: 600;
+            text-align: center; z-index: 1000;
+        }
+        .hidden { display: none; }
+
+        .header {
+            text-align: center; margin-bottom: 30px; padding: 20px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(168,85,247,0.2) 100%);
+            border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .header h1 {
+            margin: 0;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-size: 2.2rem;
+        }
+
+        /* GRID PRINCIPAL DE GRÁFICOS */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 24px; padding: 25px;
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover { transform: translateY(-5px); border-color: rgba(99,102,241,0.3); }
+        .card h2 {
+            margin-top: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 10px;
+            color: var(--text-primary);
+        }
+        .card h2::before {
+            content: ''; display: block; width: 6px; height: 24px;
+            background-color: var(--accent-color); border-radius: 4px;
+        }
+        .chart-container { width: 100%; height: 350px; }
+
+        /* --- NUEVOS ESTILOS: SECCIONES ÉPICAS --- */
+        
+        .hof-section-title {
+            text-align: center; margin: 60px 0 30px; font-size: 2rem;
+            background: linear-gradient(to right, #facc15, #fbbf24);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-transform: uppercase; letter-spacing: 2px;
+            font-weight: 800;
+        }
+
+        /* SECCIÓN DE RÉCORDS Y TÍTULOS */
+        .epic-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Dos columnas: Récords y Títulos */
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .epic-card {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border-radius: 20px; padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+        }
+        .epic-title {
+            text-align: center; font-size: 1.5rem; margin-bottom: 20px;
+            text-transform: uppercase; letter-spacing: 1px; font-weight: 800;
+            color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+        }
+
+        /* TABLA DE RECORDS */
+        .record-table { width: 100%; border-collapse: collapse; }
+        .record-table th { text-align: left; color: var(--text-secondary); padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem;}
+        .record-table td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; font-weight: 600; }
+        .record-rank { color: #fbbf24; font-weight: 800; font-size: 1.1rem; }
+        .record-score { color: #4ade80; font-weight: 800; text-align: right; }
+
+        /* GRID DE TÍTULOS */
+        .titles-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;
+        }
+        .title-badge {
+            background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s;
+        }
+        .title-badge:hover { background: rgba(255,255,255,0.08); transform: scale(1.05); border-color: #fbbf24; }
+        .title-icon { font-size: 2rem; margin-bottom: 5px; display: block; }
+        .title-name { color: #fbbf24; font-size: 0.9rem; font-weight: 700; display: block; margin-bottom: 5px;}
+        .title-player { color: #fff; font-weight: 600; display: block; font-size: 1.1rem;}
+        .title-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 5px; display: block;}
+
+        /* --- HALL OF FAME (Tarjetas de Rol) --- */
+        .hof-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px; margin-bottom: 50px;
+        }
+
+        .hof-card {
+            background: linear-gradient(145deg, var(--card-bg), rgba(15, 23, 42, 0.9));
+            border-radius: 20px; padding: 20px;
+            position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+        }
+        .hof-card:hover { transform: translateY(-5px); border-color: var(--role-color); }
+        
+        .hof-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+            background: var(--role-color);
+        }
+
+        .hof-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+        }
+        .hof-role-name {
+            color: var(--role-color); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
+        }
+        .hof-role-icon { font-size: 2rem; filter: drop-shadow(0 0 5px var(--role-color)); }
+        
+        .hof-badges { display: flex; gap: 5px; margin-bottom: 5px; font-size: 0.8rem; font-weight: 700;}
+        .hof-streak { background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; animation: pulse 2s infinite;}
+        .hof-mvp { background: #eab308; color: black; padding: 2px 6px; border-radius: 4px; }
+
+        .hof-summoner { 
+            font-size: 1.5rem; font-weight: 800; color: #fff; margin: 5px 0 10px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        
+        .hof-stats { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px; }
+        
+        .hof-feat {
+            margin-top: auto;
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;
+            border-left: 3px solid var(--role-color); font-size: 0.85rem;
+        }
+        .hof-feat strong { color: #fbbf24; display: block; font-size: 1rem; margin-top: 2px;}
+
+        /* Estado Vacante */
+        .hof-vacant { opacity: 0.5; text-align: center; }
+        .hof-vacant .hof-role-icon { display: block; margin: 0 auto 10px; filter: grayscale(1); }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        /* Media queries */
+        @media (max-width: 900px) {
+            .epic-section { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div>🚀 Cargando Estadísticas...</div>
+    </div>
+
+    <div id="main-content" class="hidden">
+        <header class="header">
+            <h1>⚡ SoloQ Pro Analytics</h1>
+            <p>Datos en tiempo real de la competición</p>
+        </header>
+
+        <main class="dashboard-grid">
+            <div class="card">
+                <h2>Meta (Play Rate)</h2>
+                <div id="chartPlayRate" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <h2>Efectividad (Win Rate %)</h2>
+                <div id="chartWinRate" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <h2>Impacto Medio (Puntos)</h2>
+                <div id="chartAvgPoints" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <h2>Consistencia (Riesgo/Recompensa)</h2>
+                <div id="chartConsistency" class="chart-container"></div>
+            </div>
+        </main>
+
+        <h2 class="hof-section-title">🏆 LEGENDARY STATUS 🏆</h2>
+        <div class="epic-section">
+            <div class="epic-card">
+                <div class="epic-title">🔥 Top 5 Puntuaciones</div>
+                <table class="record-table">
+                    <thead><tr><th>#</th><th>Jugador</th><th>Champ</th><th>Score</th></tr></thead>
+                    <tbody id="top-games-body">
+                        <tr><td colspan="4" style="text-align:center; opacity:0.5;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="epic-card">
+                <div class="epic-title">🎖️ Títulos de Temporada</div>
+                <div class="titles-grid" id="titles-grid">
+                    <div style="text-align:center; opacity:0.5; grid-column:span 3;">Cargando títulos...</div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="hof-section-title">✨ MVP POR ROL ✨</h2>
+        <div id="hall-of-fame" class="hof-grid">
+            </div>
+
+    </div>
+
+    <script>
+        // --- COLORES POR ROL (Coherencia Visual) ---
+        const ROLE_COLORS = {
+            'TOP': '#ef4444',    // Rojo
+            'JUNGLE': '#22c55e', // Verde
+            'MIDDLE': '#a855f7', // Morado
+            'BOTTOM': '#3b82f6', // Azul
+            'UTILITY': '#eab308' // Amarillo
+        };
+
+        window.onload = function() {
+            // 1. Cargar Graficos (Existente)
+            google.script.run.withSuccessHandler(renderCharts).withFailureHandler(onDashboardLoadError).getDataForDashboardV12();
+
+            // 2. Cargar MVPs por Rol (Existente)
+            google.script.run.withSuccessHandler(renderHallOfFame).withFailureHandler(onDashboardLoadError).getBestPlayersByRoleV12();
+
+            // 3. Cargar Seccion Epica (NUEVO)
+            google.script.run.withSuccessHandler(renderEpicSection).withFailureHandler(onDashboardLoadError).getEpicDashboardData();
+        };
+
+        function onDashboardLoadError(error) {
+            console.error('Error cargando el dashboard:', error);
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.innerHTML = '<div style="color:#ef4444;">⚠️ Error al cargar las estadísticas. Inténtalo de nuevo más tarde.</div>';
+            }
+        }
+
+        function renderCharts(data) {
+            if (!data || !data.roles) {
+                onDashboardLoadError({ message: 'Datos incompletos recibidos del servidor.' });
+                return;
+            }
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94a3b8', family: 'Inter' },
+                margin: { t: 30, r: 20, l: 40, b: 40 },
+                xaxis: { gridcolor: '#334155' }, yaxis: { gridcolor: '#334155' }
+            };
+            const config = { responsive: true, displayModeBar: false };
+
+            // 1. Play Rate
+            const pieColors = data.roles.map(r => ROLE_COLORS[r] || '#ccc');
+            Plotly.newPlot('chartPlayRate', [{
+                labels: data.roles, values: data.gamesPlayed, type: 'pie', hole: 0.6,
+                marker: { colors: pieColors, line: { color: '#1e293b', width: 2 } },
+                textinfo: 'label+percent', textfont: { color: '#fff' }
+            }], { ...layout, showlegend: false }, config);
+
+            // 2. Win Rate Bar
+            Plotly.newPlot('chartWinRate', [{
+                x: data.roles, y: data.winRate.map(x=>x*100), type: 'bar',
+                marker: { color: pieColors },
+                text: data.winRate.map(x=>(x*100).toFixed(0)+'%'), textposition: 'auto'
+            }], { ...layout, yaxis: { ...layout.yaxis, range: [0, 100], title: 'Win Rate %' } }, config);
+
+            // 3. Avg Points (COLORES CAMBIADOS AQUI)
+            Plotly.newPlot('chartAvgPoints', [{
+                x: data.roles, y: data.avgPoints, type: 'bar',
+                marker: { color: pieColors }, // Ahora usa los colores de rol
+                text: data.avgPoints.map(x=>x>0?'+'+x:x), textposition: 'outside',
+                textfont: { color: '#fff', weight: 'bold' }
+            }], { ...layout, yaxis: { ...layout.yaxis, title: 'Pts Promedio' } }, config);
+
+            // 4. Box Plot
+            const boxTraces = data.roles.map((role, i) => ({
+                y: data.boxPlotData[role], type: 'box', name: role,
+                marker: { color: ROLE_COLORS[role] || '#ccc' }, boxpoints: 'all', jitter: 0.5, pointpos: -1.8
+            }));
+            Plotly.newPlot('chartConsistency', boxTraces, { ...layout, showlegend: false }, config);
+
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+        }
+
+        // --- RENDERIZADO DE SECCION EPICA (NUEVO) ---
+        function renderEpicSection(data) {
+            if(!data) return;
+
+            // 1. Render Top Games
+            const tbody = document.getElementById('top-games-body');
+            if (data.topGames && data.topGames.length > 0) {
+                tbody.innerHTML = data.topGames.map((g, i) => `
+                    <tr>
+                        <td class="record-rank">#${i+1}</td>
+                        <td>${g.player}</td>
+                        <td style="opacity:0.8">${g.champ}</td>
+                        <td class="record-score">+${Number(g.points).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Sin datos aun</td></tr>';
+            }
+
+            // 2. Render Titulos
+            const grid = document.getElementById('titles-grid');
+            if (data.titles && data.titles.length > 0) {
+                grid.innerHTML = data.titles.map(t => {
+                    let icon = '';
+                    if(t.id==='DEMOLEDOR') icon='🏯';
+                    if(t.id==='VISION') icon='👁️';
+                    if(t.id==='BUTCHER') icon='🩸';
+                    if(t.id==='IMMORTAL') icon='😇';
+                    if(t.id==='TYCOON') icon='💰';
+
+                    return `
+                    <div class="title-badge">
+                        <span class="title-icon">${icon}</span>
+                        <span class="title-name">${t.label}</span>
+                        <span class="title-player">${t.player}</span>
+                        <span class="title-sub">${t.sub}</span>
+                    </div>
+                    `;
+                }).join('');
+            } else {
+                grid.innerHTML = '<div style="grid-column:span 3; text-align:center">Calculando titulos...</div>';
+            }
+        }
+
+        // --- RENDERIZADO DEL HALL OF FAME V13 ---
+        function renderHallOfFame(bestPlayers) {
+            const container = document.getElementById('hall-of-fame');
+            if (!bestPlayers) return;
+            container.innerHTML = '';
+
+            const rolesDef = [
+                { id: 'TOP', name: 'Toplaner', icon: '🛡️' },
+                { id: 'JUNGLE', name: 'Jungler', icon: '🌲' },
+                { id: 'MIDDLE', name: 'Midlaner', icon: '🔥' },
+                { id: 'BOTTOM', name: 'Carry', icon: '🏹' },
+                { id: 'UTILITY', name: 'Support', icon: '💖' }
+            ];
+
+            rolesDef.forEach(r => {
+                const p = bestPlayers[r.id];
+                const color = ROLE_COLORS[r.id];
+                
+                let content = '';
+
+                if (p && p.summoner) {
+                     // Badges
+                    let badgesHtml = '<div class="hof-badges">';
+                    if (p.streak && p.streak >= 3) badgesHtml += `<div class="hof-streak"> ${p.streak}</div>`;
+                    if (p.mvpTotal && p.mvpTotal > 0) badgesHtml += `<div class="hof-mvp"> ${p.mvpTotal}</div>`;
+                    badgesHtml += '</div>';
+
+                    content = `
+                        <div class="hof-card" style="--role-color: ${color}">
+                            <div class="hof-header">
+                                <span class="hof-role-name">${r.name}</span>
+                                <span class="hof-role-icon">${r.icon}</span>
+                            </div>
+                            ${badgesHtml}
+                            <div class="hof-summoner">${p.summoner}</div>
+                            <div class="hof-stats">
+                                 Media: <strong>${p.avgPoints}</strong> pts
+                            </div>
+                            <div class="hof-feat">
+                                 Poder: <strong>${p.superpower || 'Consistente'}</strong>
+                            </div>
+                        </div>`;
+                } else {
+                    content = `
+                        <div class="hof-card hof-vacant" style="--role-color: ${color}">
+                            <div class="hof-header" style="justify-content:center">
+                                <span class="hof-role-icon" style="filter:grayscale(1)">${r.icon}</span>
+                            </div>
+                            <div class="hof-role-name" style="text-align:center">${r.name}</div>
+                            <div style="margin-top: 15px; color: var(--text-secondary);">- Vacante -</div>
+                        </div>
+                    `;
+                }
+                container.innerHTML += content;
+            });
+        }
+    </script>
+</body>
+</html>

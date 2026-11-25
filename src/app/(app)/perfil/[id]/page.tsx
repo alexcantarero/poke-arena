@@ -73,7 +73,7 @@ export default async function ProfilePage({
   params, searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ambito?: string }>;
+  searchParams: Promise<{ ambito?: string; bienvenida?: string }>;
 }) {
   const lng = await getLang(); // v0.49
 
@@ -179,6 +179,36 @@ export default async function ProfilePage({
 
   return (
     <>
+      {/* v0.135 — COMPLETAR EL PERFIL: lo primero tras crear la cuenta (y mientras falte algo, en el propio).
+          Nada es obligatorio; cada paso lleva a su sitio. */}
+      {isMe && (q.bienvenida === "1" || !player.limitlessHandle || !nombreOficial || player.ladderElo == null) && (() => {
+        const pasos = [
+          { hecho: Boolean(player.limitlessHandle), clave: "v135.pasoNick", href: "/perfil/editar#limitlessHandle" },
+          { hecho: Boolean(nombreOficial), clave: "v135.pasoOficial", href: "#mundial" },
+          { hecho: player.ladderElo != null, clave: "v135.pasoLadder", href: "#ladder" },
+        ];
+        const hechos = pasos.filter((p) => p.hecho).length;
+        return (
+          <section className="card mb-4 border-brand-line p-4" aria-labelledby="completar-perfil">
+            <h2 id="completar-perfil" className="font-display text-lg font-bold">
+              {q.bienvenida === "1" ? tr(lng, "v135.bienvenida") : tr(lng, "v135.completar")}
+              <span className="ml-2 text-sm font-normal text-muted tabular">{hechos}/3</span>
+            </h2>
+            <p className="mb-3 text-sm text-muted">{tr(lng, "v135.completarSub")}</p>
+            <ol className="flex flex-col gap-2">
+              {pasos.map((p, i) => (
+                <li key={p.clave}>
+                  <a href={p.href} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${p.hecho ? "border-line-soft text-muted" : "border-brand-line"}`}>
+                    <span className={`grid size-7 flex-none place-items-center rounded-full text-sm font-bold ${p.hecho ? "bg-win text-ground" : "bg-brand text-on-brand"}`}>{p.hecho ? "✓" : i + 1}</span>
+                    <span className={`min-w-0 flex-1 text-sm font-semibold ${p.hecho ? "line-through" : ""}`}>{tr(lng, p.clave)}</span>
+                    {!p.hecho && <span className="flex-none text-xs text-muted">{tr(lng, "v135.opcional")} ›</span>}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </section>
+        );
+      })()}
       <div className="mb-5 flex flex-wrap items-start gap-4" data-paso="perfilGuia-1">
         {/* v0.90 — 1 de cada 4.096, tu avatar sale shiny (solo en tu perfil). */}
         {isMe ? <Variocolor><Avatar player={player} size="lg" /></Variocolor> : <Avatar player={player} size="lg" />}
@@ -370,7 +400,8 @@ export default async function ProfilePage({
       </div>
 
       {(canEditLadder || player.rankZoneUpdatedAt) && (
-        <details className="card mt-2.5">
+        /* v0.135 — `#mundial`: el aviso «pon tu nombre en Play! Pokémon» llega aquí, y abierto. */
+        <details id="mundial" className="card mt-2.5 scroll-mt-24" open={isMe && !nombreOficial ? true : undefined}>
           <summary className="tap cursor-pointer justify-between px-4 text-sm font-semibold">
             {canEditLadder ? tr(lang, "zone.edit") : tr(lang, "zone.title")}
             <span className="text-[11px] font-normal text-muted">

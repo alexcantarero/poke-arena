@@ -1,0 +1,1239 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wargods - Lector de Partidas (.ROFL)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0e1a;
+        --panel: #111827;
+        --panel2: #1e293b;
+        --border: #1e3a5f;
+        --accent: #3b82f6;
+        --accent2: #06b6d4;
+        --win: #10b981;
+        --lose: #ef4444;
+        --gold: #f59e0b;
+        --text: #f1f5f9;
+        --muted: #64748b;
+        --radius: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        background-image:
+          radial-gradient(
+            ellipse at 20% 0%,
+            rgba(59, 130, 246, 0.06) 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse at 80% 100%,
+            rgba(6, 182, 212, 0.04) 0%,
+            transparent 60%
+          );
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      /* === HEADER === */
+      header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+      }
+      header h1 {
+        font-family: "Oswald", sans-serif;
+        font-size: 2.2rem;
+        letter-spacing: 0.12em;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.4rem;
+      }
+      header p {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* === SERIES CONFIG PANEL === */
+      .series-config {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        align-items: end;
+      }
+      .series-config label {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+      }
+      .series-config input[type="text"] {
+        width: 100%;
+        background: #0f172a;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: "Inter", sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        padding: 0.65rem 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .series-config input[type="text"]:focus {
+        border-color: var(--accent);
+      }
+      .series-config input[type="text"]::placeholder {
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      /* === UPLOAD ZONE === */
+      .upload-zone {
+        background: var(--panel);
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 3rem 2rem;
+        text-align: center;
+        transition: all 0.25s ease;
+        cursor: pointer;
+        margin-bottom: 1.5rem;
+        position: relative;
+      }
+      .upload-zone:hover,
+      .upload-zone.dragover {
+        border-color: var(--accent);
+        background: rgba(59, 130, 246, 0.04);
+      }
+      .upload-zone .upload-icon {
+        font-size: 2.8rem;
+        margin-bottom: 0.8rem;
+        color: var(--accent);
+      }
+      .upload-zone h2 {
+        font-family: "Oswald", sans-serif;
+        font-size: 1.3rem;
+        letter-spacing: 0.08em;
+        color: var(--text);
+        margin-bottom: 0.3rem;
+      }
+      .upload-zone p {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .upload-zone .multi-note {
+        color: var(--accent2);
+        font-size: 0.78rem;
+        margin-top: 0.5rem;
+        font-weight: 600;
+      }
+      #file-input {
+        display: none;
+      }
+
+      /* === SERIES SCOREBOARD === */
+      .series-scoreboard {
+        display: none;
+        background: linear-gradient(135deg, var(--panel), #0f172a);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 1.5rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .series-scoreboard.visible {
+        display: flex;
+      }
+      .score-team {
+        text-align: center;
+      }
+      .score-team .t-name {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.3rem;
+      }
+      .score-team .t-score {
+        font-family: "Oswald", sans-serif;
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .score-team.winning .t-score {
+        color: var(--win);
+      }
+      .score-team.losing .t-score {
+        color: var(--lose);
+      }
+      .score-team.tied .t-score {
+        color: var(--gold);
+      }
+      .score-vs {
+        font-family: "Oswald", sans-serif;
+        font-size: 1.5rem;
+        color: var(--muted);
+      }
+      .score-meta {
+        text-align: center;
+      }
+      .score-meta .m-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.2rem;
+      }
+      .score-meta .m-id {
+        font-family: "Oswald", sans-serif;
+        font-size: 1.4rem;
+        color: var(--text);
+      }
+
+      /* === GAME TABS === */
+      .game-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+      .game-tab {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.5rem 1.2rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .game-tab:hover {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .game-tab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .game-tab .tab-result {
+        margin-left: 0.4rem;
+        font-size: 0.7rem;
+      }
+      .game-tab .tab-result.win {
+        color: #6ee7b7;
+      }
+      .game-tab .tab-result.loss {
+        color: #fca5a5;
+      }
+      .game-tab.active .tab-result.win,
+      .game-tab.active .tab-result.loss {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      /* === RESULTS === */
+      .results {
+        display: none;
+      }
+      .results.visible {
+        display: block;
+      }
+
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .results-header h2 {
+        font-family: "Oswald", sans-serif;
+        font-size: 1.4rem;
+        letter-spacing: 0.08em;
+        color: var(--text);
+      }
+      .match-info {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 0.2rem;
+      }
+
+      /* === BUTTONS === */
+      .btn {
+        background: linear-gradient(135deg, var(--accent), #2563eb);
+        color: #fff;
+        border: none;
+        padding: 0.7rem 1.4rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-family: "Inter", sans-serif;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+      }
+      .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .btn-series {
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+      }
+      .btn-series:hover {
+        box-shadow: 0 6px 25px rgba(124, 58, 237, 0.45);
+      }
+      .btn-clear {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .btn-clear:hover {
+        border-color: var(--lose);
+        color: var(--lose);
+        box-shadow: none;
+      }
+      .btn-row {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      /* === TEAM TABLES === */
+      .team-section {
+        margin-bottom: 1.5rem;
+      }
+      .team-title {
+        font-family: "Oswald", sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .win-title {
+        color: var(--win);
+      }
+      .lose-title {
+        color: var(--lose);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 0.7rem 0.9rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(30, 58, 95, 0.5);
+        font-size: 0.85rem;
+      }
+      th {
+        background: rgba(0, 0, 0, 0.3);
+        font-weight: 600;
+        color: var(--muted);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: rgba(59, 130, 246, 0.04);
+      }
+      .kda {
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      /* === ERROR === */
+      .error-msg {
+        color: var(--lose);
+        margin-top: 0.8rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-align: center;
+        min-height: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>⚔️ WARGODS ROFL PARSER</h1>
+        <p>
+          Sube uno o varios archivos .rofl para registrar una partida o una
+          serie Bo3 completa
+        </p>
+      </header>
+
+      <!-- SERIES CONFIG -->
+      <div class="series-config">
+        <div>
+          <label>ID del Partido de Torneo (para series Bo3)</label>
+          <input
+            type="text"
+            id="tournament-match-id"
+            placeholder="Ej: M1, SF1, GF..."
+          />
+        </div>
+        <div
+          style="
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-end;
+            padding-bottom: 1px;
+          "
+        >
+          <div
+            id="file-count-badge"
+            style="
+              display: none;
+              background: #1e3a5f;
+              border: 1px solid var(--border);
+              border-radius: 8px;
+              padding: 0.65rem 1rem;
+              font-size: 0.85rem;
+              font-weight: 700;
+              color: var(--accent2);
+              white-space: nowrap;
+            "
+          >
+            0 partidas cargadas
+          </div>
+          <button class="btn btn-clear" onclick="clearAll()">🗑️ Limpiar</button>
+        </div>
+      </div>
+
+      <!-- UPLOAD ZONE -->
+      <div
+        class="upload-zone"
+        id="drop-zone"
+        onclick="document.getElementById('file-input').click()"
+      >
+        <div class="upload-icon">📂</div>
+        <h2>Arrastra tus archivos .rofl aquí</h2>
+        <p>o haz clic para seleccionar</p>
+        <div class="multi-note">
+          ✦ Puedes cargar varios archivos a la vez para una serie Bo3
+        </div>
+        <input type="file" id="file-input" accept=".rofl" multiple />
+      </div>
+
+      <div id="error-container" class="error-msg"></div>
+
+      <!-- SERIES SCOREBOARD -->
+      <div class="series-scoreboard" id="series-scoreboard">
+        <div class="score-team" id="score-side-a">
+          <div class="t-name">Equipo A</div>
+          <div class="t-score" id="score-a">0</div>
+        </div>
+        <div style="text-align: center">
+          <div class="score-vs">VS</div>
+          <div class="score-meta" id="score-meta">
+            <div class="m-label">Partido</div>
+            <div class="m-id" id="score-match-id">—</div>
+          </div>
+        </div>
+        <div class="score-team" id="score-side-b">
+          <div class="t-name">Equipo B</div>
+          <div class="t-score" id="score-b">0</div>
+        </div>
+      </div>
+
+      <!-- GAME TABS -->
+      <div class="game-tabs" id="game-tabs"></div>
+
+      <!-- RESULTS -->
+      <div class="results" id="results-container">
+        <div class="results-header">
+          <div>
+            <h2>Resultados — <span id="game-label">Partida 1</span></h2>
+            <div class="match-info" id="match-info"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-series" onclick="exportSeries()">
+              📤 EXPORTAR SERIE
+            </button>
+            <button class="btn" onclick="exportSingleGame()">
+              📋 COPIAR JSON (Esta partida)
+            </button>
+          </div>
+        </div>
+        <div class="team-section" id="team-100"></div>
+        <div class="team-section" id="team-200"></div>
+      </div>
+    </div>
+
+    <script>
+      // ============================================================
+      //  STATE
+      // ============================================================
+      const extractedSeries = []; // Array de { gameData, exportData, winnerTeam }
+      let activeGameIndex = 0;
+
+      // Wins per side (A = team 100 of game 1 usually blue, but we track by game result)
+      let winsA = 0;
+      let winsB = 0;
+
+      // ============================================================
+      //  DOM REFS
+      // ============================================================
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("file-input");
+      const resultsEl = document.getElementById("results-container");
+      const errorEl = document.getElementById("error-container");
+      const tabsEl = document.getElementById("game-tabs");
+      const scoreboardEl = document.getElementById("series-scoreboard");
+      const fileBadge = document.getElementById("file-count-badge");
+
+      // ============================================================
+      //  FILE EVENTS
+      // ============================================================
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("dragover"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        handleFiles(Array.from(e.dataTransfer.files));
+      });
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length) handleFiles(Array.from(e.target.files));
+        fileInput.value = ""; // reset so same file can be re-added
+      });
+
+      // ============================================================
+      //  HANDLE MULTIPLE FILES
+      // ============================================================
+      async function handleFiles(files) {
+        errorEl.textContent = "";
+        const roflFiles = files.filter((f) => f.name.endsWith(".rofl"));
+        if (roflFiles.length === 0) {
+          errorEl.textContent = "Por favor, sube archivos con extensión .rofl";
+          return;
+        }
+        for (const file of roflFiles) {
+          await handleSingleFile(file);
+        }
+      }
+
+      async function handleSingleFile(file) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const text = new TextDecoder("utf-8").decode(new Uint8Array(buffer));
+          const metadata = extractMetadata(text);
+          if (!metadata)
+            throw new Error("No se encontró la metadata en el archivo.");
+
+          let players = null;
+          if (metadata.statsJson) {
+            players =
+              typeof metadata.statsJson === "string"
+                ? JSON.parse(metadata.statsJson)
+                : metadata.statsJson;
+          } else if (Array.isArray(metadata)) {
+            players = metadata;
+          } else if (metadata.participants) {
+            players = metadata.participants;
+          }
+          if (!players)
+            throw new Error("No se encontró el array de jugadores.");
+
+          const gameData = {
+            gameLength: metadata.gameLength || metadata.gameDuration || 0,
+            gameVersion: metadata.gameVersion || "Desconocida",
+            fileName: file.name,
+            players: players,
+          };
+
+          const exportData = buildExportData(gameData);
+          const winner = detectWinnerSide(players); // '100' | '200' | null
+          extractedSeries.push({
+            gameData,
+            exportData,
+            winner,
+            fileName: file.name,
+          });
+
+          updateScoreboard();
+          updateTabs();
+          showGame(extractedSeries.length - 1);
+        } catch (err) {
+          console.error(err);
+          errorEl.textContent = 'Error en "' + (file.name) + '": ' + (err.message);
+        }
+      }
+
+      // ============================================================
+      //  ROFL BINARY PARSER
+      // ============================================================
+      function extractMetadata(text) {
+        let idx = text.indexOf('{"gameLength"');
+        if (idx === -1) idx = text.indexOf('{"gameDuration"');
+        if (idx === -1) idx = text.indexOf('{"statsJson"');
+        if (idx === -1) {
+          const ki = text.indexOf('"statsJson"');
+          if (ki !== -1) idx = text.lastIndexOf("{", ki);
+        }
+        if (idx === -1) return null;
+
+        const chunk = text.substring(idx);
+        let jsonStr = "",
+          braces = 0,
+          inStr = false,
+          esc = false;
+        for (let i = 0; i < chunk.length; i++) {
+          const c = chunk[i];
+          jsonStr += c;
+          if (esc) {
+            esc = false;
+            continue;
+          }
+          if (c === "\\") {
+            esc = true;
+            continue;
+          }
+          if (c === '"') inStr = !inStr;
+          else if (!inStr) {
+            if (c === "{") braces++;
+            else if (c === "}") {
+              braces--;
+              if (braces === 0) break;
+            }
+          }
+        }
+        if (!jsonStr.endsWith("}")) return null;
+        return JSON.parse(jsonStr);
+      }
+
+      // ============================================================
+      //  WINNER DETECTION
+      // ============================================================
+      function detectWinnerSide(players) {
+        const winTeams = players.filter(
+          (p) =>
+            String(p.WIN || "").includes("Win") ||
+            p.WIN === true ||
+            p.WIN === "true" ||
+            p.win === true,
+        );
+        if (winTeams.length === 0) return null;
+        const tid = winTeams[0].TEAM || winTeams[0].teamId;
+        return String(tid);
+      }
+
+      // ============================================================
+      //  SCOREBOARD & TABS
+      // ============================================================
+      function updateScoreboard() {
+        // Recount from series data
+        // Convention: we track which "side" (first game team 100 = Side A) won each game.
+        // For simplicity we just count wins where winner === '100' as Side A, '200' as Side B.
+        // Admin can swap if teams are reversed in some game.
+        winsA = extractedSeries.filter((g) => g.winner === "100").length;
+        winsB = extractedSeries.filter((g) => g.winner === "200").length;
+
+        const tMatchId = document
+          .getElementById("tournament-match-id")
+          .value.trim();
+        document.getElementById("score-a").textContent = winsA;
+        document.getElementById("score-b").textContent = winsB;
+        document.getElementById("score-match-id").textContent = tMatchId || "—";
+
+        const sideA = document.getElementById("score-side-a");
+        const sideB = document.getElementById("score-side-b");
+        sideA.className =
+          "score-team " +
+          (winsA > winsB ? "winning" : winsA < winsB ? "losing" : "tied");
+        sideB.className =
+          "score-team " +
+          (winsB > winsA ? "winning" : winsB < winsA ? "losing" : "tied");
+
+        if (extractedSeries.length > 0) {
+          scoreboardEl.classList.add("visible");
+          fileBadge.style.display = "block";
+          fileBadge.textContent =
+            extractedSeries.length +
+            (extractedSeries.length === 1
+              ? " partida cargada"
+              : " partidas cargadas");
+        }
+      }
+
+      function updateTabs() {
+        tabsEl.innerHTML = "";
+        extractedSeries.forEach((g, i) => {
+          const isWin = g.winner === "100";
+          const isLoss = g.winner === "200";
+          const resultIcon = isWin
+            ? '<span class="tab-result win">✔ Azul</span>'
+            : isLoss
+              ? '<span class="tab-result loss">✔ Rojo</span>'
+              : "";
+          const btn = document.createElement("div");
+          btn.className = "game-tab" + (i === activeGameIndex ? " active" : "");
+          btn.innerHTML = 'Partida ' + (i + 1) + (resultIcon);
+          btn.onclick = () => showGame(i);
+          tabsEl.appendChild(btn);
+        });
+      }
+
+      // ============================================================
+      //  SHOW GAME
+      // ============================================================
+      function showGame(idx) {
+        activeGameIndex = idx;
+        updateTabs();
+
+        const entry = extractedSeries[idx];
+        resultsEl.classList.add("visible");
+        document.getElementById("game-label").textContent =
+          "Partida " + (idx + 1);
+
+        const mins = Math.floor(entry.gameData.gameLength / 60000);
+        const secs = Math.floor((entry.gameData.gameLength % 60000) / 1000);
+        document.getElementById("match-info").textContent =
+          '📁 ' + (entry.fileName) + ' · ⏱ ' + (mins) + ':' + (secs.toString().padStart(2, "0")) + ' · v' +
+            (entry.gameData.gameVersion);
+
+        const sorted = [...entry.gameData.players].sort((a, b) => {
+          if (a.TEAM !== b.TEAM) return a.TEAM - b.TEAM;
+          const po = { TOP: 0, JUNGLE: 1, MIDDLE: 2, BOTTOM: 3, UTILITY: 4 };
+          return (
+            (po[a.INDIVIDUAL_POSITION || a.TEAM_POSITION] || 99) -
+            (po[b.INDIVIDUAL_POSITION || b.TEAM_POSITION] || 99)
+          );
+        });
+
+        const t100 = sorted.filter((p) => p.TEAM === "100" || p.TEAM === 100);
+        const t200 = sorted.filter((p) => p.TEAM === "200" || p.TEAM === 200);
+
+        renderTeam("team-100", "Equipo Azul (100)", t100);
+        renderTeam("team-200", "Equipo Rojo (200)", t200);
+      }
+
+      function renderTeam(containerId, teamName, players) {
+        const container = document.getElementById(containerId);
+        if (!players.length) {
+          container.innerHTML = "";
+          return;
+        }
+
+        const isWin =
+          players[0].WIN === "Win" ||
+          players[0].WIN === true ||
+          players[0].WIN === "true";
+        const cls = isWin ? "win-title" : "lose-title";
+        const tag = isWin ? "🏆 VICTORIA" : "💀 DERROTA";
+
+        let html = '<div class="team-title ' + (cls) + '">' + (teamName) + ' — ' + (tag) +
+          '</div> <table><thead><tr> <th>Campeón</th><th>Jugador</th><th>KDA</th> <th>Daño</th><th>Oro</th><th>CS</th><th>Visión</th><th>Obj</th><th>Multi</th> </tr></thead><tbody>';
+
+        players.forEach((p) => {
+          const k = parseInt(p.CHAMPIONS_KILLED || p.kills || 0);
+          const d = parseInt(p.NUM_DEATHS || p.deaths || 0);
+          const a = parseInt(p.ASSISTS || p.assists || 0);
+          const dmg = parseInt(
+            p.TOTAL_DAMAGE_DEALT_TO_CHAMPIONS ||
+              p.totalDamageDealtToChampions ||
+              0,
+          ).toLocaleString();
+          const gold = parseInt(
+            p.GOLD_EARNED || p.goldEarned || 0,
+          ).toLocaleString();
+          const cs =
+            parseInt(p.MINIONS_KILLED || p.totalMinionsKilled || 0) +
+            parseInt(p.NEUTRAL_MINIONS_KILLED || 0);
+          const vis = parseInt(p.VISION_SCORE || p.visionScore || 0);
+          const champ = p.SKIN || p.championName || p.CHAMPION || "Unknown";
+          const name =
+            p.RIOT_ID_GAME_NAME || p.NAME || p.summonerName || "Jugador";
+          const pos = p.INDIVIDUAL_POSITION || p.TEAM_POSITION || "";
+
+          // Objetivos del jugador
+          const drags  = parseInt(p.DRAGON_KILLS || p.dragonKills || 0);
+          const barons = parseInt(p.BARON_KILLS  || p.baronKills  || 0);
+          const herald = parseInt(p.RIFT_HERALD_KILLS || p.heraldKills || 0);
+          const grubs  = parseInt(p.HORDE_KILLS  || p.grubKills   || 0);
+          const turrets= parseInt(p.TURRETS_KILLED|| p.turretKills || 0);
+          const objStr = [
+            drags  ? `🐉${drags}`  : '',
+            barons ? `👁️${barons}` : '',
+            herald ? `🔮${herald}` : '',
+            grubs  ? `🪲${grubs}`  : '',
+            turrets? `🏯${turrets}` : '',
+          ].filter(Boolean).join(' ') || '—';
+
+          // Multi-kills
+          const penta = parseInt(p.PENTA_KILLS || 0);
+          const quad  = parseInt(p.QUAD_KILLS  || 0);
+          const triple= parseInt(p.TRIPLE_KILLS || 0);
+          const dbl   = parseInt(p.DOUBLE_KILLS || 0);
+          const multiStr = penta ? `🌟PENTA(${penta})` :
+                           quad  ? `⚡QUAD(${quad})` :
+                           triple? `🔥TRIPLE(${triple})` :
+                           dbl   ? `✌️x2(${dbl})` : '—';
+
+          html += '<tr> <td><b>' + (champ) + '</b> <span style="font-size:10px;color:var(--muted)">' + (pos) +
+            '</span></td> <td>' + (name) + '</td> <td class="kda">' + (k) +
+            '/<span style="color:var(--lose)">' + (d) + '</span>/' + (a) + '</td> <td>' + (dmg) +
+            '</td> <td style="color:var(--gold)">' + (gold) + '</td> <td>' + (cs) + '</td> <td>' + (vis) +
+            '</td> <td style="font-size:11px">' + (objStr) + '</td> <td style="font-size:11px">' + (multiStr) + '</td> </tr>';
+        });
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      }
+
+      // ============================================================
+      //  HELPERS
+      // ============================================================
+      const _int = (v, fallback = 0) => { const n = parseInt(v); return isNaN(n) ? fallback : n; };
+      const _bool = (v) => String(v || '').includes('true') || String(v || '') === '1';
+      const _multi = (p, ...keys) => { for (const k of keys) { const v = _int(p[k], -1); if (v >= 0) return v; } return 0; };
+
+      // ============================================================
+      //  TIMELINE MEJORADO — Curvas de ingreso por rol (estimadas)
+      // ============================================================
+      // En lugar de una única curva potencial para la diferencia de oro total,
+      // usamos curvas por rol que reflejan mejor la realidad:
+      // los laners farman diferente a los soportes, y el oro acelera a distinto ritmo.
+      function buildRealisticTimeline(players, durationMinMath) {
+        // Pesos de ingreso por rol a lo largo del tiempo (normalizado: 1 = ritmo estándar)
+        // Se aplica como modificador de la curva base: gold_at_min = finalGold * curve(t/T)
+        const roleCurve = {
+          TOP:     (t) => Math.pow(t, 1.3),   // farm constante, algo más lento al inicio
+          JUNGLE:  (t) => Math.pow(t, 1.5),   // arranque lento, aceleración mid-game
+          MIDDLE:  (t) => Math.pow(t, 1.2),   // curva casi lineal, farm + lane control
+          BOTTOM:  (t) => Math.pow(t, 1.1),   // el ADC farm más rápido en early
+          UTILITY: (t) => Math.pow(t, 1.8),   // el support solo acumula en late game
+          DEFAULT: (t) => Math.pow(t, 1.4),
+        };
+        const normRole = (lane) => {
+          const u = String(lane || '').toUpperCase();
+          if (u === 'TOP') return 'TOP';
+          if (u === 'JUNGLE') return 'JUNGLE';
+          if (u === 'MIDDLE' || u === 'MID') return 'MIDDLE';
+          if (u === 'BOTTOM' || u === 'BOT' || u === 'ADC') return 'BOTTOM';
+          if (u === 'UTILITY' || u === 'SUPPORT' || u === 'SUPP') return 'UTILITY';
+          return 'DEFAULT';
+        };
+
+        const isWin = (p) => String(p.WIN || '').includes('Win') || p.WIN === true || p.WIN === 'true' || p.win === true;
+        const goldAt = (p, t) => {
+          if (durationMinMath === 0) return 0;
+          const role = normRole(p.INDIVIDUAL_POSITION || p.TEAM_POSITION || p.lane || '');
+          const curve = roleCurve[role] || roleCurve.DEFAULT;
+          const finalGold = _int(p.GOLD_EARNED || p.goldEarned || 0);
+          const norm = curve(1); // normalizar para que curve(1) = finalGold
+          return Math.floor(finalGold * curve(t / durationMinMath) / norm);
+        };
+
+        const timeline = [];
+        for (let m = 0; m <= durationMinMath; m++) {
+          let winGold = 0, loseGold = 0;
+          players.forEach(p => {
+            const g = goldAt(p, m);
+            if (isWin(p)) winGold += g; else loseGold += g;
+          });
+          timeline.push(winGold - loseGold);
+        }
+        return timeline;
+      }
+
+      // ============================================================
+      //  EVENTOS MEJORADOS — Basados en kills reales de objetivos
+      // ============================================================
+      // En lugar de eventos hardcodeados, usamos los counts reales de cada objetivo
+      // para estimar timings más realistas dentro de la ventana de aparición de cada one.
+      function buildRealisticEvents(players, durationMinMath) {
+        const isWin = (p) => String(p.WIN || '').includes('Win') || p.WIN === true || p.WIN === 'true' || p.win === true;
+
+        // Sumar objetivos por equipo
+        const winObj  = { dragon:0, baron:0, herald:0, grub:0, turret:0, inhibitor:0, fb:false };
+        const loseObj = { dragon:0, baron:0, herald:0, grub:0, turret:0, inhibitor:0, fb:false };
+
+        players.forEach(p => {
+          const obj = isWin(p) ? winObj : loseObj;
+          obj.dragon    += _multi(p, 'DRAGON_KILLS',     'dragonKills');
+          obj.baron     += _multi(p, 'BARON_KILLS',      'baronKills');
+          obj.herald    += _multi(p, 'RIFT_HERALD_KILLS','heraldKills','riftHeraldKills');
+          obj.grub      += _multi(p, 'HORDE_KILLS',      'VOID_MONSTER_KILL', 'hordeKills');
+          obj.turret    += _multi(p, 'TURRETS_KILLED',   'turretKills');
+          obj.inhibitor += _multi(p, 'BARRACKS_KILLED',  'INHIBITORS_KILLED','inhibitorKills');
+          if (_bool(p.FIRST_BLOOD_KILL || p.firstBloodKill)) obj.fb = true;
+        });
+
+        const events = [];
+
+        // Primera sangre (entre min 2 y 5)
+        { const fbTeam = winObj.fb ? 'WIN' : loseObj.fb ? 'LOS' : 'WIN';
+          events.push({ minute: Math.min(4, Math.floor(2 + Math.random() * 3)), type: 'FB', team: fbTeam }); }
+
+        // Grubs (ventana 5-14 min, máx 6 grubs = 2 oleadas de 3)
+        { const totalGrub = winObj.grub + loseObj.grub;
+          let m = 5;
+          for (let i = 0; i < totalGrub && m <= 14; i++) {
+            const t = winObj.grub > loseObj.grub ? 'WIN' : 'LOS';
+            if (i % 3 === 0 && i > 0) m += 2; // siguiente oleada
+            events.push({ minute: Math.min(m + i, 14), type: 'GRUB', team: t });
+          }
+        }
+
+        // Heraldo (ventana 8-20 min, máx 2)
+        { const hWin = winObj.herald, hLos = loseObj.herald;
+          const total = hWin + hLos;
+          const startM = Math.min(9, durationMinMath);
+          for (let i = 0; i < total; i++) {
+            const t = hWin > hLos ? 'WIN' : 'LOS';
+            events.push({ minute: Math.min(startM + i * 7, 19), type: 'HERALD', team: t });
+          }
+        }
+
+        // Dragones (primer spawn min 5, respawn ~5 min; límite: duración partida)
+        { const dWin = winObj.dragon, dLos = loseObj.dragon;
+          const total = dWin + dLos;
+          const t = dWin >= dLos ? 'WIN' : 'LOS';
+          let nextSpawn = 8;
+          for (let i = 0; i < total && nextSpawn <= durationMinMath; i++) {
+            events.push({ minute: nextSpawn, type: 'DRAGON', team: t });
+            nextSpawn += Math.floor(5 + Math.random() * 2); // 5-6 min de respawn
+          }
+        }
+
+        // Barón (primer spawn min 20, respawn 6 min)
+        { const bWin = winObj.baron, bLos = loseObj.baron;
+          const total = bWin + bLos;
+          const t = bWin >= bLos ? 'WIN' : 'LOS';
+          let nextSpawn = Math.min(22, durationMinMath);
+          for (let i = 0; i < total && nextSpawn <= durationMinMath; i++) {
+            events.push({ minute: nextSpawn, type: 'BARON', team: t });
+            nextSpawn += 7;
+          }
+        }
+
+        events.sort((a, b) => a.minute - b.minute);
+        return events;
+      }
+
+      // ============================================================
+      //  BUILD EXPORT DATA (per game) — v2 COMPLETO
+      // ============================================================
+      function buildExportData(gameData) {
+        const durationMin = Math.max(1, gameData.gameLength / 60000);
+        const durationMinMath = Math.floor(durationMin);
+        const teamKills = {};
+        gameData.players.forEach((p) => {
+          const tid = _int(p.TEAM || p.teamId || 0);
+          teamKills[tid] = (teamKills[tid] || 0) + _int(p.CHAMPIONS_KILLED || p.kills || 0);
+        });
+
+        // ── Construir winStats / losStats por rol (para el acta) ──
+        const winStats = { gold: {TOP:0,JGL:0,MID:0,ADC:0,SUP:0}, dmg: {TOP:0,JGL:0,MID:0,ADC:0,SUP:0} };
+        const losStats = { gold: {TOP:0,JGL:0,MID:0,ADC:0,SUP:0}, dmg: {TOP:0,JGL:0,MID:0,ADC:0,SUP:0} };
+        const _roleKey = (lane) => {
+          const u = String(lane || '').toUpperCase();
+          if (u === 'MIDDLE' || u === 'MID') return 'MID';
+          if (u === 'BOTTOM' || u === 'BOT' || u === 'ADC') return 'ADC';
+          if (u === 'UTILITY' || u === 'SUPPORT' || u === 'SUPP') return 'SUP';
+          if (u === 'JUNGLE') return 'JGL';
+          return 'TOP';
+        };
+        gameData.players.forEach((p) => {
+          const isW = String(p.WIN || '').includes('Win') || p.WIN === true || p.WIN === 'true';
+          const rk = _roleKey(p.INDIVIDUAL_POSITION || p.TEAM_POSITION || p.lane || '');
+          const bucket = isW ? winStats : losStats;
+          if (bucket.gold[rk] !== undefined) {
+            bucket.gold[rk] += _int(p.GOLD_EARNED || p.goldEarned || 0);
+            bucket.dmg[rk]  += _int(p.TOTAL_DAMAGE_DEALT_TO_CHAMPIONS || p.totalDamageDealtToChampions || 0);
+          }
+        });
+
+        // ── Timeline mejorado (curvas por rol) ──
+        const goldTimeline = buildRealisticTimeline(gameData.players, durationMinMath);
+
+        // ── Eventos mejorados (basados en kills reales de objetivos) ──
+        const eventsList = buildRealisticEvents(gameData.players, durationMinMath);
+
+        const participants = gameData.players.map((p) => {
+          const name  = p.RIOT_ID_GAME_NAME || p.NAME || p.summonerName || 'Desconocido';
+          const skin  = p.SKIN || p.championName || p.CHAMPION || 'Unknown';
+          const win   = String(p.WIN || '').includes('Win') || p.WIN === 'true' || p.WIN === true || p.win === true;
+          const teamId = _int(p.TEAM || p.teamId || 0);
+          const lane  = p.INDIVIDUAL_POSITION || p.TEAM_POSITION || p.lane || '';
+          const k  = _int(p.CHAMPIONS_KILLED || p.kills || 0);
+          const d  = _int(p.NUM_DEATHS || p.deaths || 0);
+          const a  = _int(p.ASSISTS || p.assists || 0);
+          const dmg  = _int(p.TOTAL_DAMAGE_DEALT_TO_CHAMPIONS || p.totalDamageDealtToChampions || 0);
+          const gold = _int(p.GOLD_EARNED || p.goldEarned || 0);
+          const vis  = _int(p.VISION_SCORE || p.visionScore || 0);
+          const laneCs = _int(p.MINIONS_KILLED || p.totalMinionsKilled || 0);
+          const neutCs = _int(p.NEUTRAL_MINIONS_KILLED || 0);
+          const cs = laneCs + neutCs;
+          const kp = teamKills[teamId] > 0 ? (((k + a) / teamKills[teamId]) * 100).toFixed(1) : '0.0';
+
+          // Objetivos individuales
+          const dragonKills  = _multi(p, 'DRAGON_KILLS', 'dragonKills');
+          const baronKills   = _multi(p, 'BARON_KILLS', 'baronKills');
+          const heraldKills  = _multi(p, 'RIFT_HERALD_KILLS', 'heraldKills', 'riftHeraldKills');
+          const grubKills    = _multi(p, 'HORDE_KILLS', 'VOID_MONSTER_KILL', 'hordeKills');
+          const turretKills  = _multi(p, 'TURRETS_KILLED', 'turretKills');
+          const inhibKills   = _multi(p, 'BARRACKS_KILLED', 'INHIBITORS_KILLED', 'inhibitorKills');
+          const epicMonsters = dragonKills + baronKills + heraldKills + grubKills;
+
+          // Multi-kills
+          const doubleKills = _multi(p, 'DOUBLE_KILLS', 'doubleKills');
+          const tripleKills = _multi(p, 'TRIPLE_KILLS', 'tripleKills');
+          const quadKills   = _multi(p, 'QUAD_KILLS', 'quadKills');
+          const pentaKills  = _multi(p, 'PENTA_KILLS', 'pentaKills', 'pentas');
+          const killingSprees     = _multi(p, 'KILLING_SPREES', 'killingSprees');
+          const largestKillSpree  = _multi(p, 'LARGEST_KILLING_SPREE', 'largestKillingSpree');
+          const largestMultiKill  = _multi(p, 'LARGEST_MULTI_KILL', 'largestMultiKill');
+
+          // Jungla
+          const enemyJungleCs = _multi(p, 'NEUTRAL_MINIONS_KILLED_ENEMY_JUNGLE');
+          const ownJungleCs   = _multi(p, 'NEUTRAL_MINIONS_KILLED_YOUR_JUNGLE');
+
+          // Runas
+          const perks = [
+            _int(p.PERK0 || 0), _int(p.PERK1 || 0), _int(p.PERK2 || 0),
+            _int(p.PERK3 || 0), _int(p.PERK4 || 0), _int(p.PERK5 || 0),
+          ];
+          const perkPrimary = _int(p.PERK_PRIMARY_STYLE || 0);
+          const perkSub     = _int(p.PERK_SUB_STYLE || 0);
+
+          // Habilidades usadas
+          const spellCasts = [
+            _int(p.SPELL1_CAST || 0), _int(p.SPELL2_CAST || 0),
+            _int(p.SPELL3_CAST || 0), _int(p.SPELL4_CAST || 0),
+          ];
+          const sumSpellCasts = [
+            _int(p.SUMMONER_SPELL_1_CAST || 0), _int(p.SUMMONER_SPELL_2_CAST || 0),
+          ];
+
+          // Extras
+          const level   = _multi(p, 'LEVEL', 'champLevel');
+          const exp     = _multi(p, 'EXP', 'EXPERIENCE_EARNED');
+          const ping    = _multi(p, 'PING');
+          const largestCrit = _multi(p, 'LARGEST_CRITICAL_STRIKE', 'largestCriticalStrike');
+          const timePlayed  = _multi(p, 'TIME_PLAYED', 'timePlayed');
+
+          return {
+            ...p, // Preserva campos UPPERCASE crudos para compatibilidad futura
+            // ── Identidad ──
+            summonerName: name, championName: skin, lane, teamId, win,
+            // ── KDA ──
+            kills: k, deaths: d, assists: a, kp: parseFloat(kp),
+            // ── Economía ──
+            goldEarned: gold, gpm: Math.floor(gold / durationMin),
+            totalMinionsKilled: cs, laneCs, neutralCs: neutCs,
+            csMin: parseFloat((cs / durationMin).toFixed(2)),
+            enemyJungleCs, ownJungleCs,
+            // ── Daño ──
+            totalDamageDealtToChampions: dmg, dpm: Math.floor(dmg / durationMin),
+            magicDamageDealtToChampions:    _int(p.MAGIC_DAMAGE_DEALT_TO_CHAMPIONS    || p.magicDamageDealtToChampions    || 0),
+            physicalDamageDealtToChampions: _int(p.PHYSICAL_DAMAGE_DEALT_TO_CHAMPIONS || p.physicalDamageDealtToChampions || 0),
+            trueDamageDealtToChampions:     _int(p.TRUE_DAMAGE_DEALT_TO_CHAMPIONS     || p.trueDamageDealtToChampions     || 0),
+            dmgObj:     _int(p.TOTAL_DAMAGE_DEALT_TO_OBJECTIVES || 0),
+            dmgTurrets: _int(p.TOTAL_DAMAGE_DEALT_TO_TURRETS || p.TOTAL_DAMAGE_DEALT_TO_BUILDINGS || 0),
+            dmgTaken:   _int(p.TOTAL_DAMAGE_TAKEN || 0),
+            largestCrit,
+            // ── Visión ──
+            visionScore: vis, vspm: parseFloat((vis / durationMin).toFixed(2)),
+            pinks: _int(p.VISION_WARDS_BOUGHT_IN_GAME || 0),
+            visionWardsBoughtInGame: _int(p.VISION_WARDS_BOUGHT_IN_GAME || 0),
+            controlWards: _int(p.VISION_WARDS_BOUGHT_IN_GAME || 0),
+            wardPlaced: _int(p.WARD_PLACED || 0),
+            wardKilled: _int(p.WARD_KILLED || 0),
+            // ── Items y Hechizos ──
+            items: [0,1,2,3,4,5,6].map(i => _int(p[`ITEM${i}`] || 0)),
+            spells: [_int(p.SUMMONER_SPELL_1 || 0), _int(p.SUMMONER_SPELL_2 || 0)],
+            spellCasts, sumSpellCasts,
+            // ── Runas ──
+            perks, perkPrimary, perkSub,
+            // ── Kills especiales ──
+            firstBloodKill: _bool(p.FIRST_BLOOD_KILL || p.firstBloodKill),
+            firstTowerKill: _bool(p.FIRST_TOWER_KILL || p.firstTowerKill),
+            doubleKills, tripleKills, quadKills,
+            pentas: pentaKills, pentaKills,
+            killingSprees, largestKillSpree, largestMultiKill,
+            // ── Objetivos ──
+            dragonKills, baronKills, heraldKills, grubKills,
+            turretKills, inhibKills, epicMonsters,
+            // ── Extras ──
+            level, exp, ping, timePlayed,
+            // ── Campos de compatibilidad ──
+            damageTaken: _int(p.TOTAL_DAMAGE_TAKEN || 0),
+            totalDamageTaken: _int(p.TOTAL_DAMAGE_TAKEN || 0),
+            // Nota: totalHeal, damageSelfMitigated, timeCCingOthers NO están en el statsJson
+            // del ROFL moderno (patch 14+) — siempre quedarán a 0 en partidas sin API
+            totalHeal: _int(p.TOTAL_HEAL || p.totalHeal || 0),
+            totalDamageShieldedOnTeammates: _int(p.TOTAL_DAMAGE_SHIELDED_ON_TEAMMATES || p.totalDamageShieldedOnTeammates || 0),
+            damageSelfMitigated: _int(p.DAMAGE_SELF_MITIGATED || p.damageSelfMitigated || 0),
+            timeCCingOthers: _int(p.TIME_CCING_OTHERS || p.timeCCingOthers || 0),
+            // ── Timeline (por jugador) ──
+            goldTimeline, eventsList,
+          };
+        });
+
+        return {
+          source: 'ROFL_PARSER',
+          timestamp: new Date().toISOString(),
+          gameDuration: Math.floor(gameData.gameLength / 1000),
+          gameVersion: gameData.gameVersion,
+          bans: [],
+          participants,
+        };
+      }
+
+      // ============================================================
+      //  EXPORT — SERIE (Bo3)
+      // ============================================================
+      function exportSeries() {
+        if (extractedSeries.length === 0) {
+          alert("No hay partidas cargadas para exportar.");
+          return;
+        }
+
+        const tMatchId = document
+          .getElementById("tournament-match-id")
+          .value.trim();
+        if (extractedSeries.length > 1 && !tMatchId) {
+          alert(
+            "⚠️ Para exportar una serie Bo3, debes indicar el ID del partido de torneo (ej: M1).",
+          );
+          return;
+        }
+
+        const isSeries = extractedSeries.length > 1;
+        let payload;
+
+        if (isSeries) {
+          payload = {
+            source: "ROFL_PARSER",
+            seriesMode: true,
+            tournamentMatchId: tMatchId,
+            timestamp: new Date().toISOString(),
+            games: extractedSeries.map((g) => g.exportData),
+          };
+        } else {
+          // Single game: backward-compatible format
+          payload = extractedSeries[0].exportData;
+        }
+
+        const jsonStr = JSON.stringify(payload, null, 2);
+        navigator.clipboard
+          .writeText(jsonStr)
+          .then(() => {
+            const msg = isSeries
+              ? '✅ Serie de ' + (extractedSeries.length) +
+                ' partidas copiada al portapapeles!\\n\\nPega este JSON en el diálogo "IMPORTAR ROFL" del portal para registrar la serie completa bajo el partido "' +
+                (tMatchId) + '".'
+              : '✅ JSON de partida individual copiado. Pégalo en "IMPORTAR ROFL" del portal.';
+            alert(msg);
+          })
+          .catch(() => {
+            alert("Error al copiar. Revisa la consola del navegador.");
+          });
+      }
+
+      // ============================================================
+      //  EXPORT — PARTIDA INDIVIDUAL (la activa)
+      // ============================================================
+      function exportSingleGame() {
+        if (extractedSeries.length === 0) return;
+        const jsonStr = JSON.stringify(
+          extractedSeries[activeGameIndex].exportData,
+          null,
+          2,
+        );
+        navigator.clipboard
+          .writeText(jsonStr)
+          .then(() => {
+            alert(
+              "✅ JSON de la Partida " +
+                (activeGameIndex + 1) +
+                " copiado al portapapeles.",
+            );
+          })
+          .catch(() => alert("Error al copiar."));
+      }
+
+      // ============================================================
+      //  CLEAR ALL
+      // ============================================================
+      function clearAll() {
+        extractedSeries.length = 0;
+        activeGameIndex = 0;
+        winsA = 0;
+        winsB = 0;
+        tabsEl.innerHTML = "";
+        resultsEl.classList.remove("visible");
+        scoreboardEl.classList.remove("visible");
+        fileBadge.style.display = "none";
+        errorEl.textContent = "";
+        document.getElementById("team-100").innerHTML = "";
+        document.getElementById("team-200").innerHTML = "";
+      }
+
+      // Update scoreboard when match ID changes
+      document
+        .getElementById("tournament-match-id")
+        .addEventListener("input", updateScoreboard);
+    </script>
+  </body>
+</html>

@@ -2,6 +2,43 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.135.0] — 2026-11-24
+
+**Con migración**: `drizzle/0037_v0_135_0.sql` (tabla `ajustes_extra`). Sin ella todo funciona
+salvo abrir el registro sin invitación.
+
+### Añadido
+
+- **«Es mi resultado» al apuntar un resultado de Cup o Challenge**: para quien se unió con la
+  temporada empezada. Además del meta, busca el torneo (o lo crea, cerrado) y le pone tu
+  resultado: cuenta para tus CP, tu mejor resultado y tus medallas. Si el torneo ya estaba en la
+  app, usa ese.
+- **Registro sin invitación** (Ajustes → Invitaciones, solo el dueño): con el registro abierto,
+  cualquiera crea su cuenta desde `/registro`; con código, el código sigue valiendo. Campo
+  trampa contra robots.
+- **Completar el perfil al crear la cuenta**: la cuenta nueva aterriza en su perfil con tres pasos
+  (nick de Limitless, nombre en Play! Pokémon y ladder), ninguno obligatorio. En los avisos de una
+  cuenta nueva (dos semanas) esos tres van los primeros; aviso nuevo para el nombre en Play!
+  Pokémon.
+- **Portada pública para Google**: `/entrar` explica qué es la app y, junto a `/registro` y lo
+  legal, se puede indexar (`robots.ts`, `sitemap.ts`, título y descripción). El resto sigue tras
+  el inicio de sesión y sin indexar. Con `APP_URL`, enlaces canónicos y mapa del sitio.
+- **Torneos duplicados** (`/torneos/duplicados`, organizadores): los pares que parecen el mismo
+  torneo (misma fecha, misma familia y la misma tienda) y un botón para fusionarlos: resultados,
+  rondas, «iré», calendario, dirección y los datos que falten pasan al que se conserva.
+  `lib/duplicados.ts` (5 pruebas).
+- **Modo torneo**: el **nombre del rival** a la vista (antes iba escondido en «Más») y, al perder,
+  los **premios** de cada uno junto a las etiquetas (en un Bo1; en un Bo3, un botón al detalle).
+
+### Cambiado
+
+- **Elegir mazo se escribe y filtra, sin iconos, en toda la app** (`DeckPicker`, y la lista
+  propia del modo torneo): una caja de texto y debajo una lista de nombres que se va filtrando;
+  un toque elige. Sin el panel de sprites ni la hoja que tapaba el teclado del móvil.
+- **Crear un torneo que ya existe ese día abre el que había** en vez de duplicarlo (salvo que se
+  marque «Es otro torneo distinto»). En Torneos → Nuevo, aviso hacia el Calendario, la forma
+  recomendada de meter Cups y Challenges.
+
 ## [0.134.0] — 2026-11-16
 
 **Sin migración ni dependencias nuevas.** Dos variables de entorno nuevas, opcionales:

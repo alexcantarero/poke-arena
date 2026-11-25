@@ -1,0 +1,239 @@
+<script>
+        // ==========================================
+        //  MOTOR DE CONEXION NATIVO (SIN API URL)
+        // ==========================================
+
+        document.addEventListener('DOMContentLoaded', loadData);
+
+        // Funcion magica para llamar al Backend de Google como si fuera una API moderna
+        function runServerFunction(functionName) {
+            return new Promise((resolve, reject) => {
+                google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    [functionName](); // Llama a la funcion por su nombre
+            });
+        }
+
+        async function loadData() {
+            try {
+                console.log("Iniciando carga de datos...");
+
+                // Carga Paralela: Pedimos todo a la vez al servidor
+                // Nota: Llamamos a las funciones por su nombre real en Code.gs
+                const [rankData, histData, statData, evoData] = await Promise.all([
+                    runServerFunction('getEpicRankingData'),
+                    runServerFunction('getMatchesForWeb'),
+                    runServerFunction('getGlobalChallengeStats'), // Ojo: nombre exacto de tu funcion backend
+                    runServerFunction('getEvolutionDataForWeb')
+                ]);
+
+                console.log("Datos recibidos. Renderizando...");
+
+                // Renderizamos
+                renderRanking(rankData);
+                renderHistory(histData);
+                renderCharts(statData);
+                renderEvolution(evoData);
+
+                // Ocultar pantalla de carga
+                document.getElementById('loader').classList.add('hidden');
+
+            } catch (error) {
+                console.error("Error critico:", error);
+                document.getElementById('loader').innerHTML = 
+                    `<div style="text-align:center">
+                        <p style="color:#D94444; font-size:1.2rem;">Error de conexion con el servidor.</p>
+                        <p style="color:#888; font-size:0.9rem;">${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        // --- RENDERS (IGUAL QUE ANTES) ---
+
+        // --- 1. RANKING VISUAL MEJORADO ---
+        function renderRanking(data) {
+            const tbody = document.querySelector('#rankingTable tbody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">Sin datos disponibles</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map((p, i) => {
+                // Medallas (MVP, Farmer, etc)
+                const medalsHtml = p.badges.map(b => 
+                    `<span class="medal" title="Medalla">${b}</span>`
+                ).join('');
+
+                // Colores de Rango
+                const tierColor = getTierColor(p.realRank);
+                
+                // Formato de Racha
+                let streakHtml = '<span style="color:#666">-</span>';
+                if (p.streak > 0) {
+                    const icon = p.streak >= 3 ? '' : '';
+                    streakHtml = `<span style="color:#0AC8B9; font-weight:bold;">${icon} ${p.streak}</span>`;
+                } else if (p.streak < 0) {
+                    const icon = p.streak <= -3 ? '' : '';
+                    streakHtml = `<span style="color:#D94444; font-weight:bold;">${icon} ${Math.abs(p.streak)}</span>`;
+                }
+
+                // Color Winrate
+                const wrVal = parseInt(p.winrate);
+                const wrColor = wrVal >= 55 ? 'color:#0AC8B9' : (wrVal <= 45 ? 'color:#D94444' : 'color:#aaa');
+
+                const rankClass = i === 0 ? 'color:#FFD700; text-shadow:0 0 10px gold;' : 'color:#666;';
+
+                return `
+                <tr style="border-bottom: 1px solid #333;">
+                    <td class="rank-num" style="${rankClass} font-size:1.2em;">#${i+1}</td>
+                    
+                    <td style="font-weight:bold; color:white; display:flex; align-items:center; gap:5px;">
+                        ${p.name} ${medalsHtml}
+                    </td>
+                    
+                    <td style="color:${tierColor}; font-weight:bold; font-size:0.9rem;">
+                        ${p.realRank} 
+                        ${p.realRank !== 'Unranked' ? `<span style="font-size:0.75em; color:#888; margin-left:3px;">(${p.lp} LP)</span>` : ''}
+                    </td>
+                    
+                    <td style="text-align:center; color:#ddd;">${p.totalGames}</td>
+                    
+                    <td style="text-align:center; font-weight:bold; ${wrColor}">${p.winrate}</td>
+                    
+                    <td style="text-align:center;">${streakHtml}</td>
+                    
+                    <td style="text-align:right; font-size:1.3rem; font-weight:bold; color:#0AC8B9; font-family:'Cinzel';">
+                        ${p.points}
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        // Helper de Colores de Liga
+        function getTierColor(tier) {
+            if (!tier) return '#888';
+            const t = tier.toUpperCase();
+            if (t.includes('IRON')) return '#574D4F';
+            if (t.includes('BRONZE')) return '#8C513A';
+            if (t.includes('SILVER')) return '#80989D';
+            if (t.includes('GOLD')) return '#CD8837';
+            if (t.includes('PLATINUM')) return '#005A82'; // Azul oscuro
+            if (t.includes('EMERALD')) return '#2FAC5F'; // Verde
+            if (t.includes('DIAMOND')) return '#576BCE'; // Azul brillante
+            if (t.includes('MASTER')) return '#9D48E0'; // Morado
+            if (t.includes('GRANDMASTER')) return '#EF4F4F'; // Rojo
+            if (t.includes('CHALLENGER')) return '#F4C874'; // Dorado claro
+            return '#888'; // Unranked
+        }
+
+        function renderHistory(data) {
+            const tbody = document.querySelector('#historyTable tbody');
+            if (!data || data.length === 0) return;
+
+            tbody.innerHTML = data.map(m => {
+                const isWin = m.result === 'Win';
+                const border = isWin ? '4px solid #0AC8B9' : '4px solid #D94444';
+                return `
+                <tr style="border-left: ${border}; background: rgba(0,0,0,0.2);">
+                    <td style="color:#888; font-size:0.8em;">${new Date(m.date).toLocaleDateString()}</td>
+                    <td style="font-weight:bold;">${m.player}</td>
+                    <td style="color:#C8AA6E;">${m.champ}</td>
+                    <td>${m.k}/${m.d}/${m.a}</td>
+                    <td style="font-weight:bold; color:${m.points > 0 ? '#0AC8B9' : '#D94444'}">
+                        ${m.points > 0 ? '+' : ''}${m.points}
+                    </td>
+                    <td style="font-size:0.8em; color:#aaa; max-width: 200px; overflow:hidden; text-overflow:ellipsis;">${m.notes}</td>
+                </tr>
+            `}).join('');
+        }
+
+        function renderEvolution(data) {
+            const ctx = document.getElementById('evolutionChart').getContext('2d');
+            const colors = ['#C8AA6E', '#0AC8B9', '#D94444', '#FFFFFF', '#463714'];
+            
+            // Validacion de datos
+            if (!data || !data.series) return;
+
+            const datasets = data.players.map((player, index) => ({
+                label: player,
+                data: data.series[player], 
+                borderColor: colors[index % colors.length],
+                tension: 0.3,
+                pointRadius: 3,
+                fill: false
+            }));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#F0E6D2' } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#888' }, grid: { color: '#333' } },
+                        y: { ticks: { color: '#888' }, grid: { color: '#333' } }
+                    }
+                }
+            });
+        }
+
+        function renderCharts(data) {
+            // Roles
+            const ctxRole = document.getElementById('roleChart').getContext('2d');
+            new Chart(ctxRole, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data.roleDistribution),
+                    datasets: [{
+                        data: Object.values(data.roleDistribution),
+                        backgroundColor: ['#C8AA6E', '#0AC8B9', '#1E2328', '#D94444', '#555'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom', labels: { color: '#FFF' } } } }
+            });
+
+            // Kills
+            const ctxKills = document.getElementById('killsChart').getContext('2d');
+            const players = Object.keys(data.statsByPlayer);
+            const kills = players.map(p => data.statsByPlayer[p].kills);
+            
+            new Chart(ctxKills, {
+                type: 'bar',
+                data: {
+                    labels: players,
+                    datasets: [{
+                        label: 'Kills',
+                        data: kills,
+                        backgroundColor: '#0AC8B9'
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { ticks: { color: '#FFF' } },
+                        y: { ticks: { color: '#888' }, grid: { color: '#333' } }
+                    }
+                }
+            });
+        }
+
+        // UTILS
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(event) event.target.classList.add('active');
+        }
+        function getWRColor(wrStr) {
+            const val = parseInt(wrStr);
+            if(val >= 55) return 'color: #0AC8B9; font-weight:bold;';
+            if(val <= 45) return 'color: #D94444; font-weight:bold;';
+            return 'color: #aaa;';
+        }
+    </script>

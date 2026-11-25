@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { datosLegales, LEGAL_ACTUALIZADO } from "@/lib/legal";
 
-export const metadata = { title: "Política de privacidad" };
+export const metadata = { title: "Política de privacidad", robots: { index: true, follow: true } };
 
 /* v0.134 — Política de privacidad. Pública (sin sesión): hace falta poder
    leerla antes de darse de alta, y la piden las tiendas de aplicaciones.

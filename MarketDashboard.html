@@ -1,0 +1,342 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  /* ESTILOS PARA EL DASHBOARD DE MERCADO */
+  .market-wrapper { padding: 10px; font-family: 'Roboto', sans-serif; color: #ecf0f1; }
+
+  /* LAYOUT PRINCIPAL: Grid 3 columnas (Mercado) + 1 columna (Sidebar Info) */
+  .dashboard-layout { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; }
+  
+  @media (max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
+
+  /* --- TICKER DE NOTICIAS --- */
+  .news-ticker-container { 
+    background: #fbbf24; color: black; border-radius: 6px; overflow: hidden; 
+    margin-bottom: 20px; font-weight: bold; font-size: 0.9em; display: flex; align-items: center; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #f59e0b;
+  }
+  .news-label { background: black; color: #fbbf24; padding: 8px 15px; text-transform: uppercase; z-index: 10; }
+  .news-content { flex: 1; white-space: nowrap; overflow: hidden; position: relative; }
+  .news-track { display: inline-block; animation: marquee 25s linear infinite; padding-left: 100%; }
+  @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+  
+  .news-tag-HYPE { color: #065f46; background: #6ee7b7; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
+  .news-tag-PANIC { color: #7f1d1d; background: #fca5a5; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
+  .news-tag-DIVIDEND { color: #78350f; background: #fcd34d; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
+
+  /* --- HEADER DE CONTROL --- */
+  .control-header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    background: #1e293b; padding: 20px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 20px;
+  }
+  
+  .user-select-group label { color: #94a3b8; font-size: 0.8em; text-transform: uppercase; display: block; margin-bottom: 5px; }
+  .user-select { background: #0f172a; color: white; border: 1px solid #475569; padding: 8px; border-radius: 5px; min-width: 200px; font-size: 1em; }
+  .wallet-info { text-align: right; }
+  .wallet-label { color: #94a3b8; font-size: 0.8em; text-transform: uppercase; }
+  .wallet-amount { font-size: 2em; font-weight: 800; color: #fbbf24; text-shadow: 0 0 15px rgba(251, 191, 36, 0.2); }
+
+  /* --- GRID DE ACCIONES --- */
+  .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+  .stock-card { background: #1e293b; border-radius: 10px; padding: 15px; border: 1px solid #334155; transition: transform 0.2s; position: relative; overflow: hidden; }
+  .stock-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+  .stock-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; }
+  .up::before { background: #10b981; } .down::before { background: #ef4444; }
+
+  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .s-name { font-weight: 800; font-size: 1.1em; }
+  .s-price { font-size: 1.4em; font-weight: 700; }
+  .up-text { color: #10b981; } .down-text { color: #ef4444; }
+
+  .chart-mini { height: 50px; width: 100%; margin: 10px 0; opacity: 0.8; }
+  
+  .card-details { display: flex; justify-content: space-between; font-size: 0.8em; color: #94a3b8; margin-bottom: 10px; }
+  
+  .actions { display: flex; gap: 5px; }
+  .btn { flex: 1; padding: 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; font-size: 0.9em; }
+  .btn-buy { background: #10b981; } .btn-buy:hover { background: #059669; }
+  .btn-sell { background: #ef4444; opacity: 0.3; cursor: not-allowed; }
+  .btn-sell.active { opacity: 1; cursor: pointer; } .btn-sell.active:hover { background: #dc2626; }
+
+  /* --- SIDEBAR INFO (Derecha) --- */
+  .info-panel { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 15px; margin-bottom: 20px; }
+  .panel-head { font-family: 'Oswald'; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 1px; }
+  
+  .list-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #334155; font-size: 0.9em; }
+  .rank-icon { width: 20px; text-align: center; }
+  .list-val { font-weight: bold; color: #10b981; }
+  .badge { font-size: 0.8em; margin-left: 5px; }
+
+  .shame-panel { border-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+  .shame-head { color: #ef4444; border-color: #ef4444; }
+  .shame-val { color: #fca5a5; }
+
+  .loader { text-align: center; margin-top: 50px; font-size: 1.2em; color: #64748b; }
+</style>
+
+<div class="market-wrapper">
+
+  <div class="news-ticker-container">
+    <div class="news-label">NOTICIAS</div>
+    <div class="news-content">
+      <div class="news-track" id="newsTicker">Cargando noticias del mercado...</div>
+    </div>
+  </div>
+
+  <div class="control-header">
+    <div class="user-select-group">
+      <label>👤 OPERAR COMO</label>
+      <select id="user-select" class="user-select" onchange="app.changeUser()"></select>
+    </div>
+    <div class="wallet-info">
+      <div class="wallet-label">SALDO DISPONIBLE</div>
+      <div id="walletDisplay" class="wallet-amount">---</div>
+    </div>
+  </div>
+
+  <div id="market-loading" class="loader">Conectando con Wall Street...</div>
+
+  <div class="dashboard-layout">
+    
+    <div class="market-column">
+      <div id="marketGrid" class="stock-grid"></div>
+    </div>
+
+    <div class="info-column">
+      
+      <div class="info-panel">
+        <div class="panel-head">💼 MI PORTAFOLIO</div>
+        <div id="portfolioList">
+           <div style="text-align:center; color:#666; padding:10px;">Sin acciones</div>
+        </div>
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #444; display:flex; justify-content:space-between">
+           <span>Valor Total:</span>
+           <span id="stockValue" style="font-weight:bold; color:#38bdf8">0 G</span>
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div class="panel-head">🦈 FORBES (TOP RICOS)</div>
+        <div id="forbesList"></div>
+      </div>
+
+      <div class="info-panel shame-panel">
+        <div class="panel-head shame-head">🤡 MURO DE LA VERGÜENZA</div>
+        <div id="shameList"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const app = {
+    data: null,
+    user: "",
+
+    init: function() {
+      google.script.run
+        .withSuccessHandler(this.onDataLoaded)
+        .withFailureHandler(this.onLoadError)
+        .getMarketData();
+    },
+
+    onLoadError: function(error) {
+      console.error('Error cargando datos del mercado:', error);
+      document.getElementById('market-loading').style.display = 'none';
+      alert('❌ Error al cargar el mercado: ' + (error && error.message ? error.message : error));
+    },
+
+    onDataLoaded: function(data) {
+      app.data = data;
+      document.getElementById('market-loading').style.display = 'none';
+
+      // 1. Rellenar usuarios
+      const select = document.getElementById('user-select');
+      if (select.options.length === 0) {
+        Object.keys(data.wallets).forEach(user => {
+          const opt = document.createElement('option');
+          opt.value = user; opt.innerText = user; select.appendChild(opt);
+        });
+        if (select.options.length > 0) app.user = select.options[0].value;
+      } else {
+        app.user = select.value;
+      }
+
+      // 2. Noticias
+      if (data.news && data.news.length > 0) {
+        const html = data.news.map(n => {
+           let tag = "HYPE"; let css = "news-tag-HYPE";
+           if(n.type === 'PANIC' || n.type === 'BEAR') { tag = "PANIC"; css = "news-tag-PANIC"; }
+           if(n.type === 'DIVIDEND') { tag = "DIVIDEND"; css = "news-tag-DIVIDEND"; }
+           return `<span style="margin-right:50px"><span class="${css}">${tag}</span> ${n.msg}</span>`;
+        }).join("");
+        document.getElementById('newsTicker').innerHTML = html;
+      } else {
+        document.getElementById('newsTicker').innerText = "El mercado esta abierto. !Invierte con sabiduria!";
+      }
+
+      // 3. Rankings
+      app.renderRankings(data.forbes, data.shame);
+
+      app.updateUI();
+    },
+
+    changeUser: function() {
+      app.user = document.getElementById('user-select').value;
+      app.updateUI();
+    },
+
+    updateUI: function() {
+      const wallet = app.data.wallets[app.user];
+      document.getElementById('walletDisplay').innerText = wallet.balance.toFixed(0) + " G";
+      app.renderMarket();
+    },
+
+    renderMarket: function() {
+      const container = document.getElementById('marketGrid');
+      const portfolioContainer = document.getElementById('portfolioList');
+      container.innerHTML = "";
+      portfolioContainer.innerHTML = "";
+      
+      const wallet = app.data.wallets[app.user];
+      const portfolio = wallet.portfolio || {};
+      let totalVal = 0;
+
+      // Ordenar por precio
+      app.data.stocks.sort((a,b) => b.price - a.price);
+
+      app.data.stocks.forEach((stock, idx) => {
+        const owned = portfolio[stock.name] || 0;
+        const isUp = stock.lastChange >= 0;
+        const colorClass = isUp ? 'up' : 'down';
+        const textColor = isUp ? 'up-text' : 'down-text';
+        const arrow = isUp ? '' : '';
+        const chartId = `chart-${idx}`;
+
+        // Card HTML
+        const sellClass = owned > 0 ? 'active' : '';
+        const sellAttr = owned > 0 ? `onclick="app.trade('SELL', '${stock.name}')"` : '';
+
+        const card = document.createElement('div');
+        card.className = `stock-card ${colorClass}`;
+        card.innerHTML = `
+          <div class="card-top">
+             <div class="s-name">${stock.name}</div>
+             <div class="s-price ${textColor}">${stock.price.toFixed(0)} $</div>
+          </div>
+          
+          <div class="chart-mini"><canvas id="${chartId}"></canvas></div>
+
+          <div class="card-details">
+             <span>En propiedad: <b style="color:white">${owned}</b></span>
+             <span class="${textColor}">${arrow} ${stock.lastChange.toFixed(1)}</span>
+          </div>
+          
+          <div class="actions">
+             <button class="btn buy" onclick="app.trade('BUY', '${stock.name}')">COMPRAR</button>
+             <button class="btn sell ${sellClass}" ${sellAttr}>VENDER</button>
+          </div>
+        `;
+        container.appendChild(card);
+        
+        // Dibujar Grafico
+        app.drawChart(chartId, stock.history, isUp ? '#10b981' : '#ef4444');
+
+        // Llenar Portfolio Lateral
+        if (owned > 0) {
+           totalVal += (owned * stock.price);
+           portfolioContainer.innerHTML += `
+             <div class="list-row">
+               <span>${stock.name}</span>
+               <span><b style="color:white">${owned}</b> <small style="color:#aaa">x${stock.price.toFixed(0)}</small></span>
+             </div>
+           `;
+        }
+      });
+
+      document.getElementById('stockValue').innerText = totalVal.toFixed(0) + " G";
+    },
+
+    renderRankings: function(forbes, shame) {
+      // Forbes
+      const fDiv = document.getElementById('forbesList');
+      fDiv.innerHTML = "";
+      if(forbes) forbes.forEach((p, i) => {
+         let icon = i===0 ? "" : `#${i+1}`;
+         let badges = "";
+         if(p.netWorth > 2000) badges = "";
+         else if(p.netWorth > 1500) badges = "";
+         
+         fDiv.innerHTML += `
+           <div class="list-row">
+             <div class="rank-icon">${icon}</div>
+             <div style="flex:1; font-weight:600">${p.name} <span class="badge">${badges}</span></div>
+             <div class="list-val">${p.netWorth.toFixed(0)} G</div>
+           </div>
+         `;
+      });
+
+      // Shame
+      const sDiv = document.getElementById('shameList');
+      sDiv.innerHTML = "";
+      if(shame) shame.forEach((p) => {
+         let icon = p.netWorth < 500 ? "" : "";
+         sDiv.innerHTML += `
+           <div class="list-row" style="border-color:#7f1d1d">
+             <div class="rank-icon">${icon}</div>
+             <div style="flex:1; font-weight:600; color:#fca5a5">${p.name}</div>
+             <div class="list-val shame-val">${p.netWorth.toFixed(0)} G</div>
+           </div>
+         `;
+      });
+    },
+
+    drawChart: function(id, data, color) {
+      const ctx = document.getElementById(id).getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map((_, i) => i),
+          datasets: [{
+            data: data,
+            borderColor: color,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { x: { display: false }, y: { display: false } },
+          layout: { padding: 2 }
+        }
+      });
+    },
+
+    trade: function(type, target) {
+      let qty = prompt(`?Cuantas acciones quieres ${type}?`, "1");
+      if (!qty || isNaN(qty) || qty <= 0) return;
+      
+      document.body.style.cursor = 'wait';
+      google.script.run.withSuccessHandler(res => {
+        document.body.style.cursor = 'default';
+        if (res.success) {
+           // Recargar datos
+           google.script.run.withSuccessHandler(this.onDataLoaded).withFailureHandler(this.onLoadError).getMarketData();
+        } else {
+           alert(" " + res.msg);
+        }
+      }).withFailureHandler(error => {
+        document.body.style.cursor = 'default';
+        alert('❌ Error al ejecutar la operación: ' + (error && error.message ? error.message : error));
+      }).executeTrade(type, app.user, target, parseInt(qty));
+    }
+  };
+
+  // Start
+  window.onload = () => app.init();
+</script>

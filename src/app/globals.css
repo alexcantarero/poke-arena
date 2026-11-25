@@ -2448,3 +2448,20 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .legal p + p { margin-top: .6rem; }
 .legal ul { margin: .4rem 0 .4rem 1.2rem; list-style: disc; display: flex; flex-direction: column; gap: .3rem; }
 .legal b { color: var(--ink); }
+
+/* v0.135 — elegir mazo escribiendo (modo torneo): lista de texto, sin sprites, filas de 3 rem. */
+.mt-lista { max-height: min(22rem, 45dvh); overflow-y: auto; overscroll-behavior: contain; border: 1px solid rgb(255 255 255 / .12); border-radius: .6rem; background: var(--mt-panel, var(--surface)); }
+.mt-lista li + li { border-top: 1px solid rgb(255 255 255 / .06); }
+.mt-lista button { display: block; width: 100%; min-height: 3rem; padding: .7rem .85rem; text-align: left; font-size: 1rem; font-weight: 600;
+  color: var(--ink); border-left: 4px solid var(--tipo, transparent); touch-action: manipulation; }
+.mt-lista button:active, .mt-lista button[aria-selected="true"] { background: color-mix(in oklab, var(--neo, var(--brand)) 16%, transparent); }
+.mt-elegida { display: flex; align-items: center; gap: .5rem; min-height: 3.25rem; padding: .35rem .5rem .35rem .85rem; border-radius: .6rem;
+  border: 1px solid var(--neo, var(--brand)); border-left: 4px solid var(--tipo, var(--neo, var(--brand)));
+  background: color-mix(in oklab, var(--neo, var(--brand)) 12%, transparent); font-size: 1rem; }
+.trampa { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+
+/* v0.135 — DeckPicker: lista de texto que se filtra al escribir, en el flujo de la página (no flota). */
+.deck-lista-texto { max-height: min(20rem, 42dvh); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); }
+.deck-lista-texto li + li { border-top: 1px solid var(--line-soft); }
+.deck-lista-texto button { display: block; width: 100%; min-height: 2.9rem; padding: .55rem .8rem; text-align: left; font-size: .95rem; touch-action: manipulation; }
+.deck-lista-texto button:hover, .deck-lista-texto button[aria-selected="true"] { background: var(--surface-2); }

@@ -9,6 +9,7 @@ import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { asistencias, deckFavorites, decks, invites, ladderEntries, matches, passwordResets, playerFavorites, playerNombresOficiales, players, settings, tournamentResults } from "@/db/schema";
 import { cuentaAnonima } from "@/lib/legal";
+import { guardarAjuste, REGISTRO_LIBRE, registroLibre } from "@/lib/ajustesExtraDb";
 import { LANG_COOKIE, asLang } from "@/lib/i18n";
 import { hashResetToken, clearSession, DUMMY_HASH, emailProblem, hashPassword, INVITE_MESSAGES, isOwner, newInviteToken, normalizeEmail, passwordProblem, verifyPassword, writeSession } from "@/lib/auth";
 import { newId, todayISO } from "@/lib/format";
@@ -86,12 +87,17 @@ export async function register(_prev: FormState, fd: FormData): Promise<FormStat
   const email = normalizeEmail(str(fd, "email"));
   const password = String(fd.get("password") ?? "");
 
-  if (!token) return { error: INVITE_MESSAGES.missing };
+  // v0.135 — campo trampa: invisible para las personas, los robots lo rellenan.
+  if (str(fd, "web")) return { error: await msj("x.04b38418") };
 
   const cfg = await db.select().from(settings).where(eq(settings.id, "default"));
   if (cfg[0] && !cfg[0].registrationOpen) {
     return { error: await msj("x.262c29ce") };
   }
+  /* v0.135 — REGISTRO LIBRE: si un organizador lo ha abierto, no hace falta
+     invitación. Con código, se usa el código igual (y su papel). */
+  const libre = !token && await registroLibre();
+  if (!token && !libre) return { error: INVITE_MESSAGES.missing };
 
   if (!name) return { error: await msj("x.3abbc5bd") };
   const emailBad = emailProblem(email);
@@ -102,8 +108,8 @@ export async function register(_prev: FormState, fd: FormData): Promise<FormStat
   const existing = await db.select({ id: players.id }).from(players).where(eq(players.email, email));
   if (existing[0]) return { error: await msj("x.1607734f") };
 
-  // Consumir y comprobar en la misma sentencia.
-  const [claimed] = await db.update(invites)
+  // Consumir y comprobar en la misma sentencia (sin código, en registro libre, no hay nada que consumir).
+  const [claimed] = libre ? [{ role: "player" }] : await db.update(invites)
     .set({ uses: sql`${invites.uses} + 1` })
     .where(and(
       eq(invites.token, token),
@@ -140,14 +146,17 @@ export async function register(_prev: FormState, fd: FormData): Promise<FormStat
   } catch {
     // Si el alta se cae, devolvemos el uso: la invitación no se puede quedar
     // gastada por un error nuestro.
-    await db.update(invites)
-      .set({ uses: sql`greatest(${invites.uses} - 1, 0)` })
-      .where(eq(invites.token, token));
+    if (!libre) {
+      await db.update(invites)
+        .set({ uses: sql`greatest(${invites.uses} - 1, 0)` })
+        .where(eq(invites.token, token));
+    }
     return { error: await msj("x.04b38418") };
   }
 
   await writeSession(id);
-  redirect("/");
+  // v0.135 — lo primero, completar el perfil: nick de Limitless, nombre en Play! Pokémon y ladder.
+  redirect(`/perfil/${id}?bienvenida=1`);
 }
 
 export async function logout() {
@@ -442,6 +451,18 @@ export async function borrarMiCuenta(_prev: FormState, fd: FormData): Promise<Fo
   await clearSession();
   refresh();
   redirect(withFlash("/entrar", "ok", "Tu cuenta se ha borrado."));
+}
+
+/** v0.135 — Abrir o cerrar el registro sin invitación. Solo el dueño de la liga. */
+export async function cambiarRegistroLibre(fd: FormData) {
+  const actor = await requireActor();
+  if (!isOwner(actor.role)) return;
+  const abrir = str(fd, "abrir") === "1";
+  const ok = await guardarAjuste(REGISTRO_LIBRE, abrir ? "1" : "0");
+  refresh();
+  redirect(withFlash("/ajustes#acceso", ok ? "ok" : "error", ok
+    ? (abrir ? "Registro abierto: cualquiera puede crear cuenta desde /registro." : "Registro cerrado: vuelve a hacer falta invitación.")
+    : "No se ha podido guardar: aplica antes la migración 0037."));
 }
 
 /* ================================================================ v0.17 -- */

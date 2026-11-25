@@ -111,7 +111,14 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
       )}
       {tournament && <input type="hidden" name="country" value={tournament.country} />}
       {/* v0.126 — fuera «Pegar del localizador»: era lo mismo que «Challenges y Cups de la zona»
-          del Calendario, que además crea todos los torneos de una vez. Queda un solo camino. */}
+          del Calendario, que además crea todos los torneos de una vez. Queda un solo camino.
+          v0.135 — y se dice: es la forma recomendada de meter torneos de tienda. */}
+      {!tournament && (
+        <p className="card flex flex-wrap items-center gap-x-3 gap-y-2 border-info/40 p-4 text-sm">
+          <span className="min-w-0 flex-1">{tr(lng, "v135.usaCalendario")}</span>
+          <a href="/calendario" className="btn btn-sm flex-none">{tr(lng, "v135.irCalendario")}</a>
+        </p>
+      )}
 
       <section className="card p-4">
         <div className="flex flex-col gap-4">
@@ -465,6 +472,12 @@ export function TournamentForm({ season, tournament, back = "/torneos", plantill
         </div>
       </section>
 
+      {/* v0.135 — si ese día ya hay uno igual, se abre el que había; esto lo fuerza. */}
+      {!tournament && (
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" name="crearIgual" value="1" className="size-4" /> {tr(lng, "v135.esOtro")}
+        </label>
+      )}
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-brand min-w-44 flex-1" type="submit">
           <Icon name="check" className="size-4" />

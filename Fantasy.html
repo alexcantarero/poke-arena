@@ -1,0 +1,1996 @@
+<div
+  id="fantasy-dashboard"
+  class="hidden flex-col h-full w-full absolute inset-0 z-40 bg-slate-900"
+>
+  <div
+    class="bg-black border-b border-yellow-500/30 p-4 flex justify-between items-center shrink-0"
+  >
+    <div
+      class="font-oswald text-2xl text-yellow-500 tracking-widest drop-shadow-md"
+    >
+      FANTASY<span class="text-white">PREMIER</span>
+    </div>
+    <div class="flex gap-6 items-center">
+      <div class="text-right">
+        <div class="text-[10px] text-slate-400 uppercase tracking-widest">
+          Disponible
+        </div>
+        <div
+          id="ui-budget"
+          class="text-lg font-bold text-emerald-400 font-mono drop-shadow-lg leading-none"
+        >
+          0 €
+        </div>
+        <div class="text-[9px] text-slate-500 font-mono mt-1 font-bold">
+          Retenido: <span id="ui-bids-budget">0 €</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-[10px] text-slate-400 uppercase tracking-widest">
+          Puntos Club
+        </div>
+        <div
+          id="ui-points"
+          class="text-xl font-black text-purple-400 font-oswald"
+        >
+          0 PTS
+        </div>
+      </div>
+      <div class="h-8 w-px bg-slate-700"></div>
+      <div
+        id="ui-manager-name"
+        class="font-bold text-white uppercase tracking-widest text-sm"
+      >
+        Manager
+      </div>
+      <button
+        onclick="logoutFantasy()"
+        class="text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest border border-red-500/50 hover:bg-red-500/10 px-3 py-2 rounded transition"
+      >
+        🚪 Salir
+      </button>
+    </div>
+  </div>
+
+  <div
+    class="flex bg-slate-800/80 border-b border-slate-700 shrink-0 shadow-lg overflow-x-auto"
+  >
+    <div
+      class="fantasy-tab-btn active px-6 py-4 cursor-pointer text-yellow-500 border-b-2 border-yellow-500 font-bold text-sm uppercase tracking-widest transition whitespace-nowrap"
+      onclick="switchFantasyTab('home', this)"
+    >
+      🏠 Inicio
+    </div>
+    <div
+      class="fantasy-tab-btn px-6 py-4 cursor-pointer text-slate-400 border-b-2 border-transparent font-bold text-sm uppercase tracking-widest hover:text-white transition whitespace-nowrap"
+      onclick="switchFantasyTab('team', this)"
+    >
+      🛡️ Mi Equipo
+    </div>
+    <div
+      class="fantasy-tab-btn px-6 py-4 cursor-pointer text-slate-400 border-b-2 border-transparent font-bold text-sm uppercase tracking-widest hover:text-white transition whitespace-nowrap"
+      onclick="switchFantasyTab('market', this)"
+    >
+      💰 Mercado
+    </div>
+    <div
+      class="fantasy-tab-btn px-6 py-4 cursor-pointer text-slate-400 border-b-2 border-transparent font-bold text-sm uppercase tracking-widest hover:text-white transition whitespace-nowrap"
+      onclick="switchFantasyTab('players', this)"
+    >
+      🔍 Jugadores
+    </div>
+    <div
+      class="fantasy-tab-btn px-6 py-4 cursor-pointer text-slate-400 border-b-2 border-transparent font-bold text-sm uppercase tracking-widest hover:text-white transition whitespace-nowrap"
+      onclick="switchFantasyTab('gacha', this)"
+    >
+      🎰 Gacha & Cartas
+    </div>
+    <div
+      class="fantasy-tab-btn px-6 py-4 cursor-pointer text-slate-400 border-b-2 border-transparent font-bold text-sm uppercase tracking-widest hover:text-white transition whitespace-nowrap"
+      onclick="switchFantasyTab('ranking', this)"
+    >
+      🏆 Ranking
+    </div>
+  </div>
+
+  <div class="flex-1 w-full overflow-y-auto bg-slate-900 relative">
+    <div id="f-tab-home" class="fantasy-pane block p-8">
+      <div class="flex flex-col md:flex-row gap-6 mb-8">
+        <div
+          class="flex-1 bg-gradient-to-r from-blue-900 to-slate-900 border border-blue-500/50 rounded-xl p-6 shadow-lg flex items-center justify-between"
+        >
+          <div>
+            <div
+              class="text-[10px] text-blue-300 font-bold uppercase tracking-widest mb-1"
+            >
+              ⏳ CIERRE DE ALINEACIONES Y JORNADA
+            </div>
+            <div class="text-sm text-slate-300">
+              Basado en el inicio del directo
+            </div>
+          </div>
+          <div
+            id="fantasy-jornada-timer"
+            class="text-3xl font-mono font-black text-white drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]"
+          >
+            --:--:--
+          </div>
+        </div>
+        <div
+          class="flex-1 bg-gradient-to-r from-yellow-900 to-slate-900 border border-yellow-500/50 rounded-xl p-6 shadow-lg flex items-center justify-between"
+        >
+          <div>
+            <div
+              class="text-[10px] text-yellow-300 font-bold uppercase tracking-widest mb-1"
+            >
+              🛒 ACTUALIZACIÓN DE MERCADO
+            </div>
+            <div class="text-sm text-slate-300">
+              Nuevos jugadores y subastas
+            </div>
+          </div>
+          <div
+            id="fantasy-market-timer"
+            class="text-3xl font-mono font-black text-white drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]"
+          >
+            --:--:--
+          </div>
+        </div>
+      </div>
+
+      <h2 class="text-3xl font-oswald text-white tracking-widest mb-6">
+        RESUMEN DEL CLUB
+      </h2>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div
+          class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-lg"
+        >
+          <h3
+            class="text-xl font-oswald text-yellow-500 tracking-widest mb-4 border-b border-slate-700 pb-2"
+          >
+            📰 NOTICIAS DE LA LIGA
+          </h3>
+          <div class="text-sm text-slate-300 space-y-4">
+            <p class="flex items-start gap-2">
+              <span class="text-blue-400">🔒</span> <b>LOCK-IN.</b> Debes
+              confirmar tu alineación. Una vez bloqueada, no podrás vender ni
+              cambiar al capitán hasta la próxima jornada.
+            </p>
+            <p class="flex items-start gap-2">
+              <span class="text-blue-400">🃏</span>
+              <b>1 CARTA POR JORNADA.</b> Ve a tu inventario Gacha y activa una
+              carta estratégica. Solo puedes usar una a la vez.
+            </p>
+            <p class="flex items-start gap-2">
+              <span class="text-blue-400">🪑</span> <b>BANQUILLO.</b> Tienes 1
+              hueco extra para suplentes. Puedes intercambiarlo con un titular
+              antes de bloquear el equipo.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-lg"
+        >
+          <h3
+            class="text-xl font-oswald text-emerald-400 tracking-widest mb-4 border-b border-slate-700 pb-2"
+          >
+            💸 HISTORIAL OFICIAL
+          </h3>
+          <div id="fantasy-recent-activity" class="space-y-3">
+            <div class="text-center text-slate-500 text-sm py-4 animate-pulse">
+              Cargando transacciones...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="f-tab-team"
+      class="fantasy-pane hidden relative min-h-screen pb-20"
+    >
+      <div
+        class="absolute inset-0 bg-[url('https://images.contentstack.io/api/v1/assets/5931bc10-d8d5-4dc2-a720-032a84352a16/e4df94cc-19d1-41d8-a1fb-3b4ee3f7e5d8/Summoners_Rift_1.jpg')] bg-cover bg-center opacity-10 z-0"
+      ></div>
+      <div class="relative z-10 max-w-6xl mx-auto flex flex-col pt-10 px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div
+            class="bg-slate-900/90 border border-slate-700 p-5 rounded-xl shadow-lg backdrop-blur"
+          >
+            <h3
+              class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-3 border-b border-slate-700 pb-2"
+            >
+              📈 Evolución de Puntos
+            </h3>
+            <div id="pts-box-container" style="height: 180px">
+              <canvas id="fantasyPointsChart"></canvas>
+            </div>
+          </div>
+          <div
+            class="bg-slate-900/90 border border-slate-700 p-5 rounded-xl shadow-lg backdrop-blur"
+          >
+            <h3
+              class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-3 border-b border-slate-700 pb-2"
+            >
+              💰 Flujo de Caja (Presupuesto)
+            </h3>
+            <div id="bud-box-container" style="height: 180px">
+              <canvas id="fantasyBudgetChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="flex justify-between items-end mb-8 border-b border-slate-700 pb-4"
+        >
+          <h2
+            class="text-4xl font-oswald text-yellow-500 tracking-widest text-center drop-shadow-lg"
+          >
+            ALINEACIÓN TITULAR
+          </h2>
+          <button
+            id="btn-lock-team"
+            onclick="lockFantasyTeam()"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-3 rounded-lg shadow-[0_0_20px_rgba(16,185,129,0.4)] transition tracking-widest uppercase text-sm"
+          >
+            🔒 Confirmar Equipo
+          </button>
+        </div>
+
+        <div
+          id="roster-locked-banner"
+          class="hidden col-span-full bg-yellow-500 text-black text-center font-black text-xl py-3 rounded-xl mb-6 shadow-[0_0_20px_rgba(251,191,36,0.6)] uppercase tracking-widest"
+        >
+          🔒 ALINEACIÓN CONFIRMADA Y BLOQUEADA PARA ESTA JORNADA
+        </div>
+
+        <div
+          id="roster-grid"
+          class="grid grid-cols-1 md:grid-cols-5 gap-4 w-full mb-12"
+        >
+          <div
+            class="col-span-full text-center text-yellow-500 py-10 animate-pulse font-bold tracking-widest uppercase"
+          >
+            📡 Cargando plantilla...
+          </div>
+        </div>
+
+        <h2
+          class="text-2xl font-oswald text-slate-400 tracking-widest mb-6 text-center"
+        >
+          🪑 BANQUILLO (SUPLENTE)
+        </h2>
+        <div id="sub-grid" class="flex justify-center w-full"></div>
+      </div>
+    </div>
+
+    <div id="f-tab-market" class="fantasy-pane hidden p-8">
+      <div
+        class="flex flex-col md:flex-row justify-between items-center md:items-end mb-6 border-b border-slate-700 pb-4 gap-4"
+      >
+        <div>
+          <h2 class="text-3xl font-oswald text-white tracking-widest">
+            MERCADO DE FICHAJES
+          </h2>
+          <div
+            class="text-xs text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-4"
+          >
+            <span
+              >Dinero Disp:
+              <span
+                id="market-budget-disp"
+                class="text-emerald-400 font-bold font-mono"
+                >0 €</span
+              ></span
+            >
+            <span
+              >Retenido:
+              <span
+                id="market-budget-ret"
+                class="text-yellow-500 font-bold font-mono"
+                >0 €</span
+              ></span
+            >
+          </div>
+        </div>
+
+        <div
+          class="flex flex-col items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700 shadow-inner"
+        >
+          <div
+            class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-1"
+          >
+            Estado de tu Plantilla
+          </div>
+          <div
+            id="market-slots-indicator"
+            class="flex flex-col items-center gap-1"
+          >
+            <div class="flex gap-2">
+              <div class="flex flex-col items-center">
+                <span class="text-xs mb-0.5 text-slate-500 font-bold">TOP</span
+                ><span id="slot-ind-top" class="text-xl" title="Top">🪑</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <span class="text-xs mb-0.5 text-slate-500 font-bold">JGL</span
+                ><span id="slot-ind-jgl" class="text-xl" title="Jungla"
+                  >🪑</span
+                >
+              </div>
+              <div class="flex flex-col items-center">
+                <span class="text-xs mb-0.5 text-slate-500 font-bold">MID</span
+                ><span id="slot-ind-mid" class="text-xl" title="Mid">🪑</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <span class="text-xs mb-0.5 text-slate-500 font-bold">ADC</span
+                ><span id="slot-ind-adc" class="text-xl" title="ADC">🪑</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <span class="text-xs mb-0.5 text-slate-500 font-bold">SUP</span
+                ><span id="slot-ind-sup" class="text-xl" title="Support"
+                  >🪑</span
+                >
+              </div>
+            </div>
+            <div
+              class="flex items-center gap-2 mt-1 border-t border-slate-700/50 pt-1 w-full justify-center"
+            >
+              <span class="text-[10px] text-slate-500 font-bold">SUB</span
+              ><span
+                id="slot-ind-sub"
+                class="text-lg"
+                title="Banquillo (Suplente)"
+                >🪑</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <button
+          onclick="loadMarket()"
+          class="text-xs font-bold text-accent-blue uppercase tracking-widest bg-blue-900/30 px-3 py-2 rounded border border-blue-500/50 hover:bg-blue-600 transition shadow-lg whitespace-nowrap"
+        >
+          🔄 Refrescar Mercado
+        </button>
+      </div>
+      <div
+        id="market-grid"
+        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+      ></div>
+    </div>
+
+    <div id="f-tab-players" class="fantasy-pane hidden p-8">
+      <div
+        class="flex flex-col md:flex-row justify-between items-end mb-6 border-b border-slate-700 pb-4 gap-4"
+      >
+        <div>
+          <h2 class="text-3xl font-oswald text-white tracking-widest">
+            BASE DE DATOS
+          </h2>
+          <p class="text-xs text-slate-400 uppercase tracking-widest mt-1">
+            Explora y descubre el valor de todos los jugadores
+          </p>
+        </div>
+        <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          <input
+            type="text"
+            id="fantasy-player-search"
+            placeholder="Buscar por nombre..."
+            class="px-4 py-2 bg-slate-900 border border-slate-600 rounded text-white text-sm outline-none focus:border-purple-500 w-full md:w-64"
+            onkeyup="filterFantasyPlayers()"
+          />
+          <select
+            id="fantasy-role-filter"
+            class="px-4 py-2 bg-slate-900 border border-slate-600 rounded text-white text-sm outline-none focus:border-purple-500 w-full md:w-40"
+            onchange="filterFantasyPlayers()"
+          >
+            <option value="ALL">Todos los Roles</option>
+            <option value="TOP">Top</option>
+            <option value="JUNGLE">Jungla</option>
+            <option value="MIDDLE">Mid</option>
+            <option value="BOTTOM">ADC</option>
+            <option value="SUPPORT">Support</option>
+          </select>
+        </div>
+      </div>
+      <div
+        id="fantasy-players-grid"
+        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+      ></div>
+    </div>
+
+    <div id="f-tab-gacha" class="fantasy-pane hidden p-8">
+      <div class="max-w-5xl mx-auto">
+        <div
+          class="bg-gradient-to-br from-purple-900 to-slate-900 border-2 border-purple-500 rounded-2xl p-8 text-center shadow-[0_0_40px_rgba(168,85,247,0.3)] mb-10 relative overflow-hidden"
+        >
+          <div
+            class="absolute inset-0 bg-[url('https://images.contentstack.io/api/v1/assets/5931bc10-d8d5-4dc2-a720-032a84352a16/e4df94cc-19d1-41d8-a1fb-3b4ee3f7e5d8/Summoners_Rift_1.jpg')] bg-cover opacity-10 mix-blend-overlay"
+          ></div>
+          <h2
+            class="text-5xl font-black font-oswald text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 tracking-widest mb-4 relative z-10 drop-shadow-lg"
+          >
+            GACHA DE MISIONES
+          </h2>
+          <p class="text-purple-200 mb-8 relative z-10 text-lg">
+            Consigue cartas de bufos, sabotajes o misiones para multiplicar tus
+            puntos.
+          </p>
+          <button
+            id="btn-roll-gacha"
+            onclick="rollGacha()"
+            class="relative z-10 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-black text-2xl px-12 py-4 rounded-full shadow-[0_0_20px_rgba(251,191,36,0.6)] hover:scale-110 transition-transform tracking-widest uppercase"
+          >
+            🎁 ABRIR SOBRE (500.000 €)
+          </button>
+          <div id="gacha-result" class="mt-8 relative z-10 hidden"></div>
+        </div>
+
+        <div
+          class="flex justify-between items-end mb-6 border-b border-slate-700 pb-2"
+        >
+          <h3 class="text-2xl font-oswald text-white tracking-widest">
+            🎒 TU INVENTARIO DE CARTAS
+          </h3>
+          <div
+            class="text-xs font-bold text-accent-blue uppercase tracking-widest"
+          >
+            Límite: 1 Carta por Jornada
+          </div>
+        </div>
+
+        <div
+          id="gacha-active-banner"
+          class="hidden mb-6 bg-purple-900/30 border border-purple-500 p-4 rounded-xl flex items-center justify-between shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+        >
+          <div>
+            <div
+              class="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-1"
+            >
+              CARTA EQUIPADA PARA ESTA JORNADA
+            </div>
+            <div id="gacha-active-name" class="text-xl font-oswald text-white">
+              Nombre de la Carta
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-3xl animate-pulse">🃏</div>
+            <button
+              onclick="unequipCard()"
+              id="btn-unequip-card"
+              class="text-xs bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded uppercase tracking-widest transition"
+            >
+              Quitar
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="gacha-inventory"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <div class="text-slate-500 italic col-span-full">
+            Cargando tus cartas...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="f-tab-ranking" class="fantasy-pane hidden p-8">
+      <h2
+        class="text-3xl font-oswald text-white tracking-widest mb-6 text-center"
+      >
+        🏆 RANKING DE MÁNAGERS
+      </h2>
+      <div
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-2xl max-w-4xl mx-auto"
+      >
+        <table class="w-full text-left">
+          <thead
+            class="bg-slate-900 border-b border-slate-700 text-slate-400 text-xs uppercase tracking-widest"
+          >
+            <tr>
+              <th class="p-4 w-16 text-center">POS</th>
+              <th class="p-4">CLUB / MÁNAGER</th>
+              <th class="p-4 text-right">VALOR PLANTILLA</th>
+              <th class="p-4 text-center text-purple-400">PUNTOS (JORNADA)</th>
+            </tr>
+          </thead>
+          <tbody id="fantasy-ranking-body" class="text-sm text-white">
+            <tr>
+              <td
+                colspan="4"
+                class="text-center text-slate-500 py-10 animate-pulse"
+              >
+                Cargando clasificación oficial...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div
+      id="view-roster-modal"
+      class="modal-overlay"
+      onclick="closeModal('view-roster-modal')"
+    >
+      <div
+        class="modal-box bg-slate-900 border-2 border-purple-500 relative p-6 max-w-4xl w-full rounded-2xl shadow-[0_0_40px_rgba(168,85,247,0.3)]"
+        onclick="event.stopPropagation()"
+      >
+        <button
+          onclick="closeModal('view-roster-modal')"
+          class="absolute right-4 top-4 text-slate-400 hover:text-white text-2xl font-bold"
+        >
+          &times;
+        </button>
+        <h2 class="text-2xl font-oswald text-purple-400 tracking-widest mb-1">
+          PLANTILLA RIVAL
+        </h2>
+        <div
+          id="view-roster-name"
+          class="text-white font-bold tracking-widest uppercase mb-6 border-b border-slate-700 pb-2"
+        >
+          MÁNAGER
+        </div>
+        <div id="view-roster-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="fantasy-player-modal"
+    class="modal-overlay"
+    onclick="closeFantasyPlayerModal()"
+  >
+    <div
+      class="modal-box bg-slate-900 border-2 border-accent-blue relative p-6 max-w-3xl w-full rounded-2xl shadow-[0_0_40px_rgba(56,189,248,0.3)]"
+      onclick="event.stopPropagation()"
+    >
+      <button
+        onclick="closeFantasyPlayerModal()"
+        class="absolute right-4 top-4 text-slate-400 hover:text-white text-2xl font-bold"
+      >
+        &times;
+      </button>
+      <div id="fp-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CLAUSULAZO -->
+  <div
+    id="clause-modal"
+    class="modal-overlay hidden"
+    onclick="closeClauseModal()"
+  >
+    <div
+      class="modal-box bg-slate-900 border-2 border-yellow-500 relative p-6 max-w-md w-full rounded-2xl shadow-[0_0_40px_rgba(251,191,36,0.3)]"
+      onclick="event.stopPropagation()"
+    >
+      <button
+        onclick="closeClauseModal()"
+        class="absolute right-4 top-4 text-slate-400 hover:text-white text-2xl font-bold"
+      >
+        &times;
+      </button>
+      <h2
+        class="text-2xl font-oswald text-yellow-500 tracking-widest mb-4 flex items-center gap-2"
+      >
+        <span class="text-3xl">🚨</span> CLAUSULAZO
+      </h2>
+      <div id="clause-modal-content" class="mb-6 text-slate-300 text-sm">
+        <!-- Se inyecta dinámicamente -->
+      </div>
+      <div class="flex gap-4">
+        <button
+          onclick="closeClauseModal()"
+          class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-lg border border-slate-600 hover:bg-slate-700 transition uppercase tracking-widest"
+        >
+          Cancelar
+        </button>
+        <button
+          id="btn-confirm-clause"
+          class="flex-1 bg-yellow-600 text-black font-black py-3 rounded-lg border border-yellow-400 shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:bg-yellow-500 hover:scale-105 transition-all tracking-widest uppercase"
+        >
+          Pagar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .drag-over-active {
+      background-color: rgba(168, 85, 247, 0.2) !important;
+      border-color: #a855f7 !important;
+      transform: scale(1.02);
+    }
+    .gacha-card-flip {
+      animation: flipIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    @keyframes flipIn {
+      0% {
+        transform: perspective(400px) rotateY(90deg);
+        opacity: 0;
+      }
+      40% {
+        transform: perspective(400px) rotateY(-20deg);
+      }
+      60% {
+        transform: perspective(400px) rotateY(10deg);
+        opacity: 1;
+      }
+      80% {
+        transform: perspective(400px) rotateY(-5deg);
+      }
+      100% {
+        transform: perspective(400px);
+        opacity: 1;
+      }
+    }
+    .flash-toast {
+      animation: toastFade 3s ease-out forwards;
+    }
+    @keyframes toastFade {
+      0% {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      90% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+    }
+    #fantasy-toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  </style>
+
+  <div id="fantasy-toast-container"></div>
+</div>
+
+<script>
+  let currentRoster = null;
+  let fantasyTeamsCache = [];
+  let isLigaDataLoaded = false;
+  let fPtsChart = null;
+  let fBudChart = null;
+  let draggedRole = null;
+  window.allFantasyRosters = [];
+  window.currentRankingData = [];
+
+  function showToast(msg, type = "info") {
+    let container = document.getElementById("fantasy-toast-container");
+    if (!container) return;
+    let t = document.createElement("div");
+    let bg =
+      type === "error"
+        ? "bg-red-900 border-red-500 text-red-100"
+        : type === "success"
+          ? "bg-emerald-900 border-emerald-500 text-emerald-100"
+          : "bg-slate-800 border-slate-500 text-white";
+    t.className =
+      "flash-toast px-6 py-4 rounded-xl border-l-4 " +
+      bg +
+      " font-bold tracking-widest uppercase shadow-2xl z-50 flex items-center gap-3";
+    let icon = type === "error" ? "?" : type === "success" ? "?" : "??";
+    t.innerHTML =
+      '<span class="text-xl">' + icon + "</span> <span>" + msg + "</span>";
+    container.appendChild(t);
+    setTimeout(() => {
+      if (t.parentElement) t.remove();
+    }, 2800);
+  }
+
+  function formatMoney(num) {
+    return (
+      parseInt(num)
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €"
+    );
+  }
+
+  function getFantasyPlayerPriceJS(p) {
+    if (!p || p.games === 0) return 500000;
+    let ovr = calculatePlayerOVR(p);
+    let avgPts = parseFloat(p.points) || 0;
+    let gamesPlayed = parseInt(p.games) || 0;
+    let totalPts = Math.round(avgPts * gamesPlayed);
+    let price = 500000 + Math.max(0, totalPts) * 130000 + (ovr - 60) * 35000;
+    if (price < 500000) price = 500000;
+    if (price > 18000000) price = 18000000;
+    return Math.round(price / 10000) * 10000;
+  }
+
+  // 🟢 CÁLCULO DE PUNTOS EN VIVO (LIVE SCORING)
+  function getLivePlayerPoints(playerName, roleKey, activeCard, captainRole) {
+    if (!window.liveStatsData) return 0;
+    let pLive = window.liveStatsData.find(
+      (x) =>
+        String(x.name).trim().toLowerCase() ===
+        String(playerName).trim().toLowerCase(),
+    );
+    if (!pLive) return 0;
+
+    let pGlobal = globalStatsData.find(
+      (x) =>
+        String(x.name).trim().toLowerCase() ===
+        String(playerName).trim().toLowerCase(),
+    );
+    let realRole =
+      pGlobal && pGlobal.role ? pGlobal.role.toUpperCase() : "FILL";
+
+    let pts = parseFloat(pLive.points) * parseInt(pLive.games) || 0;
+    let sk = roleKey.toUpperCase();
+
+    let isOOP = false;
+    if (sk === "TOP" && !realRole.includes("TOP")) isOOP = true;
+    if (sk === "JGL" && !(realRole.includes("JUNG") || realRole === "JGL"))
+      isOOP = true;
+    if (sk === "MID" && !realRole.includes("MID")) isOOP = true;
+    if (sk === "ADC" && !(realRole.includes("BOT") || realRole === "ADC"))
+      isOOP = true;
+    if (
+      sk === "SUP" &&
+      !(realRole.includes("SUP") || realRole.includes("UTIL"))
+    )
+      isOOP = true;
+
+    if (isOOP && sk !== "SUB") pts = pts * 0.2;
+
+    if (activeCard === "Entrenamiento de TOP" && sk === "TOP") pts *= 1.2;
+    if (activeCard === "Entrenamiento de JGL" && sk === "JGL") pts *= 1.2;
+    if (activeCard === "Entrenamiento de MID" && sk === "MID") pts *= 1.2;
+    if (activeCard === "Entrenamiento de ADC" && sk === "ADC") pts *= 1.2;
+    if (activeCard === "Entrenamiento de SUP" && sk === "SUP") pts *= 1.2;
+
+    let cR = String(captainRole || "").toUpperCase();
+    let isCap =
+      cR === sk ||
+      (cR === "JUNGLE" && sk === "JGL") ||
+      (cR === "MIDDLE" && sk === "MID") ||
+      (cR === "BOTTOM" && sk === "ADC") ||
+      (cR === "SUPPORT" && sk === "SUP");
+    if (isCap && sk !== "SUB") {
+      let capMult = activeCard === "Poción del Gigante" ? 2.5 : 1.25;
+      pts = pts > 0 ? pts * capMult : pts * 2.0;
+    }
+    return pts;
+  }
+
+  function calculateManagerLivePoints(rosterObj) {
+    if (!rosterObj) return 0;
+    let total = 0;
+    let noNegs = true;
+    let capPts = 0;
+    let arr = [];
+    let roles = ["top", "jgl", "mid", "adc", "sup"];
+
+    roles.forEach((r) => {
+      let pName = rosterObj[r];
+      if (pName && pName !== "") {
+        let pts = getLivePlayerPoints(
+          pName,
+          r,
+          rosterObj.activeCard,
+          rosterObj.captain,
+        );
+        total += pts;
+        if (pts < 0) noNegs = false;
+        arr.push(pts);
+
+        let sk = r.toUpperCase();
+        let cR = String(rosterObj.captain || "").toUpperCase();
+        let isCap =
+          cR === sk ||
+          (cR === "JUNGLE" && sk === "JGL") ||
+          (cR === "MIDDLE" && sk === "MID") ||
+          (cR === "BOTTOM" && sk === "ADC") ||
+          (cR === "SUPPORT" && sk === "SUP");
+        if (isCap) capPts = pts;
+      }
+    });
+
+    let ac = rosterObj.activeCard || "";
+    if (ac === "Misión: El Dream Team" && total >= 80) total += 25;
+    if (ac === "Misión: Muro de Escudos" && noNegs && arr.length === 5)
+      total += 15;
+    if (ac === "Contrato Bilateral" && arr.length > 0 && capPts > 0) {
+      arr.sort((a, b) => a - b);
+      let diff = capPts - arr[0];
+      if (diff > 0) total += diff;
+    }
+    return total;
+  }
+
+  setInterval(() => {
+    let now = new Date();
+    let tomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
+    let diffMarket = tomorrow - now;
+    let mEl = document.getElementById("fantasy-market-timer");
+    if (mEl)
+      mEl.innerText = (String(Math.floor((diffMarket % 86400000) / 3600000)).padStart(2, "0")) + ':' +
+        (String(Math.floor((diffMarket % 3600000) / 60000)).padStart(2, "0")) + ':' +
+        (String(Math.floor((diffMarket % 60000) / 1000)).padStart(2, "0"));
+
+    let dayOfWeek = now.getDay();
+    let hour = now.getHours();
+    let jEl = document.getElementById("fantasy-jornada-timer");
+    let jTitle = document.getElementById("fantasy-jornada-title");
+    let isLockedPhase =
+      (dayOfWeek === 2 && hour >= 8) || dayOfWeek > 2 || dayOfWeek === 0;
+
+    if (isLockedPhase) {
+      let nextSunday = new Date(now);
+      nextSunday.setDate(now.getDate() + ((7 - dayOfWeek) % 7));
+      if (dayOfWeek === 0) nextSunday = now;
+      nextSunday.setHours(23, 59, 59, 999);
+      let diffLock = nextSunday - now;
+      let dL = Math.floor(diffLock / 86400000);
+      let hL = Math.floor((diffLock % 86400000) / 3600000);
+      let mL = Math.floor((diffLock % 3600000) / 60000);
+      if (jTitle) jTitle.innerText = "⏳ JORNADA EN CURSO (TERMINA EL DOMINGO)";
+      if (jEl) {
+        jEl.innerText = (dL > 0 ? dL + "d " : "") + (String(hL).padStart(2, "0")) + ':' + (String(mL).padStart(2, "0"));
+        jEl.classList.add("text-emerald-400");
+        jEl.classList.remove("text-white");
+      }
+    } else {
+      let nextTuesday = new Date(now);
+      let daysUntilTuesday = (2 + 7 - dayOfWeek) % 7;
+      if (daysUntilTuesday === 0 && hour >= 8) daysUntilTuesday = 7;
+      nextTuesday.setDate(now.getDate() + daysUntilTuesday);
+      nextTuesday.setHours(8, 0, 0, 0);
+      let diffLock = nextTuesday - now;
+      let dL = Math.floor(diffLock / 86400000);
+      let hL = Math.floor((diffLock % 86400000) / 3600000);
+      let mL = Math.floor((diffLock % 3600000) / 60000);
+      let sL = Math.floor((diffLock % 60000) / 1000);
+      if (jTitle)
+        jTitle.innerText = "⏳ TIEMPO PARA ALINEAR (CIERRE MARTES 08:00)";
+      if (jEl) {
+        jEl.innerText = (dL > 0 ? dL + "d " : "") + (String(hL).padStart(2, "0")) + ':' + (String(mL).padStart(2, "0")) +
+          ':' + (String(sL).padStart(2, "0"));
+        jEl.classList.remove("text-emerald-400");
+        jEl.classList.add("text-white");
+      }
+    }
+  }, 1000);
+
+  function allowDrop(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
+  }
+  function dragLeave(ev) {
+    if (ev.target.closest(".fantasy-player-slot"))
+      ev.target
+        .closest(".fantasy-player-slot")
+        .classList.remove("drag-over-active");
+  }
+  function drag(ev, roleKey) {
+    draggedRole = roleKey;
+    ev.dataTransfer.setData("text", roleKey);
+    ev.dataTransfer.effectAllowed = "move";
+  }
+  function drop(ev, targetRoleKey) {
+    ev.preventDefault();
+    if (currentRoster && currentRoster.isLocked) return;
+    if (!draggedRole || draggedRole === targetRoleKey) return;
+    document.getElementById("roster-grid").style.opacity = "0.5";
+    document.getElementById("sub-grid").style.opacity = "0.5";
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) loadDashboard();
+        else {
+          alert(res.error);
+          document.getElementById("roster-grid").style.opacity = "1";
+          document.getElementById("sub-grid").style.opacity = "1";
+        }
+      })
+      .withFailureHandler(function (err) {
+        alert("❌ Error: " + err.message);
+        document.getElementById("roster-grid").style.opacity = "1";
+        document.getElementById("sub-grid").style.opacity = "1";
+      })
+      .swapPlayers(currentManager.name, draggedRole, targetRoleKey);
+  }
+  function isOOP(playerRole, slotKey) {
+    if (!playerRole || playerRole === "TBD") return false;
+    let pr = playerRole.toUpperCase();
+    let sk = slotKey.toUpperCase();
+    if (sk === "SUB") return false;
+    if (sk === "TOP" && pr.includes("TOP")) return false;
+    if (sk === "JGL" && (pr.includes("JUNG") || pr === "JGL")) return false;
+    if (sk === "MID" && pr.includes("MID")) return false;
+    if (sk === "ADC" && (pr.includes("BOT") || pr === "ADC")) return false;
+    if (sk === "SUP" && (pr.includes("SUP") || pr.includes("UTIL")))
+      return false;
+    return true;
+  }
+
+  let dashboardLoaded = false;
+
+  function switchFantasyTab(tabId, el) {
+    document.querySelectorAll(".fantasy-tab-btn").forEach((b) => {
+      b.classList.remove("active", "text-yellow-500", "border-yellow-500");
+      b.classList.add("text-slate-400", "border-transparent");
+    });
+    document.querySelectorAll(".fantasy-pane").forEach((p) => {
+      p.classList.add("hidden");
+      p.classList.remove("block");
+    });
+    el.classList.add("active", "text-yellow-500", "border-yellow-500");
+    el.classList.remove("text-slate-400", "border-transparent");
+    document.getElementById("f-tab-" + tabId).classList.remove("hidden");
+    document.getElementById("f-tab-" + tabId).classList.add("block");
+    if (tabId === "market") loadMarket();
+    // 🔥 OPTIMIZACIÓN: Solo recarga del servidor si no se ha cargado aún
+    if (
+      (tabId === "team" || tabId === "ranking") &&
+      currentManager &&
+      !dashboardLoaded
+    )
+      loadDashboard();
+    if (tabId === "gacha" && currentManager) loadInventory();
+    if (tabId === "players") filterFantasyPlayers();
+  }
+
+  function logoutFantasy() {
+    currentManager = null;
+    document.getElementById("fantasy-dashboard").classList.add("hidden");
+    document.getElementById("fantasy-dashboard").classList.remove("flex");
+    document.getElementById("login-state").style.display = "flex";
+    document.getElementById("login-fantasy-form").classList.add("hidden");
+    document.getElementById("login-menu-doors").classList.remove("hidden");
+    document.getElementById("login-menu-doors").classList.add("flex");
+    document.getElementById("btn-fantasy-login").innerText = "ENTRAR AL CLUB";
+    document.getElementById("btn-fantasy-login").disabled = false;
+    document.getElementById("fantasy-pin").value = "";
+  }
+
+  function fetchAllLigaData(callback) {
+    // 🚀 Si ya tenemos los datos (cargados por getFantasyFullBundle), retornamos al instante
+    if (
+      isLigaDataLoaded &&
+      typeof globalStatsData !== "undefined" &&
+      globalStatsData.length > 0
+    ) {
+      if (callback) callback();
+      return;
+    }
+    // Fallback: si por algún motivo no se cargó vía bundle, usamos el bundle igualmente
+    google.script.run
+      .withFailureHandler(function (err) {
+        if (callback) callback();
+      })
+      .withSuccessHandler(function (bundle) {
+        if (bundle && bundle.success) {
+          globalStatsData = bundle.statsAll || [];
+          window.liveStatsData = bundle.statsLive || [];
+          fantasyTeamsCache = bundle.teams || [];
+          window.fantasyActiveRound = bundle.activeRound || "ALL";
+          if (fantasyTeamsCache.length > 0) tournamentDataCache = { teams: fantasyTeamsCache };
+          isLigaDataLoaded = true;
+        }
+        if (callback) callback();
+      })
+      .getFantasyFullBundle(currentManager ? currentManager.name : "", null);
+  }
+
+  function getSafeTeamName(playerName) {
+    if (!playerName) return "Agente Libre";
+    if (typeof globalStatsData !== "undefined" && globalStatsData) {
+      let p = globalStatsData.find(
+        (x) =>
+          String(x.name).trim().toLowerCase() ===
+          String(playerName).trim().toLowerCase(),
+      );
+      if (p && p.team) return p.team;
+    }
+    if (typeof fantasyTeamsCache !== "undefined" && fantasyTeamsCache) {
+      let foundTeam = fantasyTeamsCache.find((t) =>
+        String(t.roster)
+          .toLowerCase()
+          .includes(String(playerName).trim().toLowerCase()),
+      );
+      if (foundTeam) return foundTeam.name;
+    }
+    return "Agente Libre";
+  }
+
+  function getSafePlayerStats(playerName) {
+    if (typeof globalStatsData === "undefined" || globalStatsData.length === 0)
+      return {
+        _isLoading: true,
+        name: playerName,
+        role: "TBD",
+        team: "...",
+        games: 0,
+        points: 0,
+      };
+    let p = globalStatsData.find(
+      (x) =>
+        String(x.name).trim().toLowerCase() ===
+        String(playerName).trim().toLowerCase(),
+    );
+    if (!p)
+      p = {
+        name: playerName,
+        role: "TBD",
+        team: "Agente Libre",
+        games: 0,
+        winrate: 0,
+        kdaText: "0.0 / 0.0 / 0.0",
+        points: 0,
+        dpm: 0,
+        gpm: 0,
+        cs: 0,
+        kp: 0,
+        mvps: 0,
+        aces: 0,
+        kdaNum: 0,
+        vspm: 0,
+      };
+    else p.team = getSafeTeamName(playerName);
+    return p;
+  }
+
+  function calculatePlayerOVR(p) {
+    if (!p || p.games === 0) return 60;
+    const safeFloat = (val) => parseFloat(val) || 0;
+    let kdaNum = safeFloat(p.kdaNum);
+    let dpm = safeFloat(p.dpm);
+    let cs = safeFloat(p.cs);
+    let kpReal = safeFloat(p.kp);
+    let vspm = safeFloat(p.vspm);
+    let gpm = safeFloat(p.gpm);
+    let pts = safeFloat(p.points);
+    const calcStat = (val, max) => {
+      let ratio = Math.min(1, Math.max(0, val / max));
+      return 60 + Math.pow(ratio, 1.3) * 39;
+    };
+    let sKDA = calcStat(kdaNum, 11.0);
+    let sDPM = calcStat(dpm, 1050);
+    let sCS = calcStat(cs, 9.5);
+    let sKP = calcStat(kpReal, 85);
+    let sVIS = calcStat(vspm, 3.5);
+    let sGPM = calcStat(gpm, 520);
+    let sPTS = calcStat(pts, 15);
+    let shortRole = p.role ? p.role.toUpperCase() : "FILL";
+    let ovr = 60;
+    switch (shortRole) {
+      case "TOP":
+        ovr = sDPM * 0.25 + sCS * 0.25 + sKDA * 0.2 + sKP * 0.15 + sPTS * 0.15;
+        break;
+      case "JUNGLE":
+      case "JGL":
+        ovr = sKP * 0.3 + sKDA * 0.25 + sVIS * 0.2 + sPTS * 0.15 + sCS * 0.1;
+        break;
+      case "MIDDLE":
+      case "MID":
+        ovr = sDPM * 0.3 + sKDA * 0.25 + sCS * 0.25 + sKP * 0.1 + sPTS * 0.1;
+        break;
+      case "BOTTOM":
+      case "ADC":
+        ovr = sDPM * 0.35 + sKDA * 0.25 + sCS * 0.2 + sGPM * 0.1 + sPTS * 0.1;
+        break;
+      case "SUPPORT":
+      case "SUP":
+        ovr = sVIS * 0.35 + sKP * 0.35 + sKDA * 0.2 + sPTS * 0.1;
+        break;
+      default:
+        ovr = sDPM * 0.2 + sKDA * 0.2 + sCS * 0.2 + sKP * 0.2 + sPTS * 0.2;
+    }
+    ovr = Math.floor(ovr);
+    if (safeFloat(p.winrate) < 50 && ovr > 85) ovr -= 4;
+    return Math.min(99, Math.max(60, ovr));
+  }
+
+  function loadDashboard() {
+    if (!currentManager) return;
+    document.getElementById("ui-manager-name").innerText = currentManager.name;
+
+    // 🚀 OPTIMIZACIÓN: UNA SOLA LLAMADA al backend (antes eran 4-5 en cascada)
+    google.script.run
+      .withFailureHandler(function (err) {
+        alert("Error de conexión: " + err.message);
+      })
+      .withSuccessHandler(function (bundle) {
+        if (!bundle || !bundle.success) {
+          return alert("Error cargando tu Club: " + (bundle ? bundle.error : "sin respuesta"));
+        }
+
+        // 1. Hidratar caches de liga desde el bundle (sin más round-trips)
+        globalStatsData = bundle.statsAll || [];
+        window.liveStatsData = bundle.statsLive || [];
+        fantasyTeamsCache = bundle.teams || [];
+        window.fantasyActiveRound = bundle.activeRound || "ALL";
+        if (fantasyTeamsCache.length > 0) {
+          tournamentDataCache = { teams: fantasyTeamsCache };
+        }
+        isLigaDataLoaded = true;
+
+        // 2. Datos del manager
+        const res = bundle.init;
+        if (!res || !res.success) {
+          return alert("Error cargando tu Club: " + (res ? res.error : "datos del manager vacíos"));
+        }
+        dashboardLoaded = true;
+
+        currentManager.budget = res.financials.budget;
+        document.getElementById("ui-budget").innerText =
+          formatMoney(res.financials.budget) + " Disp.";
+        document.getElementById("ui-bids-budget").innerText = formatMoney(res.financials.bids);
+
+        window.allFantasyRosters = res.allRosters || [];
+        window.currentRankingData = res.ranking || [];
+        window.lastFantasyCharts = res.charts;
+
+        renderFantasyActivity(res.activity);
+
+        currentRoster = res.roster || {
+          top: "", jgl: "", mid: "", adc: "", sup: "",
+          captain: "NONE", sub: "", isLocked: false, activeCard: "",
+        };
+
+        if (document.getElementById("market-budget-disp"))
+          document.getElementById("market-budget-disp").innerText = formatMoney(res.financials.budget);
+        if (document.getElementById("market-budget-ret"))
+          document.getElementById("market-budget-ret").innerText = formatMoney(res.financials.bids);
+
+        const setSlotState = (id, player) => {
+          let el = document.getElementById(id);
+          if (el) {
+            el.innerText = "🪑";
+            if (player && player !== "") {
+              el.classList.remove("grayscale", "opacity-50");
+              el.style.filter = "hue-rotate(150deg) saturate(3) brightness(0.8)";
+            } else {
+              el.classList.add("grayscale", "opacity-50");
+              el.style.filter = "none";
+            }
+          }
+        };
+        setSlotState("slot-ind-top", currentRoster.top);
+        setSlotState("slot-ind-jgl", currentRoster.jgl);
+        setSlotState("slot-ind-mid", currentRoster.mid);
+        setSlotState("slot-ind-adc", currentRoster.adc);
+        setSlotState("slot-ind-sup", currentRoster.sup);
+        setSlotState("slot-ind-sub", currentRoster.sub);
+
+        let activeBanner = document.getElementById("gacha-active-banner");
+        if (activeBanner && currentRoster.activeCard && currentRoster.activeCard !== "") {
+          document.getElementById("gacha-active-name").innerText = currentRoster.activeCard;
+          let unequipBtn = document.getElementById("btn-unequip-card");
+          if (unequipBtn) unequipBtn.style.display = currentRoster.isLocked ? "none" : "block";
+          activeBanner.classList.remove("hidden");
+        } else if (activeBanner) activeBanner.classList.add("hidden");
+
+        // 3. Cálculo de live scoring directamente (ya tenemos todos los datos)
+        let myLivePts = calculateManagerLivePoints(currentRoster);
+        document.getElementById("ui-points").innerText = myLivePts.toFixed(1) + " PTS";
+
+        window.currentRankingData.forEach((m) => {
+          if (String(m.name).trim().toLowerCase() === String(currentManager.name).trim().toLowerCase()) {
+            m.livePoints = myLivePts;
+          } else {
+            let rObj = window.allFantasyRosters.find(
+              (x) => String(x.manager).trim().toLowerCase() === String(m.name).trim().toLowerCase()
+            );
+            m.livePoints = rObj ? calculateManagerLivePoints(rObj) : 0;
+          }
+        });
+
+        window.currentRankingData.sort(
+          (a, b) => b.livePoints - a.livePoints || b.teamValue - a.teamValue
+        );
+        renderFantasyRanking(window.currentRankingData);
+        renderFantasyCharts(window.lastFantasyCharts, myLivePts);
+        renderRoster();
+        if (document.getElementById("f-tab-market").classList.contains("block")) loadMarket();
+      })
+      .getFantasyFullBundle(currentManager.name, null);
+  }
+
+  // 🔥 Función que faltaba: Clausulazo directo desde un hueco vacío del roster
+  function promptClause(roleKey) {
+    let playerName = prompt(
+      "🚨 CLAUSULAZO\n\nEscribe el nombre exacto del jugador que quieres robar de otro mánager:\n(Pagarás el 150% de su valor de mercado)",
+    );
+    if (!playerName || playerName.trim() === "") return;
+    if (
+      !confirm(
+        "¿Seguro que quieres pagar la cláusula de rescisión de " +
+          playerName.trim() +
+          "?\n\nEsto costará el 150% de su valor actual.",
+      )
+    )
+      return;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          alert("✅ " + res.msg);
+          dashboardLoaded = false;
+          loadDashboard();
+        } else alert("❌ " + res.error);
+      })
+      .payClause(currentManager.name, playerName.trim());
+  }
+
+  function renderFantasyCharts(data, livePts = 0) {
+    let ptsContainer = document.getElementById("pts-box-container");
+    let budContainer = document.getElementById("bud-box-container");
+    if (!ptsContainer || !budContainer) return;
+
+    if (!data || !data.labels || data.labels.length === 0) {
+      let currentBud = document
+        .getElementById("ui-budget")
+        .innerText.replace(" Disp.", "");
+      ptsContainer.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-center"><div class="text-6xl font-black text-purple-400 font-oswald drop-shadow-[0_0_15px_rgba(168,85,247,0.4)]">' +
+        (livePts.toFixed(1)) +
+        ' PTS</div><div class="text-xs text-slate-400 uppercase tracking-widest font-bold mt-2">PUNTOS ESTA JORNADA</div></div>';
+      budContainer.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-center"><div class="text-5xl font-black text-emerald-400 font-mono drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">' +
+        (currentBud) +
+        '</div><div class="text-xs text-slate-400 uppercase tracking-widest font-bold mt-2">Presupuesto Actual</div></div>';
+      return;
+    }
+
+    ptsContainer.innerHTML = '<canvas id="fantasyPointsChart"></canvas>';
+    budContainer.innerHTML = '<canvas id="fantasyBudgetChart"></canvas>';
+
+    let cLabels = [...data.labels, "En Curso"];
+    let lastPt =
+      data.points.length > 0
+        ? parseFloat(data.points[data.points.length - 1])
+        : 0;
+    let cPoints = [...data.points, lastPt + livePts];
+
+    let ctxPts = document.getElementById("fantasyPointsChart").getContext("2d");
+    if (fPtsChart) fPtsChart.destroy();
+    fPtsChart = new Chart(ctxPts, {
+      type: "line",
+      data: {
+        labels: cLabels,
+        datasets: [
+          {
+            label: "Puntos Acumulados",
+            data: cPoints,
+            borderColor: "#a855f7",
+            backgroundColor: "rgba(168, 85, 247, 0.2)",
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { ticks: { color: "#94a3b8" } } },
+      },
+    });
+
+    let ctxBud = document.getElementById("fantasyBudgetChart").getContext("2d");
+    if (fBudChart) fBudChart.destroy();
+    fBudChart = new Chart(ctxBud, {
+      type: "line",
+      data: {
+        labels: data.labels,
+        datasets: [
+          {
+            label: "Patrimonio (€)",
+            data: data.budget,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.2)",
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: {
+            ticks: {
+              color: "#94a3b8",
+              callback: function (v) {
+                return (v / 1000000).toFixed(1) + "M";
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderFantasyActivity(activities) {
+    let container = document.getElementById("fantasy-recent-activity");
+    let html = "";
+    if (!activities || activities.length === 0) {
+      container.innerHTML =
+        '<div class="text-slate-500 text-sm text-center py-8 border-2 border-dashed border-slate-700 rounded-xl">No ha habido movimientos.</div>';
+      return;
+    }
+    for (let i = 0; i < activities.length; i++) {
+      let a = activities[i];
+      let color = "text-yellow-400";
+      let icon = "🎁";
+      let actionText = "ha cobrado";
+      if (a.type === "BUY") {
+        color = "text-emerald-400";
+        icon = "🤝";
+        actionText = "ha fichado a";
+      } else if (a.type === "SELL") {
+        color = "text-red-400";
+        icon = "💸";
+        actionText = "ha vendido a";
+      } else if (a.type === "CLAUSE") {
+        color = "text-red-500";
+        icon = "🚨";
+        actionText = "ha dado un CLAUSULAZO por";
+      } else if (a.type === "GACHA") {
+        color = "text-purple-400";
+        icon = "🎰";
+        actionText = "compró un Sobre Gacha";
+        a.player = "";
+      } else if (a.type === "JOIN") {
+        color = "text-blue-400";
+        icon = "🎪";
+        actionText = "ha fundado su Club";
+        a.player = "";
+      } else if (a.type === "MATCH") {
+        color = "text-blue-400";
+        icon = "⚔️";
+        actionText = a.player;
+        a.player = "";
+        a.manager = "LIGA";
+      }
+
+      let amountLabel =
+        a.type === "JOIN" || a.type === "GACHA" || a.type === "MATCH"
+          ? ""
+          : '<div class="text-[11px] font-mono ' +
+            color +
+            ' font-bold bg-black px-2 py-1 rounded border border-slate-700">' +
+            formatMoney(a.amount) +
+            "</div>";
+      let safePlayerName = a.player ? a.player.replace(/'/g, "\\'") : "";
+      let playerLink = a.player
+        ? ' <span class="text-accent-blue font-bold cursor-pointer hover:underline" onclick="openFantasyPlayerStats(\'' +
+          enc(safePlayerName) +
+          "')\">" +
+          a.player +
+          "</span>"
+        : "";
+      html +=
+        '<div class="flex justify-between items-center bg-slate-900/80 p-3 rounded-lg border border-slate-700 mb-2 shadow transition hover:border-slate-500"><div class="text-sm"><span class="text-lg mr-2">' +
+        icon +
+        '</span><span class="font-bold text-white uppercase">' +
+        a.manager +
+        "</span> " +
+        actionText +
+        playerLink +
+        "</div>" +
+        amountLabel +
+        "</div>";
+    }
+    container.innerHTML = html;
+  }
+
+  function renderFantasyRanking(ranking) {
+    let tbody = document.getElementById("fantasy-ranking-body");
+    let html = "";
+    if (!ranking || ranking.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="text-center text-slate-500 py-10">Todavía no hay mánagers.</td></tr>';
+      return;
+    }
+    for (let i = 0; i < ranking.length; i++) {
+      let p = ranking[i];
+      let pos = i + 1;
+      let medal =
+        pos === 1 ? "GOLD" : pos === 2 ? "SILVER" : pos === 3 ? "BRONZE" : pos;
+      let isMe =
+        currentManager &&
+        String(p.name).trim().toLowerCase() ===
+          String(currentManager.name).trim().toLowerCase();
+      let rowCss = isMe
+        ? "bg-yellow-500/10 border-l-4 border-yellow-500"
+        : "hover:bg-slate-700/30 border-l-4 border-transparent cursor-pointer hover:border-purple-500";
+      let clickEvt = isMe
+        ? ""
+        : 'onclick="viewManagerRoster(\'' + (p.name) + '\')" title="Ver plantilla"';
+      let valueText = formatMoney(p.teamValue || 0);
+      let ptsText =
+        p.livePoints !== undefined ? p.livePoints.toFixed(1) : "0.0";
+
+      html += '<tr class="border-b border-slate-700/50 transition-colors ' + (rowCss) + '" ' + (clickEvt) + '>';
+      html +=
+        '<td class="p-4 text-center font-oswald text-lg text-slate-400">' +
+        medal +
+        "</td>";
+      html +=
+        '<td class="p-4 font-bold text-white text-base uppercase">' +
+        p.name +
+        (isMe
+          ? ' <span class="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded ml-2 font-black shadow">TÚ</span>'
+          : "") +
+        "</td>";
+      html +=
+        '<td class="p-4 text-right font-mono text-emerald-400 text-sm">' +
+        valueText +
+        "</td>";
+      html +=
+        '<td class="p-4 text-center font-oswald text-purple-400 text-3xl font-black">' +
+        ptsText +
+        "</td></tr>";
+    }
+    tbody.innerHTML = html;
+  }
+
+  function viewManagerRoster(managerName) {
+    if (!isLigaDataLoaded)
+      return alert("Espera a que carguen los datos de la liga.");
+    document.getElementById("view-roster-name").innerText = managerName;
+    document.getElementById("view-roster-content").innerHTML =
+      '<div class="py-10 text-center text-purple-400 animate-pulse font-bold tracking-widest uppercase">Infiltrándose en la base de datos...</div>';
+    document.getElementById("view-roster-modal").style.display = "flex";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) {
+          document.getElementById("view-roster-content").innerHTML =
+            '<div class="text-red-500 text-center font-bold">' +
+            res.error +
+            "</div>";
+          return;
+        }
+        let html = '<div class="grid grid-cols-2 md:grid-cols-3 gap-4">';
+        let roles = [
+          { k: "top", n: "TOP" },
+          { k: "jgl", n: "JGL" },
+          { k: "mid", n: "MID" },
+          { k: "adc", n: "ADC" },
+          { k: "sup", n: "SUP" },
+          { k: "sub", n: "BANQUILLO" },
+        ];
+
+        roles.forEach((r) => {
+          let pName = res.roster[r.k];
+          if (pName && pName !== "") {
+            let pData = getSafePlayerStats(pName);
+            let ovr = calculatePlayerOVR(pData);
+            let img = getChampIcon(
+              pData.champs ? pData.champs.split(",")[0] : "",
+            );
+            html += '<div class="bg-slate-800 p-3 rounded-xl border border-slate-600 shadow flex items-center gap-3"><img src="' +
+              (img) +
+              '" class="w-12 h-12 rounded-full border border-purple-500 bg-black" onerror="this.style.display=\'none\'"><div class="overflow-hidden"><div class="text-[9px] text-slate-400 font-bold tracking-widest uppercase">' +
+              (r.n) + '</div><div class="text-sm font-bold text-white truncate w-full">' + (escHtml(pName)) +
+              '</div><div class="text-[10px] text-yellow-500 font-black">OVR ' + (ovr) + '</div></div></div>';
+          } else {
+            html += '<div class="bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 flex items-center justify-center opacity-50 h-20"><div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">' +
+              (r.n) + ' VACÍO</div></div>';
+          }
+        });
+        document.getElementById("view-roster-content").innerHTML =
+          html + "</div>";
+      })
+      .getManagerRoster(managerName);
+  }
+
+  function lockFantasyTeam() {
+    if (
+      !confirm(
+        "🔒 ¿CONFIRMAR ALINEACIÓN?\n\nTu equipo quedará bloqueado para esta jornada. Si tienes huecos vacíos se te penalizará con -15 puntos por cada uno.",
+      )
+    )
+      return;
+    let btn = document.getElementById("btn-lock-team");
+    btn.innerText = "⏳ Confirmando...";
+    btn.disabled = true;
+    google.script.run
+      .withFailureHandler(function (err) {
+        alert("Error: " + err.message);
+        btn.innerText = "🔒 Confirmar Equipo";
+        btn.disabled = false;
+      })
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          alert("✅ " + res.msg);
+          dashboardLoaded = false;
+          loadDashboard();
+        } else {
+          alert("❌ Error: " + res.error);
+          btn.innerText = "🔒 Confirmar Equipo";
+          btn.disabled = false;
+        }
+      })
+      .lockFantasyTeam(currentManager.name);
+  }
+
+  function sellPlayerFromRoster(roleKey) {
+    if (!currentManager) return;
+    let choice = prompt(
+      "OPCIONES DE VENTA:\n\n1. Venta Instantánea (Recibes el 50% del valor ahora mismo)\n2. Poner en Mercado (Tú eliges el precio, otros mánagers pueden comprarlo)\n\nEscribe 1 o 2:",
+    );
+    if (choice === "1") {
+      if (
+        confirm(
+          "¿Seguro que quieres venderlo por la mitad de su valor al sistema?",
+        )
+      ) {
+        document.getElementById("roster-grid").style.opacity = "0.5";
+        document.getElementById("sub-grid").style.opacity = "0.5";
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (res.success) {
+              alert(res.msg);
+              dashboardLoaded = false;
+              loadDashboard();
+            } else {
+              alert("Error: " + res.error);
+              document.getElementById("roster-grid").style.opacity = "1";
+              document.getElementById("sub-grid").style.opacity = "1";
+            }
+          })
+          .withFailureHandler(function (err) {
+            alert("❌ Error: " + err.message);
+            document.getElementById("roster-grid").style.opacity = "1";
+            document.getElementById("sub-grid").style.opacity = "1";
+          })
+          .sellPlayerInstant(currentManager.name, roleKey);
+      }
+    } else if (choice === "2") {
+      let price = prompt(
+        "Introduce el precio de venta (ej: 8000000 para 8 Millones):",
+      );
+      if (!price || isNaN(price) || price <= 0)
+        return alert("Precio no válido.");
+      document.getElementById("roster-grid").style.opacity = "0.5";
+      document.getElementById("sub-grid").style.opacity = "0.5";
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            alert(res.msg);
+            dashboardLoaded = false;
+            loadDashboard();
+          } else {
+            alert("Error: " + res.error);
+            document.getElementById("roster-grid").style.opacity = "1";
+            document.getElementById("sub-grid").style.opacity = "1";
+          }
+        })
+        .withFailureHandler(function (err) {
+          alert("❌ Error: " + err.message);
+          document.getElementById("roster-grid").style.opacity = "1";
+          document.getElementById("sub-grid").style.opacity = "1";
+        })
+        .listPlayerOnMarket(currentManager.name, roleKey, parseInt(price));
+    }
+  }
+
+  function renderRoster() {
+    let grid = document.getElementById("roster-grid");
+    let subGrid = document.getElementById("sub-grid");
+    let isLocked = currentRoster && currentRoster.isLocked;
+    let isLoadingStats = !isLigaDataLoaded;
+    if (!grid) return;
+
+    const renderPlayerCard = (roleKey, roleLabel, pName) => {
+      let p = getSafePlayerStats(pName);
+      let ovr = calculatePlayerOVR(p);
+      let price = getFantasyPlayerPriceJS(p);
+      let img = getChampIcon(p.champs ? p.champs.split(",")[0] : "");
+      let isCap = currentRoster.captain === roleKey;
+      let capBadge = isCap
+        ? '<div class="absolute -top-3 -right-2 bg-yellow-500 text-black text-[9px] font-black px-2 py-0.5 rounded shadow-[0_0_10px_rgba(251,191,36,0.6)] z-20">CAPITÁN</div>'
+        : "";
+      let oopBadge = isOOP(p.role, roleKey)
+        ? '<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded z-20 border border-white/20 shadow-lg">OOP (-80%)</div>'
+        : "";
+
+      let btnUI = "";
+      if (!isLocked) {
+        btnUI = '<div class="absolute top-2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition z-30"> <button onclick="sellPlayerFromRoster(\'' +
+          (roleKey) +
+          '\')" class="bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-full shadow-lg" title="Vender">💸</button> ' +
+          (!isCap && roleKey !== "sub" ? '<button onclick="setAsCaptain(\'' + (roleKey) +
+          '\')" class="bg-yellow-500 hover:bg-yellow-400 text-black p-1.5 rounded-full shadow-lg" title="Capitán">CAP</button>' : "") +
+          ' </div>';
+      }
+
+      if (!pName || pName === "") {
+        return '<div class="bg-slate-900/40 border-2 border-dashed border-slate-700 rounded-2xl h-48 flex flex-col items-center justify-center p-4 group hover:border-accent-blue transition-all" ondrop="drop(event, \'' +
+          (roleKey) +
+          '\')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"> <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-4">' +
+          (roleLabel) +
+          '</div> <div class="text-3xl grayscale opacity-30 mb-2">👤</div> <button onclick="promptClause(\'' +
+          (roleKey) +
+          '\')" class="text-[10px] text-accent-blue font-black uppercase tracking-widest hover:text-white transition">🔍 CLAUSULAZO</button> </div>';
+      }
+
+      return '<div class="relative group bg-slate-800 border-2 border-slate-600 rounded-2xl p-4 shadow-xl hover:border-accent-blue transition-all cursor-move h-48 flex flex-col items-center justify-center" draggable="true" ondragstart="drag(event, \'' +
+        (roleKey) + '\')" ondrop="drop(event, \'' + (roleKey) +
+        '\')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"> ' + (capBadge) + ' ' +
+        (oopBadge) + ' ' + (btnUI) +
+        ' <div class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">' + (roleLabel) +
+        '</div> <div class="relative mb-2"> <img src="' + (img) +
+        '" class="w-16 h-16 rounded-full border-2 border-slate-600 bg-black shadow-lg" onerror="this.src=\'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/rewards/logos/tier2-1.png\'"> <div class="absolute -bottom-1 -right-1 bg-black border border-slate-600 text-yellow-500 font-black text-xs px-1.5 py-0.5 rounded">' +
+        (ovr) +
+        '</div> </div> <div class="text-sm font-bold text-white truncate w-full text-center uppercase tracking-tighter">' +
+        (escHtml(pName)) + '</div> <div class="text-[10px] text-emerald-400 font-mono font-bold mt-1">' +
+        (formatMoney(price)) + '</div> </div>';
+    };
+
+    grid.innerHTML =
+      renderPlayerCard("top", "TOPLANE", currentRoster.top) +
+      renderPlayerCard("jgl", "JUNGLA", currentRoster.jgl) +
+      renderPlayerCard("mid", "MIDLANE", currentRoster.mid) +
+      renderPlayerCard("adc", "ADC", currentRoster.adc) +
+      renderPlayerCard("sup", "SUPPORT", currentRoster.sup);
+
+    subGrid.innerHTML = renderPlayerCard("sub", "BANQUILLO", currentRoster.sub);
+  }
+
+  function setAsCaptain(roleKey) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) loadDashboard();
+        else alert(res.error);
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error asignando capitán:", error);
+        alert(
+          "❌ Error al asignar capitán: " +
+            (error && error.message ? error.message : error),
+        );
+      })
+      .setManagerCaptain(currentManager.name, roleKey);
+  }
+
+  function loadMarket() {
+    let grid = document.getElementById("market-grid");
+    if (!grid) return;
+    grid.innerHTML =
+      '<div class="col-span-full py-20 text-center text-yellow-500 animate-pulse font-bold tracking-widest uppercase">🔍 Escaneando mercado de fichajes...</div>';
+    google.script.run
+      .withSuccessHandler(function (players) {
+        if (!players || players.length === 0) {
+          grid.innerHTML =
+            '<div class="col-span-full py-10 text-center text-slate-500">No hay jugadores en el mercado hoy.</div>';
+          return;
+        }
+        let html = "";
+        players.forEach((p) => {
+          let ovr = calculatePlayerOVR(p);
+          let price = getFantasyPlayerPriceJS(p);
+          let img = getChampIcon(p.champs ? p.champs.split(",")[0] : "");
+          let role = p.role ? p.role.toUpperCase() : "FILL";
+          let isOwned = window.allFantasyRosters.some((r) =>
+            Object.values(r).includes(p.name),
+          );
+          let owner = isOwned
+            ? window.allFantasyRosters.find((r) =>
+                Object.values(r).includes(p.name),
+              ).manager
+            : null;
+
+          // 🔥 Mostrar mini-stats en la tarjeta del mercado
+          let statsLine =
+            p.games > 0
+              ? '<div class="flex gap-2 text-[10px] text-slate-400 font-mono mb-3"><span title="KDA">' +
+                (p.kdaText || "?") + '</span><span>|</span><span title="DPM">' + (p.dpm || 0) +
+                ' DPM</span><span>|</span><span title="Partidas">' + (p.games) + 'G</span></div>'
+              : '<div class="text-[10px] text-slate-500 mb-3">Sin partidas registradas</div>';
+
+          html += '<div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col items-center group hover:border-accent-blue transition relative overflow-hidden"> <div class="absolute top-2 right-2 text-[10px] font-black text-slate-500">' +
+            (role) + '</div> <img src="' + (img) +
+            '" class="w-20 h-20 rounded-full border-4 border-slate-700 bg-black mb-3 shadow-xl group-hover:scale-110 transition" onerror="this.style.display=\'none\'"> <div class="text-base font-black text-white text-center uppercase tracking-tight mb-1">' +
+            (escHtml(p.name)) +
+            '</div> <div class="flex items-center gap-2 mb-2"><span class="text-xs bg-black px-2 py-0.5 rounded text-yellow-500 font-black border border-slate-700">OVR ' +
+            (ovr) + '</span></div> ' + (statsLine) +
+            ' <div class="text-sm font-mono font-bold text-emerald-400 mb-5 bg-black/50 px-4 py-1.5 rounded-full border border-slate-700">' +
+            (formatMoney(price)) + '</div> ' +
+            (isOwned ? '<div class="text-[10px] text-red-500 font-bold uppercase tracking-widest">DUEÑO: ' + (owner) +
+            '</div>' : '<button onclick="placeBid(\'' + (escHtml(p.name)) + '\', ' + (price) +
+            ')" class="w-full bg-accent-blue hover:bg-blue-500 text-white font-black py-2.5 rounded-xl transition shadow-lg text-xs uppercase tracking-widest">PUJAR</button>') +
+            ' <button onclick="openFantasyPlayerStats(\'' + (enc(p.name)) +
+            '\')" class="mt-3 text-[9px] text-slate-500 hover:text-slate-300 font-bold uppercase tracking-widest">📈 Ver Estadísticas</button> </div>';
+        });
+        grid.innerHTML = html;
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error cargando mercado de fichajes:", error);
+        grid.innerHTML =
+          '<div class="col-span-full py-10 text-center text-red-500">⚠️ Error al cargar el mercado: ' +
+          (error && error.message ? error.message : error) +
+          "</div>";
+      })
+      .getMarketPlayers();
+  }
+
+  function placeBid(playerName, price) {
+    let amount = prompt(
+      "💰 PUJA POR " +
+        playerName.toUpperCase() +
+        "\n\nIntroduce tu oferta (Mínimo " +
+        formatMoney(price) +
+        "):",
+      price,
+    );
+    if (!amount || isNaN(amount) || parseInt(amount) < price) return;
+    if (parseInt(amount) > currentManager.budget)
+      return alert("❌ No tienes suficiente presupuesto.");
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          alert("✅ Puja enviada correctamente.");
+          dashboardLoaded = false;
+          loadDashboard();
+        } else alert("❌ Error: " + res.error);
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error realizando puja:", error);
+        alert(
+          "❌ Error al enviar la puja: " +
+            (error && error.message ? error.message : error),
+        );
+      })
+      .placeBid(currentManager.name, playerName, parseInt(amount));
+  }
+
+  function filterFantasyPlayers() {
+    let search = document
+      .getElementById("fantasy-player-search")
+      .value.toLowerCase();
+    let roleFilter = document.getElementById("fantasy-role-filter").value;
+    let grid = document.getElementById("fantasy-players-grid");
+    if (!grid) return;
+
+    let filtered = globalStatsData.filter((p) => {
+      let nameMatch = p.name.toLowerCase().includes(search);
+      let roleMatch =
+        roleFilter === "ALL" || (p.role && p.role.toUpperCase() === roleFilter);
+      return nameMatch && roleMatch;
+    });
+
+    grid.innerHTML = filtered
+      .slice(0, 20)
+      .map((p) => {
+        let ovr = calculatePlayerOVR(p);
+        let price = getFantasyPlayerPriceJS(p);
+        let img = getChampIcon(p.champs ? p.champs.split(",")[0] : "");
+        return '<div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col items-center group hover:border-purple-500 transition cursor-pointer" onclick="openFantasyPlayerStats(\'' +
+          (enc(p.name)) + '\')"> <img src="' + (img) +
+          '" class="w-12 h-12 rounded-full border border-slate-600 bg-black mb-2" onerror="this.style.display=\'none\'"> <div class="text-xs font-bold text-white uppercase truncate w-full text-center">' +
+          (escHtml(p.name)) + '</div> <div class="text-[9px] text-yellow-500 font-black mt-1">OVR ' + (ovr) +
+          '</div> <div class="text-[10px] text-emerald-400 font-mono mt-1">' + (formatMoney(price)) +
+          '</div> </div>';
+      })
+      .join("");
+  }
+
+  function openFantasyPlayerStats(nameEnc) {
+    let pName = dec(nameEnc);
+    let p = getSafePlayerStats(pName);
+    let ovr = calculatePlayerOVR(p);
+    let img = getChampIcon(p.champs ? p.champs.split(",")[0] : "");
+    let html = '<div class="flex flex-col md:flex-row gap-8 items-center md:items-start"> <div class="flex flex-col items-center"> <div class="relative mb-4"> <img src="' +
+      (img) +
+      '" class="w-32 h-32 rounded-full border-4 border-accent-blue bg-black shadow-2xl" onerror="this.style.display=\'none\'"> <div class="absolute -bottom-2 -right-2 bg-black border-2 border-accent-blue text-white font-black text-2xl px-3 py-1 rounded-xl shadow-lg">' +
+      (ovr) +
+      '</div> </div> <div class="text-2xl font-black text-white uppercase tracking-tighter mb-1">' +
+      (escHtml(p.name)) +
+      '</div> <div class="text-xs text-accent-blue font-bold uppercase tracking-widest mb-4">' +
+      (p.role) + ' | ' + (p.team) +
+      '</div> </div> <div class="flex-1 w-full"> <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6"> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">KDA</div><div class="text-lg font-bold text-white">' +
+      (p.kdaText) +
+      '</div></div> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">Winrate</div><div class="text-lg font-bold text-emerald-400">' +
+      (p.winrate) +
+      '%</div></div> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">Pts/Partida</div><div class="text-lg font-bold text-purple-400">' +
+      (p.points) +
+      '</div></div> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">DPM</div><div class="text-lg font-bold text-red-400">' +
+      (p.dpm) +
+      '</div></div> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">GPM</div><div class="text-lg font-bold text-yellow-500">' +
+      (p.gpm) +
+      '</div></div> <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center"><div class="text-[10px] text-slate-400 uppercase">Vision</div><div class="text-lg font-bold text-blue-400">' +
+      (p.vspm) + '</div></div> </div> </div> </div>';
+    document.getElementById("fp-modal-content").innerHTML = html;
+    document.getElementById("fantasy-player-modal").style.display = "flex";
+  }
+
+  function closeFantasyPlayerModal() {
+    document.getElementById("fantasy-player-modal").style.display = "none";
+  }
+
+  function loadInventory() {
+    let invDiv = document.getElementById("gacha-inventory");
+    if (!invDiv) return;
+    google.script.run
+      .withSuccessHandler(function (cards) {
+        if (!cards || cards.length === 0) {
+          invDiv.innerHTML =
+            '<div class="col-span-full py-10 text-center text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">No tienes cartas en tu inventario.</div>';
+          return;
+        }
+        let hasActiveCard =
+          currentRoster &&
+          currentRoster.activeCard &&
+          currentRoster.activeCard !== "";
+        let isLocked = currentRoster && currentRoster.isLocked;
+
+        let html = "";
+        for (let i = 0; i < cards.length; i++) {
+          let c = cards[i];
+          let border = "border-slate-500";
+          if (c.rarity === "Rara")
+            border = "border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]";
+          if (c.rarity === "Épica")
+            border = "border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]";
+          if (c.rarity === "Legendaria")
+            border = "border-yellow-500 shadow-[0_0_30px_rgba(251,191,36,0.6)]";
+
+          let btnHtml = "";
+          if (isLocked)
+            btnHtml =
+              '<div class="text-[10px] text-red-500 uppercase tracking-widest font-bold">EQUIPO BLOQUEADO</div>';
+          else if (hasActiveCard)
+            btnHtml =
+              '<div class="text-[10px] text-slate-600 uppercase tracking-widest font-bold">LÍMITE ALCANZADO</div>';
+          else
+            btnHtml =
+              "<button onclick=\"activateCard('" +
+              escHtml(c.name) +
+              '\')" class="text-[10px] text-accent-blue uppercase tracking-widest font-black hover:text-white transition cursor-pointer">▶️ ACTIVAR ESTA JORNADA</button>';
+
+          html +=
+            '<div class="bg-gradient-to-b from-slate-800 to-slate-900 border-2 ' +
+            border +
+            ' rounded-xl p-6 relative group hover:-translate-y-2 transition-transform flex flex-col">';
+          html +=
+            '<div class="absolute -top-3 right-4 bg-slate-900 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border ' +
+            border +
+            '">' +
+            c.rarity +
+            "</div>";
+          html +=
+            '<h4 class="text-xl font-oswald text-white mb-2">' +
+            c.name +
+            '</h4><p class="text-xs text-slate-300 leading-relaxed mb-4 flex-1">' +
+            c.desc +
+            '</p><div class="mt-auto pt-4 border-t border-slate-700 text-center">' +
+            btnHtml +
+            "</div></div>";
+        }
+        invDiv.innerHTML = html;
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error cargando inventario:", error);
+        invDiv.innerHTML =
+          '<div class="col-span-full py-10 text-center text-red-500 border-2 border-dashed border-slate-700 rounded-xl">⚠️ Error al cargar el inventario: ' +
+          (error && error.message ? error.message : error) +
+          "</div>";
+      })
+      .getManagerInventory(currentManager.name);
+  }
+
+  function activateCard(cardName) {
+    if (currentRoster && currentRoster.isLocked)
+      return alert("Tu equipo está bloqueado esta jornada.");
+    if (
+      !confirm(
+        "¿Quieres EQUIPAR la carta '" +
+          cardName +
+          "' para esta jornada?\n\nPuedes cambiar de carta o quitarla siempre que tu equipo no esté bloqueado (Martes 08:00).",
+      )
+    )
+      return;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          alert("✅ " + res.msg);
+          loadDashboard();
+        } else alert("❌ Error: " + res.error);
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error activando carta:", error);
+        alert(
+          "❌ Error al activar la carta: " +
+            (error && error.message ? error.message : error),
+        );
+      })
+      .activateFantasyCard(currentManager.name, cardName);
+  }
+
+  function unequipCard() {
+    if (currentRoster && currentRoster.isLocked)
+      return alert(
+        "Tu equipo está bloqueado esta jornada. No puedes quitar la carta.",
+      );
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          alert("✅ " + res.msg);
+          loadDashboard();
+        } else alert("❌ Error: " + res.error);
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error quitando carta:", error);
+        alert(
+          "❌ Error al quitar la carta: " +
+            (error && error.message ? error.message : error),
+        );
+      })
+      .unequipFantasyCard(currentManager.name);
+  }
+
+  function rollGacha() {
+    if (!currentManager) return;
+    if (
+      !confirm(
+        "¿Gastar 500.000 € en un Sobre de Cartas?\n\nPueden tocarte misiones (para ganar más puntos) o sabotajes legendarios.",
+      )
+    )
+      return;
+
+    let btn = document.getElementById("btn-roll-gacha");
+    let resDiv = document.getElementById("gacha-result");
+    btn.innerText = "ABRIENDO...";
+    btn.disabled = true;
+    resDiv.classList.add("hidden");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.innerText = "ABRIR SOBRE (500.000 €)";
+        btn.disabled = false;
+        if (res.success) {
+          loadDashboard();
+          let color = "text-white";
+          if (res.card.rarity === "Rara") color = "text-blue-400";
+          if (res.card.rarity === "Épica") color = "text-purple-400";
+          if (res.card.rarity === "Legendaria") color = "text-yellow-500";
+
+          resDiv.innerHTML = '<div class="bg-black/50 border border-slate-600 p-6 rounded-xl animate-bounce"><div class="text-sm text-slate-400 uppercase tracking-widest mb-2">¡NUEVA CARTA: ' +
+            (res.card.rarity) + '!</div><div class="text-3xl font-oswald ' + (color) +
+            ' mb-2 drop-shadow-md">' + (res.card.name) + '</div><div class="text-sm text-slate-300">' +
+            (res.card.desc) + '</div></div>';
+          resDiv.classList.remove("hidden");
+          loadInventory();
+        } else alert("❌ " + res.error);
+      })
+      .withFailureHandler(function (error) {
+        console.error("Error abriendo sobre gacha:", error);
+        btn.innerText = "ABRIR SOBRE (500.000 €)";
+        btn.disabled = false;
+        alert(
+          "❌ Error al abrir el sobre: " +
+            (error && error.message ? error.message : error),
+        );
+      })
+      .buyGachaBox(currentManager.name);
+  }
+</script>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      body { background-color: #0f172a; color: #f0e6d2; font-family: 'Roboto', sans-serif; padding: 20px; text-align: center; border: 4px solid #1e293b; box-sizing: border-box; }
+      h2 { color: #c8aa6e; margin-top: 0; font-family: 'Oswald', sans-serif; letter-spacing: 1px; }
+      select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #475569; background-color: #1e293b; color: white; font-size: 16px; outline: none; }
+      button { background: linear-gradient(to bottom, #10b981, #059669); border: none; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: 'Oswald'; letter-spacing: 1px; box-shadow: 0 4px 0 #047857; }
+      button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #047857; }
+      button:active { transform: translateY(2px); box-shadow: 0 0 0 #047857; }
+      button:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; box-shadow: none; transform: none; }
+      
+      .status { font-size: 14px; margin-top: 10px; min-height: 20px; font-weight: bold; }
+      .team-badge { font-weight: bold; padding: 8px 15px; border-radius: 4px; display: inline-block; margin-bottom: 20px; font-size: 14px; letter-spacing: 1px; }
+      .hex { background-color: #0984e3; color: white; }
+      .chem { background-color: #6ab04c; color: white; }
+      .tournament { background-color: #c8aa6e; color: #000; }
+
+      label { display: block; text-align: left; margin-bottom: 5px; font-size: 12px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+      
+      /* Grid de Roles para Torneo */
+      .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+      .role-btn { border: 1px solid #444; background: #1e2328; padding: 10px; cursor: pointer; border-radius: 4px; font-size: 0.9em; font-weight: bold; color: #aaa; transition: 0.2s; }
+      .role-btn:hover { border-color: #c8aa6e; color: white; }
+      .role-btn.selected { background: #c8aa6e; color: #000; border-color: #f0e6d2; box-shadow: 0 0 10px rgba(200,170,110,0.4); }
+    </style>
+  </head>
+  <body>
+
+    <h2 id="pageTitle">CARGANDO...</h2>
+    
+    <input type="hidden" id="mode" value="<?= mode ?>">
+
+    <div id="loading" style="color:#c8aa6e; font-style:italic; margin-top:20px;">🔄 Conectando con el servidor...</div>
+
+    <div id="mainForm" style="display:none;">
+        <label>1. IDENTIFÍCATE:</label>
+        <select id="voter" onchange="checkContext()">
+          <option value="" disabled selected>-- Selecciona tu nombre --</option>
+        </select>
+
+        <div id="teamDisplay"></div>
+
+        <div id="factionSection" style="display:none;">
+            <label>2. ROL A VOTAR:</label>
+            <select id="roleFaction">
+                <option value="GENERAL">⭐ GENERAL (Líder)</option>
+                <option value="ESTRATEGA">🧠 ESTRATEGA</option>
+                <option value="TANQUE">🛡️ TANQUE</option>
+            </select>
+
+            <label>3. ELIGE CANDIDATO:</label>
+            <select id="candidateFaction">
+                <option value="" disabled selected>Cargando compañeros...</option>
+            </select>
+        </div>
+
+        <div id="tournamentSection" style="display:none;">
+            <label>2. ELIGE TU POSICIÓN:</label>
+            <div class="role-grid">
+                <div class="role-btn" onclick="selectRole('TOP', this)">🛡️ TOP</div>
+                <div class="role-btn" onclick="selectRole('JUNGLE', this)">🌲 JGL</div>
+                <div class="role-btn" onclick="selectRole('MIDDLE', this)">🗡️ MID</div>
+                <div class="role-btn" onclick="selectRole('BOTTOM', this)">🏹 ADC</div>
+                <div class="role-btn" onclick="selectRole('SUPPORT', this)">❤️ SUPP</div>
+                <div class="role-btn" onclick="selectRole('FILL', this)">🔄 FILL</div>
+            </div>
+            <input type="hidden" id="selectedRoleTournament">
+            <p style="font-size:11px; color:#666; margin-top:5px;">* Jugar fuera de posición asignada penaliza.</p>
+        </div>
+
+        <button id="btnVote" onclick="submitVote()" disabled>CONFIRMAR</button>
+    </div>
+
+    <div id="result" class="status"></div>
+
+    <script>
+      // 1. INICIO: Cargar lista de jugadores
+      window.onload = function() {
+        const mode = document.getElementById('mode').value;
+        const title = document.getElementById('pageTitle');
+        const btn = document.getElementById('btnVote');
+
+        if (mode === 'TOURNAMENT') {
+            title.innerText = " CONTRATO DE EQUIPO";
+            btn.innerText = "FIRMAR CONTRATO (1 G)";
+        } else {
+            title.innerText = " URNA ELECTORAL";
+            btn.innerText = "EMITIR VOTO (1 G)";
+        }
+
+        // Llamada segura al servidor
+        google.script.run
+            .withSuccessHandler(fillVoters)
+            .withFailureHandler(showError)
+            .getPlayerList(); 
+      };
+
+      function fillVoters(players) {
+        const sel = document.getElementById('voter');
+        sel.innerHTML = '<option value="" disabled selected>-- Selecciona tu nombre --</option>';
+        
+        if (players && players.length > 0) {
+            players.sort().forEach(p => {
+                let opt = document.createElement('option');
+                opt.value = p; opt.text = p; sel.add(opt);
+            });
+        } else {
+            sel.innerHTML = '<option disabled>Error: Sin jugadores</option>';
+        }
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('mainForm').style.display = 'block';
+      }
+
+      function showError(err) {
+          document.getElementById('loading').innerText = " Error de conexion: " + err.message;
+          document.getElementById('loading').style.color = "#ef4444";
+      }
+
+      // 2. LOGICA CONTEXTUAL (Al elegir nombre)
+      function checkContext() {
+        const voter = document.getElementById('voter').value;
+        const mode = document.getElementById('mode').value;
+        const res = document.getElementById('result');
+        const teamDisp = document.getElementById('teamDisplay');
+        
+        res.innerText = " Cargando datos...";
+        res.style.color = "#aaa";
+        document.getElementById('btnVote').disabled = true;
+        teamDisp.innerHTML = '';
+
+        if (mode === 'TOURNAMENT') {
+            // MODO TORNEO: Buscamos equipo y mostramos botones de rol
+            document.getElementById('tournamentSection').style.display = 'block';
+            document.getElementById('factionSection').style.display = 'none';
+            
+            google.script.run.withSuccessHandler(function(data) {
+                if (data.error) { 
+                    res.innerText = " " + data.error; 
+                    res.style.color = "#ef4444";
+                    return; 
+                }
+                teamDisp.innerHTML = `<span class="team-badge tournament">EQUIPO ${data.teamID}</span>`;
+                res.innerText = "";
+                // Habilitamos seleccion de rol visualmente (pero el boton sigue disabled hasta elegir rol)
+            }).getTeamTeammates(voter); // Reutilizamos esta fn para obtener el ID del equipo
+        } 
+        else {
+            // MODO FACCION: Buscamos bando y companeros
+            document.getElementById('tournamentSection').style.display = 'none';
+            document.getElementById('factionSection').style.display = 'block';
+            
+            google.script.run.withSuccessHandler(function(data) {
+                if (data.error) { res.innerText = " " + data.error; return; }
+                
+                let badgeClass = data.team === 'HEXTECH' ? 'hex' : 'chem';
+                teamDisp.innerHTML = `<span class="team-badge ${badgeClass}">FACCION ${data.team}</span>`;
+                
+                const candSel = document.getElementById('candidateFaction');
+                candSel.innerHTML = '';
+                data.candidates.forEach(c => {
+                    let opt = document.createElement('option');
+                    opt.value = c; opt.text = c; candSel.add(opt);
+                });
+                
+                document.getElementById('btnVote').disabled = false;
+                res.innerText = "";
+            }).getTeammatesForVoting(voter);
+        }
+      }
+
+      // 3. SELECCION DE ROL (Visual)
+      function selectRole(role, btn) {
+          document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          document.getElementById('selectedRoleTournament').value = role;
+          document.getElementById('btnVote').disabled = false;
+      }
+
+      // 4. ENVIAR DATOS (Compra)
+      function submitVote() {
+        const voter = document.getElementById('voter').value;
+        const mode = document.getElementById('mode').value;
+        const btn = document.getElementById('btnVote');
+        const res = document.getElementById('result');
+        
+        let itemID = '';
+        let extraData = '';
+
+        if (mode === 'TOURNAMENT') {
+            const role = document.getElementById('selectedRoleTournament').value;
+            if (!role) { res.innerText = " Selecciona una posicion."; return; }
+            
+            // IMPORTANTE: Este ID debe coincidir con SHOP_ITEMS
+            itemID = 'TEAM_ROLE_VOTE'; 
+            // Enviamos SOLO el rol (ej: "TOP")
+            extraData = role; 
+        } else {
+            const candidate = document.getElementById('candidateFaction').value;
+            const roleVoted = document.getElementById('roleFaction').value;
+            if (!candidate) { res.innerText = " Elige un candidato."; return; }
+            
+            itemID = 'VOTE_BALLOT';
+            // Enviamos "ROL|CANDIDATO"
+            extraData = roleVoted + "|" + candidate; 
+        }
+
+        btn.disabled = true;
+        btn.innerText = "PROCESANDO...";
+        res.innerText = "";
+        
+        google.script.run.withSuccessHandler(function(response) {
+          if (response.success) {
+             res.style.color = "#10b981";
+             res.innerText = " " + response.msg;
+             btn.innerText = "!HECHO!";
+             setTimeout(() => google.script.host.close(), 2500);
+          } else {
+             res.style.color = "#ef4444";
+             res.innerText = " " + response.msg;
+             btn.disabled = false;
+             btn.innerText = "REINTENTAR";
+          }
+        }).buyShopItem(voter, itemID, extraData);
+      }
+    </script>
+  </body>
+</html>

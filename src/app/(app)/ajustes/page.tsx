@@ -17,6 +17,8 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { BorrarCuenta } from "@/components/BorrarCuenta";
+import { registroLibre } from "@/lib/ajustesExtraDb";
+import { cambiarRegistroLibre } from "@/actions";
 import { isOwner } from "@/lib/auth";
 import { saveArchetypeParents } from "@/actions";
 import { completarRondasLimitless, importarTorneosLimitless, sincronizarSeriesAhora } from "@/actions";
@@ -53,6 +55,7 @@ export default async function SettingsPage() {
   const estDc = estadoDiscord();
   const discord = { resultados: estDc.canales.resultados !== "sinVariable", liga: estDc.canales.liga !== "sinVariable", agenda: estDc.canales.agenda !== "sinVariable" };
   const invites = manager ? await loadInvites() : [];
+  const libre = manager ? await registroLibre() : false; // v0.135
   const eloScope = asEloScope(snap.config.eloScope);
   const emails: Record<string, string> = manager ? await loadPlayerEmails() : {};
   // Lo importado de los Regionales va aparte del snapshot: crece más deprisa
@@ -177,6 +180,19 @@ export default async function SettingsPage() {
               asustaba con razón y no era verdad: cada enlace es de UN uso por defecto,
               caduca a los 14 días y se puede anular. Ahora lo dice. */}
           <Grupo id="invitaciones" titulo={tr(lng, "x.4b1f6ef2")} aside={tr(lng, "aj.invitaAside")}>
+          {/* v0.135 — registro libre: cualquiera crea cuenta desde /registro, sin invitación. Solo el dueño. */}
+          <div id="acceso" className="card mb-3 flex flex-wrap items-center gap-3 p-4 scroll-mt-24">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{tr(lng, libre ? "v135.libreOn" : "v135.libreOff")}</p>
+              <p className="text-xs text-muted">{tr(lng, "v135.libreAyuda")}</p>
+            </div>
+            {owner && (
+              <form action={cambiarRegistroLibre}>
+                <input type="hidden" name="abrir" value={libre ? "0" : "1"} />
+                <button className={`btn btn-sm ${libre ? "" : "btn-brand"}`} type="submit">{tr(lng, libre ? "v135.cerrar" : "v135.abrir")}</button>
+              </form>
+            )}
+          </div>
           <InviteManager invites={invites} />
 
           </Grupo>

@@ -36,7 +36,8 @@ import { DiscordMarca } from "@/components/DiscordMarca";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
 import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig, torneosSinResultadoDe } from "@/lib/data";
-import { avisosDe } from "@/lib/avisos";
+import { avisosDe, esCuentaNueva } from "@/lib/avisos";
+import { nombreOficialDe } from "@/lib/nombreOficialDb";
 import { resetReciente, tocaRecordarLadder } from "@/lib/recordatorios";
 import { leerLogros } from "@/lib/logros";
 import type { Lang } from "@/lib/i18n";
@@ -64,13 +65,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      tira. El título del perfil, que es lo único caro, va aparte y no bloquea
      (`TituloBarra`, en un <Suspense>). */
   const pid = session.playerId;
-  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga, sinResultado] = await Promise.all([
+  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga, sinResultado, miNombreOficial] = await Promise.all([
     currentPlayer(), loadConfig(), getLang(), cookies(),
     estadoTutoriales(pid), // v0.60 y v0.61, en una consulta
     cargarPendientesDe(pid), // v0.54 — mis partidas sin resultado: el número del menú.
     usoLigeroDeJugador(pid, null), // v0.94 — los logros se cuentan abajo, con la fila del jugador
     avisoLigaPara(pid), // v0.116 — la inscripción a la liga, si no te has apuntado
     torneosSinResultadoDe(pid), // v0.131 — dijiste «iré» y no hay resultado
+    nombreOficialDe(pid), // v0.135 — para el aviso de completar el perfil
   ]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
@@ -88,6 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     resetLadder: me.ladderElo == null && resetReciente(cfg.ladderSince, ahoraMs),
     ladderToca: tocaRecordarLadder(me.ladderEloUpdatedAt, null, ahoraMs),
     inscripcion: avisoLiga, faltaNick: !(me.limitlessHandle ?? "").trim(),
+    faltaOficial: !miNombreOficial, cuentaNueva: esCuentaNueva(me.joined, ahoraMs),
   }).length;
   const campana = (
     <Link href="/avisos" className="campana" aria-label={nAvisos ? `${tr(lang, "v131.avisos")}: ${nAvisos}` : tr(lang, "v131.avisos")} title={tr(lang, "v131.avisos")}>

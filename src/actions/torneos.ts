@@ -30,6 +30,7 @@ import {
 import { saveMatch } from "./partidas";
 import { notificarResultadosTorneo } from "@/lib/discord";
 import { guardarDireccion } from "@/lib/torneoDireccionDb";
+import { buscarDuplicado } from "@/lib/duplicados";
 
 export async function saveTournament(fd: FormData) {
   const actor = await requireActor();
@@ -101,6 +102,19 @@ export async function saveTournament(fd: FormData) {
   // los botones del ciclo (`setTournamentStatus`), porque cerrar un torneo es
   // una decisión, no un campo más que se guarda sin darte cuenta.
   const status = editing ? undefined : pick(fd, "status", TOURNAMENT_STATUSES, "open");
+
+  /* v0.135 — NO CREAR DUPLICADOS. Si ya hay un torneo ese día, de la misma
+     familia y con la misma tienda en el nombre o la sede (ver `lib/duplicados`),
+     no se crea otro: se abre el que había. Lo más habitual es que ya estuviera
+     del calendario. Si de verdad es otro, «crearIgual» lo fuerza. */
+  if (!editing && str(fd, "crearIgual") !== "1") {
+    const delDia = await db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind, venue: tournaments.venue, organizer: tournaments.organizer })
+      .from(tournaments).where(eq(tournaments.date, values.date));
+    const ya = buscarDuplicado({ id: "", name: values.name, date: values.date, kind: values.kind, venue: values.venue, organizer: values.organizer }, delDia);
+    if (ya) {
+      redirect(withFlash(`/torneos/${ya.id}`, "error", `Ya existía «${ya.name}» ese día: te lo abro en vez de crear otro igual. Si de verdad es otro torneo, créalo marcando «Es otro torneo distinto».`));
+    }
+  }
 
   const id = editing || newId("t");
   if (editing) {
@@ -877,3 +891,62 @@ export async function importarTorneosLimitless(fd: FormData) {
   redirect(withFlash("/ajustes", "ok",
     `${r.mirados} torneos online mirados (${dias} días): ${r.nuevos} nuevo(s), ${r.actualizados} ya conocido(s), ${r.resultados} resultado(s) nuevo(s), ${r.rondas} ronda(s) nueva(s)${r.rondasSinMazo ? ` (${r.rondasSinMazo} sin mazo rival identificado)` : ""}.${pendientes}`));
 }
+
+/**
+ * v0.135 — FUSIONAR dos torneos que son el mismo (duplicados). Solo
+ * organizadores. Se queda `conservar` y se le pasa todo lo de `quitar`:
+ *   · los resultados (si alguien está en los dos, manda el del que se conserva);
+ *   · las rondas (si una choca con otra del mismo jugador y número, se pierde
+ *     la del que se quita: el que se conserva manda);
+ *   · los «iré», los eventos del calendario y la dirección;
+ *   · los datos que le falten (asistencia, rondas, corte, sede, ciudad, hora).
+ * Después se borra el que sobra y se recalculan los CP.
+ */
+export async function fusionarTorneos(fd: FormData) {
+  await requireManager();
+  const keepId = str(fd, "conservar"), dropId = str(fd, "quitar");
+  if (!keepId || !dropId || keepId === dropId) return;
+  const [keep] = await db.select().from(tournaments).where(eq(tournaments.id, keepId));
+  const [drop] = await db.select().from(tournaments).where(eq(tournaments.id, dropId));
+  if (!keep || !drop) return redirect(withFlash("/torneos/duplicados", "error", "Uno de los dos torneos ya no existe."));
+
+  // Resultados.
+  const yaEstan = new Set((await db.select({ p: tournamentResults.playerId }).from(tournamentResults).where(eq(tournamentResults.tournamentId, keepId))).map((r) => r.p));
+  const susResultados = await db.select({ id: tournamentResults.id, p: tournamentResults.playerId }).from(tournamentResults).where(eq(tournamentResults.tournamentId, dropId));
+  for (const r of susResultados) {
+    if (!yaEstan.has(r.p)) await db.update(tournamentResults).set({ tournamentId: keepId }).where(eq(tournamentResults.id, r.id));
+  }
+  // Rondas: las que no chocan pasan; las que chocan se borran (si no, al borrar el torneo se quedarían sueltas como amistosos).
+  const ocupadas = new Set((await db.select({ p: matches.playerAId, r: matches.round }).from(matches).where(eq(matches.tournamentId, keepId))).map((m) => `${m.p}:${m.r}`));
+  const susRondas = await db.select({ id: matches.id, p: matches.playerAId, r: matches.round }).from(matches).where(eq(matches.tournamentId, dropId));
+  let perdidas = 0;
+  for (const m of susRondas) {
+    if (ocupadas.has(`${m.p}:${m.r}`)) { await db.delete(matches).where(eq(matches.id, m.id)); perdidas++; }
+    else { await db.update(matches).set({ tournamentId: keepId }).where(eq(matches.id, m.id)); ocupadas.add(`${m.p}:${m.r}`); }
+  }
+  // «Iré», calendario y dirección: con try/catch, por si alguna tabla aún no está migrada.
+  const intentos: Array<() => Promise<unknown>> = [
+    () => db.execute(sql`UPDATE asistencias a SET item = ${"torneo:" + keepId} WHERE a.item = ${"torneo:" + dropId}
+      AND NOT EXISTS (SELECT 1 FROM asistencias b WHERE b.player_id = a.player_id AND b.item = ${"torneo:" + keepId})`),
+    () => db.execute(sql`DELETE FROM asistencias WHERE item = ${"torneo:" + dropId}`),
+    () => db.update(events).set({ tournamentId: keepId }).where(eq(events.tournamentId, dropId)),
+    () => db.execute(sql`UPDATE tournament_direcciones SET tournament_id = ${keepId} WHERE tournament_id = ${dropId}
+      AND NOT EXISTS (SELECT 1 FROM tournament_direcciones WHERE tournament_id = ${keepId})`),
+  ];
+  for (const paso of intentos) { try { await paso(); } catch (e) { console.warn("[fusionar]", e instanceof Error ? e.message : e); } }
+  // Lo que le falte al que se queda.
+  const relleno: Partial<typeof tournaments.$inferInsert> = {};
+  if (keep.playerCount == null && drop.playerCount != null) relleno.playerCount = drop.playerCount;
+  if (keep.rounds == null && drop.rounds != null) relleno.rounds = drop.rounds;
+  if (keep.topCut == null && drop.topCut != null) relleno.topCut = drop.topCut;
+  if (!keep.venue && drop.venue) relleno.venue = drop.venue;
+  if (!keep.city && drop.city) relleno.city = drop.city;
+  if (!keep.startTime && drop.startTime) relleno.startTime = drop.startTime;
+  if (!keep.url && drop.url) relleno.url = drop.url;
+  if (Object.keys(relleno).length) await db.update(tournaments).set(relleno).where(eq(tournaments.id, keepId));
+  await db.delete(tournaments).where(eq(tournaments.id, dropId));
+  await recalcTournamentCp(keepId, { kind: cpKindOf(keep), playerCount: relleno.playerCount ?? keep.playerCount, season: keep.season ?? seasonOfDate(keep.date) ?? undefined });
+  refresh();
+  redirect(withFlash("/torneos/duplicados", "ok", `Fusionados en «${keep.name}».${perdidas ? ` ${perdidas} ronda(s) repetida(s) del otro se han descartado.` : ""}`));
+}
+

@@ -1,33 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { DeckOption } from "@/lib/types";
-import { DECK_GROUP_LABEL } from "@/lib/types";
-import { spriteUrl } from "@/lib/pokemon";
-import { Icon } from "./icons";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
 
 /* =========================================================================
    Elegir mazo.
 
-   Sustituye al `<select>` de toda la vida, y no por capricho: con sesenta
-   arquetipos en la lista, el desplegable nativo del móvil es una columna de
-   texto de sesenta filas que hay que leer entera. Aquí se ve el sprite —que
-   es como de verdad reconoces un mazo— y se puede escribir para filtrar.
+   v0.135 — REHECHO: SE ESCRIBE Y FILTRA, Y SIN ICONOS. La versión anterior
+   abría un panel (en el móvil, una hoja arriba de la pantalla) con sprites y,
+   dentro, un buscador. Con cien mazos y el teclado del móvil abierto era
+   imposible de usar (dicho por Ibai el 24/11). Ahora:
 
-   Tres decisiones que conviene no deshacer:
-
-   · **El valor viaja en un `<input type="hidden">`.** El componente es un
-     adorno encima de un campo de formulario normal, así que sigue funcionando
-     dentro de un `<form action={serverAction}>` sin más.
-   · **El buscador solo aparece si hay de sobra.** Con ocho mazos, una caja de
-     búsqueda es ruido; con sesenta, es lo único que salva la pantalla.
-   · **Agrupado por procedencia, no alfabético.** Tus favoritos primero. El
-     orden lo pone `deckOptions()` en el servidor y aquí se respeta.
-
-   Cierra al elegir, al tocar fuera y con Escape. No hay más estado que el
-   panel abierto y el texto del filtro.
+   · El control ES una caja de texto. Al escribir, debajo sale una lista de
+     nombres que se va filtrando (primero los que empiezan así). Un toque elige.
+   · Sin escribir, salen los primeros de la lista tal y como los ordena el
+     servidor (`deckOptions()`): tus favoritos y tus mazos primero.
+   · Lo elegido se ve como una línea con «Cambiar». Enter elige el primero.
+   · El valor sigue viajando en un `<input type="hidden">`, así que funciona
+     igual dentro de cualquier `<form action={serverAction}>`. Mismas props que
+     antes: nadie que lo use tiene que cambiar.
    ========================================================================= */
 
 type Props = {
@@ -41,228 +34,117 @@ type Props = {
   /** Bloqueado: se ve lo elegido pero no se puede cambiar. */
   locked?: boolean;
   lockedReason?: string;
-  /** A partir de cuántas opciones aparece el buscador. */
+  /** Ya no se usa (el buscador está siempre): se acepta para no romper a quien lo pase. */
   searchFrom?: number;
   onChange?: (value: string) => void;
 };
 
+const plano = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 export function DeckPicker({
   name, options, defaultValue, emptyLabel = "— sin anotar —",
-  placeholder = "Elegir mazo", id, locked = false, lockedReason, searchFrom = 8, onChange,
+  placeholder = "Elegir mazo", id, locked = false, lockedReason, onChange,
 }: Props) {
   const lng = useLang(); // v0.49: SIEMPRE la primera línea
 
   const [value, setValue] = useState(defaultValue ?? "");
-  const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const boxRef = useRef<HTMLDivElement>(null);
-  const listaRef = useRef<HTMLDivElement>(null);
-  /* v0.71 — al abrir la lista, que se vea entera. En el móvil, con el teclado
-     abierto y la barra de abajo, el desplegable del tercer mazo quedaba por
-     debajo de lo visible y no se podía elegir. */
-  /* v0.87 — en el MÓVIL (pantalla táctil) la lista se abre como una HOJA fija
-     arriba de lo visible, del alto que deja el teclado. En iPhone, con el
-     teclado abierto, la lista que colgaba del botón quedaba tapada por el
-     teclado y por la barra de abajo y no se podía elegir. En escritorio, igual
-     que siempre. */
-  const [hoja, setHoja] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const tactil = window.matchMedia("(pointer: coarse)").matches;
-    setHoja(tactil);
-    if (!tactil) {
-      const t = setTimeout(() => listaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
-      return () => clearTimeout(t);
-    }
-    const vv = window.visualViewport;
-    const ajustar = () => {
-      const raiz = document.documentElement.style;
-      raiz.setProperty("--vv-h", `${Math.round(vv?.height ?? window.innerHeight)}px`);
-      raiz.setProperty("--vv-top", `${Math.round(vv?.offsetTop ?? 0)}px`);
-    };
-    ajustar();
-    vv?.addEventListener("resize", ajustar);
-    vv?.addEventListener("scroll", ajustar);
-    document.body.classList.add("hoja-abierta");
-    return () => {
-      vv?.removeEventListener("resize", ajustar);
-      vv?.removeEventListener("scroll", ajustar);
-      document.body.classList.remove("hoja-abierta");
-    };
-  }, [open]);
-
+  const [abierta, setAbierta] = useState(false);
+  const caja = useRef<HTMLInputElement>(null);
   const selected = options.find((o) => o.id === value);
-  const showSearch = options.length >= searchFrom;
 
-  const groups = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const match = (o: DeckOption) =>
-      !needle
-      || o.name.toLowerCase().includes(needle)
-      || o.archetypeName.toLowerCase().includes(needle)
-      || o.main.includes(needle)
-      || o.secondary.includes(needle);
-
-    const out = new Map<DeckOption["group"], DeckOption[]>();
-    for (const o of options) {
-      if (!match(o)) continue;
-      const list = out.get(o.group);
-      if (list) list.push(o);
-      else out.set(o.group, [o]);
-    }
-    return [...out.entries()];
+  const filas = useMemo(() => {
+    const n = plano(q);
+    if (!n) return options.slice(0, 12);
+    const texto = (o: DeckOption) => plano(`${o.name} ${o.archetypeName} ${o.main} ${o.secondary}`);
+    const empiezan = options.filter((o) => plano(o.name).startsWith(n) || plano(o.archetypeName).startsWith(n));
+    const resto = options.filter((o) => !empiezan.includes(o) && texto(o).includes(n));
+    return [...empiezan, ...resto].slice(0, 40);
   }, [options, q]);
-
-  const total = groups.reduce((a, [, list]) => a + list.length, 0);
 
   const choose = (next: string) => {
     setValue(next);
     onChange?.(next);
-    setOpen(false);
     setQ("");
+    setAbierta(false);
+    caja.current?.blur();
   };
 
-  // Cerrar al tocar fuera. Un listener suelto en `document` sería más caro de
-  // limpiar; con onBlur del contenedor basta, porque el panel está dentro.
-  const onBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    const target = e.relatedTarget as Node | null;
-    // Safari táctil puede no indicar destino al tocar una opción; no desmontar antes de su click.
-    if (target && !boxRef.current?.contains(target)) setOpen(false);
-  };
+  if (locked) {
+    return (
+      <div>
+        <input type="hidden" name={name} value={value} />
+        <div id={id} className="input w-full justify-start text-left opacity-70">
+          <span className="truncate text-[15px] font-semibold">{selected ? selected.name : <span className="font-normal text-muted">{placeholder}</span>}</span>
+        </div>
+        {lockedReason && <p className="mt-1 text-xs text-muted">{lockedReason}</p>}
+      </div>
+    );
+  }
 
   return (
-    <div className="relative" ref={boxRef} onBlur={onBlur}>
+    <div className="relative">
       <input type="hidden" name={name} value={value} />
-
-      <button
-        type="button"
-        id={id}
-        className="input w-full justify-start gap-2.5 text-left disabled:opacity-70"
-        disabled={locked}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-      >
-        <DeckSprite option={selected} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold leading-tight">
-            {selected ? selected.name : <span className="font-normal text-muted">{placeholder}</span>}
+      {selected && !abierta ? (
+        <div className="input w-full justify-between gap-2 text-left">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-semibold leading-tight">{selected.name}</span>
+            {selected.archetypeName && selected.archetypeName !== selected.name && (
+              <span className="block truncate text-[11px] text-muted">{selected.archetypeName}</span>
+            )}
           </span>
-          {selected?.archetypeName && selected.archetypeName !== selected.name && (
-            <span className="block truncate text-[11px] text-muted">{selected.archetypeName}</span>
-          )}
-        </span>
-        {!locked && <Icon name="more" className="size-4 flex-none text-muted" />}
-      </button>
-
-      {locked && lockedReason && (
-        <p className="mt-1 text-xs text-muted">{lockedReason}</p>
-      )}
-
-      {open && !locked && hoja && (
-        // El fondo de la hoja: tocarlo cierra (está dentro del contenedor, así que no dispara el onBlur).
-        <button type="button" aria-label={tr(lng, "dp.cerrar")} className="deck-hoja-fondo" onClick={() => setOpen(false)} />
-      )}
-      {open && !locked && (
-        <div
-          ref={listaRef}
-          data-hoja={hoja}
-          className="deck-lista absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-xl border border-line
-                     bg-surface shadow-lg"
-          role="listbox"
-        >
-          {showSearch && (
-            <div className="border-b border-line-soft p-2">
-              {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-              {/* v0.87 — `type="search"` y sin nada que suene a «nombre»: así Safari
-                  (iPhone) no saca la barra «Autorrellenar contacto». */}
-              <input
-                type="search"
-                enterKeyHint="search"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                data-1p-ignore
-                data-lpignore="true"
-                className="input h-10 min-h-10 w-full text-sm"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-                placeholder={tr(lng, "x.96ef04d1")}
-                autoFocus
-                autoComplete="off"
-                aria-label={tr(lng, "x.07cebc85")}
-              />
-            </div>
-          )}
-
-          <div className="deck-scroll max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain">
-            {emptyLabel && !q && (
-              <button
-                type="button" role="option" aria-selected={value === ""}
-                className="tap w-full justify-start px-3 text-sm text-muted hover:bg-surface-2"
-                onClick={() => choose("")}
-              >
-                {emptyLabel}
-              </button>
-            )}
-
-            {total === 0 && (
-              <p className="px-3 py-6 text-center text-sm text-muted">
-                Nada con «{q}». Puedes crearlo desde Mazos.
-              </p>
-            )}
-
-            {groups.map(([group, list]) => (
-              <div key={group}>
-                <p className="sticky top-0 bg-surface-2 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-muted">
-                  {DECK_GROUP_LABEL[group]}
-                </p>
-                {list.map((o) => (
-                  <button
-                    key={o.id}
-                    type="button" role="option" aria-selected={o.id === value}
-                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2
-                      ${o.id === value ? "bg-surface-2" : ""}`}
-                    onClick={() => choose(o.id)}
-                  >
-                    <DeckSprite option={o} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold leading-tight">{o.name}</span>
-                      <span className="block truncate text-[11px] text-muted">
+          <button type="button" id={id} className="flex-none text-sm font-semibold text-info"
+            onClick={() => { setAbierta(true); setTimeout(() => caja.current?.focus(), 0); }}>
+            {tr(lng, "v135.cambiar")}
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* `type="search"` y sin nada que suene a «nombre»: así Safari no saca «Autorrellenar contacto». */}
+          <input
+            ref={caja} id={selected ? undefined : id}
+            type="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+            data-1p-ignore data-lpignore="true"
+            className="input w-full"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setAbierta(true); }}
+            onFocus={(e) => { setAbierta(true); const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 250); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && filas[0]) { e.preventDefault(); choose(filas[0].id); }
+              if (e.key === "Escape") { setAbierta(false); setQ(""); }
+            }}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            aria-expanded={abierta}
+            role="combobox"
+            aria-controls={`${name}-lista`}
+          />
+          {abierta && (
+            <ul id={`${name}-lista`} role="listbox" className="deck-lista-texto mt-1">
+              {emptyLabel && !q && (
+                <li><button type="button" role="option" aria-selected={value === ""} className="text-muted" onClick={() => choose("")}>{emptyLabel}</button></li>
+              )}
+              {filas.map((o) => (
+                <li key={o.id}>
+                  <button type="button" role="option" aria-selected={o.id === value} onClick={() => choose(o.id)}>
+                    <span className="block truncate font-semibold">{o.name}</span>
+                    {(o.archetypeName !== o.name || o.ownerName) && (
+                      <span className="block truncate text-[11px] font-normal text-muted">
                         {o.archetypeName !== o.name ? o.archetypeName : ""}
                         {o.ownerName ? `${o.archetypeName !== o.name ? " · " : ""}de ${o.ownerName}` : ""}
                       </span>
-                    </span>
-                    {o.hasList && (
-                      <span className="chip flex-none text-[10px]">{tr(lng, "x.22d01cec")}</span>
                     )}
                   </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+                </li>
+              ))}
+              {filas.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted">{tr(lng, "v135.nadaCon")} «{q}»</li>}
+            </ul>
+          )}
+          {abierta && selected && (
+            <button type="button" className="mt-1 text-sm text-muted underline" onClick={() => { setAbierta(false); setQ(""); }}>{tr(lng, "v125.cancelar")}</button>
+          )}
+        </>
       )}
     </div>
   );
 }
-
-/** Los uno o dos Pokémon del mazo, en pequeño. */
-function DeckSprite({ option }: { option?: DeckOption }) {
-  if (!option?.main) {
-    return <span className="size-8 flex-none rounded-md border border-dashed border-line" aria-hidden="true" />;
-  }
-  return (
-    <span className="flex size-8 flex-none items-center justify-center" aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={spriteUrl(option.main)} alt="" className="size-8 object-contain" loading="lazy" />
-      {option.secondary && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={spriteUrl(option.secondary)} alt="" className="-ml-3.5 size-6 object-contain" loading="lazy" />
-      )}
-    </span>
-  );
-}
-

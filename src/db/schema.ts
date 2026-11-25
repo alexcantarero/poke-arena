@@ -397,6 +397,13 @@ export const playerNombresOficiales = pgTable("player_nombres_oficiales", {
   nombre: text("nombre").notNull(),
 });
 
+/** v0.135 — Ajustes sueltos clave → valor (migración 0037). Tabla aparte, como las
+    de la v0.124: sin migrar, la app funciona con los valores por defecto. */
+export const ajustesExtra = pgTable("ajustes_extra", {
+  clave: text("clave").primaryKey(),
+  valor: text("valor").notNull().default(""),
+});
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      body { background-color: #0f172a; color: #f0e6d2; font-family: 'Roboto', sans-serif; padding: 20px; text-align: center; border: 2px solid #334155; }
+      h2 { color: #c8aa6e; margin-top: 0; font-family: 'Oswald', sans-serif; letter-spacing: 1px; }
+      select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #475569; background-color: #1e293b; color: white; font-size: 16px; outline: none; }
+      button { background: linear-gradient(to bottom, #1e293b, #0f172a); border: 2px solid #c8aa6e; color: #c8aa6e; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: 'Oswald'; letter-spacing: 1px; }
+      button:hover { background: #c8aa6e; color: #0f172a; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+      .status { font-size: 14px; margin-top: 10px; min-height: 20px; font-weight: bold; }
+      
+      .team-badge { font-weight: bold; padding: 8px 15px; border-radius: 4px; display: inline-block; margin-bottom: 20px; font-size: 14px; letter-spacing: 1px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+      .hex { background-color: #0984e3; color: white; border: 1px solid #74b9ff; }
+      .chem { background-color: #6ab04c; color: white; border: 1px solid #badc58; }
+      .tournament { background-color: #c8aa6e; color: #000; border: 1px solid #f0e6d2; }
+
+      label { display: block; text-align: left; margin-bottom: 5px; font-size: 13px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+
+    <h2 id="pageTitle">🗳️ URNA ELECTORAL</h2>
+    
+    <input type="hidden" id="mode" value="<?= mode ?>">
+
+    <div id="loading" style="color:#aaa; font-style:italic;">Cargando censo...</div>
+
+    <div id="mainForm" style="display:none;">
+        <label>1. IDENTIDAD:</label>
+        <select id="voter" onchange="checkContext()">
+          <option value="" disabled selected>-- Selecciona tu nombre --</option>
+        </select>
+
+        <div id="teamDisplay"></div>
+
+        <div id="factionSection" style="display:none;">
+            <label>2. ROL A VOTAR:</label>
+            <select id="roleFaction">
+                <option value="GENERAL">⭐ GENERAL (Líder)</option>
+                <option value="ESTRATEGA">🧠 ESTRATEGA (Tactician)</option>
+                <option value="TANQUE">🛡️ TANQUE (Escudo)</option>
+            </select>
+
+            <label>3. ELIGE CANDIDATO:</label>
+            <select id="candidateFaction">
+                <option value="" disabled selected>Cargando compañeros...</option>
+            </select>
+        </div>
+
+        <div id="tournamentSection" style="display:none;">
+            <label>2. ELIGE TU POSICIÓN:</label>
+            <select id="roleTournament">
+                <option value="" disabled selected>-- Selecciona Línea --</option>
+                <option value="TOP">🗿 TOP</option>
+                <option value="JUNGLE">🐗🌲 JUNGLA</option>
+                <option value="MIDDLE">🧙🏻♂️ MID</option>
+                <option value="BOTTOM">🏹 ADC (Bot)</option>
+                <option value="SUPPORT">🤱🏻 SUPPORT</option>
+            </select>
+            <p style="font-size:12px; color:#aaa; margin-top:-10px; margin-bottom:15px;">
+                * Asegúrate de que nadie más en tu equipo haya cogido este rol.
+            </p>
+        </div>
+
+        <button id="btnVote" onclick="submitVote()" disabled>CONFIRMAR (1 G)</button>
+    </div>
+
+    <div id="result" class="status"></div>
+
+    <script>
+      // Al cargar, pedimos la lista de TODOS los jugadores posibles
+      window.onload = function() {
+        const mode = document.getElementById('mode').value;
+        
+        // Cambiar titulo y boton segun modo
+        if (mode === 'TOURNAMENT') {
+            document.getElementById('pageTitle').innerText = " CONTRATO DE EQUIPO";
+            document.getElementById('btnVote').innerText = "FIRMAR CONTRATO (50 G)";
+        } else {
+            document.getElementById('pageTitle').innerText = " URNA ELECTORAL";
+            document.getElementById('btnVote').innerText = "CONFIRMAR VOTO (1 G)";
+        }
+
+        google.script.run
+          .withSuccessHandler(fillVoters)
+          .withFailureHandler(showVoteError)
+          .getPlayerList();
+      };
+
+      function showVoteError(error) {
+        console.error('Error cargando el censo:', error);
+        const loading = document.getElementById('loading');
+        loading.style.color = '#e74c3c';
+        loading.innerText = '⚠️ Error al cargar el censo de jugadores. Recarga la página.';
+      }
+
+      function fillVoters(players) {
+        const sel = document.getElementById('voter');
+        sel.innerHTML = '<option value="" disabled selected>-- Selecciona tu nombre --</option>';
+        (players || []).sort().forEach(p => {
+          let opt = document.createElement('option');
+          opt.value = p; opt.text = p; sel.add(opt);
+        });
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('mainForm').style.display = 'block';
+      }
+
+      function checkContext() {
+        const voter = document.getElementById('voter').value;
+        const mode = document.getElementById('mode').value;
+        const res = document.getElementById('result');
+        
+        res.textContent = " Verificando estado...";
+        document.getElementById('btnVote').disabled = true;
+
+        if (mode === 'TOURNAMENT') {
+            // Logica para Torneo
+            document.getElementById('tournamentSection').style.display = 'block';
+            document.getElementById('factionSection').style.display = 'none';
+            
+            // Mostrar equipo del torneo
+            google.script.run.withSuccessHandler(function(data) {
+                if (data.error) { 
+                    res.style.color = "#e74c3c"; res.textContent = " " + data.error; return; 
+                }
+                document.getElementById('teamDisplay').innerHTML = `<span class="team-badge tournament">EQUIPO ${data.teamID}</span>`;
+                document.getElementById('btnVote').disabled = false;
+                res.textContent = "";
+            }).getTeamTeammates(voter);
+        } 
+        else {
+            // Logica para Facciones (Por defecto)
+            document.getElementById('tournamentSection').style.display = 'none';
+            document.getElementById('factionSection').style.display = 'block';
+            
+            google.script.run.withSuccessHandler(function(data) {
+                if (data.error) { res.textContent = " " + data.error; return; }
+                
+                let badgeClass = data.team === 'HEXTECH' ? 'hex' : 'chem';
+                document.getElementById('teamDisplay').innerHTML = `<span class="team-badge ${badgeClass}">FACCION ${data.team}</span>`;
+                
+                const candSel = document.getElementById('candidateFaction');
+                candSel.innerHTML = '';
+                data.candidates.forEach(c => {
+                    let opt = document.createElement('option');
+                    opt.value = c; opt.text = c; candSel.add(opt);
+                });
+                
+                document.getElementById('btnVote').disabled = false;
+                res.textContent = "";
+            }).getTeammatesForVoting(voter);
+        }
+      }
+
+      function submitVote() {
+        const voter = document.getElementById('voter').value;
+        const mode = document.getElementById('mode').value;
+        const btn = document.getElementById('btnVote');
+        const res = document.getElementById('result');
+        
+        let itemID = '';
+        let extraData = '';
+
+        if (mode === 'TOURNAMENT') {
+            const role = document.getElementById('roleTournament').value;
+            if (!role) { res.textContent = " Elige una posicion."; return; }
+            
+            itemID = 'TEAM_ROLE_VOTE';
+            extraData = role; // "TOP", "JUNGLE"...
+        } else {
+            const candidate = document.getElementById('candidateFaction').value;
+            const roleVoted = document.getElementById('roleFaction').value;
+            if (!candidate) { res.textContent = " Elige un candidato."; return; }
+            
+            itemID = 'VOTE_BALLOT';
+            extraData = roleVoted + "|" + candidate; // "GENERAL|Elzorro1"
+        }
+
+        btn.disabled = true;
+        btn.textContent = "PROCESANDO...";
+        res.textContent = "Enviando solicitud...";
+        res.style.color = "#f0e6d2";
+        
+        // Llamada a la funcion unificada de compra
+        google.script.run.withSuccessHandler(function(response) {
+          if (response.success) {
+             res.style.color = "#2ecc71";
+             res.textContent = " " + response.msg;
+             btn.textContent = "!HECHO!";
+             setTimeout(() => google.script.host.close(), 2500);
+          } else {
+             res.style.color = "#e74c3c";
+             res.textContent = " " + response.msg;
+             btn.disabled = false;
+             btn.textContent = "REINTENTAR";
+          }
+        }).buyShopItem(voter, itemID, extraData);
+      }
+    </script>
+  </body>
+</html>

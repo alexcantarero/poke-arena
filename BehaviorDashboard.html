@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Oswald:wght@500&display=swap" rel="stylesheet">
+    <style>
+      :root { --bg-dark: #f0f2f5; --card-bg: #ffffff; --text-main: #1f2937; --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --purple: #8b5cf6; }
+      
+      body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); margin: 0; padding: 20px; color: var(--text-main); }
+      
+      /* Header Styling */
+      .header-box { text-align: center; margin-bottom: 30px; }
+      h2 { font-family: 'Oswald', sans-serif; color: #111827; margin: 0; font-size: 2em; text-transform: uppercase; letter-spacing: 1px; }
+      p.subtitle { color: #6b7280; margin-top: 5px; font-size: 0.95em; }
+      
+      .container { display: flex; gap: 25px; flex-wrap: wrap; justify-content: center; }
+      
+      /* Cards General */
+      .section { flex: 1; min-width: 400px; background: var(--card-bg); border-radius: 16px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
+      .section-title { font-family: 'Oswald', sans-serif; font-size: 1.3em; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: #374151; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; }
+
+      /* --- IZQUIERDA: COINFLIP --- */
+      .cf-header { display: flex; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; font-weight: bold; padding-bottom: 5px; }
+      .cf-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+      .cf-row:last-child { border-bottom: none; }
+      
+      .cf-name { width: 25%; font-weight: 700; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .cf-visual { flex: 1; display: flex; align-items: center; gap: 10px; padding: 0 15px; }
+      
+      /* Barra de progreso custom */
+      .progress-bg { flex: 1; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+      .progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+      
+      .cf-val { width: 40px; font-weight: 800; font-size: 0.9em; text-align: right; color: #4b5563; }
+      .cf-tag { width: 85px; text-align: center; font-size: 0.7em; padding: 4px 0; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 10px; color: white; }
+
+      /* --- DERECHA: CRONOTIPO (REDISEÑADO) --- */
+      .chrono-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+      
+      .chrono-card { 
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; 
+        padding: 15px; position: relative; overflow: hidden; 
+        transition: transform 0.2s;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .chrono-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: var(--success); }
+
+      .cc-header { font-weight: 800; font-size: 1.1em; text-align: center; padding-bottom: 5px; border-bottom: 1px solid #f3f4f6; margin-bottom: 5px; }
+      
+      .cc-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.85em; }
+      .cc-icon { font-size: 1.4em; width: 30px; text-align: center; }
+      .cc-info { display: flex; flex-direction: column; }
+      .cc-label { font-size: 0.75em; color: #9ca3af; text-transform: uppercase; font-weight: bold; }
+      .cc-time { font-weight: bold; color: #1f2937; }
+      
+      .badge { padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
+      .badge-good { background: #d1fae5; color: #065f46; } /* Verde claro */
+      .badge-bad { background: #fee2e2; color: #991b1b; } /* Rojo claro */
+
+      .loader { text-align: center; padding: 50px; font-size: 1.2em; color: var(--purple); font-weight: bold; animation: pulse 1.5s infinite; }
+      @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+  </head>
+  <body>
+    <div class="header-box">
+      <h2>🧠 Análisis de Comportamiento</h2>
+      <p class="subtitle">Descifrando patrones: Volatilidad y Horarios Biológicos.</p>
+    </div>
+    
+    <div id="loader" class="loader">Procesando datos de partidas...</div>
+
+    <div id="main" class="container" style="display:none">
+      
+      <div class="section">
+        <div class="section-title">
+          <span>📉 Índice Coinflip (Volatilidad)</span>
+        </div>
+        <div class="cf-header">
+            <span style="width:25%">Jugador</span>
+            <span style="flex:1; padding-left:15px">Estabilidad vs Locura</span>
+            <span style="width:40px; text-align:right">Val</span>
+            <span style="width:95px; text-align:center">Estado</span>
+        </div>
+        <div id="coinflip-list"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">
+          <span>⏰ Cronotipo & Rendimiento</span>
+        </div>
+        <p style="font-size:0.85em; color:#6b7280; margin-bottom:15px;">
+           Horarios donde ganas (Prime) vs donde pierdes (Krypto).
+        </p>
+        <div id="chrono-list" class="chrono-grid"></div>
+      </div>
+
+    </div>
+
+    <script>
+      google.script.run
+        .withSuccessHandler(renderData)
+        .withFailureHandler(showBehaviorError)
+        .getBehaviorData();
+
+      function showBehaviorError(error) {
+        console.error('Error cargando datos de comportamiento:', error);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('main').style.display = 'flex';
+        document.getElementById('main').innerHTML = `<p style="color:red; text-align:center;">⚠️ Error al cargar los datos: ${error && error.message ? error.message : error}</p>`;
+      }
+
+      function renderData(data) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('main').style.display = 'flex';
+
+        if (!data || data.error) {
+          document.getElementById('main').innerHTML = `<p style="color:red; text-align:center;">${(data && data.error) || 'No se recibieron datos'}</p>`;
+          return;
+        }
+
+        renderCoinflip(data.coinflip || []);
+        renderChrono(data.chrono || []);
+      }
+
+      // --- LOGICA REFINADA PARA COINFLIP ---
+      function renderCoinflip(list) {
+        const container = document.getElementById('coinflip-list');
+        
+        // Calculamos rango para hacer las barras relativas
+        // Asumimos un minimo de 5 para que la barra no sea enorme si todos tienen 6
+        const maxVal = Math.max(...list.map(p => p.volatility), 12); 
+
+        list.forEach(p => {
+          // LOGICA DE CLASIFICACION VISUAL (Sobreescribe al backend si es necesario)
+          // < 9: Roca (Estable)
+          // 9 - 11.5: Coinflip (Variable)
+          // > 11.5: Psiquiatrico (Caos)
+          let tierConfig = { label: "Estable", color: "#10b981" }; // Default Green
+          const v = parseFloat(p.volatility);
+
+          if (v >= 12.0 && v < 19.0) {
+             tierConfig = { label: "Coinflip", color: "#f59e0b" }; // Orange
+          } else if (v >= 19.0) {
+             tierConfig = { label: "Psiquiatrico", color: "#8b5cf6" }; // Purple
+          }
+
+          const width = (v / maxVal) * 100;
+          
+          const html = `
+            <div class="cf-name" title="${p.name}">${p.name}</div>
+            <div class="cf-visual">
+                <div class="progress-bg">
+                    <div class="progress-fill" style="width: ${width}%; background-color: ${tierConfig.color};"></div>
+                </div>
+            </div>
+            <div class="cf-val">${v.toFixed(2)}</div>
+            <div class="cf-tag" style="background-color:${tierConfig.color}">${tierConfig.label}</div>
+          `;
+          
+          const row = document.createElement('div');
+          row.className = 'cf-row';
+          row.innerHTML = html;
+          container.appendChild(row);
+        });
+      }
+
+      // --- LOGICA REFINADA PARA CRONOTIPO ---
+      function renderChrono(list) {
+        const container = document.getElementById('chrono-list');
+        
+        // Mapa de iconos para hacerlo mas visual
+        const icons = {
+            'Manana': '🌅',
+            'Tarde': '🌆',
+            'Noche': '🌙',
+            'Madrugada': '🌌'
+        };
+
+        list.forEach(p => {
+          // Limpiamos strings para obtener iconos
+          const primeIcon = icons[p.primeTime.split(' ')[0]] || '';
+          const kryptoIcon = icons[p.kryptonite.split(' ')[0]] || '';
+
+          const card = document.createElement('div');
+          card.className = 'chrono-card';
+          
+          card.innerHTML = `
+            <div class="cc-header">${p.name}</div>
+            
+            <div class="cc-row" style="margin-bottom:8px;">
+                <div class="cc-icon">${primeIcon}</div>
+                <div class="cc-info">
+                    <span class="cc-label" style="color:#059669">PRIME TIME</span>
+                    <span class="cc-time">${p.primeTime}</span>
+                </div>
+                <div class="badge badge-good">${p.primeWR}%</div>
+            </div>
+
+            <div class="cc-row" style="border-top:1px dashed #e5e7eb; padding-top:8px;">
+                <div class="cc-icon" style="filter:grayscale(100%) opacity(0.7)">${kryptoIcon}</div>
+                <div class="cc-info">
+                    <span class="cc-label" style="color:#dc2626">NO JUGAR</span>
+                    <span class="cc-time">${p.kryptonite}</span>
+                </div>
+                <div class="badge badge-bad">${p.kryptoniteWR}%</div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+    </script>
+  </body>
+</html>

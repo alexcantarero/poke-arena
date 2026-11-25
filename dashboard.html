@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      .loader { border-top-color: #3498db; -webkit-animation: spin 1s linear infinite; animation: spin 1s linear infinite; }
+      @-webkit-keyframes spin { 0% { -webkit-transform: rotate(0deg); } 100% { -webkit-transform: rotate(360deg); } }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      
+      .tooltip { position: relative; cursor: help; text-decoration: underline; text-decoration-style: dotted; }
+      .tooltip .tooltiptext { visibility: hidden; width: 300px; background-color: #1f2937; color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 50; bottom: 125%; left: 50%; margin-left: -150px; opacity: 0; transition: opacity 0.3s; font-size: 0.8rem; border: 1px solid #4b5563; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
+      .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-200 font-sans p-4 sm:p-8">
+
+    <div class="container mx-auto max-w-7xl">
+      
+      <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+        <div>
+          <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            ANÁLISIS DE JUGADOR
+          </h1>
+          <p class="text-gray-400 text-sm mt-1">Estadísticas detalladas y evolución</p>
+        </div>
+        
+        <div class="flex items-center mt-4 md:mt-0 gap-4">
+          <div class="relative">
+            <select id="player-select" class="appearance-none bg-gray-900 text-white border border-gray-600 rounded-lg px-4 py-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold w-64">
+              <option value="">Cargando jugadores...</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+              <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+            </div>
+          </div>
+          <div id="loader" class="loader ease-linear rounded-full border-4 border-t-4 border-gray-600 h-10 w-10 hidden"></div>
+        </div>
+      </div>
+
+      <div id="dashboard-content" class="hidden space-y-8">
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-green-500 shadow-md col-span-2 lg:col-span-1 transition-transform transform hover:-translate-y-1">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">Puntos Actuales</div>
+            <div id="summ-points" class="text-3xl font-bold text-white mt-1">0</div>
+            <div id="summ-tier" class="text-xs font-bold mt-1 text-gray-400">UNRANKED</div>
+          </div>
+          
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500 shadow-md transition-transform transform hover:-translate-y-1">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">Win Rate</div>
+            <div id="summ-wr" class="text-3xl font-bold text-white mt-1">0%</div>
+            <div id="summ-record" class="text-xs text-gray-400 mt-1">0V - 0D</div>
+          </div>
+          
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-yellow-500 shadow-md transition-transform transform hover:-translate-y-1">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">KDA Ratio</div>
+            <div id="summ-kda" class="text-3xl font-bold text-white mt-1">0.0</div>
+            <div id="summ-avg-kda" class="text-xs text-gray-400 mt-1">0 / 0 / 0</div>
+          </div>
+          
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-purple-500 shadow-md transition-transform transform hover:-translate-y-1">
+             <div class="text-xs text-gray-400 uppercase tracking-wider">Media Pts/Game</div>
+             <div id="summ-avg-pts" class="text-3xl font-bold text-white mt-1">0.0</div>
+             <div class="text-xs text-gray-500 mt-1">Rendimiento</div>
+          </div>
+          
+           <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-pink-500 shadow-md transition-transform transform hover:-translate-y-1">
+             <div class="text-xs text-gray-400 uppercase tracking-wider">Champion Pool</div>
+             <div id="summ-pool" class="text-3xl font-bold text-white mt-1">0</div>
+             <div class="text-xs text-gray-500 mt-1">Únicos jugados</div>
+          </div>
+
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-red-500 shadow-md transition-transform transform hover:-translate-y-1">
+             <div class="text-xs text-gray-400 uppercase tracking-wider">Racha Actual</div>
+             <div id="summ-streak" class="text-3xl font-bold text-white mt-1">-</div>
+             <div class="text-xs text-gray-500 mt-1">Partidas</div>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-end mt-4 mb-2 border-b border-gray-700 pb-2">
+            <h3 class="text-lg font-bold text-white">Estadísticas de Combate y Macro</h3>
+            <span id="active-role-filter" class="text-xs font-bold px-3 py-1 bg-gray-700 text-gray-300 rounded cursor-pointer transition-colors duration-200 shadow hover:bg-gray-600" onclick="updateAllStatsUI('ALL')" title="Haz click para quitar filtros">VISTA GLOBAL</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="bg-gray-800 p-4 rounded-lg border-l-4 shadow-md transition-transform transform hover:-translate-y-1" style="border-color: #f1c40f;">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">GPM Medio</div>
+                <div id="dash-gpm" class="text-3xl font-bold text-white mt-1">0</div>
+                <div class="text-xs text-gray-500 mt-1">💰 Oro / Min</div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg border-l-4 shadow-md transition-transform transform hover:-translate-y-1" style="border-color: #badc58;">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">CS Medio</div>
+                <div id="dash-cs" class="text-3xl font-bold text-white mt-1">0.0</div>
+                <div class="text-xs text-gray-500 mt-1">🌾 Minions / Min</div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg border-l-4 shadow-md transition-transform transform hover:-translate-y-1" style="border-color: #e74c3c;">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">DPM Medio</div>
+                <div id="dash-dpm" class="text-3xl font-bold text-white mt-1">0</div>
+                <div class="text-xs text-gray-500 mt-1">⚔️ Daño / Min</div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg border-l-4 shadow-md transition-transform transform hover:-translate-y-1" style="border-color: #b588ff;">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">Visión Media</div>
+                <div id="dash-vspm" class="text-3xl font-bold text-white mt-1">0.00</div>
+                <div class="text-xs text-gray-500 mt-1">👁️ Wards / Min</div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg border-l-4 shadow-md transition-transform transform hover:-translate-y-1" style="border-color: #e67e22;">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">Daño Torres</div>
+                <div id="dash-turrets" class="text-3xl font-bold text-white mt-1">0</div>
+                <div class="text-xs text-gray-500 mt-1">🗼 Daño Medio</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           <div class="bg-gray-800 p-6 rounded-lg shadow-lg lg:col-span-2 border border-gray-700">
+              <h3 class="text-lg font-bold text-white mb-4 border-b border-gray-700 pb-2">📈 Evolución de Rendimiento (Puntos por Partida)</h3>
+              <div class="h-64 w-full">
+                 <canvas id="pointsChart"></canvas>
+              </div>
+           </div>
+           
+           <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 relative">
+              <h3 class="text-lg font-bold text-white mb-4 border-b border-gray-700 pb-2">🛡️ Roles (Haz clic para filtrar)</h3>
+              <div class="h-64 w-full flex justify-center">
+                 <canvas id="rolesChart"></canvas>
+              </div>
+           </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="bg-gray-800 p-6 rounded-lg shadow-lg lg:col-span-2 border border-gray-700">
+            <h3 class="text-lg font-bold text-white mb-4">📜 Historial de Partidas</h3>
+            <div class="overflow-auto max-h-96">
+              <table class="w-full text-sm text-left text-gray-400">
+                <thead class="text-xs text-gray-200 uppercase bg-gray-700 sticky top-0 z-10">
+                  <tr>
+                    <th class="px-4 py-3">Fecha</th>
+                    <th class="px-4 py-3">Champ</th>
+                    <th class="px-4 py-3">KDA</th>
+                    <th class="px-4 py-3">Pts</th>
+                    <th class="px-4 py-3 text-center">Detalles</th>
+                  </tr>
+                </thead>
+                <tbody id="matches-body" class="divide-y divide-gray-700"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <h3 class="text-lg font-bold text-white mb-4">🏆 Top Campeones</h3>
+            <div class="overflow-auto max-h-96">
+               <table class="w-full text-sm text-left text-gray-400">
+                <thead class="text-xs text-gray-200 uppercase bg-gray-700 sticky top-0 z-10">
+                  <tr>
+                    <th class="px-3 py-2">Champ</th>
+                    <th class="px-3 py-2 text-center">Win%</th>
+                    <th class="px-3 py-2 text-center">KDA</th>
+                  </tr>
+                </thead>
+                <tbody id="champs-body" class="divide-y divide-gray-700"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <div class="mt-10 text-center text-gray-600 text-sm">
+         SoloQ Challenge Analytics • v9.0 Pro
+      </div>
+
+    </div>
+
+    <script>
+      let charts = {}; 
+      let globalStatsMap = {}; // Memoria para cambiar de rol al hacer click
+
+      window.onload = function() {
+        console.log("Dashboard: Iniciando carga de jugadores...");
+        google.script.run
+          .withSuccessHandler(fillPlayers)
+          .withFailureHandler(function(err) {
+             console.error("Error al cargar lista:", err);
+             document.getElementById('player-select').innerHTML = '<option>Error al cargar</option>';
+          })
+          .getPlayerList();
+      };
+
+      function fillPlayers(list) {
+        const sel = document.getElementById('player-select');
+        sel.innerHTML = '<option value="">-- Selecciona Jugador --</option>';
+        if (!list || list.length === 0) {
+            sel.innerHTML = '<option>No hay jugadores</option>';
+            return;
+        }
+        list.forEach(p => {
+           const playerName = p.name || p; 
+           const playerRank = p.rank ? ` [${p.rank}]` : '';
+           let opt = document.createElement('option');
+           opt.value = playerName; 
+           opt.innerText = playerName + playerRank;
+           sel.appendChild(opt);
+        });
+        sel.addEventListener('change', loadData);
+      }
+
+      function loadData() {
+         const player = this.value;
+         if(!player) return;
+         
+         document.getElementById('loader').classList.remove('hidden');
+         document.getElementById('dashboard-content').classList.add('hidden');
+
+         google.script.run
+           .withSuccessHandler(renderDashboard)
+           .withFailureHandler(function(err) {
+              document.getElementById('loader').classList.add('hidden');
+              alert("Error cargando analiticas: " + err.message);
+           })
+           .getPlayerAnalytics(player);
+      }
+
+      function renderDashboard(data) {
+         document.getElementById('loader').classList.add('hidden');
+         if(data.error) { alert(data.error); return; }
+         
+         document.getElementById('dashboard-content').classList.remove('hidden');
+         
+         // 1. Guardar el mapa de datos completo en memoria
+         globalStatsMap = data.statsMap;
+
+         // 2. Inicializar la vista en 'ALL' (Global)
+         updateAllStatsUI('ALL');
+
+         // 3. Pintar el grafico de Roles (Este no cambia al filtrar)
+         renderDoughnutChart(data.roleChartData);
+         
+         // 4. Tablas 
+         google.script.run
+           .withSuccessHandler(renderTables)
+           .withFailureHandler(function(err) {
+              console.error("Error en tablas:", err);
+           })
+           .getPlayerData(document.getElementById('player-select').value);
+      }
+
+      //  LA MAGIA OCURRE AQUI: Esta funcion actualiza TODA la pantalla
+      function updateAllStatsUI(roleKey) {
+         const s = globalStatsMap[roleKey] || globalStatsMap['ALL'];
+         if (!s) return;
+
+         // Fila 1: Stats Basicas
+         document.getElementById('summ-points').innerText = s.points;
+         document.getElementById('summ-points').style.color = Number(s.points) >= 0 ? '#4ade80' : '#f87171';
+         document.getElementById('summ-tier').innerText = s.tier;
+         
+         document.getElementById('summ-wr').innerText = s.winRate;
+         document.getElementById('summ-wr').className = `text-3xl font-bold mt-1 ${parseInt(s.winRate) >= 50 ? 'text-blue-400' : 'text-red-400'}`;
+         document.getElementById('summ-record').innerText = s.record;
+         
+         document.getElementById('summ-kda').innerText = s.kdaRatio;
+         document.getElementById('summ-avg-kda').innerText = s.avgKDA;
+         
+         document.getElementById('summ-avg-pts').innerText = s.avgPts;
+         document.getElementById('summ-pool').innerText = s.uniqueChamps;
+         
+         // Racha
+         const streakEl = document.getElementById('summ-streak');
+         if (s.streak > 0) {
+            streakEl.innerHTML = ` ${s.streak}V`;
+            streakEl.className = "text-3xl font-bold mt-1 text-orange-500";
+         } else if (s.streak < 0) {
+            streakEl.innerHTML = ` ${Math.abs(s.streak)}D`;
+            streakEl.className = "text-3xl font-bold mt-1 text-blue-400";
+         } else {
+            streakEl.innerText = "-";
+            streakEl.className = "text-3xl font-bold mt-1 text-gray-400";
+         }
+
+         // Fila 2: Stats Avanzadas
+         document.getElementById('dash-gpm').innerText = s.gpm;
+         document.getElementById('dash-cs').innerText = s.cs;
+         document.getElementById('dash-dpm').innerText = s.dpm;
+         document.getElementById('dash-vspm').innerText = s.vspm;
+         document.getElementById('dash-turrets').innerText = s.turrets;
+
+         // Etiqueta Visual del Filtro
+         const filterBadge = document.getElementById('active-role-filter');
+         if (roleKey === 'ALL') {
+             filterBadge.innerText = "VISTA GLOBAL";
+             filterBadge.className = "text-xs font-bold px-3 py-1 bg-gray-700 text-gray-300 rounded cursor-pointer hover:bg-gray-600 transition-colors duration-200 shadow";
+         } else {
+             filterBadge.innerText = "FILTRO ACTIVO: " + roleKey;
+             filterBadge.className = "text-xs font-bold px-3 py-1 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-500 transition-colors duration-200 shadow-lg ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-900";
+         }
+
+         // Redibujar el grafico de evolucion con los datos SOLO de este rol
+         renderLineChart(s.chartData);
+      }
+
+      function renderTables(data) {
+         if(!data || !data.matches) return;
+         
+         const mBody = document.getElementById('matches-body');
+         mBody.innerHTML = "";
+         data.matches.forEach(m => {
+            let ptsColor = m.points >= 0 ? 'text-green-300' : 'text-red-300';
+            let row = `
+               <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700">
+                  <td class="px-4 py-3 font-medium text-white whitespace-nowrap">${m.date.split(' ')[0]}</td>
+                  <td class="px-4 py-3"><div class="font-bold text-white">${m.champion}</div></td>
+                  <td class="px-4 py-3">${m.kda}</td>
+                  <td class="px-4 py-3 font-bold ${ptsColor}">${parseFloat(m.points).toFixed(1)}</td>
+                  <td class="px-4 py-3 text-center">
+                     <div class="tooltip text-blue-400 text-xs">Notas
+                        <span class="tooltiptext">${m.notes || 'Sin notas'}</span>
+                     </div>
+                  </td>
+               </tr>
+            `;
+            mBody.innerHTML += row;
+         });
+
+         const cBody = document.getElementById('champs-body');
+         cBody.innerHTML = "";
+         data.championStats.slice(0, 10).forEach(c => {
+            let wrVal = parseInt(c.winRate);
+            let wrColor = wrVal >= 50 ? 'text-green-400' : 'text-red-400';
+            cBody.innerHTML += `
+               <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700">
+                  <td class="px-3 py-2 font-bold text-white">${c.champion}</td>
+                  <td class="px-3 py-2 text-center ${wrColor}">${c.winRate} <span class="text-xs text-gray-500">(${c.played})</span></td>
+                  <td class="px-3 py-2 text-center text-xs">${c.avgKda}</td>
+               </tr>
+            `;
+         });
+      }
+
+      function renderLineChart(dataPoints) {
+         if(!dataPoints) return;
+         const ctx = document.getElementById('pointsChart').getContext('2d');
+         if(charts.line) charts.line.destroy();
+         
+         charts.line = new Chart(ctx, {
+            type: 'line',
+            data: {
+               labels: dataPoints.map(d => formatDate(d.x)),
+               datasets: [{
+                  label: 'Puntos Acumulados',
+                  data: dataPoints.map(d => d.y),
+                  borderColor: '#3b82f6',
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  borderWidth: 3, pointRadius: 2, tension: 0.4, fill: true
+               }]
+            },
+            options: {
+               responsive: true, maintainAspectRatio: false,
+               plugins: { legend: {display: false} },
+               scales: {
+                  y: { grid: {color: '#374151'}, ticks: {color:'#9ca3af'} },
+                  x: { display: false }
+               }
+            }
+         });
+      }
+
+      function renderDoughnutChart(chartData) {
+         if(!chartData) return;
+         const ctx = document.getElementById('rolesChart').getContext('2d');
+         if(charts.donut) charts.donut.destroy();
+
+         charts.donut = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+               labels: chartData.labels,
+               datasets: [{
+                  data: chartData.datasets[0].data,
+                  backgroundColor: chartData.datasets[0].backgroundColor,
+                  borderWidth: 0
+               }]
+            },
+            options: {
+               responsive: true, maintainAspectRatio: false,
+               plugins: { legend: { position: 'right', labels: { color: '#9ca3af', font: {size: 11} } } },
+               //  AL HACER CLIC EN EL ROSCO, LLAMAMOS AL FILTRO
+               onClick: function(event, elements) {
+                   if (elements.length > 0) {
+                       const index = elements[0].index;
+                       const clickedRole = chartData.labels[index];
+                       updateAllStatsUI(clickedRole);
+                   } else {
+                       updateAllStatsUI('ALL');
+                   }
+               },
+               onHover: (event, chartElement) => {
+                   event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+               }
+            }
+         });
+      }
+
+      function formatDate(isoString) {
+         let d = new Date(isoString);
+         return `${d.getDate()}/${d.getMonth()+1}`;
+      }
+    </script>
+  </body>
+</html>

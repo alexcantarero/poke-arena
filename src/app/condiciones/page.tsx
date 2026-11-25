@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { datosLegales, LEGAL_ACTUALIZADO } from "@/lib/legal";
 
-export const metadata = { title: "Condiciones de uso" };
+export const metadata = { title: "Condiciones de uso", robots: { index: true, follow: true } };
 
 /* v0.134 — Condiciones de uso. Pública, como la política de privacidad.
    Es un punto de partida, no asesoramiento jurídico (ver `lib/legal.ts`). */

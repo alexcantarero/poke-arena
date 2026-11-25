@@ -6,10 +6,11 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, matchupImports, metaEntries, metaEvents, players } from "@/db/schema";
+import { archetypes, matchupImports, metaEntries, metaEvents, players, tournamentResults, tournaments } from "@/db/schema";
+import { buscarDuplicado } from "@/lib/duplicados";
 import { parseConversionTH, parseTrainerHill } from "@/lib/trainerHill";
 import { revalidateTag } from "next/cache";
-import { todayISO } from "@/lib/format";
+import { newId, todayISO } from "@/lib/format";
 import { seasonOfDate } from "@/lib/cp";
 import { withFlash } from "@/lib/flash";
 import { recogerCityLeagues, recogerRegionales } from "@/lib/sources/limitlessWeb";
@@ -20,7 +21,7 @@ import { CALENDAR_KINDS } from "@/lib/calendar";
 import { coverageOf, parseStandings, parseSummary, type PasteMode } from "@/lib/standings";
 import {
   str, maybeInt, isoDate, refresh, requireManager, requireActor, pick, firma, resumenImportacion, indiceDeSprites, spritesDe,
-  msj,
+  msj, recalcTournamentCp,
 } from "./_comun";
 
 /* ------------------------------------------- metagame presencial --- */
@@ -428,6 +429,33 @@ export async function apuntarResultadoLocal(fd: FormData) {
     main: arch.main, secondary: arch.secondary ?? "",
     ...(conRecord ? { wins: v ?? 0, losses: d ?? 0, ties: e ?? 0 } : {}),
   });
+  /* v0.135 — «ES MI RESULTADO»: quien se unió a la app con la temporada empezada
+     puede apuntar sus Cups y Challenges de antes. Además de la entrada del meta,
+     se busca el torneo (o se crea, cerrado) y se le pone el resultado: así cuenta
+     para sus CP, su mejor resultado y sus medallas. Si el torneo ya existía (de
+     otro jugador, del calendario…), se reutiliza: no se crea otro igual. */
+  let suyo = "";
+  if (str(fd, "esMio") === "1") {
+    const candidato = { id: "", name: nombre, date: fecha, kind: tipo, venue: tienda };
+    const delDia = await db.select({ id: tournaments.id, name: tournaments.name, date: tournaments.date, kind: tournaments.kind, venue: tournaments.venue, organizer: tournaments.organizer, playerCount: tournaments.playerCount })
+      .from(tournaments).where(eq(tournaments.date, fecha));
+    const existe = buscarDuplicado<(typeof delDia)[number]>(candidato, delDia);
+    const torneoId = existe?.id ?? newId("t");
+    if (!existe) {
+      await db.insert(tournaments).values({
+        id: torneoId, name: nombre.slice(0, 120), kind: tipo, status: "closed", closedAt: new Date(), scope: "onsite",
+        bestOf: tipo === "league_challenge" ? 1 : 3, date: fecha, venue: tienda, organizer: tienda,
+        playerCount: jugadores, season: seasonOfDate(fecha), createdBy: actor.id,
+      });
+    } else if (jugadores != null && existe.playerCount == null) {
+      await db.update(tournaments).set({ playerCount: jugadores }).where(eq(tournaments.id, torneoId));
+    }
+    const resultado = { placement: puesto, archetypeId: arch.id, ...(conRecord ? { wins: v ?? 0, losses: d ?? 0, ties: e ?? 0 } : {}) };
+    await db.insert(tournamentResults).values({ id: newId("tr"), tournamentId: torneoId, playerId: actor.id, ...resultado })
+      .onConflictDoUpdate({ target: [tournamentResults.tournamentId, tournamentResults.playerId], set: resultado });
+    await recalcTournamentCp(torneoId, { kind: tipo, playerCount: existe ? (jugadores ?? existe.playerCount) : jugadores, season: seasonOfDate(fecha) ?? undefined });
+    suyo = existe ? ` Y en tu perfil, en «${existe.name}» (ya existía).` : " Y en tu perfil, con sus CP.";
+  }
   refresh(); revalidateTag("meta");
-  redirect(withFlash("/torneos", "ok", `Apuntado: ${puesto}.º con ${arch.name}${conRecord ? ` (${v ?? 0}-${d ?? 0}-${e ?? 0})` : ""} en ${nombre}.`));
+  redirect(withFlash("/torneos", "ok", `Apuntado: ${puesto}.º con ${arch.name}${conRecord ? ` (${v ?? 0}-${d ?? 0}-${e ?? 0})` : ""} en ${nombre}.${suyo}`));
 }

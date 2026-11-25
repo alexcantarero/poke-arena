@@ -1,0 +1,2969 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wargods Premier</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Oswald:wght@500&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* --- 1. VARIABLES & BASE --- */
+    :root { 
+        --bg-dark: #0f172a; 
+        --bg-panel: #1e293b; 
+        --text-main: #f1f5f9; 
+        --text-muted: #94a3b8; 
+        --accent: #38bdf8; 
+        --green: #10b981; 
+        --red: #ef4444; 
+        --gold: #fbbf24; 
+        --border: #334155; 
+        --forge: #ea580c;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body { 
+        margin: 0; 
+        font-family: 'Inter', sans-serif; 
+        background-color: var(--bg-dark); 
+        color: var(--text-main); 
+        height: 100vh; 
+        display: flex; 
+        flex-direction: column; 
+        overflow: hidden; 
+    }
+
+    /* --- 2. BARRA DE NOTICIAS (NEWS BAR) --- */
+    .news-bar { 
+        background: var(--gold); 
+        color: #000; 
+        height: 30px; 
+        flex-shrink: 0; 
+        display: flex; 
+        align-items: center; 
+        overflow: hidden; 
+        font-weight: bold; 
+        font-size: 0.9em; 
+        z-index: 100; 
+    }
+    .news-label { background: #000; color: var(--gold); padding: 0 15px; height: 100%; display: flex; align-items: center; font-family: 'Oswald'; letter-spacing: 1px; }
+    .marquee-container { flex: 1; overflow: hidden; white-space: nowrap; }
+    .marquee-content { display: inline-block; animation: marquee 60s linear infinite; padding-left: 100%; }
+    @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+    .news-tag { padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-right: 5px; color: white; background: #000; }
+    
+    /* Animación de Alerta (Barra Roja) */
+    @keyframes pulse-red {
+        0% { background-color: #16213e; box-shadow: 0 0 5px #e74c3c; }
+        50% { background-color: #c0392b; box-shadow: 0 0 20px #e74c3c; }
+        100% { background-color: #16213e; box-shadow: 0 0 5px #e74c3c; }
+    }
+
+    /* --- 3. LAYOUT PRINCIPAL (FLEXBOX CORREGIDO) --- */
+    .app-body { 
+        display: flex; 
+        flex: 1; 
+        overflow: hidden; 
+        width: 100%; /* Asegurar ancho total */
+    }
+    
+    /* SIDEBAR IZQUIERDA (Menú) */
+    .sidebar-left { 
+        width: 240px; 
+        background: var(--bg-panel); 
+        border-right: 1px solid var(--border); 
+        padding: 20px; 
+        display: flex; 
+        flex-direction: column; 
+        flex-shrink: 0; /* No encoger nunca */
+    }
+    .brand { font-family: 'Oswald'; font-size: 1.6em; color: var(--accent); margin-bottom: 30px; }
+    
+    .user-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
+    select { width: 100%; background: var(--bg-panel); color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; outline: none; }
+    
+    .nav-item { padding: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 5px; color: var(--text-muted); font-weight: 600; transition: 0.2s; }
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+    .nav-item.active { background: var(--accent); color: #0f172a; }
+
+    /* CONTENIDO PRINCIPAL (Centro) */
+    .main-content { 
+        flex: 1; /* Ocupa el espacio restante */
+        padding: 30px; 
+        overflow-y: auto; 
+        position: relative; 
+        min-width: 0; /* Truco vital para flexbox */
+    }
+    .header-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+    .page-title { font-size: 2em; font-weight: 800; font-family: 'Oswald'; }
+    .wallet-val { font-size: 2.2em; font-weight: 800; color: var(--gold); line-height: 1; }
+
+    /* SIDEBAR DERECHA (Rankings) - CORREGIDO */
+    .sidebar-right { 
+        width: 280px; /* Ancho fijo ligeramente mayor */
+        background: #0c1220; 
+        border-left: 1px solid var(--border); 
+        padding: 20px; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 25px; 
+        overflow-y: auto; 
+        flex-shrink: 0; /* CRUCIAL: No encoger nunca */
+    }
+
+    /* ESTILOS DE RANKING (Sidebar Derecha) */
+    .rank-row { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; /* Centrar verticalmente */
+        padding: 8px 0; 
+        border-bottom: 1px solid #334155; 
+        font-size: 0.9em; 
+    }
+    .rank-pos { 
+        color: var(--gold); 
+        font-weight: bold; 
+        width: 30px; /* Un poco más de espacio */
+        flex-shrink: 0; 
+    }
+    .rank-name { 
+        flex: 1; 
+        font-weight: 600; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        padding-right: 10px;
+    }
+    .rank-val { 
+        color: var(--green); 
+        font-weight: bold; 
+        white-space: nowrap; 
+    }
+
+    /* Estilos Purga Battle Royale */
+    .purge-layout { display: flex; gap: 20px; align-items: flex-start; }
+    
+    .purge-survivors { flex: 2; background: linear-gradient(180deg, #1a0505 0%, #0f172a 100%); border: 1px solid #ef4444; border-radius: 12px; padding: 20px; }
+    
+    .purge-graveyard { flex: 1; background: #0f0f0f; border: 1px solid #333; border-radius: 12px; padding: 20px; max-height: 600px; overflow-y: auto; }
+
+    /* --- AÑADIR ESTO EN TU SECCIÓN CSS --- */
+    .purge-info-header {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        margin-bottom: 25px;
+        font-family: 'Oswald';
+        font-size: 1.2em;
+        color: #fca5a5;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        display: none; /* Se oculta por defecto hasta que cargue datos */
+    }
+    
+    .grave-title { font-family: 'Oswald'; color: #666; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; font-size: 1.2em; }
+    
+    .grave-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #222; opacity: 0.6; transition: 0.3s; }
+    .grave-item:hover { opacity: 1; background: #1a1a1a; }
+    .grave-icon { font-size: 1.2em; filter: grayscale(100%); }
+    .grave-name { font-weight: bold; color: #888; text-decoration: line-through; }
+
+    /* --- 4. COMPONENTES UI --- */
+    
+    /* PESTAÑAS (TABS) */
+    .section { display: none; animation: fadeUp 0.4s ease; }
+    .section.active { display: block; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    /* DASHBOARD WIDGETS */
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .card-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .card-title { font-family:'Oswald'; color:var(--text-muted); margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:5px; font-size:1.1em; }
+    .chart-container { height: 250px; display: flex; justify-content: center; align-items: center; position: relative; }
+    
+    /* KPI (Key Performance Indicators) */
+    .kpi-row { display: flex; justify-content: space-around; margin-bottom: 20px; text-align: center; }
+    .kpi-val { font-size: 1.8em; font-weight: 800; color: var(--text-main); }
+    .kpi-lbl { font-size: 0.8em; color: var(--text-muted); text-transform: uppercase; }
+
+    /* TABLAS ESTÁNDAR */
+    .simple-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    .simple-table th { text-align: left; color: var(--text-muted); padding: 10px; border-bottom: 1px solid var(--border); }
+    .simple-table td { padding: 10px; border-bottom: 1px solid #334155; }
+    
+    /* GRID MERCADO DE VALORES */
+    .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+    .stock-card { background: var(--bg-panel); border-radius: 8px; padding: 15px; border-top: 4px solid #555; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .stock-card:hover { transform: translateY(-4px); }
+    
+    .card-header-flex { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; width: 100%; }
+    .player-name { font-size: 18px; font-weight: bold; margin: 0; max-width: 60%; word-wrap: break-word; text-align: left; }
+    .price-column { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; }
+    .live-badge-mini { background-color: #ff0000; color: white; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 4px; box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); animation: pulseLive 2s infinite; white-space: nowrap; }
+    .stock-price-text { font-size: 18px; font-weight: 800; }
+    @keyframes pulseLive { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+    .btn-row { display: flex; gap: 5px; margin-top: 10px;}
+    .btn { flex: 1; padding: 6px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; font-size: 0.8em; }
+    .buy { background: var(--green); }
+    .sell { background: var(--red); opacity: 0.3; } .sell.active { opacity: 1; }
+
+    /* --- ESTILOS GUERRA DE FACCIONES --- */
+    .war-container {
+        background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 12px; padding: 25px;
+        position: relative; overflow: hidden;
+    }
+    .war-header { text-align: center; margin-bottom: 30px; font-family: 'Oswald'; text-transform: uppercase; }
+    
+    /* Barra de Progreso Dual */
+    .war-bar-wrapper {
+        height: 40px; background: #000; border-radius: 20px; position: relative; overflow: hidden;
+        border: 2px solid #475569; display: flex;
+    }
+    .hex-bar { 
+        height: 100%; background: linear-gradient(90deg, #0984e3, #00cec9); 
+        width: 50%; transition: width 1.5s ease-in-out;
+        display: flex; align-items: center; justify-content: flex-start; padding-left: 15px;
+        color: white; font-weight: bold; font-family: 'Oswald'; text-shadow: 0 0 5px #000;
+    }
+    .chem-bar { 
+        height: 100%; background: linear-gradient(90deg, #badc58, #6ab04c); 
+        flex: 1; /* Ocupa el resto */
+        display: flex; align-items: center; justify-content: flex-end; padding-right: 15px;
+        color: #000; font-weight: bold; font-family: 'Oswald';
+    }
+    .war-midpoint {
+        position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; background: #fff; z-index: 10;
+        box-shadow: 0 0 10px white; transform: translateX(-50%);
+    }
+
+    /* Listas de Miembros */
+    .war-teams { display: flex; gap: 20px; margin-top: 30px; }
+    .team-panel { flex: 1; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; }
+    .team-panel.hex { border-top: 4px solid #0984e3; }
+    .team-panel.chem { border-top: 4px solid #6ab04c; }
+    
+    .soldier-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; font-size: 0.9em; }
+    .soldier-pts { font-weight: bold; }
+    .hex .soldier-pts { color: #00cec9; }
+    .chem .soldier-pts { color: #badc58; }
+
+    /* --- 5. COMPONENTES ESPECÍFICOS --- */
+
+    /* RIVALES */
+    .rivals-grid { display: flex; flex-direction: column; gap: 15px; max-width: 100%; }
+    .rival-card {
+        background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        min-height: 80px; 
+    }
+    .player-side { z-index: 2; flex: 1; }
+    .player-side.left { text-align: left; border-right: 1px solid #333; padding-right: 15px; }
+    .player-side.right { text-align: right; padding-left: 15px; }
+    .rival-name { font-family: 'Oswald'; font-size: 1.4em; color: white; letter-spacing: 1px; }
+    .rival-score { font-size: 1.8em; font-weight: 800; margin-top: 5px; }
+    .score-gain { color: #10b981; text-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+    .score-lose { color: #64748b; }
+    .vs-badge {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        background: #ef4444; color: white; font-weight: 900; font-style: italic;
+        padding: 5px 12px; border-radius: 4px; border: 2px solid #0f172a; z-index: 5;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); font-size: 1.2em;
+    }
+    .rival-bar-bg { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #1e293b; z-index: 1; }
+    .rival-bar-fill { height: 100%; background: #f59e0b; width: 50%; transition: width 1s; opacity: 0.7; }
+    .winning-glow { text-shadow: 0 0 10px #f1c40f; color: #f1c40f; }
+
+    /* MISIONES (MEDALLERO) */
+    .missions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; padding: 20px; }
+    .medal-card { 
+        background: #1e2328; border: 1px solid #3c424b; border-radius: 10px; padding: 20px; 
+        text-align: center; transition: transform 0.3s ease; position: relative; overflow: hidden; 
+        min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .medal-icon { font-size: 60px; margin: 15px 0; line-height: 1; transition: all 0.5s ease; cursor: default; }
+    .medal-card.locked { opacity: 0.7; background: #15171a; border-color: #333; }
+    .medal-card.locked .medal-icon { filter: grayscale(100%) brightness(30%) contrast(80%); opacity: 0.5; transform: scale(0.9); }
+    .medal-card.locked h4 { color: #777; }
+    .medal-card.locked .medal-reward { display: none; }
+    .medal-card.unlocked { border-color: #c8aa6e; box-shadow: 0 0 20px rgba(200, 170, 110, 0.15); background: linear-gradient(145deg, #1e2328, #2c3e50); }
+    .medal-card.unlocked .medal-icon { filter: drop-shadow(0 0 15px rgba(241, 196, 15, 0.8)); transform: scale(1.1); opacity: 1; animation: floatEmoji 3s ease-in-out infinite; }
+    .medal-card.unlocked h4 { color: #f0e6d2; text-shadow: 0 0 5px #c8aa6e; }
+    .mission-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+    .mission-progress-bar { background: #090a0c; height: 6px; border-radius: 3px; margin-top: 10px; position: relative; overflow: hidden; }
+    .mission-progress-fill { background: #0ac8b9; height: 100%; width: 0%; transition: width 1s ease; }
+    .medal-reward { font-size: 12px; color: #f1c40f; margin-top: 8px; font-weight: 800; }
+    @keyframes floatEmoji { 0% { transform: translateY(0px) scale(1.1); } 50% { transform: translateY(-8px) scale(1.2); } 100% { transform: translateY(0px) scale(1.1); } }
+
+    /* TIENDA (NUEVO ESTILO) */
+    .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+    .shop-card {
+        background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 15px; 
+        text-align: center; transition: 0.2s; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .shop-card:hover { transform: translateY(-5px); border-color: var(--gold); box-shadow: 0 5px 15px rgba(251, 191, 36, 0.2); }
+    .shop-icon { font-size: 3em; margin: 10px 0; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+    .shop-name { font-family: 'Oswald'; font-size: 1.2em; color: white; margin-bottom: 5px; }
+    .shop-desc { font-size: 0.85em; color: #94a3b8; margin-bottom: 15px; line-height: 1.4; flex-grow: 1;}
+    .shop-price { color: var(--gold); font-weight: 800; font-size: 1.1em; margin-right: 10px; }
+
+    /* LOADER */
+    .loader-overlay { position: absolute; inset: 0; background: var(--bg-dark); z-index: 50; display: flex; justify-content: center; align-items: center; font-size: 1.2em; color: var(--text-muted); flex-direction: column; }
+
+    /* --- PANTALLAS EXTRA (Login & Command Center) --- */
+    .login-screen, .cmd-screen {
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        z-index: 2000; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        flex-direction: column; 
+        transition: opacity 0.5s ease, visibility 0.5s; /* Añadido visibility */
+    }
+    .login-screen { background-color: var(--bg-dark); }
+    .cmd-screen { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); z-index: 3000; }
+    
+    .login-card {
+        background: var(--bg-panel); padding: 40px; border-radius: 12px;
+        border: 1px solid var(--gold); box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
+        text-align: center; width: 90%; max-width: 400px;
+    }
+    .login-title { font-family: 'Oswald'; font-size: 2.5em; margin-bottom: 10px; color: white; }
+    .login-select {
+        width: 100%; padding: 12px; margin: 20px 0; background: #0f172a;
+        color: white; border: 1px solid #444; border-radius: 5px; font-size: 1.1em;
+    }
+    .login-btn {
+        background: var(--gold); color: black; border: none; padding: 12px 30px;
+        font-weight: bold; font-size: 1.2em; border-radius: 5px; cursor: pointer;
+        width: 100%; transition: 0.2s; font-family: 'Oswald';
+    }
+    .login-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--gold); }
+
+    #appContainer {
+        position: absolute; /* Cambiado de flex/hidden a absolute */
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg-dark); /* Asegurar fondo */
+        z-index: 1; /* Estar por debajo del login/command center al principio */
+    }
+
+    #appContainer.hidden {
+        display: none !important;
+    }
+
+    /* --- EFECTOS DE CLIMA (SKINS) --- */
+    
+    /* Estado: PURGA / BEAR MARKET (Rojo/Lluvia) */
+    body.mood-purge, body.mood-bear {
+        background: radial-gradient(circle at center, #2c0b0e 0%, #000000 100%) !important;
+    }
+    /* Efecto Lluvia (CSS Puro) */
+    .rain {
+        position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+        background: url('https://i.imgur.com/7QjK5gq.png'); /* Imagen PNG de lluvia transparente */
+        animation: rain 1s linear infinite; opacity: 0.3; display: none;
+    }
+    body.mood-purge .rain, body.mood-bear .rain { display: block; }
+
+    /* Estado: BULL MARKET (Dorado/Verde/Brillo) */
+    body.mood-bull {
+        background: radial-gradient(circle at top, #064e3b 0%, #0f172a 80%) !important;
+    }
+    body.mood-bull::after {
+        content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.1), transparent 60%);
+        pointer-events: none; z-index: 0; animation: sunGlow 4s infinite alternate;
+    }
+
+    @keyframes rain { 0% { background-position: 0 0; } 100% { background-position: 10px 100vh; } }
+    @keyframes pulseRedBg { 0% { box-shadow: inset 0 0 50px #000; } 50% { box-shadow: inset 0 0 100px #ef4444; } 100% { box-shadow: inset 0 0 50px #000; } }
+    @keyframes sunGlow { 0% { opacity: 0.3; } 100% { opacity: 0.6; } }
+
+    /* Icono de la Bomba en el perfil */
+    .bomb-badge { 
+        font-size: 1.5em; animation: shake 0.5s infinite; display: inline-block; margin-left: 10px; cursor: help;
+    }
+    @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+
+
+    /* Command Center Styles */
+    .cmd-title { font-family: 'Oswald', sans-serif; font-size: 4em; color: var(--gold); margin: 0; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+    .cmd-subtitle { color: var(--text-muted); font-family: 'Inter', sans-serif; letter-spacing: 4px; margin-bottom: 50px; font-weight: 600; text-transform: uppercase; }
+    /* Contenedor ampliado a 1300px para que quepan 5 tarjetas horizontales */
+        .cmd-grid { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 25px; 
+            max-width: 1300px; 
+            width: 95%; 
+        }
+        
+        /* Flex 1 1 200px permite que se encojan un poco pero mantengan la fila */
+        .cmd-card {
+            flex: 1 1 200px; 
+            max-width: 250px;
+            background: rgba(30, 41, 59, 0.6); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px; 
+            padding: 40px 20px; 
+            text-align: center; 
+            cursor: pointer;
+            transition: all 0.3s ease; 
+            backdrop-filter: blur(10px);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 280px;
+        }
+        .cmd-card:hover { 
+            background: rgba(30, 41, 59, 0.9); 
+            transform: translateY(-10px); 
+            border-color: var(--gold); 
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); 
+        }    
+    /* Efecto especial para la tarjeta de Torneos */
+    .cmd-card.highlight {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(30, 41, 59, 0.6) 100%);
+        border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+    .cmd-card.highlight:hover {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(30, 41, 59, 0.9) 100%);
+        border-color: var(--gold);
+    }
+    
+    .cmd-icon { font-size: 5em; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); transition: transform 0.3s; }
+    .cmd-card:hover .cmd-icon { transform: scale(1.1); }
+    .cmd-card h2 { font-family: 'Oswald', sans-serif; font-size: 1.8em; color: white; margin: 10px 0; }
+    .cmd-card p { color: var(--text-muted); font-size: 0.95em; line-height: 1.5; max-width: 250px; }
+    
+    .fade-out { 
+        opacity: 0; 
+        visibility: hidden; 
+        pointer-events: none; 
+        z-index: -1; /* Enviarlo al fondo */
+    }
+    .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+    /* --- ESTILOS TORNEO DE EQUIPOS --- */
+    .team-card {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .team-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        border-color: #c8aa6e;
+    }
+    .team-header {
+        background: linear-gradient(90deg, #1e293b, #0f172a);
+        padding: 10px 15px;
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 2px solid #c8aa6e;
+    }
+    .team-title { font-family: 'Oswald'; color: #f0e6d2; font-size: 1.1em; }
+    .team-pts { color: #0AC8B9; font-weight: bold; font-family: 'Oswald'; }
+
+    .role-row {
+        display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #1e293b; font-size: 0.9em;
+    }
+    .role-icon { width: 24px; text-align: center; opacity: 0.7; font-size: 1.1em; }
+    .role-info { flex-grow: 1; margin-left: 10px; display: flex; justify-content: space-between; }
+    .role-name { font-weight: 600; color: #e2e8f0; }
+    .role-score-val { color: #0AC8B9; font-weight: bold; font-size: 0.9em; }
+    .role-empty { color: #475569; font-style: italic; }
+    
+    .bench-box {
+        background: rgba(239, 68, 68, 0.05);
+        padding: 10px;
+        color: #94a3b8;
+        font-size: 0.8em;
+        text-align: center;
+        border-top: 1px solid #334155;
+    }
+
+    /* Estilos botones de rol en votación */
+.role-btn { 
+    background: #1e2328; border: 1px solid #444; color: #aaa; 
+    padding: 10px; font-size: 0.9em; transition: 0.2s; 
+}
+.role-btn:hover { border-color: #c8aa6e; color: white; }
+.role-btn.selected { 
+    background: #c8aa6e; color: #000; border-color: #f0e6d2; 
+    font-weight: bold; box-shadow: 0 0 10px rgba(200,170,110,0.4); 
+}
+
+/* --- ESTILOS DEL BRACKET DE TORNEO --- */
+.bracket-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    padding: 40px 20px;
+    overflow-x: auto;
+}
+
+.bracket-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: 40px; /* Espacio entre partidos de la misma ronda */
+}
+
+.bracket-title {
+    color: #c8aa6e;
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+}
+
+/* Tarjeta del Partido */
+.match-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left: 4px solid #c8aa6e; /* Borde dorado a la izquierda */
+    border-radius: 4px;
+    width: 280px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    position: relative;
+}
+
+/* Líneas conectoras (Efecto Visual) */
+.bracket-column:first-child .match-card::after {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    width: 20px;
+    height: 2px;
+    background: #334155;
+}
+
+.team-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 15px;
+    border-bottom: 1px solid #1e293b;
+    align-items: center;
+}
+
+.team-row:last-child { border-bottom: none; }
+
+.team-row.winner {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.1), transparent);
+}
+
+.team-row.winner .t-score { color: #10b981; font-weight: bold; }
+.team-row.loser .t-score { color: #ef4444; }
+
+.t-name { font-weight: 600; color: #f1f5f9; display: flex; align-items: center; gap: 8px;}
+.t-score { font-family: monospace; font-size: 1.1em; color: #94a3b8; }
+
+/* Corona para el campeón */
+.crown-icon { display:none; }
+.winner .crown-icon { display:inline-block; }
+
+/* Estado Final */
+.final-card {
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+    transform: scale(1.1); /* La final se ve más grande */
+}
+
+.season-ghost-filter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.2; /* CASI INVISIBLE POR DEFECTO */
+            transition: all 0.3s ease;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+
+        /* AL PASAR EL RATÓN SE ILUMINA */
+.season-ghost-filter:hover {
+            opacity: 1;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--gold);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+
+.season-ghost-filter label {
+            font-family: 'Oswald';
+            color: #ccc;
+            font-size: 0.8em;
+            letter-spacing: 1px;
+            cursor: default;
+        }
+
+.season-ghost-filter select {
+            background: transparent;
+            color: var(--gold);
+            border: none;
+            font-family: 'Oswald';
+            font-size: 1em;
+            cursor: pointer;
+            outline: none;
+            font-weight: bold;
+        }
+        
+.season-ghost-filter select option {
+            background: #0f172a;
+            color: white;
+        }
+/* --- ESTILOS DE LA FORJA --- */
+.forge-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.inventory-panel { flex: 1; min-width: 300px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--forge); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 30px rgba(234, 88, 12, 0.1); }
+.recipes-panel { flex: 2; min-width: 400px; display: flex; flex-direction: column; gap: 15px; }
+.mats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px; margin-top: 20px; }
+.mat-card { background: #0b0f19; border: 1px solid #334155; border-radius: 8px; padding: 15px 5px; text-align: center; transition: 0.3s; position: relative; }
+.mat-card:hover { border-color: var(--forge); box-shadow: 0 0 15px rgba(234, 88, 12, 0.4); transform: translateY(-3px); }
+.mat-icon { font-size: 2.2em; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); margin-bottom: 5px; }
+.mat-count { font-size: 1.5em; font-family: 'Oswald'; color: var(--gold); font-weight: bold; text-shadow: 1px 1px 3px #000; }
+.mat-name { font-size: 0.7em; color: #94a3b8; text-transform: uppercase; margin-top: 5px; line-height: 1.2; word-wrap: break-word;}
+.recipe-card { background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%); border: 1px solid var(--border); border-left: 4px solid var(--forge); border-radius: 8px; padding: 20px; display: flex; align-items: center; justify-content: space-between;box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.3s; position: relative; overflow: hidden;}
+.recipe-card:hover { box-shadow: 0 0 20px rgba(234, 88, 12, 0.2); border-color: var(--forge); }
+.recipe-info { display: flex; align-items: center; gap: 20px; z-index: 2;}
+.r-icon { font-size: 3em; background: #000; padding: 15px; border-radius: 50%; border: 2px solid var(--forge); box-shadow: 0 0 15px rgba(234, 88, 12, 0.5);}
+.r-details h3 { font-family: 'Oswald'; margin: 0 0 8px 0; font-size: 1.5em; color: #fff; letter-spacing: 1px;}
+.req-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.req-badge { background: #0f172a; padding: 6px 10px; border-radius: 6px; font-size: 0.8em; font-weight: bold; border: 1px solid #334155; display: flex; align-items: center; gap: 5px;}
+.req-badge.has-it { border-color: #10b981; color: #10b981; background: rgba(16, 185, 129, 0.1); }
+.req-badge.needs-it { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+.btn-forge { background: linear-gradient(45deg, #ea580c, #c2410c); color: #fff; border: none; padding: 12px 25px; font-family: 'Oswald'; font-size: 1.1em; letter-spacing: 1px; border-radius: 6px; cursor: pointer; transition: 0.3s; text-transform:uppercase; box-shadow: 0 4px 15px rgba(234, 88, 12, 0.4); z-index: 2;}
+.btn-forge:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 20px rgba(234, 88, 12, 0.8); }
+.btn-forge:disabled { background: #1e293b; color: #64748b; cursor: not-allowed; border: 1px solid #334155; box-shadow: none; }        
+
+  </style>
+</head>
+
+<body>
+  <div id="commandCenter" class="cmd-screen">
+
+    <div class="season-ghost-filter" style="position: absolute; top: 25px; right: 30px; z-index: 100; display: flex; align-items: center; gap: 10px; background: rgba(15, 23, 42, 0.6); padding: 5px 12px; border-radius: 6px; border: 1px solid #334155;">
+        <label style="font-family: 'Oswald'; color: #64748b; font-size: 0.8em; letter-spacing: 1px;">ARCHIVO:</label>
+        <select id="globalSeasonSelect" onchange="app.setGlobalSeason(this.value)" style="background: transparent; color: #fbbf24; border: none; font-family: 'Oswald'; font-size: 1.1em; cursor: pointer; outline: none; font-weight: bold;">
+            <option value="CURRENT" style="background:#0f172a">⚡ ACT</option>
+            <option value="S1" style="background:#0f172a">📜 S1</option>
+            <option value="ALL" style="background:#0f172a">🌍 ALL</option>
+        </select>
+    </div>
+    <div class="cmd-title">WARGODS PREMIER</div>
+    <div class="cmd-subtitle">Centro de Mando</div>
+
+    <div class="cmd-grid">
+        <div class="cmd-card" onclick="goToMarket()">
+            <div class="cmd-icon">🏰</div> <h2>EVENTS</h2>
+            <p>Bolsa, Inversiones, Tienda y Misiones.</p>
+        </div>
+        <div class="cmd-card" onclick="goToRanking()">
+            <div class="cmd-icon">🏆</div> <h2>RANKING</h2>
+            <p>Clasificación oficial, medallas y estadísticas.</p>
+        </div>
+        <div class="cmd-card" onclick="goToGlobalHistory()">
+            <div class="cmd-icon">📜</div> <h2>HISTORIAL</h2>
+            <p>Ver todas las partidas registradas en el servidor.</p>
+        </div>
+        <div class="cmd-card" onclick="goToGraphics()">
+            <div class="cmd-icon">📊</div> <h2>CENTRO DE DATOS</h2>
+            <p>Analíticas, Sinergias, Inspector y Gráficos Globales.</p>
+        </div>
+
+        <div class="cmd-card highlight" onclick="goToTournaments()">
+            <div class="cmd-icon">⚔️</div> <h2 style="color: var(--gold);">LIGAS Y TORNEOS</h2>
+            <p>Creación de ligas, brackets y enfrentamientos.</p>
+        </div>
+    </div>
+  </div>
+
+
+  <div id="loginOverlay" class="login-screen" style="display:none;">
+    <div class="login-card">
+        <div class="login-title">SOLOQ <span style="color:var(--gold)">PRO</span></div>
+        <p style="color:var(--text-muted)">Identifícate para acceder al mercado</p>
+        <div id="loginLoader">Cargando usuarios...</div>
+        <div id="loginForm" class="hidden">
+            <select id="initialUserSelect" class="login-select">
+                <option value="" disabled selected>-- Selecciona tu nombre --</option>
+            </select>
+            <button class="login-btn" onclick="app.enterApp()">ENTRAR AL MERCADO</button>
+        </div>
+        <div style="margin-top:15px; font-size:0.8em; color:#666; cursor:pointer; text-decoration:underline;" onclick="backToCommand()">« Volver al Centro de Mando</div>
+    </div>
+  </div>
+
+  <div id="appContainer" class="hidden">      
+      <div class="news-bar">
+        <div class="news-label">NEWS</div>
+        <div class="marquee-container">
+          <div class="marquee-content" id="newsTicker">Conectando con el mercado...</div>
+        </div>
+      </div>
+
+      <div class="app-body">
+        <div class="sidebar-left">
+          <div class="brand">SOLOQ <span style="color:white">PRO</span></div>
+          <div class="user-box">
+            <span style="font-size:0.7em; color:#aaa">OPERANDO COMO</span>
+            <select id="userSelect" onchange="app.changeUser()"></select>
+          </div>
+          <div class="nav-item active" onclick="app.nav('dashboard', this)">📊 Portafolio</div>
+          <div class="nav-item" onclick="app.nav('market', this)">🌍 Mercado</div>
+          <div class="nav-item" onclick="app.nav('shop', this)">🛒 Tienda</div>
+          <div class="nav-item" onclick="app.nav('rivals', this)">⚔️ Rivales</div>
+          <div class="nav-item" onclick="app.nav('war', this)" style="border: 1px solid #0984e3;">🏴☠️ Facciones</div>
+          <div class="nav-item" onclick="app.nav('tournament', this)" style="border: 1px solid #c8aa6e; color: #c8aa6e;">⚔️ Torneo</div>
+          <div class="nav-item" onclick="app.nav('purge', this)" style="color:#ef4444; border:1px solid #ef444433;">☠️ La Purga</div>
+          <div class="nav-item" onclick="app.nav('forge', this)" style="color:var(--forge); border:1px solid #ea580c33;">🌋 La Forja</div>
+          <div class="nav-item" onclick="app.nav('missions', this)">🎖️ Misiones</div>
+          <div class="nav-item" onclick="app.nav('history', this)">📜 Historial</div>
+          <div class="nav-item" style="margin-top: auto; border: 1px solid var(--border);" onclick="window.location.href='?p=ranking'">↩ Ranking</div>
+        </div>
+
+        <div class="main-content">
+          <div class="header-info">
+            <h1 class="page-title" id="pageTitle">Resumen de Cuenta</h1>
+            <div style="text-align:right">
+              <div class="wallet-val" id="walletDisplay">---</div>
+              <div style="font-size:0.8em; color:#aaa; text-transform:uppercase">Liquidez Disponible</div>
+            </div>
+          </div>
+
+          <div id="tab-dashboard" class="section active">
+            <div class="dashboard-grid">
+               <div class="card-panel">
+                  <div class="card-title">DIVERSIFICACIÓN</div>
+                  <div class="chart-container"><canvas id="portfolioChart"></canvas></div>
+               </div>
+               <div class="card-panel" style="display:flex; flex-direction:column;">
+                  <div class="card-title">ESTADO FINANCIERO</div>
+                  <div class="kpi-row">
+                     <div>
+                        <div class="kpi-lbl">Patrimonio Neto</div>
+                        <div class="kpi-val" id="netWorthDisplay">---</div>
+                     </div>
+                     <div>
+                        <div class="kpi-lbl">Acciones</div>
+                        <div class="kpi-val" id="totalSharesDisplay">0</div>
+                     </div>
+                  </div>
+                  <div style="flex:1; position:relative; min-height:150px;"><canvas id="netWorthChart"></canvas></div>
+               </div>
+            </div>
+
+            <div class="card-panel">
+              <div class="card-title" style="color:var(--accent)">RENDIMIENTO DE ACTIVOS</div>
+              <table class="simple-table">
+                <thead><tr><th>ACTIVO</th><th>CANT.</th><th>COMPRA (AVG)</th><th>PRECIO ACT.</th><th>VALOR TOTAL</th><th>P/L (%)</th><th>ACCIÓN</th></tr></thead>
+                <tbody id="portfolioTableBody"></tbody>
+              </table>
+            </div>
+
+            <div class="card-panel" style="margin-top:20px; border-color:#8b5cf6;">
+              <div class="card-title" style="color:#8b5cf6">MIS PATROCINIOS ACTIVOS 🤝</div>
+              <table class="simple-table">
+                <thead><tr><th>JUGADOR</th><th>INVERSIÓN</th><th>ESTADO</th></tr></thead>
+                <tbody id="sponsorTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="tab-war" class="section" style="display:none;">
+              <div class="war-container">
+                  <div class="war-header">
+                      <h1 style="font-size: 2.5em; margin: 0; letter-spacing: 2px;">GUERRA DE FACCIONES 🏴☠️</h1>
+                      <div style="color: #94a3b8; font-size: 0.9em; margin-top: 5px;">HEXTECH (AZUL) VS CHEMTECH (VERDE)</div>
+                  </div>
+
+                  <div id="dailyMissionBox" style="
+                      background: rgba(15, 23, 42, 0.6); 
+                      border-left: 4px solid var(--gold); 
+                      border-radius: 4px; 
+                      padding: 15px; 
+                      margin-bottom: 25px; 
+                      display: flex; 
+                      justify-content: space-between; 
+                      align-items: center; 
+                      box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                      
+                      <div>
+                          <div style="font-family:'Oswald'; color:var(--text-muted); font-size:0.9em; letter-spacing:1px; text-transform:uppercase;">
+                              📅 ESCARAMUZA DE HOY
+                          </div>
+                          <div id="dailyMissionTitle" style="font-family:'Oswald'; font-size:1.6em; color:white; text-shadow:0 0 10px rgba(255,255,255,0.2);">
+                              Cargando...
+                          </div>
+                          <div id="dailyMissionDesc" style="color:#94a3b8; font-size:0.95em; margin-top:2px;">
+                              ...
+                          </div>
+                      </div>
+                      <div id="dailyMissionIcon" style="font-size:3em; filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.3));">
+                          ⏳
+                      </div>
+                  </div>
+
+                  <div class="war-bar-wrapper">
+                      <div class="war-midpoint"></div>
+                      <div id="hexBar" class="hex-bar" style="width: 50%;">HEXTECH 0</div>
+                      <div id="chemBar" class="chem-bar">CHEMTECH 0</div>
+                  </div>
+
+                  <div class="war-teams">
+                      <div class="team-panel hex">
+                          <h3 style="color:#0984e3; margin-top:0;">💎 FUERZAS HEXTECH 🔬</h3>
+                          <div id="hexMembersList">Cargando tropas...</div>
+                      </div>
+                      <div class="team-panel chem">
+                          <h3 style="color:#6ab04c; margin-top:0;">🧪 FUERZAS CHEMTECH 🐀</h3>
+                          <div id="chemMembersList">Cargando tropas...</div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div id="tab-tournament" class="section" style="display:none;">
+              <div class="war-container" style="border-color: #c8aa6e;">
+                  
+                  <div class="war-header" style="border-bottom: 2px solid #c8aa6e; padding-bottom: 20px; margin-bottom: 20px;">
+                      <h1 style="font-size: 3em; margin: 0; letter-spacing: 4px; color: #c8aa6e; text-shadow: 0 0 15px rgba(200, 170, 110, 0.3);">
+                          GRIETA DE LOS INVOCADORES
+                      </h1>
+                      <div style="color: #94a3b8; font-size: 1.1em; margin-top: 10px; letter-spacing: 1px;">
+                          TORNEO DE 5 VS 5
+                      </div>
+                      
+                      <div id="tb-phase-badge" style="display:inline-block; margin-top: 15px; padding: 5px 15px; background: #111; color: #888; border: 1px solid #444; border-radius: 4px; font-weight: bold;">
+                          CARGANDO ESTADO...
+                      </div>
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 30px;">
+                      <p id="tb-instructions" style="margin: 0; color: #aaa; font-style: italic;">
+                          Conectando con el servidor...
+                      </p>
+                      <button onclick="loadTeamBattleData()" style="background: #c8aa6e; color: #000; border: none; padding: 8px 20px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                          ↻ ACTUALIZAR
+                      </button>
+                  </div>
+
+                  <div id="teams-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px;"></div>
+                  
+                  <div id="tournament-bracket" class="bracket-container" style="display:none;"></div>
+
+              </div>
+          </div>
+
+          <div id="tab-market" class="section">
+              <div style="text-align: right; margin-bottom: 10px;">
+                  <button id="btnScanLive" class="btn" style="background: #dc2626; width: auto; padding: 8px 20px;" onclick="app.scanLiveGames()">🔴 Escanear Partidas en Vivo</button>
+              </div>
+              <div id="marketGrid" class="market-grid"></div>
+          </div>
+
+          <div id="tab-shop" class="section">
+             <div class="card-panel" style="margin-bottom:20px; border-color: var(--gold);">
+                <div class="card-title" style="color:var(--gold)">🎒 MI MOCHILA (Objetos Activos)</div>
+                <div id="myInventory" style="display:flex; gap:10px; flex-wrap:wrap; min-height:50px; align-items:center;">
+                   <span style="color:#666">Vacía...</span>
+                </div>
+             </div>
+             <div class="card-title">CATÁLOGO</div>
+             <div id="shopGrid" class="shop-grid"></div> </div>
+
+          <div id="tab-missions" class="section">
+            <div id="boss-widget" style="background:#2c0b0e; border:1px solid #ef4444; border-radius:8px; padding:15px; margin-bottom:20px; display:flex; align-items:center; gap:15px;">
+                <div style="font-size:2em;">👾</div>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; color:#fca5a5; font-weight:bold; font-size:0.9em; margin-bottom:5px;">
+                        <span>DRAGON DE AGUA</span><span id="boss-hp-text">2999 / 3000 HP</span>
+                    </div>
+                    <div style="background:#450a0a; height:12px; border-radius:6px; overflow:hidden;">
+                        <div id="boss-hp-bar" style="width:100%; height:100%; background:#ef4444; transition:width 1s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="void-raid-container" style="display:none; margin-bottom: 25px; border: 1px solid #a29bfe; background: linear-gradient(90deg, #1a0b2e 0%,#0f0518 100%); padding: 15px; border-radius: 8px; box-shadow: 0 0 15px rgba(108, 92, 231, 0.2);">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="display:flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px; filter: drop-shadow(0 0 5px #a29bfe);">👾</span>
+                        <div>
+                            <h3 style="margin: 0; color: #a29bfe; font-family: 'Oswald', sans-serif; letter-spacing: 1px; font-size: 1.2em;">HORDA DEL VACÍO</h3>
+                            <span style="font-size: 11px; color: #b19dd8; text-transform: uppercase; letter-spacing: 1px;">Evento Global Activo</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div id="void-counter" style="font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 0 10px #a29bfe;">0 / 500</div>
+                        <div style="font-size: 10px; color: #a29bfe; font-weight: bold;">KILLS COMUNIDAD</div>
+                    </div>
+                </div>
+                <div style="position: relative; height: 20px; background: #0b0312; border: 1px solid #5a4b7a; border-radius: 4px; overflow:hidden;">
+                    <div id="void-progress-bar" style="width: 0%; height: 100%; background: repeating-linear-gradient(45deg, #6c5ce7, #6c5ce7 10px, #5f27cd 10px, #5f27cd 20px); transition: width 1.5s ease-in-out; box-shadow: 0 0 15px #6c5ce7;"></div>
+                </div>
+            </div>
+            
+            <div class="card-panel" style="margin-bottom: 20px; text-align:center;">
+                <h2 style="font-family:'Oswald'; color:var(--gold); margin:0;">SALA DE TROFEOS</h2>
+                <p style="color:var(--text-muted); font-size:0.9em;">Completa hitos para desbloquear títulos exclusivos y recompensas.</p>
+            </div>
+            <div id="missions-container" class="missions-grid"><div style="text-align:center; width:100%;">Cargando medallas...</div></div>
+          </div>
+
+          <div id="section-rivals" class="section" style="display:none;">
+              <h2 class="section-title" style="font-family:'Oswald'; border-bottom:1px solid #333; padding-bottom:10px;">⚔️ DUELOS SEMANALES</h2>
+              <p style="text-align:center; color:#bdc3c7; margin-bottom:20px;">Supera a tu rival en puntos esta semana para <strong>ganar 10 puntos y hacerle perder 5 !!</strong></p>
+              <div id="rivals-list" class="rivals-grid"><div class="loading-spinner">Cargando duelos...</div></div>
+          </div>
+
+
+          <div id="tab-purge" class="section" style="display:none;">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <h1 style="font-family:'Oswald'; font-size:4em; color:#ef4444; margin:0; text-shadow: 0 0 20px red; letter-spacing: 4px;">LA PURGA</h1>
+                  <p style="color:#fca5a5; margin-top: -10px; font-weight:bold;">MODO BATTLE ROYALE</p>
+                  
+                  <div id="purgeHeaderInfo" class="purge-info-header">
+                      Cargando presión del gas...
+                  </div>
+                  <div style="background:rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; display:inline-block; padding:8px 20px; border-radius:4px; font-size:0.9em; margin-top:15px;">
+                    ⚠️ CADA NOCHE CAEN LOS 3 PEORES SUPERVIVIENTES 
+                  </div>
+              </div>
+
+              <div class="card-panel" style="margin-bottom: 20px; border-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
+                  <div class="card-title" style="color:#ef4444">📜 TU ÚLTIMA VOLUNTAD</div>
+                  <p style="font-size: 0.85em; color: #aaa;">Si caes esta noche, este mensaje se publicará en las noticias globales.</p>
+                  <div style="display: flex; gap: 10px;">
+                      <input type="text" id="lastWillInput" placeholder="Escribe tus últimas palabras..." 
+                            style="flex: 1; background: #0f172a; color: white; border: 1px solid #444; padding: 10px; border-radius: 4px;">
+                      <button class="btn" style="background:#ef4444; width: auto; padding: 0 20px;" onclick="app.saveWill()">SELLAR</button>
+                  </div>
+              </div>
+
+              <div class="purge-layout">
+                  <div class="purge-survivors">
+                      <h3 style="font-family:'Oswald'; color:#fca5a5; margin-top:0; border-bottom:1px solid #ef4444; padding-bottom:10px;">
+                          🛡️ ZONA DE SUPERVIVENCIA
+                      </h3>
+                      <table class="simple-table">
+                          <thead>
+                              <tr>
+                                  <th style="color:#ef4444">ESTADO</th>
+                                  <th>JUGADOR</th>
+                                  <th style="text-align:right">MEDIA (PTS)</th>
+                              </tr>
+                          </thead>
+                          <tbody id="purgeSurvivorsBody">
+                              <tr><td colspan="3" style="text-align:center; padding:20px;">Escaneando constantes vitales...</td></tr>
+                          </tbody>
+                      </table>
+                  </div>
+
+                  <div class="purge-graveyard">
+                      <div class="grave-title">🪦 CEMENTERIO</div>
+                      <div id="purgeGraveyardList">
+                          <div style="text-align:center; color:#444; padding:20px; font-style:italic;">
+                              Nadie ha caído... aún.
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div id="tab-forge" class="section">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <h1 style="font-family:'Oswald'; font-size:4em; color:var(--forge); margin:0; text-shadow: 0 0 20px #c2410c; letter-spacing: 4px;">LA FORJA DE ORNN</h1>
+                  <p style="color:#fdba74; margin-top: -10px; font-weight:bold;">SISTEMA DE ARTEFACTOS LEGENDARIOS</p>
+                  <div style="background:rgba(234, 88, 12, 0.2); border: 1px solid var(--forge); display:inline-block; padding:8px 20px; border-radius:4px; font-size:0.9em; margin-top:15px; color:#fdba74;">
+                    🔨 COMBINA MATERIALES PARA CREAR VENTAJAS ÉPICAS
+                  </div>
+              </div>
+
+              <div id="forgeLoader" style="text-align: center; padding: 40px; color: var(--forge); font-family: 'Oswald'; font-size: 1.5em; display: none;">
+                  <div class="loading-spinner" style="border-color: var(--forge); border-top-color: transparent;"></div>
+                  <br>Encendiendo el Yunque...
+              </div>
+
+              <div id="forgeContent" class="forge-layout" style="display:none;">
+                  <div class="inventory-panel">
+                      <h3 style="font-family:'Oswald'; color:var(--forge); margin-top:0; border-bottom:1px solid #c2410c; padding-bottom:10px;">
+                          🎒 TUS MATERIALES
+                      </h3>
+                      <div class="mats-grid" id="mats-grid"></div>
+                  </div>
+                  <div class="recipes-panel" id="recipes-panel"></div>
+              </div>
+          </div>
+
+          <div id="tab-history" class="section">
+             <div class="card-panel">
+                <table class="simple-table">
+                  <thead><tr><th>FECHA</th><th>TIPO</th><th>ACTIVO</th><th>CANT.</th><th>PRECIO</th><th>TOTAL</th></tr></thead>
+                  <tbody id="historyTableBody"></tbody>
+                </table>
+             </div>
+          </div>
+
+          <div id="mainLoader" class="loader-overlay">
+            <div style="font-size:3em; margin-bottom:20px;">📈</div>
+            <div>Cargando datos...</div>
+          </div>
+        </div>
+
+        <div class="sidebar-right">
+          <div>
+            <div style="font-family:'Oswald'; color:var(--accent); border-bottom:1px solid #333; margin-bottom:10px;">🐋 THE WHALES</div>
+            <div id="forbesList"><small>Cargando...</small></div>
+          </div>
+          <div style="margin-top:20px;">
+            <div style="font-family:'Oswald'; color:var(--red); border-bottom:1px solid #333; margin-bottom:10px;">🤡 MURO VERGÜENZA</div>
+            <div id="shameList"><small>Cargando...</small></div>
+          </div>
+          <div style="margin-top:25px;">
+            <div style="font-family:'Oswald'; color:var(--green); border-bottom:1px solid #333; margin-bottom:10px;">💎 WRG 500</div>
+            <div id="topStocksList"><small>Cargando...</small></div>
+          </div>
+          <div style="margin-top:25px;">
+            <div style="font-family:'Oswald'; color:var(--accent); border-bottom:1px solid #333; margin-bottom:10px;">📉 Radar</div>
+            <div id="flopStocksList"><small>Cargando...</small></div>
+          </div>
+        </div>
+
+      </div>
+  </div>
+
+ <script>
+    // --- FUNCIONES DE NAVEGACIÓN INICIAL ---
+    
+    function goToMarket() {
+        document.body.style.cursor = 'wait'; 
+        
+        // Ocultar Command Center
+        const cmd = document.getElementById('commandCenter');
+        cmd.classList.add('fade-out'); // Esto lo hace transparente y hidden
+
+        // Mostrar Login
+        const login = document.getElementById('loginOverlay');
+        login.style.display = 'flex';
+        // Pequeño timeout para permitir la transición de opacidad si la tienes
+        setTimeout(() => { login.style.opacity = '1'; }, 10);
+        
+        if (!app.data) { console.log("Iniciando carga..."); app.init(); }
+    }
+
+    function goToRanking() { 
+        const season = app.currentSeasonFilter || 'CURRENT';
+        google.script.run.withSuccessHandler(url => {
+            window.open(url + "?p=ranking&season=" + season, "_top"); // Añadido &season=...
+        }).getScriptUrl(); 
+    }
+
+    function goToGraphics() { 
+        const season = app.currentSeasonFilter || 'CURRENT';
+        google.script.run.withSuccessHandler(url => {
+            window.open(url + "?p=graphics_menu&season=" + season, "_top");
+        }).getScriptUrl(); 
+    }
+
+    function goToTournaments() { 
+        const season = app.currentSeasonFilter || 'CURRENT';
+        google.script.run.withSuccessHandler(url => {
+            window.open(url + "?p=tournaments&season=" + season, "_top");
+        }).getScriptUrl(); 
+    }
+
+    function goToGlobalHistory() { 
+        const season = app.currentSeasonFilter || 'CURRENT';
+        google.script.run.withSuccessHandler(url => {
+            window.open(url + "?p=history_global&season=" + season, "_top");
+        }).getScriptUrl(); 
+    }
+    
+    function backToCommand() {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('commandCenter').classList.remove('fade-out');
+    }
+
+    const app = {
+      currentSeasonFilter: "CURRENT",
+
+      setGlobalSeason: function(val) {
+        this.currentSeasonFilter = val;
+        console.log("Filtro cambiado a: " + val);
+        // Pequeño efecto visual para saber que cambiaste
+        if(val !== 'CURRENT') document.body.style.borderTop = "4px solid #8b5cf6";
+        else document.body.style.borderTop = "none";
+      },
+      data: null,
+      user: "",
+      charts: { pie: null, line: null }, 
+
+    
+
+      init: function() {
+        console.log("Iniciando app...");
+        google.script.run
+          .withSuccessHandler(app.onDataLoaded)
+          .withFailureHandler(error => {
+              console.error("Error init:", error);
+              alert("Error de conexión: " + error.message);
+              document.getElementById('loginLoader').innerText = "Error de conexión.";
+          })
+          .getMarketData();
+          app.startBossUpdateLoop();
+
+        // Pedir el "Mood" del mercado para la skin
+        google.script.run.withSuccessHandler(mood => {
+            document.body.className = ''; // Limpiar clases
+            if (mood === 'PURGE') document.body.classList.add('mood-purge');
+            else if (mood === 'BEAR') document.body.classList.add('mood-bear');
+            else if (mood === 'BULL') document.body.classList.add('mood-bull');
+        }).getMarketMood();
+      },
+
+      saveWill: function() {
+          const msg = document.getElementById('lastWillInput').value;
+          if (!msg) return;
+          
+          document.body.style.cursor = 'wait';
+          google.script.run.withSuccessHandler(res => {
+              document.body.style.cursor = 'default';
+              alert(res.msg);
+          }).savePlayerLastWill(app.user, msg);
+      },
+
+      // --- LOGICA PRINCIPAL ---
+      
+     onDataLoaded: function(data) {
+        console.log("Datos recibidos:", data);
+
+        // 🚨 BLOQUE DE SEGURIDAD ANTI-CRASH 🚨
+        if (!data || !data.wallets) {
+            console.error("ERROR CRÍTICO: Datos nulos o corruptos.");
+            document.getElementById('loginLoader').innerHTML = 
+                '<span style="color:#ef4444; font-weight:bold;">⚠️ ERROR DE DATOS</span><br>' + 
+                '<span style="font-size:0.8em">La hoja MARKET_STATUS está vacía.</span>';
+            return; // Detenemos aquí para que la web no se rompa
+        }
+
+        
+        // --------------------------------------
+
+        app.data = data;
+        
+        const loader = document.getElementById('loginLoader');
+        if(loader) loader.style.display = 'none';
+        
+        document.getElementById('loginForm').classList.remove('hidden');
+
+        const loginSelect = document.getElementById('initialUserSelect');
+        const sidebarSelect = document.getElementById('userSelect');
+        
+        loginSelect.innerHTML = '<option value="" disabled selected>-- Selecciona tu nombre --</option>';
+        sidebarSelect.innerHTML = '';
+
+        // Ahora es seguro acceder a data.wallets porque ya comprobamos arriba que existe
+        if (data.wallets) {
+            // 1. Obtener las claves (nombres) y ORDENARLAS alfabéticamente
+            const sortedUsers = Object.keys(data.wallets).sort((a, b) => a.localeCompare(b));
+
+            // 2. Iterar sobre la lista YA ordenada
+            sortedUsers.forEach(u => {
+               const opt1 = document.createElement('option'); opt1.value = u; opt1.innerText = u;
+               loginSelect.appendChild(opt1);
+               
+               const opt2 = document.createElement('option'); opt2.value = u; opt2.innerText = u;
+               sidebarSelect.appendChild(opt2);
+            });
+        }
+
+        if (app.user) { sidebarSelect.value = app.user; app.updateUI(); }
+
+        // Noticias y Alarmas
+        const ticker = document.getElementById('newsTicker');
+        const newsBar = document.querySelector('.news-bar');
+        
+        if(data.news && data.news.length > 0) {
+            const latest = data.news[0];
+            if (latest.type === 'EVENT') {
+                if(newsBar) { newsBar.style.animation = 'pulse-red 2s infinite'; newsBar.style.background = '#e74c3c'; }
+            } else {
+                if(newsBar) { newsBar.style.animation = 'none'; newsBar.style.background = 'var(--gold)'; }
+            }
+            const html = data.news.map(n => `<span style="margin-right:40px"><span class="news-tag" style="background:${n.type==='PANIC'?'red':'green'}">${n.type}</span> ${n.msg}</span>`).join("");
+            if(ticker) ticker.innerHTML = html + html;
+        }
+        
+        app.renderSocial(data.forbes, data.shame, data.topStocks, data.flopStocks);
+        document.body.style.cursor = 'default';
+
+        // Navegación automática si vienes de un enlace
+        if (app.pendingPage) {
+            const map = { 'ranking': 'ranking', 'history_global': 'history', 'market': 'market' }; 
+            if(map[app.pendingPage] || app.pendingPage === 'market') {
+                app.nav(map[app.pendingPage] || app.pendingPage);
+            }
+        }
+
+      },
+
+      nav: function(p, el) {
+
+          console.log("Navegando a:", p);
+          document.querySelectorAll('.section').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
+
+          let targetId = 'tab-' + p;
+          if (p === 'rivals') targetId = 'section-rivals'; 
+
+          const targetSec = document.getElementById(targetId);
+          if (targetSec) { targetSec.style.display = 'block'; targetSec.classList.add('active'); }
+
+          document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+          if(el) el.classList.add('active');
+          
+          // 👇 1. AÑADIDO TÍTULO PARA EL TORNEO
+          const titles = {
+              'dashboard':'Mi Portafolio',
+              'market':'Mercado de Valores',
+              'history':'Historial', 
+              'shop':'Tienda del Vacío', 
+              'missions':'Sala de Trofeos', 
+              'rivals':'Duelos Semanales', 
+              'purge': '☠️ CLASIFICACIÓN DE LA PURGA',
+              'tournament': '⚔️ TORNEO DE EQUIPOS',
+              'forge': '🌋 LA FORJA DE ORNN'
+          };
+
+          const titleEl = document.getElementById('pageTitle');
+          if(titleEl) titleEl.innerText = titles[p] || 'Guerra de Clanes';
+          
+          if(p === 'dashboard') app.loadNetWorthChart();
+          if(p === 'history') app.loadHistory();
+          if(p === 'shop') app.loadShop();
+          if(p === 'missions') app.loadMissions();
+          if(p === 'rivals') app.loadRivals();
+          if(p === 'war') app.loadWar();
+          if(p === 'purge') app.loadPurge();
+          if(p === 'forge') app.loadForge();
+
+          // 👇 2. AÑADIDA CARGA DE DATOS DEL TORNEO
+          if(p === 'tournament') {
+              loadTeamBattleData(); // Esta función llama al backend y rellena el div "teams-grid"
+          }
+      },
+
+      enterApp: function() {
+          const selectedUser = document.getElementById('initialUserSelect').value;
+          if (!selectedUser) { alert("⚠️ Selecciona quién eres."); return; }
+          app.user = selectedUser;
+          document.getElementById('userSelect').value = selectedUser;
+          const overlay = document.getElementById('loginOverlay');
+          overlay.style.opacity = '0';
+          setTimeout(() => overlay.style.display = 'none', 500);
+          document.getElementById('appContainer').classList.remove('hidden');
+          document.getElementById('mainLoader').style.display = 'none';
+          app.updateUI();
+      },
+
+      changeUser: function() { app.user = document.getElementById('userSelect').value; app.updateUI(); },
+      
+      updateUI: function() {
+        if (!app.data || !app.data.wallets || !app.data.wallets[app.user]) return;
+        const wallet = app.data.wallets[app.user];
+        document.getElementById('walletDisplay').innerText = wallet.balance.toFixed(0) + " G";
+        if(app.updateBoss) app.updateBoss();
+        app.renderDashboard();
+        app.renderMarket();
+     
+        
+        // Recargas inteligentes
+        const dashTab = document.getElementById('tab-dashboard'); if (dashTab && dashTab.style.display !== 'none') app.loadNetWorthChart();
+        const histTab = document.getElementById('tab-history'); if (histTab && histTab.style.display !== 'none') app.loadHistory();
+        const shopTab = document.getElementById('tab-shop'); if (shopTab && shopTab.style.display !== 'none') app.loadShop();
+        const missTab = document.getElementById('tab-missions'); if (missTab && missTab.style.display !== 'none') app.loadMissions();
+        const rivalSec = document.getElementById('section-rivals'); if (rivalSec && rivalSec.style.display !== 'none') app.loadRivals();
+        const forgeTab = document.getElementById('tab-forge'); if (forgeTab && forgeTab.style.display !== 'none') app.loadForge();
+      },
+
+      updateBoss: function() {
+          google.script.run.withSuccessHandler(b => {
+              if (!b) return;
+              
+              const current = b.hp;
+              const max = b.max;
+              const pct = Math.max(0, Math.min(100, (current / max) * 100));
+              
+              const textEl = document.getElementById('boss-hp-text');
+              const barEl = document.getElementById('boss-hp-bar');
+              
+              if (textEl) textEl.innerText = `${current} / ${max} HP`;
+              if (barEl) barEl.style.width = `${pct}%`;
+              
+              if(current <= 0 && textEl) textEl.innerText = "💀 DERROTADO";
+
+          }).getBossData();
+      },
+
+      loadWar: function() {
+         // --- NUEVO: CARGAR MISIÓN DIARIA ---
+         google.script.run.withSuccessHandler(m => {
+             document.getElementById('dailyMissionTitle').innerText = m.name;
+             document.getElementById('dailyMissionDesc').innerText = m.desc;
+             document.getElementById('dailyMissionIcon').innerText = m.icon;
+             
+             // Color dinámico según día (Opcional, estilo visual)
+             const box = document.getElementById('dailyMissionBox');
+             if(m.icon === '🩸') box.style.borderLeftColor = '#ef4444'; // Rojo
+             else if(m.icon === '🚜') box.style.borderLeftColor = '#f97316'; // Naranja
+             else box.style.borderLeftColor = 'var(--gold)'; // Dorado por defecto
+
+         }).getCurrentDailyMission();
+        
+         const hList = document.getElementById('hexMembersList');
+         const cList = document.getElementById('chemMembersList');
+         const hBar = document.getElementById('hexBar');
+         const cBar = document.getElementById('chemBar');
+         
+         if (!hList || !cList) return;
+
+         hList.innerHTML = '<div style="text-align:center; padding:15px; color:#aaa;">Cargando fuerzas...</div>';
+         cList.innerHTML = '<div style="text-align:center; padding:15px; color:#aaa;">Cargando hordas...</div>';
+
+         // =========================================
+         // ⚙️ CONFIGURACIÓN DE RANGOS MILITARES
+         // =========================================
+         // Define aquí los títulos, iconos y colores para cada facción y posición.
+         // maxIndex: Hasta qué posición del ranking llega este rango (inclusive).
+         const RANK_CONFIG = {
+             'hex': { // --- TEMÁTICA PILTOVER (Orden, Tecnología, Azul/Oro) ---
+                 tiers: [
+                     { maxIndex: 0, title: "ALTO COMANDANTE", icon: "⚙️", color: "#fbbf24" }, // Top 1 (Oro)
+                     { maxIndex: 1, title: "ARTIFICIERO MAYOR", icon: "🔧", color: "#FDE68A" }, // Top 2 (Plata)
+                     { maxIndex: 3, title: "VIGILANTE DE ÉLITE", icon: "🛡️", color: "#93c5fd" }, // Top 3-4 (Azul claro)
+                     { maxIndex: 6, title: "AGENTE AUMENTADO", icon: "🦾", color: "#60a5fa" }, // Top 5-7 (Azul medio)
+                     { maxIndex: 10, title: "CADETE PILTOVIANO", icon: "🧢", color: "#94a3b8" }, // Top 8-11 (Gris azulado)
+                 ],
+                 // Rango por defecto para el resto
+                 default: { title: "CIUDADANO", icon: "🧑🔧", color: "#64748b" } 
+             },
+             'chem': { // --- TEMÁTICA ZAUN (Caos, Tóxico, Verde/Morado) ---
+                 tiers: [
+                     { maxIndex: 0, title: "BARÓN QUÍMICO", icon: "☠️", color: "#a3e635" }, // Top 1 (Verde tóxico)
+                     { maxIndex: 1, title: "AZOTE DE ZAUN", icon: "☣️", color: "#84cc16" }, // Top 2 (Verde lima)
+                     { maxIndex: 3, title: "MERODEADOR TÓXICO", icon: "👿", color: "#c084fc" }, // Top 3-4 (Morado claro)
+                     { maxIndex: 6, title: "MATÓN QUIM-PUNK", icon: "💉", color: "#a855f7" }, // Top 5-7 (Morado medio)
+                     { maxIndex: 10, title: "RATA DE MUELLE", icon: "🐀", color: "#71717a" }, // Top 8-11 (Gris rata)
+                 ],
+                 // Rango por defecto para el resto
+                 default: { title: "CHATARRERO", icon: "🗑️", color: "#52525b" }
+             }
+         };
+
+         google.script.run
+            .withSuccessHandler(data => {
+                 if (!data || !data.active) {
+                     hList.innerHTML = "<div style='text-align:center; color:#666; padding:15px;'>Guerra inactiva.</div>";
+                     cList.innerHTML = "<div style='text-align:center; color:#666; padding:15px;'>Guerra inactiva.</div>";
+                     return;
+                 }
+
+                 // 1. ACTUALIZACIÓN DE BARRAS (Lógica Visual "Zero-Floor")
+                 const hScore = Number(data.hexScore || 0);
+                 const cScore = Number(data.chemScore || 0);
+                 const hVisual = Math.max(0, hScore);
+                 const cVisual = Math.max(0, cScore);
+                 const totalVisual = hVisual + cVisual;
+                 
+                 let hexPct = 50;
+                 if (totalVisual > 0) hexPct = (hVisual / totalVisual) * 100;
+                 else if (hScore !== cScore) hexPct = hScore > cScore ? 60 : 40;
+
+                 const visualPct = Math.max(10, Math.min(90, hexPct));
+                 
+                 if (hBar) {
+                     hBar.style.width = visualPct + '%';
+                     hBar.innerHTML = ` <span style="font-family:'Oswald'">${hScore.toFixed(0)}</span>`;
+                 }
+                 if (cBar) {
+                     cBar.innerHTML = ` <span style="font-family:'Oswald'">${cScore.toFixed(0)}</span>`;
+                 }
+
+                 // 2. RENDERIZADO DE LISTAS CON NUEVOS RANGOS
+                 const renderList = (list, factionType) => {
+                     if (!list || list.length === 0) return '<div style="padding:10px; text-align:center; color:#666;">Sin unidades.</div>';
+                     
+                     const factionConfig = RANK_CONFIG[factionType];
+
+                     return list.map((s, index) => {
+                         const pts = Number(s.pts);
+                         const colorPts = pts >= 0 ? '#4ade80' : '#f87171';
+                         const sign = pts > 0 ? '+' : '';
+                         
+                         // --- LÓGICA DE ASIGNACIÓN DE RANGO ---
+                         let rankData = factionConfig.default; // Empezamos con el por defecto
+                         
+                         // Buscamos en los tiers si le corresponde uno superior
+                         for (const tier of factionConfig.tiers) {
+                             if (index <= tier.maxIndex) {
+                                 rankData = tier;
+                                 break; // Encontrado el rango más alto posible, salimos
+                             }
+                         }
+
+                         // Estilo del rango (negrita para los top 2)
+                         const fontWeight = index < 2 ? 'bold' : 'normal';
+                         const rankStyle = `color:${rankData.color}; font-weight:${fontWeight}; font-size:0.8em; margin-right:5px; letter-spacing:0.5px;`;
+
+                         return `
+                         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; margin-bottom:4px; background:rgba(255,255,255,0.05); border-radius:4px; border-left: 3px solid ${rankData.color};">
+                            <div style="display:flex; flex-direction:column;">
+                                <span style="color:#f1f5f9; font-weight:600; font-size:0.95em;">${s.name}</span>
+                                <span style="${rankStyle}">${rankData.icon} ${rankData.title}</span>
+                            </div>
+                            <span style="color:${colorPts}; font-weight:bold; font-family:'Oswald'; font-size:1.1em;">
+                                ${sign}${s.pts}
+                            </span>
+                         </div>`;
+                     }).join('');
+                 };
+
+                 hList.innerHTML = renderList(data.hexMembers, 'hex');
+                 cList.innerHTML = renderList(data.chemMembers, 'chem');
+            })
+            .withFailureHandler(err => {
+                console.error(err);
+                hList.innerHTML = "Error de conexión en el campo de batalla.";
+            })
+            .getFactionWarData();
+      },
+
+      
+      // --- RENDERIZADORES ---
+      renderDashboard: function() {
+        const wallet = app.data.wallets[app.user];
+        const portfolio = wallet.portfolio || {};
+        let stockVal = 0; let totalShares = 0; let html = ""; let labels = [], data = [], amounts = [];
+
+        Object.keys(portfolio).forEach(name => {
+          const item = portfolio[name];
+          const amount = item.amount || item; 
+          const buyPrice = item.avgPrice || 0;
+
+          if(amount > 0) {
+             const stock = app.data.stocks.find(s => s.name === name);
+             const current = stock ? stock.price : buyPrice;
+             const val = amount * current;
+             const diff = current - buyPrice;
+             const perc = buyPrice > 0 ? ((diff/buyPrice)*100).toFixed(1) : 0;
+             const color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+             const sign = diff >= 0 ? '+' : '';
+
+             stockVal += val; totalShares += amount; labels.push(name); data.push(val); amounts.push(amount);
+
+             html += `<tr><td style="font-weight:bold">${name}</td><td>${amount}</td><td style="color:var(--text-muted)">${buyPrice.toFixed(0)} G</td><td>${current.toFixed(0)} G</td><td style="color:var(--accent)">${val.toFixed(0)} G</td><td style="color:${color}; font-weight:bold">${sign}${perc}%</td><td><button class="btn" style="background:var(--accent); color:black" onclick="app.nav('market', null)">Operar</button></td></tr>`;
+          }
+        });
+        if(html === "") html = "<tr><td colspan='7' style='text-align:center; padding:20px; color:#666'>Sin acciones.</td></tr>";
+        document.getElementById('portfolioTableBody').innerHTML = html;
+        document.getElementById('netWorthDisplay').innerText = (wallet.balance + stockVal).toFixed(0) + " G";
+        document.getElementById('totalSharesDisplay').innerText = totalShares;
+        app.drawPie(labels, data, amounts);
+        
+        const activeSponsors = wallet.activeSponsors || [];
+        const sTbody = document.getElementById('sponsorTableBody');
+        if (activeSponsors.length === 0) { sTbody.innerHTML = "<tr><td colspan='3' style='text-align:center; color:#666'>No estás apadrinando a nadie.</td></tr>"; } 
+        else { sTbody.innerHTML = activeSponsors.map(s => `<tr><td style="font-weight:bold">${s.target}</td><td style="color:var(--gold)">${s.amount} G</td><td><span class="news-tag" style="background:#8b5cf6">PENDIENTE</span></td></tr>`).join(''); }
+      },
+
+      renderMarket: function() {
+         const container = document.getElementById('marketGrid');
+         container.innerHTML = "";
+         const pf = app.data.wallets[app.user].portfolio || {};
+         const sortedStocks = app.data.stocks.sort((a, b) => { if (a.isLive && !b.isLive) return -1; if (!a.isLive && b.isLive) return 1; return b.price - a.price; });
+         
+        sortedStocks.forEach((s, i) => {
+            const owned = (pf[s.name] && pf[s.name].amount) ? pf[s.name].amount : (pf[s.name] || 0);
+            const isUp = s.lastChange >= 0;
+            const color = isUp ? '#10b981' : '#ef4444';
+            const chartId = `mini-${i}`;
+            
+            // --- FIX DE SEGURIDAD: Limpiar nombre para los botones ---
+            const safeName = s.name.replace(/'/g, "\\'"); 
+            // --------------------------------------------------------
+
+            let liveBadgeHtml = ''; let borderStyle = `border-top: 4px solid ${color}`;
+            if (s.isLive) { liveBadgeHtml = `<div class="live-badge-mini">🔴 LIVE (${s.liveTime})</div>`; borderStyle = `border: 2px solid red; box-shadow: 0 0 10px red;`; }
+            let stockColor = '#aaa'; if (s.available <= 5) stockColor = '#ef4444'; else if (s.available <= 15) stockColor = '#f59e0b';
+
+            const div = document.createElement('div');
+            div.className = 'stock-card'; div.style = borderStyle; 
+            
+            // Aquí usamos 'safeName' en los onclicks en lugar de s.name
+            div.innerHTML = `<div class="card-header-flex"><div class="player-name">${s.displayName || s.name}</div><div class="price-column">${liveBadgeHtml}<div class="stock-price-text" style="color:${color}">${s.price.toFixed(0)} G</div></div></div><div style="height:40px; width:100%; margin:5px 0"><canvas id="${chartId}"></canvas></div><div style="font-size:0.8em; color:#aaa; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:rgba(0,0,0,0.2); padding:4px 8px; border-radius:4px;"><span>Tienes: <b style="color:white">${owned}</b></span><span style="color:${stockColor}; font-weight:bold;">📦 Stock: ${s.available}</span></div><div style="font-size:0.75em; text-align:right; margin-bottom:5px; color:${color}">${isUp?'▲':'▼'} ${s.lastChange.toFixed(1)}</div><div class="btn-row"><button class="btn buy" onclick="app.trade('BUY', '${safeName}')" ${s.available === 0 ? 'disabled style="opacity:0.5"' : ''}>COMPRAR</button><button class="btn sell ${owned > 0 ? 'active' : ''}" ${owned > 0 ? `onclick="app.trade('SELL', '${safeName}')"` : ''}>VENDER</button></div><div style="margin-top:5px"><button class="btn" style="background:#8b5cf6; color:white; width:100%; font-size:0.8em; padding:4px;" onclick="app.sponsor('${safeName}')">🤝 SPONSOR</button></div>`;
+            
+            container.appendChild(div);
+            app.drawSpark(chartId, s.history, color);
+         });
+      },
+
+      // --- FUNCIONES FIX RANKINGS (Con Tendencias) ---
+      renderSocial: function(forbes, shame, topStocks, flopStocks) {
+         // Helper interno para no repetir código
+         const renderList = (id, list, formatter) => {
+             const el = document.getElementById(id);
+             if (!el) return;
+             if (!list || list.length === 0) { el.innerHTML = '<small style="color:#666">Sin datos aún...</small>'; return; }
+             el.innerHTML = list.map(formatter).join("");
+         };
+
+         // 1. LISTA FORBES (WHALES) - CON TENDENCIAS
+         renderList('forbesList', forbes, (p,i) => {
+             // Si p.dailyPL no existe (backend viejo), asumimos 0
+             const daily = p.dailyPL || 0;
+             
+             const trendIcon = daily >= 0 ? '▲' : '▼';
+             const trendColor = daily >= 0 ? '#10b981' : '#ef4444'; // Verde o Rojo
+             
+             // Solo mostramos la flecha si hubo movimiento
+             const trendText = daily !== 0 
+                ? `<span style="color:${trendColor}; font-size:0.8em; margin-left:6px; font-weight:bold;">${trendIcon} ${Math.abs(daily).toFixed(0)}</span>` 
+                : '';
+
+             return `
+             <div class="rank-row">
+                 <span class="rank-pos">${i===0?'👑':'#'+(i+1)}</span>
+                 <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+                     <span class="rank-name" title="${p.name}">${p.name}</span>
+                     ${trendText}
+                 </div>
+                 <span class="rank-val" style="color:var(--gold)">${p.netWorth.toFixed(0)}</span>
+             </div>`;
+         });
+
+         // 2. MURO DE LA VERGÜENZA (Sin cambios, simple)
+         renderList('shameList', shame, p => `
+            <div class="rank-row">
+                <span class="rank-pos">💀</span>
+                <span class="rank-name" style="color:#94a3b8" title="${p.name}">${p.name}</span>
+                <span class="rank-val" style="color:#fca5a5">${p.netWorth.toFixed(0)}</span>
+            </div>`
+         );
+
+         // 3. TOP STOCKS (Mejores precios)
+         renderList('topStocksList', topStocks, (s, i) => `
+            <div class="rank-row">
+                <span class="rank-pos" style="color:var(--green)">${i+1}.</span>
+                <span class="rank-name" style="color:white" title="${s.name}">${s.name}</span>
+                <span class="rank-val" style="color:var(--green)">${s.price.toFixed(0)} G</span>
+            </div>`
+         );
+
+         // 4. FLOP STOCKS (Radar barato)
+         renderList('flopStocksList', flopStocks, (s, i) => `
+            <div class="rank-row">
+                <span class="rank-pos" style="color:var(--accent)">${i+1}.</span>
+                <span class="rank-name" style="color:#ccc" title="${s.name}">${s.name}</span>
+                <span class="rank-val" style="color:#94a3b8">${s.price.toFixed(0)} G</span>
+            </div>`
+         );
+      },
+
+
+      selectVoteRole: function(role, btn) {
+          // 1. Quitar la clase 'selected' de TODOS los botones de rol
+          document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+          
+          // 2. Añadir la clase 'selected' SOLO al botón que acabas de pulsar
+          btn.classList.add('selected');
+          
+          // 3. Guardar el valor (TOP, JUNGLE, FILL, etc.) en el input oculto
+          const input = document.getElementById('selectedRoleInput');
+          if (input) {
+              input.value = role;
+          } else {
+              console.error("Error: No se encuentra el input oculto 'selectedRoleInput'");
+          }
+      },
+
+      submitVote: function() {
+          const overlay = document.getElementById('votingOverlay');
+          const mode = overlay.getAttribute('data-mode');
+          const voter = app.user;
+          
+          let itemID = '';
+          let extraData = '';
+
+          // LÓGICA SEGÚN MODO (TORNEO vs FACCIÓN)
+          if (mode === 'TOURNAMENT') {
+              const roleInput = document.getElementById('selectedRoleInput');
+              const role = roleInput ? roleInput.value : '';
+              
+              if (!role || role === '') { 
+                  alert("⚠️ ERROR: Debes hacer clic en uno de los botones de POSICIÓN (Top, Jgl, Fill, etc.) antes de confirmar."); 
+                  return; 
+              }
+              
+              itemID = 'TEAM_ROLE_VOTE';
+              extraData = role; 
+          } else {
+              // Lógica de Votación de Facción (Generales)
+              const candidate = document.getElementById('voteCandidateSelect').value;
+              const roleVoted = document.getElementById('voteFactionRole').value;
+              
+              if (!candidate || candidate === "") { 
+                  alert("⚠️ ERROR: Debes seleccionar un CANDIDATO de la lista."); 
+                  return; 
+              }
+              
+              itemID = 'VOTE_BALLOT';
+              extraData = roleVoted + "|" + candidate;
+          }
+
+          if(!confirm("¿Confirmar acción por 1 G?")) return;
+          
+          // Efecto visual de carga en el botón
+          const btnConfirm = overlay.querySelector('button[onclick="app.submitVote()"]');
+          const originalText = btnConfirm ? btnConfirm.innerText : "CONFIRMAR";
+          
+          if(btnConfirm) {
+              btnConfirm.innerText = "PROCESANDO...";
+              btnConfirm.disabled = true;
+          }
+
+          document.body.style.cursor = 'wait';
+
+          // LLAMADA AL BACKEND
+          google.script.run.withSuccessHandler(res => {
+              document.body.style.cursor = 'default';
+              
+              // Restaurar botón
+              if(btnConfirm) {
+                  btnConfirm.innerText = originalText;
+                  btnConfirm.disabled = false;
+              }
+
+              if(res.success) {
+                  alert("✅ " + res.msg);
+                  
+                  // 1. CERRAR MODAL
+                  document.getElementById('votingOverlay').style.display = 'none'; 
+                  
+                  // 2. [FIX] RESETEAR BOTONES SELECCIONADOS
+                  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+                  const roleInput = document.getElementById('selectedRoleInput');
+                  if (roleInput) roleInput.value = ''; 
+
+                  // 3. ACTUALIZAR UI
+                  app.updateUI(); // Refrescar dinero
+                  
+                  // 4. ACTUALIZAR TABLA DEL TORNEO (Si existe la función)
+                  if (typeof loadTeamBattleData === 'function') {
+                      loadTeamBattleData();
+                  }
+
+              } else {
+                  alert("❌ " + res.msg);
+              }
+          }).buyShopItem(voter, itemID, extraData);
+      },
+
+      closeVoting: function() {
+          document.getElementById('votingOverlay').style.display = 'none';
+      },
+
+      // --- RULETA DE SUSPENSE ---
+      launchRoulette: function(winnerItem) {
+        const modal = document.getElementById('roulette-modal');
+        const strip = document.getElementById('roulette-strip');
+        const resultMsg = document.getElementById('roulette-result');
+        const closeBtn = document.getElementById('roulette-close-btn');
+        
+        modal.style.display = 'flex';
+        strip.style.transition = 'none'; 
+        strip.style.transform = 'translateX(0px)'; 
+        strip.innerHTML = '';
+        resultMsg.style.opacity = '0'; 
+        closeBtn.style.display = 'none';
+        
+        const CARD_WIDTH = 90;   
+        const CARD_MARGIN = 10;  
+        const FULL_CARD_W = CARD_WIDTH + CARD_MARGIN;
+        const WIN_INDEX = 60; // Aumentamos el índice para que gire más tiempo
+        
+        // Relleno aleatorio
+        const fillers = ["💩 Chatarra", "🧪 Poción", "🛡️ Ángel", "💰 Saco Oro", "📈 Acciones", "🎁 GOD PACK"];
+        let items = []; 
+        for(let i=0; i<90; i++) { // Generamos más items
+            items.push(fillers[Math.floor(Math.random() * fillers.length)]);
+        }
+        
+        // --- AQUÍ ESTÁ EL TRUCO DEL MISTERIO ---
+        // Analizamos qué es el premio real para poner un texto genérico en la ruleta
+        let mysteryLabel = winnerItem;
+        
+        if (winnerItem.includes("Saco")) {
+            mysteryLabel = "💰 Saco Oro"; // Oculta la cantidad exacta
+        } else if (winnerItem.includes("Acciones") || winnerItem.includes("x ")) {
+            mysteryLabel = "📈 Acciones"; // Oculta de quién son
+        }
+        
+        // Inyectamos la etiqueta misteriosa en la ruleta
+        items[WIN_INDEX] = mysteryLabel;
+        
+        items.forEach((item, i) => {
+            const card = document.createElement('div'); 
+            let fontSize = "12px";
+            card.innerHTML = item;
+            
+            card.style.cssText = `
+                min-width: ${CARD_WIDTH}px; width: ${CARD_WIDTH}px; height: 80px; margin: 0 5px; 
+                background: linear-gradient(135deg, #2c3e50, #34495e); border: 2px solid #7f8c8d; 
+                border-radius: 6px; display: flex; justify-content: center; align-items: center; 
+                text-align: center; font-size: ${fontSize}; color: white; 
+                box-sizing: border-box; padding: 5px; flex-shrink: 0;
+            `;
+            
+            if(i === WIN_INDEX) {
+                card.style.borderColor = '#f1c40f';
+                card.style.boxShadow = '0 0 15px rgba(241, 196, 15, 0.4)';
+            }
+            strip.appendChild(card);
+        });
+
+        setTimeout(() => {
+            const containerWidth = 400; 
+            const targetPosition = (WIN_INDEX * FULL_CARD_W) - (containerWidth / 2) + (FULL_CARD_W / 2);
+            const tinyRandom = Math.floor(Math.random() * 10) - 5;
+            
+            // AUMENTAMOS EL TIEMPO A 9 SEGUNDOS
+            strip.style.transition = 'transform 9s cubic-bezier(0.1, 0.8, 0.1, 1)'; 
+            strip.style.transform = `translateX(-${targetPosition + tinyRandom}px)`;
+        }, 100);
+
+        strip.addEventListener('transitionend', () => { 
+            // AQUÍ SÍ MOSTRAMOS EL PREMIO REAL CON DETALLES
+            resultMsg.textContent = `¡PREMIO: ${winnerItem}!`; 
+            resultMsg.style.opacity = '1'; 
+            closeBtn.style.display = 'block'; 
+        }, {once: true});
+      },
+      closeRoulette: function() { document.getElementById('roulette-modal').style.display = 'none'; app.updateUI(); },
+
+      tacticalSwap: function(teamID) {
+          // Preguntar qué rol sacrificar
+          const role = prompt(`🔄 CAMBIO TÁCTICO - EQUIPO ${teamID}\n\n¿A quién quieres sentar en el banquillo?\nEscribe el rol: TOP, JUNGLE, MID, BOTTOM o SUPPORT`);
+          
+          if (!role) return;
+          
+          // Validar entrada básica
+          const validRoles = ['TOP', 'JUNGLE', 'MID', 'MIDDLE', 'BOT', 'BOTTOM', 'SUPPORT'];
+          if (!validRoles.includes(role.toUpperCase())) {
+              alert("❌ Rol no válido. Escribe: TOP, JUNGLE, MID, BOT o SUPPORT");
+              return;
+          }
+
+          if(!confirm(`⚠️ ¿Seguro que quieres sustituir al ${role.toUpperCase()} por el Suplente?\nEsta acción es inmediata.`)) return;
+
+          document.body.style.cursor = 'wait';
+          
+          google.script.run.withSuccessHandler(res => {
+              document.body.style.cursor = 'default';
+              if (res.success) {
+                  alert("✅ " + res.msg);
+                  loadTeamBattleData(); // Recargar la vista para ver el cambio
+              } else {
+                  alert("❌ " + res.msg);
+              }
+          }).executeTacticalSwap(app.user, role);
+      },
+
+
+      buyItem: function(id) {
+          let confirmMsg = "¿Seguro que quieres comprar este objeto?"; 
+          let extraData = null;
+          
+          // 1. Inyector Tóxico
+          if (id === 'TOXIC_INJECTOR') {
+              openSabotageModal(); 
+              return; 
+          }
+
+          // 2. Voto de Facción (Papeleta)
+          if (id === 'VOTE_BALLOT') {
+              this.openVotingModal('FACTION'); // <--- CAMBIO CLAVE
+              return;
+          }
+          
+          // 3. Contrato de Equipo (Torneo)
+          if (id === 'TEAM_ROLE_VOTE' || id === 'TEAM_CONTRACT') { 
+              this.openVotingModal('TOURNAMENT'); // <--- CAMBIO CLAVE
+              return;
+          }
+                    
+          // 3. Cofres
+          if (id === 'CHEST_HEXTECH' || id === 'ONE_PIECE') {
+              confirmMsg = "🎲 ¿Te sientes con suerte? (Precio: 777 G)";
+          }
+
+          // 4. Megáfono
+          if (id === 'MEGAPHONE') { 
+              extraData = prompt("📢 Escribe tu mensaje para las noticias (Max 60 letras):"); 
+              if (!extraData) return; 
+          }
+
+          // 5. Máscara
+          if (id === 'GAS_MASK') {
+              confirmMsg = "😷 ¿Comprar Máscara de Gas? Te protegerá de TODOS los sabotajes.";
+          }
+          
+          if(!confirm(confirmMsg)) return;
+          
+          // Lógica de compra normal (para objetos que NO son votos)
+          document.body.style.cursor = 'wait';
+          google.script.run.withSuccessHandler(res => {
+              document.body.style.cursor = 'default';
+              if(res.success) { 
+                  if (res.winnerItem) app.launchRoulette(res.winnerItem); 
+                  else alert("✅ " + res.msg); 
+                  app.updateUI(); 
+              } else {
+                  alert("❌ Error: " + res.msg);
+              }
+          }).buyShopItem(app.user, id, extraData);
+      },
+
+      // --- FUNCIONES DE LA URNA ELECTORAL ---
+
+     openVotingModal: function(mode) {
+          const overlay = document.getElementById('votingOverlay');
+          const title = document.getElementById('voteTitle');
+          const sub = document.getElementById('voteSubtitle');
+          const loader = document.getElementById('voteLoading');
+          const content = document.getElementById('voteContent');
+          const userSel = document.getElementById('voteUserSelect');
+          
+          // 1. Mostrar el Overlay y Resetear visuales
+          overlay.style.display = 'flex';
+          loader.style.display = 'block';
+          content.style.display = 'none';
+          document.getElementById('voteTeamBadge').innerHTML = '';
+          
+          // 2. Guardar el modo actual para usarlo al enviar
+          overlay.setAttribute('data-mode', mode);
+
+          // 3. Configurar Textos y Secciones según el modo (AQUÍ ESTABA EL ERROR)
+          if (mode === 'TOURNAMENT') {
+              title.innerText = "📜 CONTRATO DE EQUIPO";
+              sub.innerText = "Reclama tu posición en la Grieta.";
+              document.getElementById('sectionTournament').style.display = 'block';
+              document.getElementById('sectionFaction').style.display = 'none';
+              
+              // Cambiar texto del botón si existe
+              const btn = overlay.querySelector('button[onclick*="submitVote"]');
+              if(btn) btn.innerText = "FIRMAR (1 G)";
+          } else {
+              title.innerText = "🗳️ URNA ELECTORAL";
+              sub.innerText = "Elige a los líderes de tu facción.";
+              document.getElementById('sectionTournament').style.display = 'none';
+              document.getElementById('sectionFaction').style.display = 'block';
+              
+              // Cambiar texto del botón si existe
+              const btn = overlay.querySelector('button[onclick*="submitVote"]');
+              if(btn) btn.innerText = "CONFIRMAR (1 G)";
+          }
+
+          // 4. Pre-seleccionar usuario actual
+          userSel.innerHTML = `<option value="${app.user}" selected>${app.user}</option>`;
+          
+          // 5. Cargar datos del servidor
+          const handler = (mode === 'TOURNAMENT') ? 'getTeamTeammates' : 'getTeammatesForVoting';
+          
+          google.script.run.withSuccessHandler(res => {
+              loader.style.display = 'none';
+              content.style.display = 'block';
+
+              if (res.error) {
+                  document.getElementById('voteTeamBadge').innerHTML = `<span style="color:#ef4444">${res.error}</span>`;
+                  return;
+              }
+
+              // Mostrar Badge de Equipo
+              const teamName = res.team || res.teamID; 
+              let badgeColor = '#c8aa6e'; // Default Tournament
+              if (teamName === 'HEXTECH') badgeColor = '#0984e3';
+              if (teamName === 'CHEMTECH') badgeColor = '#6ab04c';
+
+              document.getElementById('voteTeamBadge').innerHTML = 
+                  `<div style="background:${badgeColor}22; color:${badgeColor}; border:1px solid ${badgeColor}; padding:5px 15px; border-radius:4px; font-weight:bold; display:inline-block; margin-bottom:15px;">${teamName}</div>`;
+
+              // Si es facción, llenar select de candidatos
+              if (mode === 'FACTION' && res.candidates) {
+                  const candSel = document.getElementById('voteCandidateSelect');
+                  candSel.innerHTML = '<option value="" disabled selected>-- Elige candidato --</option>';
+                  res.candidates.forEach(c => {
+                      // Evitar votarse a uno mismo en el desplegable
+                      if (c !== app.user) {
+                          const opt = document.createElement('option');
+                          opt.value = c; opt.innerText = c;
+                          candSel.appendChild(opt);
+                      }
+                  });
+              }
+
+          })[handler](app.user);
+      },
+
+      loadTeamCandidates: function() {
+            const voter = document.getElementById('voteUserSelect').value;
+            if(!voter) return;
+
+            const loader = document.getElementById('voteLoading');
+            const badge = document.getElementById('voteTeamBadge');
+            const step2 = document.getElementById('voteStep2');
+            const candSel = document.getElementById('voteCandidateSelect');
+
+            loader.style.display = 'block';
+            step2.style.display = 'none';
+            step2.style.opacity = '0';
+            badge.innerHTML = '';
+
+            // Llamada al Backend para buscar equipo y candidatos
+            google.script.run.withSuccessHandler(res => {
+                loader.style.display = 'none';
+                
+                if (res.error) {
+                    badge.innerHTML = `<span style="color:#ef4444; font-weight:bold; background:rgba(255,0,0,0.1); padding:5px 10px; border-radius:4px;">❌ ${res.error}</span>`;
+                    return;
+                }
+
+                // Mostrar Badge de Equipo
+                const isHex = res.team === 'HEXTECH';
+                const color = isHex ? '#0984e3' : '#6ab04c'; 
+                const bg = isHex ? 'rgba(9, 132, 227, 0.2)' : 'rgba(106, 176, 76, 0.2)';
+                const icon = isHex ? '💎' : '🧪';
+                
+                badge.innerHTML = `<div style="background:${bg}; color:${color}; border:1px solid ${color}; padding:8px 20px; border-radius:4px; display:inline-block; font-weight:bold; font-family:'Oswald'; letter-spacing:1px; font-size:1.2em; box-shadow:0 0 15px ${bg};">${icon} FACCIÓN ${res.team}</div>`;
+
+                // Llenar select de candidatos
+                candSel.innerHTML = '<option value="" disabled selected>-- Elige a tu General --</option>';
+                res.candidates.forEach(c => {
+                    // --- FILTRO: Ocultar al propio votante para evitar autovoto ---
+                    if (c !== voter) { 
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.text = c;
+                        candSel.appendChild(opt);
+                    }
+                });
+
+                // Mostrar paso 2 con animación
+                step2.style.display = 'block';
+                setTimeout(() => step2.style.opacity = '1', 50);
+
+            }).getTeammatesForVoting(voter);
+        },
+
+      confirmVote: function() {
+          const voter = document.getElementById('voteUserSelect').value;
+          const role = document.getElementById('voteRoleSelect').value; // NUEVO
+          const candidate = document.getElementById('voteCandidateSelect').value;
+          
+          if (!candidate) { alert("⚠️ Elige un candidato."); return; }
+
+          if(!confirm(`¿Votar a ${candidate} como ${role}?\nCoste: 1 G`)) return;
+
+          const btn = document.querySelector('#voteStep2 button:last-child');
+          btn.innerText = "VOTANDO..."; btn.disabled = true;
+          document.body.style.cursor = 'wait';
+
+          // EMPAQUETAMOS LOS DATOS: "ROL|CANDIDATO"
+          const dataPackage = role + "|" + candidate;
+
+          google.script.run.withSuccessHandler(res => {
+              document.body.style.cursor = 'default';
+              btn.innerText = "CONFIRMAR VOTO"; btn.disabled = false;
+              app.closeVoting();
+              if(res.success) { alert("✅ " + res.msg); app.updateUI(); } 
+              else { alert("❌ " + res.msg); }
+          }).buyShopItem(voter, 'VOTE_BALLOT', dataPackage);
+      },
+
+      // ==========================================================
+      // 🔥 FUNCIONES DE LA FORJA 
+      // ==========================================================
+      loadForge: function() {
+          const loader = document.getElementById('forgeLoader');
+          const content = document.getElementById('forgeContent');
+          loader.style.display = 'block'; content.style.display = 'none';
+
+          if(app.user) {
+              google.script.run.withSuccessHandler(app.renderForge).withFailureHandler(err => { 
+                  alert("Error cargando forja: " + err); loader.innerText = "Error cargando datos."; 
+              }).getForgeData(app.user);
+          } else {
+              loader.innerHTML = "⚠️ Debes iniciar sesión para usar la Forja.";
+          }
+      },
+
+      renderForge: function(data) {
+          document.getElementById('forgeLoader').style.display = 'none';
+          document.getElementById('forgeContent').style.display = 'flex';
+
+          const matsGrid = document.getElementById('mats-grid');
+          matsGrid.innerHTML = '';
+          if (!data.inventory || data.inventory.length === 0) {
+              matsGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#64748b; padding: 40px 0;">Bolsa vacía. ¡Juega partidas o abre cofres!</div>';
+          } else {
+              data.inventory.forEach(item => {
+                  matsGrid.innerHTML += `<div class="mat-card"><div class="mat-icon">${item.icon}</div><div class="mat-count">x${item.count}</div><div class="mat-name">${item.name}</div></div>`;
+              });
+          }
+
+          const recipesPanel = document.getElementById('recipes-panel');
+          recipesPanel.innerHTML = '';
+          const myMatsCount = {};
+          if (data.inventory) data.inventory.forEach(i => myMatsCount[i.id] = i.count);
+
+          for (const rID in data.recipes) {
+              const r = data.recipes[rID];
+              let reqHtml = ''; let canCraft = true;
+
+              for (const reqItem in r.req) {
+                  const needed = r.req[reqItem]; const owned = myMatsCount[reqItem] || 0;
+                  const cssClass = owned >= needed ? 'has-it' : 'needs-it';
+                  const itemData = data.itemsDb[reqItem] || { name: reqItem, icon: '📦' };
+                  reqHtml += `<div class="req-badge ${cssClass}"><span>${itemData.icon}</span> <span>${itemData.name} (${owned}/${needed})</span></div>`;
+                  if (owned < needed) canCraft = false;
+              }
+
+              const blueprintID = 'BP_' + rID;
+              const hasBlueprint = myMatsCount[blueprintID] > 0;
+              let btnState = 'disabled'; let btnText = 'Faltan Materiales';
+              
+              if (!hasBlueprint) { btnText = 'Falta el Plano 📜'; reqHtml += `<div class="req-badge needs-it">📜 Necesitas el Plano</div>`; } 
+              else if (!canCraft) { btnText = 'Faltan Materiales'; reqHtml += `<div class="req-badge has-it">📜 Plano Desbloqueado</div>`; } 
+              else { btnState = ''; btnText = '🔨 FORJAR'; reqHtml += `<div class="req-badge has-it">📜 Plano Desbloqueado</div>`; }
+
+              recipesPanel.innerHTML += `<div class="recipe-card"><div class="recipe-info"><div class="r-icon">${r.icon}</div><div class="r-details"><h3>${r.name}</h3><div class="req-list">${reqHtml}</div></div></div><button class="btn-forge" ${btnState} onclick="app.craftItem(this, '${rID}')">${btnText}</button></div>`;
+          }
+      },
+
+      craftItem: function(btnElement, recipeID) {
+          btnElement.innerHTML = 'Forjando... ⏳'; btnElement.disabled = true;
+          google.script.run.withSuccessHandler((res) => {
+              if(res.success) { alert(res.msg); app.loadForge(); } 
+              else { alert("❌ Error: " + res.msg); btnElement.innerHTML = '🔨 FORJAR'; btnElement.disabled = false; }
+          }).craftOrnnItem(app.user, recipeID);
+      }, 
+
+      useItem: function(id) {
+          // Solo permitimos usar el Cofre/One Piece manualmente
+          if (id !== 'CHEST_HEXTECH' && id !== 'ONE_PIECE') {
+              alert("ℹ️ Este objeto es pasivo. Se usará automáticamente en tu próxima partida.");
+              return;
+          }
+
+          if(!confirm("🎲 ¿Quieres abrir este objeto ahora?")) return;
+          
+          document.body.style.cursor = 'wait';
+          
+          google.script.run.withSuccessHandler(res => {
+             document.body.style.cursor = 'default';
+             if(res.success) {
+                 // Si hay premio visual (Ruleta), la lanzamos
+                 if (res.winnerItem) {
+                     app.launchRoulette(res.winnerItem);
+                 } else {
+                     alert("✅ " + res.msg);
+                 }
+                 app.updateUI(); // Recargar inventario para que desaparezca el objeto usado
+             } else {
+                 alert("❌ " + res.msg);
+             }
+          }).useInventoryItem(app.user, id);
+      },
+      
+      loadRivals: function() {
+        const container = document.getElementById('rivals-list'); container.innerHTML = '<div style="text-align:center; padding:20px;">Cargando duelos...</div>';
+        google.script.run.withSuccessHandler(app.renderRivals).getRivalsDataForWeb();
+      },
+      
+      renderRivals: function(rivals) {
+        const container = document.getElementById('rivals-list');
+        container.innerHTML = '';
+
+        if (!rivals || rivals.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:40px; background:#1e293b; border-radius:10px; border:1px dashed #475569;"><div style="font-size:2em; margin-bottom:10px;">💤</div><div style="color:#94a3b8;">No hay duelos activos esta semana.</div></div>`;
+            return;
+        }
+
+        rivals.forEach(r => {
+            const s1 = Number(r.gain1);
+            const s2 = Number(r.gain2);
+            const g1 = r.games1 || 0;
+            const g2 = r.games2 || 0;
+            
+            // Identificar tipo de duelo (si el backend lo envía)
+            const dType = r.type || 'STANDARD';
+            const typeConfig = {
+              'STANDARD': { color: '#38bdf8', label: 'DUELO' },
+              'EPIC': { color: '#fbbf24', label: 'EPIC' },
+              'BLOOD_FEUD': { color: '#ef4444', label: 'VENGANZA' }
+            }[dType];
+
+            // Lógica de Ganador Visual
+            const diff = s1 - s2;
+            const class1 = diff > 0 ? 'winning-glow' : (diff < 0 ? 'score-lose' : '');
+            const class2 = diff < 0 ? 'winning-glow' : (diff > 0 ? 'score-lose' : '');
+
+            // Barra de progreso mejorada
+            const total = s1 + s2;
+            let pct1 = 50;
+            if (total > 0) pct1 = (s1 / total) * 100;
+
+            const html = `
+            <div class="rival-card" style="border-left: 4px solid ${typeConfig.color}; margin-bottom: 15px;">
+                <div style="position:absolute; top:5px; left:50%; transform:translateX(-50%); font-size:9px; color:${typeConfig.color}; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">
+                    ${typeConfig.label}
+                </div>
+
+                <div class="player-side left">
+                    <div class="rival-name ${class1}">
+                        ${r.p1} 
+                        <span style="font-size:0.7em; opacity:0.6;">(${g1}/4)</span>
+                    </div>
+                    <div class="rival-score ${class1}" style="color:${diff > 0 ? 'var(--green)' : ''}">+${s1.toFixed(1)}</div>
+                </div>
+
+                <div class="vs-badge" style="background:${typeConfig.color}; box-shadow: 0 0 10px ${typeConfig.color}66;">
+                    ${Math.abs(diff) > 15 ? '🔥' : 'VS'}
+                </div>
+
+                <div class="player-side right">
+                    <div class="rival-name ${class2}">
+                        <span style="font-size:0.7em; opacity:0.6;">(${g2}/4)</span>
+                        ${r.p2} 
+                    </div>
+                    <div class="rival-score ${class2}" style="color:${diff < 0 ? 'var(--green)' : ''}">+${s2.toFixed(1)}</div>
+                </div>
+
+                <div class="rival-bar-bg" style="background: rgba(255,255,255,0.05);">
+                    <div class="rival-bar-fill" style="width: ${pct1}%; background: ${typeConfig.color};"></div>
+                </div>
+            </div>`;
+
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    },
+      
+      loadShop: function() {
+         google.script.run.withSuccessHandler(res => {
+            const invDiv = document.getElementById('myInventory');
+            if(res.inventory.length === 0) invDiv.innerHTML = '<span style="color:#666; font-style:italic">No tienes objetos activos.</span>';
+            else  invDiv.innerHTML = res.inventory.map(item => 
+              `<div onclick="app.useItem('${item.id}')" 
+                    style="background:#334155; padding:5px 10px; border-radius:5px; border:1px solid #fff; display:flex; align-items:center; gap:5px; cursor:pointer; transition:0.2s;"
+                    onmouseover="this.style.background='#475569'" 
+                    onmouseout="this.style.background='#334155'">
+                <span style="font-size:1.2em">${item.icon}</span>
+                <span style="font-weight:bold; font-size:0.9em">${item.name}</span>
+              </div>`
+            ).join('');
+            const shopDiv = document.getElementById('shopGrid');
+            shopDiv.className = "shop-grid"; 
+            shopDiv.innerHTML = res.catalog.map(item => `<div class="shop-card"><div class="shop-icon">${item.icon}</div><div class="shop-name">${item.name}</div><div class="shop-desc">${item.desc}</div><div style="display:flex; justify-content:center; align-items:center; margin-top:10px; background:#0f172a; padding:8px; border-radius:6px;"><span class="shop-price">${item.price} G</span><button class="btn" style="background:var(--gold); color:black; font-size:0.8em; padding:4px 12px;" onclick="app.buyItem('${item.id}')">COMPRAR</button></div></div>`).join('');
+
+            // --- 3. CÓDIGO NUEVO (DETECTAR BOMBA) ---
+            // Primero limpiamos indicadores viejos por si recargas
+            document.body.style.border = "none";
+            // Buscamos si existe el icono de bomba y lo quitamos para no duplicar
+            const oldBadge = document.querySelector('.bomb-badge');
+            if(oldBadge) oldBadge.remove();
+
+            if (res.inventory.some(i => i.id === 'HOT_POTATO')) {
+                document.getElementById('pageTitle').innerHTML += ' <span class="bomb-badge" title="¡TIENES LA BOMBA! Gana para pasarla.">💣</span>';
+                document.body.style.border = "5px solid red";
+            }
+         }).getShopData(app.user);
+      },
+
+      loadMissions: function() {
+        document.getElementById('missions-container').innerHTML = '<div style="text-align:center; color:#888;">Cargando medallas...</div>';
+        google.script.run.withSuccessHandler(app.renderMissions).getMissionsForWeb(app.user);
+        app.checkVoidHorde();
+      },
+
+      checkVoidHorde: function() {
+        google.script.run.withSuccessHandler(events => {
+            if (events && events.voidHorde && events.voidHorde.active) {
+                const container = document.getElementById('void-raid-container');
+                const bar = document.getElementById('void-progress-bar');
+                const counter = document.getElementById('void-counter');
+                container.style.display = 'block';
+                const current = events.voidHorde.current; const target = events.voidHorde.target; const percent = Math.min(100, (current / target) * 100);
+                bar.style.width = percent + '%'; counter.innerText = `${current} / ${target}`;
+            } else { document.getElementById('void-raid-container').style.display = 'none'; }
+        }).getActiveEventsForWeb();
+      },
+
+      renderMissions: function(missions) {
+        const container = document.getElementById('missions-container'); container.innerHTML = '';
+        if (!missions || missions.length === 0) { container.innerHTML = '<p style="text-align:center; color:#aaa">No hay misiones activas.</p>'; return; }
+        missions.forEach(m => {
+            const statusClass = m.completed ? 'unlocked' : 'locked'; const statusText = m.completed ? '¡COMPLETADA!' : `${m.progress}%`;
+            let icon = "🏅"; const id = (m.id || "").toUpperCase(); const txt = (m.name + " " + m.desc).toLowerCase();
+            if (id.includes("FREJORD")) icon = "❄️"; else if (id.includes("DEMACIA")) icon = "⚔️"; else if (id.includes("NOXUS")) icon = "🪓"; else if (id.includes("IONIA")) icon = "🌸"; else if (id.includes("SHURIMA")) icon = "☀️"; else if (id.includes("YORDLE")) icon = "🍄"; else if (id.includes("LANES")) icon = "🔀"; else if (id.includes("SURVIVAL")) icon = "🛡️"; else if (id.includes("ADC")) icon = "🏹"; else if (id.includes("SUPP")) icon = "🍼"; else if (id.includes("JUNGLE")) icon = "🌲"; else if (id.includes("KILLS")) icon = "💀"; else if (id.includes("ASSISTS")) icon = "🚑"; else if (id.includes("STEALS")) icon = "🧤"; else if (txt.includes("dragon")) icon = "🐉"; else if (txt.includes("baron")) icon = "👾"; else if (txt.includes("torre")) icon = "🏰"; else if (txt.includes("oro")) icon = "💰"; else if (txt.includes("vision")) icon = "👁️"; else if (txt.includes("ganar")) icon = "🏆"; else if (m.reward && parseFloat(m.reward) >= 25) icon = "👑";
+            const html = `<div class="medal-card ${statusClass}"><div class="mission-title">${m.name}</div><div class="medal-icon">${icon}</div><div style="font-size:11px; color:#888; margin-bottom:5px; min-height:30px; display:flex; align-items:center; justify-content:center;">${m.desc || ''}</div>${!m.completed ? `<div class="mission-progress-bar"><div class="mission-progress-fill" style="width: ${m.progress}%"></div></div><div style="font-size:10px; color:#64748b; margin-top:5px; font-weight:bold;">${statusText}</div>` : `<div style="color:#0ac8b9; font-weight:bold; font-size:12px; margin-top:auto; text-shadow:0 0 10px rgba(16,185,129,0.4);">✨ COMPLETADA</div><div class="medal-reward">${m.reward}</div>`}</div>`;
+            container.innerHTML += html;
+        });
+      },
+      loadPurge: function() {
+        // 1. Poner estado de carga visual
+        document.getElementById('purgeSurvivorsBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#aaa;"><div class="loading-spinner"></div>📡 Escaneando constantes vitales...</td></tr>';
+        document.getElementById('purgeGraveyardList').innerHTML = '';
+        document.getElementById('purgeHeaderInfo').style.display = 'none';
+
+        // 2. Pedir datos al servidor
+        google.script.run
+           .withSuccessHandler(data => {
+               // Si el servidor responde pero dice que no está activa
+               if(!data || !data.active) {
+                   document.getElementById('purgeSurvivorsBody').innerHTML = "<tr><td colspan='3' style='text-align:center; padding:40px; color:#888; font-size:1.2em;'>🚫 EVENTO INACTIVO</td></tr>";
+                   return;
+               }
+
+               // --- A. ACTUALIZAR CABECERA (Día, Presión y CLIMA) ---
+               if (data.uiInfo) {
+                   const header = document.getElementById('purgeHeaderInfo');
+                   header.style.display = 'block';
+                   
+                   // Extraemos datos del clima (con fallback por seguridad)
+                   const w = data.uiInfo.weather || { icon:'❓', name:'Desconocido', desc:'' };
+
+                   header.innerHTML = `
+                       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                           <div>
+                               <span style="color:#fff; font-weight:bold; font-size:1.4em; margin-right:10px;">🩸 ${data.uiInfo.dayText}</span>
+                               <span style="color:#aaa; font-size:0.9em;">PRESIÓN: </span>
+                               <span style="color:#ef4444; font-weight:bold; font-size:1.1em;">${data.uiInfo.penaltyText}</span>
+                           </div>
+                           <div style="text-align:right;">
+                               <span style="font-size:2em;">${w.icon}</span>
+                           </div>
+                       </div>
+                       
+                       <div style="background:rgba(0,0,0,0.3); border-left: 4px solid var(--gold); padding: 10px; text-align:left; border-radius:4px;">
+                           <div style="color:var(--gold); font-weight:bold; font-family:'Oswald'; letter-spacing:1px;">
+                               CONDICIÓN ATMOSFÉRICA: ${w.name}
+                           </div>
+                           <div style="color:#ccc; font-size:0.9em; font-style:italic;">
+                               ${w.desc}
+                           </div>
+                       </div>
+                   `;
+               }
+
+               // --- B. RELLENAR SUPERVIVIENTES ---
+               if (!data.survivors || data.survivors.length === 0) {
+                   document.getElementById('purgeSurvivorsBody').innerHTML = "<tr><td colspan='3' style='text-align:center; padding:20px;'>¡No quedan supervivientes! 💀</td></tr>";
+               } else {
+                   const sHtml = data.survivors.map((r, i) => {
+                       // Los 3 primeros (con menor puntuación) están en peligro
+                       const isDanger = i < 3; 
+                       const statusIcon = isDanger ? '🩸 PELIGRO' : '🛡️ SEGURO';
+                       
+                       // Estilos dinámicos
+                       let rowStyle = '';
+                       let pointsStyle = 'color:#10b981; font-weight:bold;'; // Verde por defecto
+                       
+                       if (isDanger) {
+                           rowStyle = 'background:rgba(239, 68, 68, 0.15); color:#fca5a5;';
+                           pointsStyle = 'color:#ef4444; font-weight:800;'; // Rojo
+                       }
+                       
+                       // Si el jugador está castigado (puntos negativos), forzamos rojo
+                       if (r.isPunished) pointsStyle = 'color:#ef4444; font-weight:800;';
+
+                       return `<tr style="${rowStyle} border-bottom:1px solid #333;">
+                           <td style="font-weight:bold; font-size:0.75em; vertical-align:middle;">${statusIcon}</td>
+                           <td style="font-weight:600; font-size:1.1em; vertical-align:middle;">
+                              ${r.name} 
+                              <span style="background:#334155; color:#fff; font-size:0.6em; padding:2px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;" title="Días sobrevividos">
+                                🗓️ ${r.days}
+                              </span>
+                              <div style="font-size:0.7em; color:#888; font-weight:normal; margin-top:2px;">${r.target ? '🎯 Objetivo: '+r.target : ''}</div>
+                          </td>
+                           <td style="text-align:right; font-family:'Oswald'; font-size:1.3em; vertical-align:middle; ${pointsStyle}">
+                               ${r.displayPoints}
+                           </td>
+                       </tr>`;
+                   }).join("");
+                   document.getElementById('purgeSurvivorsBody').innerHTML = sHtml;
+               }
+
+               // --- C. RELLENAR CEMENTERIO ---
+               if (data.graveyard && data.graveyard.length > 0) {
+                   const gHtml = data.graveyard.map(p => {
+                       return `<div class="grave-item">
+                           <div class="grave-icon">💀</div>
+                           <div class="grave-name">${p.name}</div>
+                       </div>`;
+                   }).join("");
+                   document.getElementById('purgeGraveyardList').innerHTML = gHtml;
+               } else {
+                   document.getElementById('purgeGraveyardList').innerHTML = '<div style="text-align:center; color:#444; padding:20px;">El cementerio está vacío.<br>Por ahora...</div>';
+               }
+
+            })
+            .withFailureHandler(error => {
+                console.error("Error cargando Purga:", error);
+                document.getElementById('purgeSurvivorsBody').innerHTML = `<tr><td colspan='3' style='text-align:center; padding:20px; color:#ef4444;'>❌ Error de conexión: ${error.message}</td></tr>`;
+            })
+            .getPurgeRankingData();
+      },
+      
+      loadNetWorthChart: function() {
+        google.script.run.withSuccessHandler(h => {
+           if(!h || h.length === 0) return;
+           
+           const ctx = document.getElementById('netWorthChart').getContext('2d');
+           
+           // Destruir gráfico anterior para evitar bugs visuales
+           if(app.charts.line) app.charts.line.destroy();
+           
+           // 1. REDONDEO PREVIO: Limpiamos los datos antes de dárselos al gráfico
+           const values = h.map(x => Math.round(Number(x.value))); 
+           
+           const start = values[0];
+           const end = values[values.length - 1];
+           
+           // Color dinámico: Verde si subes, Rojo si bajas
+           const isPositive = end >= start;
+           const color = isPositive ? '#10b981' : '#ef4444'; 
+           
+           // Gradiente de fondo
+           let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+           gradient.addColorStop(0, isPositive ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)');
+           gradient.addColorStop(1, 'rgba(15, 23, 42, 0.0)'); 
+
+           app.charts.line = new Chart(ctx, { 
+               type: 'line', 
+               data: { 
+                   labels: h.map(x => x.date), 
+                   datasets: [{ 
+                       label: 'Patrimonio', 
+                       data: values, 
+                       borderColor: color, 
+                       backgroundColor: gradient,
+                       borderWidth: 2,
+                       fill: true, 
+                       tension: 0.4, 
+                       pointRadius: 0,
+                       pointHoverRadius: 4
+                   }] 
+               }, 
+               options: { 
+                   responsive: true, 
+                   maintainAspectRatio: false, 
+                   plugins: { 
+                       legend: { display: false },
+                       tooltip: {
+                           mode: 'index',
+                           intersect: false,
+                           callbacks: {
+                               label: function(context) {
+                                   // 2. REDONDEO EN TOOLTIP: Forzamos entero visualmente aquí también
+                                   return Math.round(context.parsed.y) + ' G';
+                               }
+                           }
+                       }
+                   }, 
+                   scales: { 
+                       x: { display: false }, 
+                       y: { 
+                           grid: { color: '#334155', drawBorder: false },
+                           ticks: { 
+                               color: '#94a3b8',
+                               // 3. REDONDEO EN EJE Y
+                               callback: function(value) { return Math.round(value); }
+                           },
+                           beginAtZero: false 
+                       } 
+                   },
+                   interaction: {
+                       mode: 'nearest',
+                       axis: 'x',
+                       intersect: false
+                   }
+               } 
+           });
+        }).withFailureHandler(error => {
+          console.error('Error cargando historial de patrimonio:', error);
+          const chartCanvas = document.getElementById('netWorthChart');
+          if (chartCanvas && chartCanvas.parentElement) {
+            chartCanvas.parentElement.insertAdjacentHTML('beforeend', `<div style="text-align:center; color:#ef4444; padding:10px;">⚠️ Error al cargar el gráfico de patrimonio.</div>`);
+          }
+        }).getMyNetWorthHistory(app.user);
+      },
+      
+      
+      loadHistory: function() {
+        const tbody = document.getElementById('historyTableBody');
+        google.script.run.withSuccessHandler(list => {
+           if(!list || list.length===0) { tbody.innerHTML = "<tr><td colspan='6'>Sin historial</td></tr>"; return; }
+           tbody.innerHTML = list.map(h => `<tr style="border-bottom:1px solid #333; font-size:0.9em"><td style="color:#888">${h.date}</td><td style="color:${h.type==='BUY'?'var(--green)':'var(--red)'}; font-weight:bold">${h.type}</td><td style="font-weight:bold">${h.target}</td><td>${h.amount}</td><td>${h.price}</td><td>${h.total}</td></tr>`).join("");
+        }).withFailureHandler(error => {
+          console.error('Error cargando historial:', error);
+          tbody.innerHTML = `<tr><td colspan='6' style="text-align:center; color:#ef4444;">❌ Error de conexión: ${error && error.message ? error.message : error}</td></tr>`;
+        }).getUserHistory(app.user);
+      },
+      trade: function(type, target) {
+          let qty = prompt(`Cantidad a ${type} (${target})?`, "1");
+          if(!qty || isNaN(qty) || qty<=0) return;
+          document.body.style.cursor = 'wait';
+          google.script.run.withSuccessHandler(res => {
+             document.body.style.cursor = 'default';
+             //if(res.success) google.script.run.withSuccessHandler(this.onDataLoaded).getMarketData();
+             if(res.success) google.script.run.withSuccessHandler(app.onDataLoaded).getMarketData();
+             else alert("❌ " + res.msg);
+          }).executeTrade(type, app.user, target, parseInt(qty));
+      },
+      sponsor: function(target) {
+          const amount = prompt(`🤝 PATROCINIO A ${target}\n\nSi gana su próxima partida, recibes el DOBLE.\nInversión mínima: 50 G.`, "50");
+          if (!amount || isNaN(amount) || Number(amount) < 50) return;
+          document.body.style.cursor = 'wait';
+          google.script.run.withSuccessHandler(res => { document.body.style.cursor = 'default'; alert(res.success ? "✅ "+res.msg : "❌ "+res.msg); if(res.success) app.updateUI(); }).sponsorPlayer(app.user, target, Number(amount));
+      },
+      
+      scanLiveGames: function() {
+          const btn = document.getElementById('btnScanLive'); 
+          btn.innerHTML = "⏳ Escaneando..."; 
+          btn.disabled = true;
+
+          google.script.run
+            .withSuccessHandler(liveMap => {
+              btn.innerHTML = "🔴 Escanear Partidas en Vivo"; 
+              btn.disabled = false;
+              
+              if (app.data && app.data.stocks) {
+                  app.data.stocks.forEach(stock => {
+                      if (liveMap[stock.name] && liveMap[stock.name].isLive) {
+                          stock.isLive = true;
+                          stock.liveTime = liveMap[stock.name].time; 
+                      } else {
+                          stock.isLive = false;
+                          stock.liveTime = "";
+                      }
+                  });
+              }
+
+              app.renderMarket(); 
+              
+              const count = Object.keys(liveMap).length;
+              alert(count > 0 ? `¡${count} partidas en curso!` : "Nadie está jugando.");
+
+            })
+            .withFailureHandler(e => { 
+                alert("Error: "+e.message); 
+                btn.disabled = false; 
+                btn.innerHTML = "🔴 Escanear Partidas en Vivo";
+            })
+            .getRealTimeLiveStatuses();
+      },
+
+      drawPie: function(l, d, a) {
+          const ctx = document.getElementById('portfolioChart').getContext('2d');
+          if(app.charts.pie) app.charts.pie.destroy();
+          if(d.length === 0) return;
+          const dynamicColors = d.map((_, i) => `hsl(${(i * 137.5) % 360}, 75%, 60%)`);
+          app.charts.pie = new Chart(ctx, { type: 'doughnut', data: { labels: l, datasets: [{ data: d, backgroundColor: dynamicColors, borderWidth: 0, hoverOffset: 10 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 10 } }, tooltip: { callbacks: { label: function(c) { return `${c.label}: ${Math.round(c.raw)} G (${a[c.dataIndex]} acc.)`; } } } }, layout: { padding: 10 } } });
+      },
+      drawSpark: function(id, d, c) {
+          const ctx = document.getElementById(id).getContext('2d');
+          let gradient = ctx.createLinearGradient(0, 0, 0, 40); gradient.addColorStop(0, c); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+          new Chart(ctx, { type: 'line', data: { labels: d.map((_,i)=>i), datasets: [{ data: d, borderColor: c, backgroundColor: gradient, borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true, displayColors: false, callbacks: { title: () => '', label: (c) => 'Precio: ' + c.parsed.y + ' G' } } }, scales: { x: { display: false }, y: { display: false, min: Math.min(...d) * 0.95, max: Math.max(...d) * 1.05 } }, layout: { padding: 2 } } });
+      },
+
+    // --- UPDATE BOSS EN TIEMPO REAL ---
+      startBossUpdateLoop: function() {
+          // Ejecutar inmediatamente
+          app.updateBoss();
+          
+          // Y luego cada 10 segundos
+          setInterval(() => {
+              if (document.getElementById('tab-missions').style.display !== 'none') {
+                  app.updateBoss();
+              }
+          }, 10000);
+      }
+    };
+
+    // --- INICIO AUTOMÁTICO Y NAVEGACIÓN ---
+    window.onload = function() {
+       // 1. Leer si la URL tiene ?p=ranking o ?p=history
+       const urlParams = new URLSearchParams(window.location.search);
+       const page = urlParams.get('p');
+
+       // 2. Si hay página específica, saltar el menú principal
+       if (page && page !== 'home') {
+           document.getElementById('commandCenter').style.display = 'none';
+           document.getElementById('loginOverlay').style.display = 'flex';
+           
+           // Iniciar la app automáticamente
+           app.init();
+
+           // Pequeño truco: Esperar a que cargue y cambiar de pestaña
+           // Guardamos la intención de navegación en una variable global
+           app.pendingPage = page; 
+       }
+    };
+
+    // --- FUNCIONES PARA EL MODAL DE SABOTAJE ---
+
+    function openSabotageModal() {
+        const overlay = document.getElementById('sabotageOverlay');
+        const select = document.getElementById('sabotageSelect');
+        const loader = document.getElementById('sabotageLoader');
+        
+        overlay.style.display = 'flex';
+        select.style.display = 'none';
+        loader.style.display = 'block';
+        select.innerHTML = ''; // Limpiar anteriores
+
+        // Pedir lista al servidor
+        google.script.run
+            .withSuccessHandler(targets => {
+                loader.style.display = 'none';
+                select.style.display = 'block';
+                
+                if (targets.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.text = "No quedan víctimas vivas";
+                    select.add(opt);
+                    select.disabled = true;
+                } else {
+                    select.disabled = false;
+                    targets.forEach(name => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.text = name;
+                        select.add(opt);
+                    });
+                }
+            })
+            .withFailureHandler(err => {
+                alert("Error cargando lista: " + err);
+                closeSabotage();
+            })
+            .getAliveTargets(app.user); // Le pasamos tu usuario para que no te liste a ti mismo
+    }
+
+    function closeSabotage() {
+        document.getElementById('sabotageOverlay').style.display = 'none';
+    }
+
+    function confirmSabotage() {
+        const select = document.getElementById('sabotageSelect');
+        const targetName = select.value;
+
+        if (!targetName || select.disabled) {
+            alert("Selecciona una víctima válida.");
+            return;
+        }
+
+        const confirmMsg = `¿Confirmar ataque a ${targetName}? \nCoste: 600 G`;
+        if (!confirm(confirmMsg)) return;
+
+        // Cerrar modal y proceder a la compra
+        closeSabotage();
+        document.body.style.cursor = 'wait';
+
+        // Llamada original de compra pasando el nombre seleccionado
+        google.script.run.withSuccessHandler(res => {
+             document.body.style.cursor = 'default';
+             if(res.success) {
+                 alert("✅ " + res.msg);
+                 app.updateUI();
+             } else {
+                 alert("❌ Error: " + res.msg);
+             }
+        }).withFailureHandler(error => {
+             document.body.style.cursor = 'default';
+             console.error('Error ejecutando sabotaje:', error);
+             alert("❌ Error de conexión: " + (error && error.message ? error.message : error));
+        }).buyShopItem(app.user, 'TOXIC_INJECTOR', targetName);
+    }
+   
+       
+// --- FUNCIONES DEL TORNEO (TEAM BATTLE) ---
+
+
+// --- FUNCIÓN GLOBAL PARA EL TORNEO (BRACKET VISUAL) ---
+function loadTeamBattleData() {
+    const badge = document.getElementById('tb-phase-badge');
+    const grid = document.getElementById('teams-grid');
+    const bracket = document.getElementById('tournament-bracket');
+    
+    if(badge) badge.innerText = "ACTUALIZANDO...";
+    
+    google.script.run.withSuccessHandler(data => {
+        if(!data.active) { 
+            grid.innerHTML = "<div style='color:#666; text-align:center; width:100%;'>Evento Finalizado</div>"; 
+            bracket.style.display = 'none';
+            return; 
+        }
+
+        // --- MODO 1: FASE DE DRAFT / INSCRIPCIÓN ---
+        // Si estamos votando o aún no hay ronda definida (DRAFT)
+        if (data.phase === 'VOTING' || data.round === 'DRAFT') {
+            if(badge) badge.innerText = '🟡 FASE DE DRAFT';
+            bracket.style.display = 'none';
+            grid.style.display = 'grid'; // Mostrar rejilla normal
+            
+            // Llamamos a la función auxiliar que pinta las tarjetas individuales
+            // (Asegúrate de tener la función renderDraftGrid definida más abajo)
+            renderDraftGrid(data, grid); 
+            return;
+        }
+
+        // --- MODO 2: FASE DE BRACKET (SEMIS / FINAL) ---
+        if(badge) badge.innerText = data.round === 'FINALS' ? '🏆 GRAN FINAL' : '⚔️ SEMIFINALES';
+        
+        grid.style.display = 'none'; // Ocultar rejilla de draft
+        bracket.style.display = 'flex'; // Mostrar cuadro de torneo
+        bracket.innerHTML = ''; // Limpiar contenido anterior
+
+        // Construir columna de partidos
+        let bracketHTML = `<div class="bracket-column">
+                             <div class="bracket-title">${data.round === 'FINALS' ? 'FINALES' : 'SEMIFINALES'}</div>`;
+        
+        // Obtenemos los emparejamientos activos
+        let matchesToShow = data.matchups || [];
+        
+        // CORRECCIÓN: Si llega como texto desde Google Sheets, lo convertimos a lista
+        if (typeof matchesToShow === 'string') {
+            try { 
+                matchesToShow = JSON.parse(matchesToShow); 
+            } catch(e) { 
+                matchesToShow = []; 
+            }
+        }
+
+        matchesToShow.forEach((pair, idx) => {
+            // Obtener datos de los equipos usando su ID
+            const t1 = data.teams[pair[0]];
+            const t2 = data.teams[pair[1]];
+            
+            // Determinar ganador visual (quien tiene más score)
+            const s1 = Number(t1.score || 0);
+            const s2 = Number(t2.score || 0);
+            const w1 = s1 > s2 ? 'winner' : (s1 < s2 ? 'loser' : '');
+            const w2 = s2 > s1 ? 'winner' : (s2 < s1 ? 'loser' : '');
+
+            // Estilos especiales para la Final
+            const isFinalCard = (data.round === 'FINALS' && idx === 0) ? 'final-card' : '';
+            
+            // Título del partido
+            let matchTitle = `SEMIFINAL ${idx+1}`;
+            if (data.round === 'FINALS') {
+                matchTitle = (idx === 0) ? "👑 GRAN FINAL" : "🥉 3er PUESTO";
+            }
+
+            // Construir tarjeta HTML
+            bracketHTML += `
+            <div class="match-card ${isFinalCard}">
+                <div style="padding:5px 10px; background:rgba(0,0,0,0.3); color:#94a3b8; font-size:0.7em; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid #334155;">
+                    ${matchTitle}
+                </div>
+                
+                <div class="team-row ${w1}">
+                    <div class="t-name">
+                        <span class="crown-icon">👑</span> Team ${t1.id}
+                    </div>
+                    <div class="t-score">${Math.floor(s1)}</div>
+                </div>
+                
+                <div class="team-row ${w2}">
+                    <div class="t-name">
+                        <span class="crown-icon">👑</span> Team ${t2.id}
+                    </div>
+                    <div class="t-score">${Math.floor(s2)}</div>
+                </div>
+            </div>`;
+        });
+        
+        bracketHTML += `</div>`; // Cerrar columna
+
+        // Inyectar HTML al contenedor
+        bracket.innerHTML = bracketHTML;
+
+    }).withFailureHandler(error => {
+        console.error('Error cargando datos del torneo:', error);
+        if (badge) badge.innerText = "ERROR";
+        grid.innerHTML = `<div style="color:#ef4444; text-align:center; width:100%;">⚠️ Error al cargar los datos del torneo: ${error && error.message ? error.message : error}</div>`;
+    }).getTeamBattleDataForWeb();
+}
+
+
+
+// Función auxiliar para pintar la rejilla de Draft (Fichajes)
+function renderDraftGrid(data, grid) {
+    grid.innerHTML = '';
+    
+    // 1. AÑADIMOS 'SUB' AL FINAL DE LA LISTA
+    const roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT', 'SUB'];
+    
+    // 2. DEFINIMOS EL ICONO DEL SUPLENTE
+    const icons = {
+        'TOP': '🗿', 
+        'JUNGLE': '🐗', 
+        'MIDDLE': '🧙🏻♂️', 
+        'BOTTOM': '🏹', 
+        'SUPPORT': '🤱🏻', 
+        'SUB': '⛑️' // Icono de médico/ayuda
+    };
+
+    Object.values(data.teams).forEach(team => {
+        let rolesHtml = '';
+        let totalScore = 0;
+        
+        roles.forEach(r => {
+            // Buscamos el jugador en ese slot
+            const slot = team.slots[r];
+            let content = '';
+            
+            // Estilo especial para diferenciar al Suplente visualmente
+            let rowStyle = (r === 'SUB') ? 'border-top: 1px dashed #334155; margin-top:5px; padding-top:8px;' : '';
+
+            if(slot) {
+                // Si hay jugador
+                const capIcon = slot.isCaptain ? '👑 ' : '';
+                const capStyle = slot.isCaptain ? 'color:#ffd700;' : 'color:#eee;';
+                
+                // Si es SUB, lo ponemos en otro color para destacar
+                const nameStyle = (r === 'SUB') ? 'color:#f59e0b;' : capStyle;
+                
+                content = `<span class="role-name" style="${nameStyle} font-weight:bold;">${capIcon}${slot.name}</span>`;
+                
+                if(data.phase === 'LOCKED') {
+                    content += ` <span class="role-score-val" style="color:#0AC8B9; font-size:0.8em;">${slot.score} pts</span>`;
+                    totalScore += Number(slot.score);
+                }
+            } else {
+                // Si está vacío
+                let emptyText = (r === 'SUB') ? '--- Suplente ---' : '--- Vacante ---';
+                content = `<span class="role-empty" style="color:#444; font-style:italic; font-size:0.9em;">${emptyText}</span>`;
+            }
+            
+            rolesHtml += `<div class="role-row" style="${rowStyle}"><div class="role-icon">${icons[r]}</div><div style="flex:1; margin-left:10px;">${content}</div></div>`;
+        });
+        
+        // Banquillo (Gente sin rol asignado)
+        let benchHtml = '';
+        if(team.members.length > 0) {
+            const benchNames = team.members.map(m => (m.isCaptain ? '👑 ' : '') + m.name).join(', ');
+            benchHtml = `<div class="bench-box" style="margin-top:10px; padding-top:10px; border-top:1px solid #334155; font-size:0.85em; color:#888;">⚠️ BANQUILLO: ${benchNames}</div>`;
+        }
+        
+        const card = `
+        <div class="team-card" style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:15px;">
+            <div class="team-header" style="border-bottom:2px solid #c8aa6e; margin-bottom:10px; padding-bottom:5px; display:flex; justify-content:space-between;">
+                <span class="team-title" style="font-family:'Oswald'; color:#f0e6d2;">EQUIPO ${team.id}</span>
+                <span class="team-pts" style="color:#0AC8B9; font-weight:bold;">${data.phase==='LOCKED' ? totalScore+' PTS' : ''}</span>
+            </div>
+            ${rolesHtml}
+            ${benchHtml}
+        </div>`;
+        
+        grid.insertAdjacentHTML('beforeend', card);
+    });
+}
+
+function renderTeamBattleScreen(data) {
+    const grid = document.getElementById('teams-grid');
+    const badge = document.getElementById('tb-phase-badge');
+    const instr = document.getElementById('tb-instructions');
+    
+    if (!grid) return;
+    grid.innerHTML = ''; 
+
+    if (!data || !data.active) {
+        if(badge) {
+            badge.innerText = "EVENTO FINALIZADO";
+            badge.style.borderColor = "#444"; badge.style.color = "#888";
+        }
+        if(instr) instr.innerHTML = "No hay ningún torneo activo en este momento.";
+        return;
+    }
+
+    // Configurar Fa
+    if (data.phase === 'VOTING') {
+        badge.innerText = "🟡 FASE DE DRAFT";
+        badge.style.color = "#FFD700"; badge.style.borderColor = "#FFD700";
+        instr.innerHTML = `Equipos asignados. Compra <strong>"Contrato de Equipo"</strong> en la tienda para asegurar tu línea.`;
+    } else if (data.phase === 'LOCKED') {
+        badge.innerText = "🔒 EN GUERRA";
+        badge.style.color = "#FF4444"; badge.style.borderColor = "#FF4444";
+        instr.innerHTML = `Roles cerrados. Jugar fuera de posición = <strong>0 Puntos</strong>.`;
+    }
+
+    // Renderizar Equipos
+    const roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT'];
+    const icons = {'TOP':'🛡️','JUNGLE':'🌲','MIDDLE':'🗡️','BOTTOM':'🏹','SUPPORT':'❤️'};
+
+    Object.values(data.teams).forEach(team => {
+        let rolesHtml = '';
+        let teamTotalScore = 0;
+
+        roles.forEach(r => {
+            const slot = team.slots[r];
+            let content = '';
+
+            if (slot) {
+                // Jugador asignado
+                let scoreText = (data.phase === 'LOCKED') ? `<span class="role-score-val">${slot.score} pts</span>` : '';
+                content = `<div class="role-info"><span class="role-name">${slot.name}</span>${scoreText}</div>`;
+                teamTotalScore += Number(slot.score || 0);
+            } else {
+                content = `<div class="role-info"><span class="role-empty">--- Vacante ---</span></div>`;
+            }
+
+            rolesHtml += `<div class="role-row"><div class="role-icon">${icons[r]}</div>${content}</div>`;
+        });
+
+        let benchHtml = '';
+        if (team.members.length > 0) {
+            benchHtml = `<div class="bench-box"><div class="bench-title">⚠️ SIN ROL ASIGNADO</div>${team.members.join(', ')}</div>`;
+        }
+
+        const html = `
+            <div class="team-card">
+                <div class="team-header">
+                    <span class="team-title">EQUIPO ${team.id}</span>
+                    ${data.phase === 'LOCKED' ? `<span class="team-pts">${teamTotalScore} PTS</span>` : ''}
+                </div>
+                ${rolesHtml}
+                ${benchHtml}
+            </div>
+        `;
+        grid.innerHTML += html;
+    });
+}
+    
+  </script>
+
+  <div id="roulette-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+      <h2 style="color:#f1c40f; text-shadow:0 0 10px #f1c40f; margin-bottom:20px;">🎰 Abriendo Cofre...</h2>
+      <div style="position:relative; width:400px; height:100px; background:#16213e; border:4px solid #f1c40f; border-radius:8px; overflow:hidden; box-shadow:0 0 30px rgba(241,196,15,0.3);">
+          <div style="position:absolute; top:0; left:50%; transform:translateX(-50%); width:4px; height:100%; background:red; z-index:10; box-shadow:0 0 5px red;"></div>
+          <div style="position:absolute; top:-5px; left:50%; transform:translateX(-50%); color:red; font-size:20px; z-index:11;">▼</div>
+          <div id="roulette-strip" style="display:flex; height:100%; will-change:transform;"></div>
+      </div>
+      <div id="roulette-result" style="margin-top:30px; font-size:24px; font-weight:bold; color:#2ecc71; opacity:0; transition:opacity 0.5s;"></div>
+      <button onclick="app.closeRoulette()" style="margin-top:20px; padding:10px 30px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer; font-size:16px; display:none;" id="roulette-close-btn">CERRAR</button>
+  </div>
+
+  <div id="sabotageOverlay" class="login-screen" style="display:none; background:rgba(20, 5, 5, 0.9);">
+    <div class="login-card" style="border-color: #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);">
+        <div class="login-title" style="color:#ef4444; font-size: 2em;">💉 SABOTAJE</div>
+        <p style="color:#fca5a5; margin-bottom: 20px;">Elige una víctima de la lista de supervivientes:</p>
+        
+        <div id="sabotageLoader" style="display:none; color:white;">Cargando lista...</div>
+        
+        <select id="sabotageSelect" class="login-select" style="border: 1px solid #ef4444;">
+            </select>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="login-btn" style="background:#333; color:white;" onclick="closeSabotage()">CANCELAR</button>
+            <button class="login-btn" style="background:#ef4444; color:white;" onclick="confirmSabotage()">ENVENENAR (-1.0)</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="votingOverlay" class="login-screen" style="display:none; background:rgba(0, 0, 0, 0.95); z-index:10000;">
+  <div class="login-card" style="border-color: #c8aa6e; box-shadow: 0 0 40px rgba(200, 170, 110, 0.2); max-width: 500px; width:90%;">
+      
+      <div style="text-align:center; margin-bottom:20px;">
+           <div style="font-size:4em; margin-bottom:10px;">🗳️</div>
+           <div id="voteTitle" class="login-title" style="color:#c8aa6e; font-size: 2.2em; margin:0;">URNA ELECTORAL</div>
+           <p id="voteSubtitle" style="color:#94a3b8; font-size:0.9em; margin-top:5px;">Tu voto define el destino.</p>
+      </div>
+
+      <div id="voteLoading" style="color:#c8aa6e; margin-top:15px; font-style:italic;">🔄 Cargando datos...</div>
+
+      <div id="voteContent" style="display:none;">
+          <label style="display:block; text-align:left; color:#f0e6d2; margin-bottom:8px; font-weight:bold; font-size:0.9em;">1. IDENTIDAD:</label>
+          <select id="voteUserSelect" class="login-select" style="margin:0 0 20px 0; border: 1px solid #444;" disabled>
+              <option value="" selected>Cargando...</option>
+          </select>
+
+          <div id="voteTeamBadge" style="margin-bottom:25px; min-height:40px; display:flex; justify-content:center; align-items:center;"></div>
+
+          <div id="sectionTournament" style="display:none;">
+              <label style="display:block; text-align:left; color:#f0e6d2; margin-bottom:5px; font-weight:bold; font-size:0.9em;">2. ELIGE TU POSICIÓN:</label>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;">
+                  <button class="btn role-btn" onclick="app.selectVoteRole('TOP', this)">🗿 TOP</button>
+                  <button class="btn role-btn" onclick="app.selectVoteRole('JUNGLE', this)">🐗 JGL</button>
+                  <button class="btn role-btn" onclick="app.selectVoteRole('MIDDLE', this)">🧙🏻♂️ MID</button>
+                  <button class="btn role-btn" onclick="app.selectVoteRole('BOTTOM', this)">🏹 ADC</button>
+                  <button class="btn role-btn" onclick="app.selectVoteRole('SUPPORT', this)">🤱🏻 SUPP</button>
+                  <button class="btn role-btn" onclick="app.selectVoteRole('FILL', this)">🔄 FILL</button>
+              </div>
+              <input type="hidden" id="selectedRoleInput">
+          </div>
+
+          <div id="sectionFaction" style="display:none;">
+              <label style="display:block; text-align:left; color:#f0e6d2; margin-bottom:5px; font-weight:bold; font-size:0.9em;">2. ¿QUÉ ROL VOTAS?</label>
+              <select id="voteFactionRole" class="login-select" style="margin:0 0 15px 0; border: 1px solid #c8aa6e; color:#fff;">
+                  <option value="GENERAL" selected>⭐ GENERAL (Líder)</option>
+                  <option value="ESTRATEGA">🧠 ESTRATEGA</option>
+                  <option value="TANQUE">🛡️ TANQUE</option>
+              </select>
+
+              <label style="display:block; text-align:left; color:#f0e6d2; margin-bottom:5px; font-weight:bold; font-size:0.9em;">3. ELIGE CANDIDATO:</label>
+              <select id="voteCandidateSelect" class="login-select" style="margin:0 0 25px 0; border: 1px solid #c8aa6e; color:#f0e6d2;">
+                  <option value="" disabled selected>-- Cargando compañeros --</option>
+              </select>
+          </div>
+
+          <div style="display:flex; gap:15px; margin-top: 20px;">
+              <button class="login-btn" style="background:#334155; color:white; flex:1; border:1px solid #555;" onclick="document.getElementById('votingOverlay').style.display='none'">CANCELAR</button>
+              <button class="login-btn" style="background:linear-gradient(to bottom, #1e2328, #010a13); color:#c8aa6e; border:2px solid #c8aa6e; flex:2; font-weight:800;" onclick="app.submitVote()">CONFIRMAR (1 G)</button>
+          </div>
+      </div>
+  </div>
+</div>
+
+</body>
+</html>

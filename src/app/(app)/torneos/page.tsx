@@ -224,11 +224,20 @@ export default async function TournamentsPage({
                 ))}
               </div>
             </fieldset>
+            {/* v0.135 — si es TUYO, además cuenta para tus CP, tu mejor resultado y tus medallas. */}
+            <label className="col-span-2 flex items-start gap-2.5 rounded-lg border border-line-soft p-3 sm:col-span-3">
+              <input type="checkbox" name="esMio" value="1" className="mt-0.5 size-5 flex-none" />
+              <span className="text-sm"><b>{tr(lng, "v135.esMio")}</b><span className="block text-xs text-muted">{tr(lng, "v135.esMioAyuda")}</span></span>
+            </label>
             <button className="btn btn-brand col-span-2 sm:col-span-3" type="submit">{tr(lng, "loc.guardar")}</button>
           </form>
         </details>
       )}
 
+      {/* v0.135 — los torneos repetidos, para fusionarlos (organizadores). */}
+      {me && canManageLeague(me.role) && (
+        <p className="mb-3 text-right text-sm"><Link href="/torneos/duplicados" className="font-semibold text-info hover:underline">{tr(lng, "v135.dup.enlace")}</Link></p>
+      )}
       <SectionTitle
         aside={proximos > 0
           ? `${proximos} por delante · ${filtered.length} de ${snap.tournaments.length}`

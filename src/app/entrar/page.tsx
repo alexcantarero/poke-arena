@@ -10,7 +10,12 @@ import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Entrar" };
+export const metadata = {
+  title: "PokeArena TCG · Liga de Pokémon TCG",
+  description: "Liga de Pokémon TCG con ranking y Elo, torneos, Championship Points, modo torneo sin cobertura y estadísticas de mazos. Crea tu cuenta y apunta tus partidas.",
+  robots: { index: true, follow: true }, // v0.135 — la portada pública: es la que tiene que salir en Google
+  alternates: { canonical: "/entrar" },
+};
 
 export default async function LoginPage() {
   const lng = await getLang(); // v0.49
@@ -45,11 +50,17 @@ export default async function LoginPage() {
         </div>
       )}
 
+      {/* v0.135 — qué es esto, para quien llega desde Google. */}
+      <section className="mt-6 text-sm text-ink-2" aria-labelledby="que-es">
+        <h2 id="que-es" className="mb-1.5 font-display text-lg font-bold text-ink">{tr(lng, "v135.queEs")}</h2>
+        <p>{tr(lng, "v135.queEsTexto")}</p>
+      </section>
+
       {/* v0.67 — no hay correo: la recuperación la da un organizador. */}
       {!empty && <p className="mt-4 text-center text-sm text-muted">{tr(lng, "rec.olvidaste")}</p>}
       <p className="mt-3 text-center text-sm text-muted">
         ¿No tienes cuenta?{" "}
-        <Link href="/registro" className="font-semibold text-ink underline underline-offset-2">
+        <Link href="/registro" className="font-semibold text-ink underline underline-offset-2" /* v0.135 — con registro libre, sin invitación */>
           {tr(lng, "x.86684350")}
         </Link>
       </p>
