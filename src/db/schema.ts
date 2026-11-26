@@ -404,6 +404,27 @@ export const ajustesExtra = pgTable("ajustes_extra", {
   valor: text("valor").notNull().default(""),
 });
 
+/** v0.137 — Votos de dificultad de cada mazo (1 muy fácil … 5 muy difícil), uno por jugador (migración 0038). */
+export const deckDificultad = pgTable("deck_dificultad", {
+  deckId: text("deck_id").notNull().references(() => decks.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  nivel: integer("nivel").notNull(),
+}, (t) => [primaryKey({ columns: [t.deckId, t.playerId] })]);
+
+/** v0.137 — Sesiones del PTCG Live: victorias y derrotas entre dos fechas, con el rango del ladder de esas fechas (migración 0038). */
+export const liveSesiones = pgTable("live_sesiones", {
+  id: text("id").primaryKey(),
+  deckId: text("deck_id").notNull().references(() => decks.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  desde: date("desde").notNull(),
+  hasta: date("hasta").notNull(),
+  /** El rango del ladder representativo de esas fechas; null si no se sabía. */
+  rango: integer("rango"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("live_sesiones_deck_idx").on(t.deckId)]);
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),

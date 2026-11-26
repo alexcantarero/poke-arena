@@ -7,6 +7,8 @@ import { pokeSlug, prettyPokemon, spriteUrl, TYPES, TYPE_KEYS } from "@/lib/poke
 import type { Archetype, Deck, PublicPlayer } from "@/lib/types";
 import { tr } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
+import { DIFICULTAD, NIVELES_DIFICULTAD } from "@/lib/dificultad";
+import type { CSSProperties } from "react";
 
 export function DeckForm({
   deck, players, archetypes, defaultPlayerId, canPickPlayer, back,
@@ -146,9 +148,25 @@ export function DeckForm({
         </div>
       </section>
 
+      {/* v0.137 — la dificultad, al crear: es el primer voto (luego vota todo el mundo y sale la media). */}
+      {!deck && (
+        <section className="card p-4">
+          <h2 className="mb-1 text-lg font-bold">{tr(lng, "v137.dificultad")}</h2>
+          <p className="mb-3 text-sm text-muted">{tr(lng, "v137.dificultadAyuda")}</p>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr(lng, "v137.dificultad")}>
+            {NIVELES_DIFICULTAD.map((n) => (
+              <label key={n} className="dif-opcion" style={{ "--dif": DIFICULTAD[n].color } as CSSProperties}>
+                <input type="radio" name="dificultad" value={n} className="sr-only" />
+                <span>{tr(lng, DIFICULTAD[n].clave)}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="card p-4">
         <h2 className="mb-1 text-lg font-bold">PTCG Live</h2>
-        <p className="mb-4 text-sm text-muted">{tr(lng, "x.51e75e90")}</p>
+        <p className="mb-4 text-sm text-muted">{tr(lng, "x.51e75e90")}{deck && <> {tr(lng, "v137.liveSesionesNota")}</>}</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="label" htmlFor="liveWins">{tr(lng, "x.dce1e265")}</label>

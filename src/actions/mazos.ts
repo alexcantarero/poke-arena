@@ -6,7 +6,10 @@
 import { redirect } from "next/navigation";
 import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { archetypes, deckFavorites, decks, matches, tournamentResults, tournaments } from "@/db/schema";
+import { archetypes, deckFavorites, decks, ladderEntries, liveSesiones, matches, players, tournamentResults, tournaments } from "@/db/schema";
+import { nivelValido } from "@/lib/dificultad";
+import { pesoLadder, rangoDelPeriodo } from "@/lib/ladderPeso";
+import { votar } from "@/lib/mazosExtraDb";
 import { creaCiclo } from "@/lib/arquetipos";
 import { canManageLeague } from "@/lib/auth";
 import { parseDeckList, suggestArchetype } from "@/lib/decklist";
@@ -104,7 +107,11 @@ export async function saveDeck(fd: FormData) {
   if (editing) {
     await db.update(decks).set(values).where(eq(decks.id, editing));
   } else {
-    await db.insert(decks).values({ id: newId("d"), ...values, createdBy: actor.id });
+    const nuevoId = newId("d");
+    await db.insert(decks).values({ id: nuevoId, ...values, createdBy: actor.id });
+    // v0.137 — la dificultad que le pone quien lo crea es su primer voto (luego vota todo el mundo).
+    const dif = nivelValido(str(fd, "dificultad"));
+    if (dif) await votar(nuevoId, actor.id, dif);
   }
   refresh();
   // Volver a donde estabas. Crear un mazo casi siempre es un desvío en mitad
@@ -298,4 +305,51 @@ export async function saveArchetypeParents(fd: FormData) {
   refresh();
   redirect(withFlash("/ajustes", rechazados ? "error" : "ok",
     `${cambios} arquetipo(s) actualizado(s)${rechazados ? `; ${rechazados} sin cambiar porque harían un círculo` : ""}.`));
+}
+
+/**
+ * v0.137 — Votar la dificultad de un mazo (1 muy fácil … 5 muy difícil). Cada
+ * uno su voto; volver a votar lo cambia y «0» lo quita. Cualquiera puede votar
+ * cualquier mazo: la dificultad es la media de todos.
+ */
+export async function votarDificultad(fd: FormData) {
+  const actor = await requireActor();
+  const deckId = str(fd, "deckId");
+  const nivel = nivelValido(str(fd, "nivel"));
+  const [d] = await db.select({ id: decks.id }).from(decks).where(eq(decks.id, deckId));
+  if (!d) return;
+  const ok = await votar(deckId, actor.id, nivel);
+  refresh();
+  redirect(withFlash(safeBack(fd, "/mazos"), ok ? "ok" : "error", ok ? (nivel ? "Voto guardado." : "Voto quitado.") : "No se ha podido guardar: falta la migración 0038."));
+}
+
+/**
+ * v0.137 — Apuntar una sesión del PTCG Live: victorias y derrotas entre dos
+ * fechas. Se guarda con el rango del ladder de esas fechas (la media de lo que
+ * apuntaste en el ladder entre ellas; si nada, el último de antes; si nada, el
+ * actual) y se suma al total del mazo, como hasta ahora.
+ */
+export async function anotarSesionLive(fd: FormData) {
+  const actor = await requireActor();
+  const deckId = str(fd, "deckId");
+  const [d] = await db.select().from(decks).where(eq(decks.id, deckId));
+  if (!d || !canEditDeck(actor, d)) return;
+  const wins = int(fd, "wins", 0, 0, 9999), losses = int(fd, "losses", 0, 0, 9999);
+  let desde = isoDate(fd, "desde") ?? todayISO(), hasta = isoDate(fd, "hasta") ?? todayISO();
+  if (desde > hasta) [desde, hasta] = [hasta, desde];
+  if (wins + losses === 0) return redirect(withFlash(safeBack(fd, `/mazos/${deckId}`), "error", "Pon al menos una victoria o una derrota."));
+  const quien = d.playerId ?? actor.id;
+  const entradas = await db.select({ elo: ladderEntries.elo, creado: ladderEntries.createdAt }).from(ladderEntries).where(eq(ladderEntries.playerId, quien));
+  const [p] = await db.select({ elo: players.ladderElo }).from(players).where(eq(players.id, quien));
+  const rango = rangoDelPeriodo(entradas.map((e) => ({ elo: e.elo, fecha: e.creado.toISOString().slice(0, 10) })), desde, hasta, p?.elo ?? null);
+  try {
+    await db.insert(liveSesiones).values({ id: newId("ls"), deckId, playerId: quien, wins, losses, desde, hasta, rango });
+  } catch (e) {
+    console.warn("[live] sesión sin guardar (¿falta la migración 0038?)", e instanceof Error ? e.message : e);
+    return redirect(withFlash(safeBack(fd, `/mazos/${deckId}`), "error", "No se ha podido guardar la sesión: falta la migración 0038."));
+  }
+  await db.update(decks).set({ liveWins: d.liveWins + wins, liveLosses: d.liveLosses + losses }).where(eq(decks.id, deckId));
+  refresh();
+  redirect(withFlash(safeBack(fd, `/mazos/${deckId}`), "ok",
+    `Sesión guardada: ${wins}-${losses}${rango != null ? ` con ${rango} de ladder (peso ${pesoLadder(rango).toLocaleString("es-ES")})` : " (sin rango del ladder en esas fechas: peso 1)"}.`));
 }

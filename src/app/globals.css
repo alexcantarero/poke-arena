@@ -1,4 +1,4 @@
-@import "tailwindcss" source("../");
+@import "tailwindcss";
 
 /* =========================================================================
    Arena — sistema de diseño.
@@ -2465,3 +2465,27 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .deck-lista-texto li + li { border-top: 1px solid var(--line-soft); }
 .deck-lista-texto button { display: block; width: 100%; min-height: 2.9rem; padding: .55rem .8rem; text-align: left; font-size: .95rem; touch-action: manipulation; }
 .deck-lista-texto button:hover, .deck-lista-texto button[aria-selected="true"] { background: var(--surface-2); }
+
+/* v0.137 — dificultad de los mazos: de verde (muy fácil) a rojo (muy difícil). */
+.dif-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-weight: 700; white-space: nowrap;
+  color: var(--dif); border: 1px solid color-mix(in oklab, var(--dif) 55%, transparent); background: color-mix(in oklab, var(--dif) 12%, transparent); }
+.dif-chip i { font-style: normal; letter-spacing: -.08em; font-size: .8em; }
+.dif-chip small { font-weight: 500; opacity: .8; }
+.dif-chip[data-on="true"] { background: var(--dif); color: #fff; }
+.dif-voto { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: .5rem; font-weight: 800;
+  color: var(--dif); border: 1px solid color-mix(in oklab, var(--dif) 55%, transparent); touch-action: manipulation; }
+.dif-voto[data-on="true"] { background: var(--dif); color: #fff; }
+.dif-opcion { cursor: pointer; }
+.dif-opcion span { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .4rem .9rem; border-radius: .6rem; font-weight: 700;
+  color: var(--dif); border: 1px solid color-mix(in oklab, var(--dif) 55%, transparent); }
+.dif-opcion input:checked + span { background: var(--dif); color: #fff; }
+.dif-opcion input:focus-visible + span { outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* v0.137 — simulador de premios: cartas como fichas de texto (sin imágenes). */
+.sim-cartas { display: flex; flex-wrap: wrap; gap: .35rem; }
+.sim-carta { display: inline-flex; align-items: center; justify-content: center; min-height: 2.6rem; max-width: 9rem; padding: .3rem .55rem; border-radius: .45rem;
+  border: 1px solid var(--line); background: var(--surface-2); font-size: .8rem; font-weight: 600; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
+.sim-carta[data-pk="true"] { border-color: color-mix(in oklab, var(--info) 55%, transparent); }
+.sim-carta[data-dorso="true"] { width: 3rem; background: repeating-linear-gradient(45deg, var(--brand-soft) 0 6px, var(--surface-2) 6px 12px); color: var(--muted); }
+.sim-carta[data-ok="true"] { border-color: var(--win); background: color-mix(in oklab, var(--win) 18%, var(--surface-2)); }
+.sim-carta-mini { min-height: 2rem; font-size: .72rem; padding: .2rem .45rem; }

@@ -1,0 +1,71 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261126164730
+Nombre de usuario: elzorro1-PC\elzorro1
+Usuario RunAs: elzorro1-PC\elzorro1
+Nombre de la configuración: 
+Máquina: ELZORRO1-PC (Microsoft Windows NT 10.0.22631.0)
+Aplicación host: powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\elzorro1\OneDrive\Escritorio\PokeArenaTCG\aplicar-v0.137.ps1
+Id. de proceso: 48896
+PSVersion: 5.1.22621.6133
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.22621.6133
+BuildVersion: 10.0.22621.6133
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Comprobando el repositorio
+Version actual: 0.136.0
+Rama: development
+Aviso: tienes cambios sin commitear. Entraran en el mismo commit de la v0.137:
+   ?? _v0.137/
+   ?? aplicar-v0.137.bat
+   ?? aplicar-v0.137.log
+   ?? aplicar-v0.137.ps1
+
+==> Copiando los ficheros de la v0.137
+  + CHANGELOG.md
+  + IMPLEMENTAR-v0.137.0.md
+  + package-lock.json
+  + package.json
+  + drizzle\0038_v0_137_0.sql
+  + scripts\migrar.mjs
+  + src\actions\mazos.ts
+  + src\app\globals.css
+  + src\app\(app)\estadisticas\page.tsx
+  + src\app\(app)\mazos\page.tsx
+  + src\app\(app)\mazos\versiones\page.tsx
+  + src\app\(app)\mazos\[id]\page.tsx
+  + src\components\ChipDificultad.tsx
+  + src\components\DeckForm.tsx
+  + src\components\Herramientas.tsx
+  + src\components\SimuladorPremios.tsx
+  + src\db\schema.ts
+  + src\lib\dificultad.ts
+  + src\lib\esquemaEsperado.ts
+  + src\lib\i18n.ts
+  + src\lib\ladderPeso.ts
+  + src\lib\mazosExtraDb.ts
+  + src\lib\simPremios.ts
+  + tests\dificultadLadder.test.ts
+  + tests\simPremios.test.ts
+25 ficheros copiados.
+
+==> Borrando lo que ya no hace falta
+  - IMPLEMENTAR-v0.135.0.md
+
+==> npm run verificar  (codificacion + acciones + textos + pruebas + tipos)
+
+
+==> npm run build
+
+
+ERROR: El build ha fallado: NO se ha hecho commit. Si tienes abierto "npm run dev", cierralo (Windows bloquea la carpeta .next) y vuelve a lanzar el .bat.
+Detalle completo en aplicar-v0.137.log
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261126164820
+**********************

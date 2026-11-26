@@ -12,7 +12,7 @@ import {
 } from "@/lib/herramientas";
 import { estructuraDe, TOP_CUT_MAXIMO_TCG } from "@/lib/estructura";
 import { latestSeason, tablaDePremios } from "@/lib/cp";
-import { PremiosEnPartida } from "@/components/PremiosEnPartida";
+import { SimuladorPremios } from "@/components/SimuladorPremios";
 import { pct } from "@/lib/format";
 import { tr, trf } from "@/lib/i18n";
 import { useLang } from "@/components/LangProvider";
@@ -81,7 +81,7 @@ export function Herramientas({ mazos, inicial, mazoInicial, datos, suiza }: { su
       {pestana === "recomendador" && <Recomendador datos={datos ?? null} />}
       {pestana === "suiza" && <Suiza inicial={suiza} />}
       {pestana === "consistencia" && <ConsistenciaPanel />}
-      {pestana === "premios" && <><PremiosPanel /><PremiosEnPartida mazos={mazos} /></>}
+      {pestana === "premios" && <><PremiosPanel /><SimuladorPremios mazos={mazos} /></>}
       {pestana === "manos" && <Manos mazos={mazos} mazoInicial={mazoInicial} />}
     </div>
   );

@@ -6,7 +6,11 @@ import { PageHead } from "@/components/ui";
 import { DeckForm } from "@/components/DeckForm";
 import { DeckList } from "@/components/DeckList";
 import { CardSearch } from "@/components/CardSearch";
-import { tr } from "@/lib/i18n";
+import { tr, trf } from "@/lib/i18n";
+import { anotarSesionLive } from "@/actions";
+import { sesionesDeMazo } from "@/lib/mazosExtraDb";
+import { liveConPeso, pesoLadder } from "@/lib/ladderPeso";
+import { pct, todayISO } from "@/lib/format";
 import { getLang } from "@/lib/lang";
 
 export default async function EditDeckPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +35,10 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
   if (!canEdit) redirect("/mazos");
 
   const archetype = snap.archById.get(deck.archetypeId);
+  // v0.137 — las sesiones del Live de este mazo y su % ponderado por el ladder.
+  const sesiones = await sesionesDeMazo(deck.id);
+  const resumenLive = liveConPeso(sesiones, deck.liveWins, deck.liveLosses);
+  const hoy = todayISO();
   return (
     <>
       <PageHead title={deck.name} sub={archetype?.name} back={{ href: "/mazos", label: tr(lng, "x.78f2cee5") }} />
@@ -40,6 +48,43 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
         archetypes={snap.archetypes}
         canPickPlayer={manager}
       />
+
+      {/* v0.137 — SESIONES DEL PTCG LIVE: victorias y derrotas entre dos fechas, pesadas por el ladder de esas fechas. */}
+      <section className="card mt-4 p-4" aria-labelledby="live-sesiones">
+        <h2 id="live-sesiones" className="font-display text-lg font-bold">{tr(lng, "v137.sesiones")}</h2>
+        <p className="mb-3 text-sm text-muted">{tr(lng, "v137.sesionesAyuda")}</p>
+        <form action={anotarSesionLive} className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
+          <input type="hidden" name="deckId" value={deck.id} />
+          <input type="hidden" name="back" value={`/mazos/${deck.id}`} />
+          <label className="flex flex-col gap-1"><span className="label">{tr(lng, "v133.ganadas")}</span>
+            <input className="input" type="number" name="wins" min={0} max={9999} inputMode="numeric" defaultValue={0} /></label>
+          <label className="flex flex-col gap-1"><span className="label">{tr(lng, "v133.perdidas")}</span>
+            <input className="input" type="number" name="losses" min={0} max={9999} inputMode="numeric" defaultValue={0} /></label>
+          <label className="flex flex-col gap-1"><span className="label">{tr(lng, "v137.desde")}</span>
+            <input className="input" type="date" name="desde" defaultValue={hoy} /></label>
+          <label className="flex flex-col gap-1"><span className="label">{tr(lng, "v137.hasta")}</span>
+            <input className="input" type="date" name="hasta" defaultValue={hoy} /></label>
+          <button className="btn btn-brand col-span-2 sm:col-span-1" type="submit">{tr(lng, "v137.anotar")}</button>
+        </form>
+        {sesiones.length > 0 && (
+          <>
+            <p className="mt-4 text-sm">
+              <b>{trf(lng, "v137.ponderado", { p: resumenLive.pctPonderado != null ? pct(resumenLive.pctPonderado, 0) : "—", s: resumenLive.pctSimple != null ? pct(resumenLive.pctSimple, 0) : "—" })}</b>
+            </p>
+            <ul className="mt-2 divide-y divide-line-soft text-sm">
+              {sesiones.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2 tabular">
+                  <span className="font-semibold">{s.wins}-{s.losses}</span>
+                  <span className="text-muted">{s.desde === s.hasta ? s.desde : `${s.desde} → ${s.hasta}`}</span>
+                  <span className="ml-auto text-xs text-muted">
+                    {s.rango != null ? trf(lng, "v137.conRango", { r: s.rango, p: pesoLadder(s.rango).toLocaleString(lng === "en" ? "en-GB" : "es-ES") }) : tr(lng, "v137.sinRango")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
       {/* El buscador va SIEMPRE, con lista o sin ella: es justo cuando no hay
           lista todavía cuando más falta hace. Cerrado por defecto, como todo

@@ -37,6 +37,8 @@ import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { sesionesLivePorMazo } from "@/lib/mazosExtraDb";
+import { liveConPeso } from "@/lib/ladderPeso";
 
 export const metadata = { title: "Estadísticas" };
 
@@ -140,15 +142,21 @@ export default async function StatsPage({
 
   let archsDetalle = archetypeStats(rows, snap.archIndex, undefined, snap.archById);
   if (fuente === "live") {
-    const liveStats = new Map<string, { played: number; wins: number; losses: number }>();
+    /* v0.137 — PONDERADO POR EL LADDER: cada sesión apuntada con sus fechas pesa
+       según el rango de esas fechas (una victoria a 1700 vale más que a 200;
+       `lib/ladderPeso.ts`). Lo apuntado antes, sin fechas, a peso 1. Los
+       recuentos son los de verdad; el % es el ponderado. */
+    const sesiones = await sesionesLivePorMazo();
+    const liveStats = new Map<string, { played: number; wins: number; losses: number; pw: number; pj: number }>();
     for (const d of snap.decks) {
-      // TODO: se podría filtrar por d.playerId si hay filtro de jugador, pero de momento global.
       if (d.liveWins > 0 || d.liveLosses > 0) {
         const id = d.archetypeId;
-        const cur = liveStats.get(id) ?? { played: 0, wins: 0, losses: 0 };
-        cur.played += d.liveWins + d.liveLosses;
-        cur.wins += d.liveWins;
-        cur.losses += d.liveLosses;
+        const cur = liveStats.get(id) ?? { played: 0, wins: 0, losses: 0, pw: 0, pj: 0 };
+        const r = liveConPeso(sesiones.get(d.id) ?? [], d.liveWins, d.liveLosses);
+        cur.played += r.played;
+        cur.wins += r.wins;
+        cur.losses += r.losses;
+        if (r.pctPonderado != null) { cur.pw += r.pctPonderado * r.played; cur.pj += r.played; }
         liveStats.set(id, cur);
       }
     }
@@ -162,7 +170,7 @@ export default async function StatsPage({
         gameWins: 0,
         gameLosses: 0,
         firstPlayed: 0, firstWins: 0, secondPlayed: 0, secondWins: 0,
-        winRate: st.played > 0 ? st.wins / st.played : 0,
+        winRate: st.pj > 0 ? st.pw / st.pj : st.played > 0 ? st.wins / st.played : 0,
       })).sort((a, b) => b.played - a.played);
   }
 

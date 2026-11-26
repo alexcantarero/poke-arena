@@ -2,6 +2,28 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.137.0] — 2026-11-25
+
+**Con migración**: `drizzle/0038_v0_137_0.sql` (tablas `deck_dificultad` y `live_sesiones`). Sin
+ella todo funciona menos la dificultad y la ponderación del Live.
+
+### Añadido
+
+- **Simulador de premios** (Herramientas → Premios, unificado con la calculadora en partida): se
+  baraja tu lista, robas la mano (mulligan si no hay Pokémon), quedan 6 premios boca abajo y ves
+  tu mano y tu mazo. Eliges las 6 cartas que crees que están en premios y se comprueba, con
+  cronómetro. Nivel «Fácil» (mazo ordenado por nombre) o «Real» (en el orden en que está). Tu
+  mejor marca por mazo y nivel se guarda en el dispositivo. `lib/simPremios.ts` (4 pruebas).
+- **Dificultad de los mazos, votada por todos**: cinco niveles (muy fácil, fácil, intermedio,
+  difícil, muy difícil) de verde a rojo. Quien crea el mazo da el primer voto en el formulario;
+  después vota cada uno en «Comparar versiones» y el mazo enseña la media redondeada. Etiqueta en
+  la biblioteca y filtro por nivel. `lib/dificultad.ts`.
+- **Sesiones del PTCG Live con fechas, ponderadas por el ladder** (en la ficha del mazo):
+  victorias y derrotas entre dos fechas, guardadas con tu rango del ladder de esas fechas (la
+  media de lo que apuntaste entre ellas; si nada, el último de antes). En Estadísticas → PTCG
+  Live el % de victorias es el ponderado: una victoria a 1700 pesa 1,3 y a 200, 0,5 (tabla en
+  `lib/ladderPeso.ts`). Lo apuntado antes, sin fechas, cuenta a peso 1. 4 pruebas.
+
 ## [0.136.0] — 2026-11-25
 
 **Sin migración ni dependencias nuevas.**

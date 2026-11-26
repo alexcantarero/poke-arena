@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import Link from "next/link";
 import { loadSnapshot } from "@/lib/data";
 import { canManageLeague, readSession } from "@/lib/auth";
@@ -8,6 +8,9 @@ import { fmtDate, pct, wrColor } from "@/lib/format";
 import { prettyPokemon, typeOf } from "@/lib/pokemon";
 import type { Deck } from "@/lib/types";
 import { clavePrincipal } from "@/lib/versiones";
+import { dificultades } from "@/lib/mazosExtraDb";
+import { DIFICULTAD, NIVELES_DIFICULTAD, nivelValido } from "@/lib/dificultad";
+import { ChipDificultad } from "@/components/ChipDificultad";
 import { Empty, PageHead, SectionTitle, Sprites } from "@/components/ui";
 import { MetaTabs } from "@/components/MetaTabs";
 import { ScopeTabs } from "@/components/ScopeTabs";
@@ -42,7 +45,7 @@ const isView = (v: string | undefined): v is View =>
 
 export default async function DecksPage({
   searchParams,
-}: { searchParams: Promise<{ ver?: string; q?: string }> }) {
+}: { searchParams: Promise<{ ver?: string; q?: string; dif?: string }> }) {
   const lng = await getLang(); // v0.49
 
   const [sp, snap, session] = await Promise.all([searchParams, loadSnapshot(), readSession()]);
@@ -99,7 +102,10 @@ export default async function DecksPage({
     return clavePrincipal(a, a?.parentId ? snap.archById.get(a.parentId) : undefined, prettyPokemon, d.archetypeId);
   };
   const rank = { fav: 0, mine: 1, shared: 2, other: 3 } as const;
-  const filtrados = snap.decks.filter((d) => inView(d) && hit(d));
+  // v0.137 — filtro por dificultad (la media de los votos, redondeada).
+  const { porMazo: difs } = await dificultades(null);
+  const difPedida = nivelValido(sp.dif);
+  const filtrados = snap.decks.filter((d) => inView(d) && hit(d) && (!difPedida || difs.get(d.id)?.nivel === difPedida));
   // Cada grupo va donde iría su mejor mazo (tus favoritos y los tuyos, primero); dentro, el orden de siempre.
   const mejorDelGrupo = new Map<string, number>();
   const cuantos = new Map<string, number>();
@@ -173,6 +179,24 @@ export default async function DecksPage({
         <button className="btn flex-none px-4" type="submit">{tr(lng, "x.a62405e2")}</button>
       </form>
 
+      {/* v0.137 — filtrar por dificultad (la media de los votos). */}
+      <nav className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={tr(lng, "v137.dificultad")}>
+        <span className="mr-1 text-xs text-muted">{tr(lng, "v137.dificultad")}:</span>
+        {NIVELES_DIFICULTAD.map((n) => {
+          const p = new URLSearchParams();
+          if (view !== "all") p.set("ver", view);
+          if (query) p.set("q", query);
+          if (difPedida !== n) p.set("dif", String(n));
+          const s = p.toString();
+          return (
+            <Link key={n} href={`/mazos${s ? `?${s}` : ""}`} className="dif-chip text-[11px]" data-on={difPedida === n}
+              style={{ "--dif": DIFICULTAD[n].color } as CSSProperties} aria-pressed={difPedida === n}>
+              {tr(lng, DIFICULTAD[n].clave)}
+            </Link>
+          );
+        })}
+      </nav>
+
       {query && (
         <p className="mt-2 flex items-center gap-2 text-xs text-muted">
           {decks.length} resultado{decks.length === 1 ? "" : "s"} para «{query}»
@@ -244,6 +268,7 @@ export default async function DecksPage({
                     )}
                     {d.retired && <span className="chip text-[10px]">{tr(lng, "x.f9102854")}</span>}
                     <span className="chip text-[10px] tabular">{uses.get(d.id) ?? 0} usos</span>
+                    <ChipDificultad r={difs.get(d.id)} lng={lng} mini />
                   </span>
                 </span>
               </Link>

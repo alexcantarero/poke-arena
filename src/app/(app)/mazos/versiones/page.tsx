@@ -8,6 +8,12 @@ import { fmtDate, pct } from "@/lib/format";
 import { Sprites } from "@/components/ui";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import type { CSSProperties } from "react";
+import { readSession } from "@/lib/auth";
+import { votarDificultad } from "@/actions";
+import { dificultades } from "@/lib/mazosExtraDb";
+import { DIFICULTAD, NIVELES_DIFICULTAD } from "@/lib/dificultad";
+import { ChipDificultad } from "@/components/ChipDificultad";
 
 export const metadata = { title: "Versiones del mazo" };
 
@@ -23,7 +29,8 @@ export const metadata = { title: "Versiones del mazo" };
    No hay tabla nueva: cada mazo guardado ya era una versión.
    ========================================================================= */
 export default async function VersionesPage({ searchParams }: { searchParams: Promise<{ de?: string }> }) {
-  const [q, snap, lng] = await Promise.all([searchParams, loadSnapshot(), getLang()]);
+  const [q, snap, lng, session] = await Promise.all([searchParams, loadSnapshot(), getLang(), readSession()]);
+  const { porMazo: difs, mios } = await dificultades(session?.playerId ?? null); // v0.137
   const clave = (q.de ?? "").trim();
   const principalDe = (archetypeId: string) => {
     const a = snap.archById.get(archetypeId);
@@ -95,6 +102,24 @@ export default async function VersionesPage({ searchParams }: { searchParams: Pr
                 </div>
               </div>
               {v.d.notes.trim() && <p className="mt-3 whitespace-pre-line border-l-2 border-line pl-3 text-sm text-ink-2">{v.d.notes.trim()}</p>}
+              {/* v0.137 — la dificultad: la media de todos, y aquí votas la tuya. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <ChipDificultad r={difs.get(v.id)} lng={lng} />
+                {session && (
+                  <form action={votarDificultad} className="flex flex-wrap items-center gap-1">
+                    <input type="hidden" name="deckId" value={v.id} />
+                    <input type="hidden" name="back" value={`/mazos/versiones?de=${encodeURIComponent(clave)}`} />
+                    <span className="mr-1 text-xs text-muted">{tr(lng, "v137.tuVoto")}</span>
+                    {NIVELES_DIFICULTAD.map((n) => (
+                      <button key={n} type="submit" name="nivel" value={mios.get(v.id) === n ? 0 : n}
+                        className="dif-voto" data-on={mios.get(v.id) === n} style={{ "--dif": DIFICULTAD[n].color } as CSSProperties}
+                        title={tr(lng, DIFICULTAD[n].clave)} aria-label={tr(lng, DIFICULTAD[n].clave)} aria-pressed={mios.get(v.id) === n}>
+                        {n}
+                      </button>
+                    ))}
+                  </form>
+                )}
+              </div>
               {!esBase && (
                 <div className="mt-3 text-sm">
                   {sinLista || base.cartas.size === 0 ? (
