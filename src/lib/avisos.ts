@@ -13,7 +13,7 @@
    sigue descartada. Esto es dentro de la web.
    ========================================================================= */
 
-export type TipoAviso = "resultado" | "liga" | "reset" | "ladder" | "inscripcion" | "nick" | "oficial";
+export type TipoAviso = "resultado" | "liga" | "reset" | "ladder" | "inscripcion" | "nick" | "oficial" | "torneo" | "regional";
 
 export type Aviso = {
   id: string;
@@ -45,6 +45,12 @@ export type EstadoAvisos = {
   faltaOficial?: boolean;
   /** v0.135 — La cuenta es nueva (dos semanas): lo primero es completar el perfil. */
   cuentaNueva?: boolean;
+  /** v0.136 — Torneos a los que dijiste «iré» en los próximos días. */
+  torneosProximos?: ReadonlyArray<{ id: string; nombre: string; fecha: string }>;
+  /** v0.136 — Tu próxima partida de liga sin jugar: con quién. */
+  proximoLiga?: { rival: string } | null;
+  /** v0.136 — Un Regional (o mayor) recién importado. */
+  regionalNuevo?: { nombre: string; fecha: string } | null;
 };
 
 /** Los avisos de un jugador, de lo más urgente a lo menos. */
@@ -62,11 +68,17 @@ export function avisosDe(e: EstadoAvisos): Aviso[] {
   for (const t of [...e.torneosSinResultado].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)) {
     out.push({ id: `resultado:${t.id}`, tipo: "resultado", href: `/torneos/${t.id}`, nombre: t.nombre, fecha: t.fecha });
   }
-  if (e.pendientesLiga > 0) out.push({ id: "liga", tipo: "liga", href: "/liga", n: e.pendientesLiga });
+  // v0.136 — el torneo al que vas, unos días antes: para preparar el mazo.
+  for (const t of [...(e.torneosProximos ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 3)) {
+    out.push({ id: `torneo:${t.id}`, tipo: "torneo", href: `/torneos/${t.id}/preparacion`, nombre: t.nombre, fecha: t.fecha });
+  }
+  if (e.pendientesLiga > 0) out.push({ id: "liga", tipo: "liga", href: "/liga", n: e.pendientesLiga, nombre: e.proximoLiga?.rival });
   // El reset y el recordatorio dirían lo mismo: con reset reciente, solo el reset.
   if (e.resetLadder) out.push({ id: "reset", tipo: "reset", href: `/perfil/${e.playerId}#ladder` });
   else if (e.ladderToca && !e.cuentaNueva) out.push({ id: "ladder", tipo: "ladder", href: `/perfil/${e.playerId}#ladder` });
   if (e.inscripcion) out.push({ id: `inscripcion:${e.inscripcion.id}`, tipo: "inscripcion", href: "/liga", nombre: e.inscripcion.nombre });
+  // v0.136 — un Regional recién terminado e importado: el metagame nuevo está en el Inicio.
+  if (e.regionalNuevo) out.push({ id: `regional:${e.regionalNuevo.fecha}`, tipo: "regional", href: "/#ultimo-regional", nombre: e.regionalNuevo.nombre, fecha: e.regionalNuevo.fecha });
   if (!e.cuentaNueva) out.push(...perfil.filter((a) => a.tipo !== "ladder"));
   return out;
 }

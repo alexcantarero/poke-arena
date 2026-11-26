@@ -3,6 +3,8 @@ import type { Snapshot } from "@/lib/data";
 import { roundsOf } from "@/lib/stats";
 import { clasificacionDirecto, enDirecto, type FilaDirecto } from "@/lib/enDirecto";
 import { todayISO } from "@/lib/format";
+import { maxRondasDe, umbralesDe } from "@/lib/estructura";
+import { cpKindOf, tablaDePremios } from "@/lib/cp";
 import { Avatar, TournamentEmblem } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { tr, trf, type Lang } from "@/lib/i18n";
@@ -96,7 +98,72 @@ export function TorneosEnDirecto({ snap, meId, lang }: { snap: Snapshot; meId: s
             </article>
           );
         })}
+        {/* v0.136 — con un número impar de torneos, la mitad derecha se quedaba vacía:
+            ahí va el panel del último, con lo que importa entre ronda y ronda. */}
+        {bloques.length % 2 === 1 && (() => {
+          const { t, tabla } = bloques[bloques.length - 1];
+          return <PanelDirecto t={t} tabla={tabla} meId={meId} season={t.season ?? snap.config.cpSeason} lang={lang} />;
+        })()}
       </div>
     </section>
+  );
+}
+
+/* v0.136 — El panel de datos del torneo en directo: ronda actual y cuántas
+   quedan, el récord que hace falta para el corte, lo que da cada puesto en CP
+   y, si juegas tú, tus puntos y lo que te falta. Todo de tablas que ya existen
+   (`estructura.ts`, `cp.ts`): nada nuevo que pueda contradecir a la ficha. */
+function PanelDirecto({ t, tabla, meId, season, lang }: {
+  t: Snapshot["tournaments"][number]; tabla: ReturnType<typeof clasificacionDirecto>; meId: string | null; season: number; lang: Lang;
+}) {
+  const ronda = Math.max(0, ...tabla.map((f) => f.ultima));
+  const total = t.rounds ?? maxRondasDe({ kind: t.kind, playerCount: t.playerCount, rounds: t.rounds, topCut: t.topCut });
+  const umbrales = t.playerCount ? umbralesDe(t.playerCount, t.kind) : null;
+  const corte = umbrales?.corte ?? null;
+  const premios = tablaDePremios(season, cpKindOf(t), t.playerCount);
+  const yo = meId ? tabla.find((f) => f.playerId === meId) : undefined;
+  const meFaltan = yo && corte ? Math.max(0, corte.puntos - yo.puntos) : null;
+  const Dato = ({ k, v, sub }: { k: string; v: string; sub?: string }) => (
+    <div className="rounded-lg border border-line-soft p-3">
+      <p className="label">{k}</p>
+      <p className="font-display text-2xl font-black tabular">{v}</p>
+      {sub && <p className="text-[11px] text-muted">{sub}</p>}
+    </div>
+  );
+  return (
+    <article className="flex min-w-0 flex-col gap-3 bg-surface p-4">
+      <div className="grid grid-cols-2 gap-2">
+        <Dato k={tr(lang, "v136.dir.ronda")} v={total ? `${ronda}/${total}` : String(ronda)}
+          sub={total ? trf(lang, "v136.dir.quedan", { n: Math.max(0, total - ronda) }) : undefined} />
+        <Dato k={tr(lang, "v136.dir.corte")} v={corte ? corte.record : "—"}
+          sub={corte ? trf(lang, "v136.dir.corteSub", { p: corte.puntos, c: umbrales?.estructura.topCut ?? 0 }) : tr(lang, "v136.dir.sinAsistencia")} />
+        {yo && (
+          <Dato k={tr(lang, "v136.dir.tu")} v={`${yo.puntos} pts`}
+            sub={meFaltan == null ? undefined : meFaltan === 0 ? tr(lang, "v136.dir.dentro") : trf(lang, "v136.dir.teFaltan", { n: meFaltan })} />
+        )}
+        <Dato k={tr(lang, "v136.dir.grupo")} v={String(tabla.length)}
+          sub={trf(lang, "v136.dir.grupoSub", { n: tabla.filter((f) => !f.dropped).length })} />
+      </div>
+      {premios && (
+        <div>
+          <p className="label mb-1.5">{tr(lang, "v131.premios")}</p>
+          <div className="premios-cp">
+            {premios.filas.filter((f) => f.cobra).slice(0, 6).map((f) => (
+              <div key={f.from} data-cobra="true">
+                <b className="text-win">{f.cp}</b>
+                <span>{f.from === f.to ? `${f.from}.º` : `${f.from}–${f.to}.º`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="mt-auto flex flex-wrap gap-2">
+        <Link href={`/torneos/${t.id}/preparacion`} className="btn btn-sm">{tr(lang, "v129.preparar")}</Link>
+        <Link href={`/herramientas?h=suiza&tipo=${encodeURIComponent(cpKindOf(t))}&jug=${t.playerCount ?? 0}&v=${yo?.w ?? 0}&d=${yo?.l ?? 0}&e=${yo?.t ?? 0}&t=${season}`} className="btn btn-sm">
+          {tr(lang, "v131.calculadora")}
+        </Link>
+        <Link href="/herramientas?h=premios" className="btn btn-sm">{tr(lang, "v136.premiosTool")}</Link>
+      </div>
+    </article>
   );
 }

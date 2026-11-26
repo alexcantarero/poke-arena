@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.136.0] — 2026-11-25
+
+**Sin migración ni dependencias nuevas.**
+
+### Añadido
+
+- **«En directo» del Inicio, sin la mitad vacía**: con un número impar de torneos, la mitad
+  derecha lleva el panel del torneo: ronda actual y cuántas quedan, el récord que hace falta para
+  pelear el corte, tus puntos y lo que te falta, cuántos del grupo siguen en juego, los CP de cada
+  puesto con la gente que hay, y accesos a la preparación, la calculadora suiza y la de premios.
+- **Avisos nuevos**: el torneo al que dijiste «iré» en los próximos 3 días (lleva a su
+  preparación), tu próxima partida de liga **con el nombre del rival**, y un **Regional nuevo**
+  importado (4 días, lleva a su metagame en el Inicio). El reset del ladder ya avisaba.
+  `lib/avisos.ts` (1 prueba más).
+- **Premios en partida** (Herramientas → Premios): eliges tu lista, marcas las copias vistas de
+  cada carta y los premios que quedan boca abajo, y dice para cada carta la probabilidad de que
+  lo que te falta esté en premios (y de que lo estén todas). Hipergeométrica exacta, con su
+  supuesto dicho en pantalla. `lib/premiosProb.ts` (4 pruebas).
+
 ## [0.135.0] — 2026-11-24
 
 **Con migración**: `drizzle/0037_v0_135_0.sql` (tabla `ajustes_extra`). Sin ella todo funciona

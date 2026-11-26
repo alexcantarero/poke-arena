@@ -43,3 +43,14 @@ test("v0.135 — cuenta nueva: las dos primeras semanas desde el alta", () => {
   assert.equal(esCuentaNueva(null, ahora), false);
   assert.equal(esCuentaNueva(new Date("2026-11-24T08:00:00Z"), ahora), true);
 });
+
+test("v0.136 — el torneo al que vas, el próximo de liga con su rival y el Regional nuevo", () => {
+  const a = avisosDe({
+    ...base, pendientesLiga: 2, proximoLiga: { rival: "Alex" },
+    torneosProximos: [{ id: "t9", nombre: "Cup Mythic", fecha: "2026-11-29" }, { id: "t8", nombre: "Cup Lorcanos", fecha: "2026-11-28" }],
+    regionalNuevo: { nombre: "Regional Stuttgart", fecha: "2026-11-29" },
+  });
+  assert.deepEqual(a.map((x) => x.id), ["torneo:t8", "torneo:t9", "liga", "regional:2026-11-29"]);
+  assert.equal(a[0].href, "/torneos/t8/preparacion");
+  assert.equal(a[2].nombre, "Alex");
+});

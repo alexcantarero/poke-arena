@@ -483,7 +483,8 @@ export default async function HomePage({
       <TorneosEnDirecto snap={snap} meId={session?.playerId ?? null} lang={lang} />
 
       {/* Lo primero tras las cifras: es lo que se viene a mirar el lunes. */}
-      <UltimoRegional {...panel} lang={lang} />
+      {/* v0.136 — `#ultimo-regional`: el aviso de «Regional nuevo» llega aquí. */}
+      <div id="ultimo-regional" className="scroll-mt-24"><UltimoRegional {...panel} lang={lang} /></div>
 
       {/* v0.73 — `grid-cols-1` + `min-w-0`: sin ellos, la columna de la rejilla
           se ensanchaba con el título más largo de «Próximos torneos» y TODA la

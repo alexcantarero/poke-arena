@@ -1127,3 +1127,37 @@ export const torneosSinResultadoDe = cache(async (playerId: string): Promise<Arr
     return []; // sin la tabla de asistencias (migración 0030), no hay aviso
   }
 });
+
+/* =========================================================================
+   v0.136 — Para los avisos: los torneos a los que este jugador dijo «iré» en
+   los próximos 3 días (hoy incluido), y el Regional (o mayor) importado más
+   reciente si se jugó hace 4 días o menos. Consultas pequeñas, con try/catch.
+   ========================================================================= */
+export const torneosProximosDe = cache(async (playerId: string): Promise<Array<{ id: string; nombre: string; fecha: string }>> => {
+  try {
+    const hoy = todayISO();
+    const hasta = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    return await db.select({ id: tournaments.id, nombre: tournaments.name, fecha: tournaments.date })
+      .from(tournaments)
+      .where(sql`${tournaments.date} >= ${hoy} AND ${tournaments.date} <= ${hasta}
+        AND EXISTS (SELECT 1 FROM ${asistencias} WHERE ${asistencias.playerId} = ${playerId} AND ${asistencias.estado} = 'si'
+          AND ${asistencias.item} = 'torneo:' || ${tournaments.id})`)
+      .orderBy(asc(tournaments.date))
+      .limit(3);
+  } catch {
+    return [];
+  }
+});
+
+export const regionalReciente = cache(async (): Promise<{ nombre: string; fecha: string } | null> => {
+  try {
+    const desde = new Date(Date.now() - 4 * 86_400_000).toISOString().slice(0, 10);
+    const [e] = await db.select({ nombre: metaEvents.name, fecha: metaEvents.date }).from(metaEvents)
+      .where(sql`${metaEvents.date} >= ${desde} AND ${metaEvents.kind} IN ('regional', 'international', 'special', 'worlds')`)
+      .orderBy(desc(metaEvents.date))
+      .limit(1);
+    return e ?? null;
+  } catch {
+    return null;
+  }
+});

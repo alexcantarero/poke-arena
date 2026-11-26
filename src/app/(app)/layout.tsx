@@ -35,7 +35,7 @@ import { AvisosJugador } from "@/components/AvisosJugador";
 import { DiscordMarca } from "@/components/DiscordMarca";
 import { avisoLigaPara } from "@/lib/ligaTemporadaDb";
 import { readSession } from "@/lib/auth";
-import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig, torneosSinResultadoDe } from "@/lib/data";
+import { cargarPendientesDe, currentPlayer, estadoTutoriales, loadConfig, regionalReciente, torneosProximosDe, torneosSinResultadoDe } from "@/lib/data";
 import { avisosDe, esCuentaNueva } from "@/lib/avisos";
 import { nombreOficialDe } from "@/lib/nombreOficialDb";
 import { resetReciente, tocaRecordarLadder } from "@/lib/recordatorios";
@@ -65,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      tira. El título del perfil, que es lo único caro, va aparte y no bloquea
      (`TituloBarra`, en un <Suspense>). */
   const pid = session.playerId;
-  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga, sinResultado, miNombreOficial] = await Promise.all([
+  const [me, cfg, lang, jar, tutoriales, misPendientes, conteoUso, avisoLiga, sinResultado, miNombreOficial, proximos, regionalNuevo] = await Promise.all([
     currentPlayer(), loadConfig(), getLang(), cookies(),
     estadoTutoriales(pid), // v0.60 y v0.61, en una consulta
     cargarPendientesDe(pid), // v0.54 — mis partidas sin resultado: el número del menú.
@@ -73,6 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     avisoLigaPara(pid), // v0.116 — la inscripción a la liga, si no te has apuntado
     torneosSinResultadoDe(pid), // v0.131 — dijiste «iré» y no hay resultado
     nombreOficialDe(pid), // v0.135 — para el aviso de completar el perfil
+    torneosProximosDe(pid), regionalReciente(), // v0.136 — torneo al que vas y Regional nuevo
   ]);
   // v0.48 — el botón de idioma solo sale donde el inglés está disponible.
   const conIngles = inglesDisponible();
@@ -91,6 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ladderToca: tocaRecordarLadder(me.ladderEloUpdatedAt, null, ahoraMs),
     inscripcion: avisoLiga, faltaNick: !(me.limitlessHandle ?? "").trim(),
     faltaOficial: !miNombreOficial, cuentaNueva: esCuentaNueva(me.joined, ahoraMs),
+    torneosProximos: proximos, regionalNuevo,
   }).length;
   const campana = (
     <Link href="/avisos" className="campana" aria-label={nAvisos ? `${tr(lang, "v131.avisos")}: ${nAvisos}` : tr(lang, "v131.avisos")} title={tr(lang, "v131.avisos")}>
