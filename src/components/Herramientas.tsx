@@ -530,6 +530,9 @@ function Recomendador({ datos }: { datos: DatosRecomendador | null }) {
                 {" · "}{datos.evaluacion.n >= 30
                   ? trf(lng, "rc.ev.alfa", { a: datos.evaluacion.alfa.toFixed(2) })
                   : trf(lng, "rc.ev.faltan", { n: 30 - datos.evaluacion.n })}
+                {/* v0.140 — si el modelo nuevo está en uso (su backtest bate a la moneda) o todavía no. */}
+                {datos.modeloNuevo && <>{" · "}<a href="/herramientas/modelo" className="underline">
+                  {tr(lng, datos.modeloNuevo.activo ? "v140.modeloActivo" : "v140.modeloInactivo")}</a></>}
               </span>
             </>
           )}

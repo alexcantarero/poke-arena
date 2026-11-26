@@ -56,6 +56,8 @@ export const ESQUEMA_ESPERADO: readonly Requisito[] = [
   { tabla: "deck_dificultad", columna: "nivel", migracion: "drizzle/0038_v0_137_0.sql", version: "0.137" },
   { tabla: "live_sesiones", columna: "rango", migracion: "drizzle/0038_v0_137_0.sql", version: "0.137" },
   { tabla: "predicciones", columna: "p", migracion: "drizzle/0039_v0_138_0.sql", version: "0.138" },
+  { tabla: "push_suscripciones", columna: "auth", migracion: "drizzle/0040_v0_140_0.sql", version: "0.140" },
+  { tabla: "confirmaciones_liga", columna: "estado", migracion: "drizzle/0040_v0_140_0.sql", version: "0.140" },
 ];
 
 /**

@@ -2,6 +2,37 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.140.0] — 2026-11-26
+
+**Con migración**: `drizzle/0040_v0_140_0.sql` (`push_suscripciones`, `push_enviados`,
+`confirmaciones_liga`). **Tres variables nuevas** para las notificaciones: `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`npm run vapid` las genera). Sin dependencias nuevas.
+
+### Añadido
+
+- **Notificaciones push reales, opcionales y por dispositivo** (Ajustes → «La app en el móvil»):
+  «mañana es la Cup» (a quien dijo «iré»), «Ronda N: apunta tu resultado» (en un torneo de hoy,
+  cuando otro del grupo ya la apuntó), «jornada N: te toca contra X», recordatorio de la partida
+  de liga sin jugar (cada 3 días) y «confirma el resultado». Cada aviso se manda una vez. Estándar
+  Web Push (cifrado RFC 8291 y firma VAPID RFC 8292) hecho con `node:crypto`, sin librerías
+  (`lib/webpush.ts`, 2 pruebas que descifran como lo haría el navegador). En iPhone, solo con la
+  app instalada.
+- **Instalar la app**: botón en Ajustes (el diálogo del navegador en Android; instrucciones en
+  iPhone) y, en una cuenta nueva, es su primer aviso. Al abrirla instalada deja de avisar.
+- **Liga que funciona sola**: jornadas automáticas por competición (un organizador lo activa en
+  la competición; el cron empareja la siguiente en cuanto la actual tiene todos los resultados y
+  avisa a cada uno de su rival), recordatorios a los dos rivales y **confirmación de resultados**:
+  cuando uno apunta, el otro lo confirma o lo discute desde Avisos (discutido, avisa a los
+  organizadores; sin respuesta en 3 días, se da por bueno). El resultado cuenta desde el principio.
+- **Imagen de la temporada para compartir** (1080×1350), desde el resumen de temporada.
+- **Importar partidas del PTCG Live** pegando su registro de batalla (el botón de exportar del
+  juego lo copia): victorias, derrotas, quién empezó y el mazo del rival adivinado; se guardan
+  como sesión del Live de hoy. `lib/registroLive.ts` (3 pruebas). Formato escrito con ejemplos
+  públicos en inglés: hay que confirmarlo con un registro real.
+- **El modelo nuevo, enchufado al recomendador si su backtest lo confirma**: con 30 predicciones
+  o más y mejor que tirar una moneda, los cruces de vuestros torneos pesan por recencia y por lo
+  competitivo del torneo. El recomendador dice si lo está usando.
+
 ## [0.139.0] — 2026-11-26
 
 **Sin migración ni dependencias nuevas.** **Cambian las cifras y el orden del recomendador.**

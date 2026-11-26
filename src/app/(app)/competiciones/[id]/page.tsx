@@ -33,7 +33,8 @@ import {
 } from "@/components/ui";
 import { CompetitionForm } from "@/components/CompetitionForm";
 import { FilterPanel } from "@/components/FilterPanel";
-import { createPairings } from "@/actions";
+import { cambiarLigaAutomatica, createPairings } from "@/actions";
+import { ligaAutomatica } from "@/lib/ligaAutoDb";
 import { Icon } from "@/components/icons";
 import { LigaStats } from "@/components/LigaStats";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -56,6 +57,7 @@ export default async function CompetitionPage({
   const query = await searchParams;
   const [snap, session] = await Promise.all([loadSnapshot(), readSession()]);
   const comp = snap.compsById.get(id);
+  const auto = comp ? await ligaAutomatica(comp.id).catch(() => false) : false; // v0.140
   if (!comp) notFound();
 
   const me = session ? snap.playersById.get(session.playerId) : undefined;
@@ -500,12 +502,21 @@ export default async function CompetitionPage({
                   </p>
                 )}
                 {manager && !cinturonSinRondas && !(esCinturon && pending.length > 0) ? (
+                  <>
+                  {/* v0.140 — jornadas automáticas: cuando acaba una, la siguiente se empareja sola (cron diario). */}
+                  <form action={cambiarLigaAutomatica} className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+                    <input type="hidden" name="competitionId" value={comp.id} />
+                    <input type="hidden" name="auto" value={auto ? "0" : "1"} />
+                    <span className="text-muted">{tr(lng, auto ? "v140.autoOn" : "v140.autoOff")}</span>
+                    <button className="btn btn-sm" type="submit">{tr(lng, auto ? "v140.autoQuitar" : "v140.autoPoner")}</button>
+                  </form>
                   <form action={createPairings}>
                     <input type="hidden" name="competitionId" value={comp.id} />
                     <button className="btn btn-brand w-full" type="submit">
                       Crear {preview.pairs.length} partidas pendientes
                     </button>
                   </form>
+                  </>
                 ) : (
                   <p className="text-sm text-muted">
                     {manager

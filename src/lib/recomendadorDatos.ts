@@ -1,3 +1,5 @@
+import { backtest, pesoTorneo } from "@/lib/recommender/modelo";
+import { partidasDelGrupo } from "@/lib/recommender/datos";
 import "server-only";
 import { loadMatchupImports, loadMetaIrl, type Snapshot } from "@/lib/data";
 import { liderDeSlug, type FilaTH } from "@/lib/trainerHill";
@@ -38,6 +40,8 @@ export type DatosRecomendador = {
   ciphermaniac: Fuente;
   locales: Fuente[];
   grupo: Record<TipoTorneo, Fuente>;
+  /** v0.140 — ¿Usa el modelo nuevo para vuestros cruces? Solo si su backtest bate a la moneda. */
+  modeloNuevo?: { activo: boolean; n: number; brier: number | null; base: number | null };
   /** líder → consistencia: mulligan teórico (de las listas) y real (de vuestros juegos). */
   consistencia: Record<string, { teorico: number | null; mull: number; juegos: number }>;
   /** líder → nombre legible (el más usado). */
@@ -269,6 +273,19 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
 
   /* --- vuestros torneos, por tipo ------------------------------------ */
   const ldArch = (a?: { main?: string | null; name?: string }) => (a ? a.main || liderDe(a.name) : "");
+  /* v0.140 — EL MODELO NUEVO, ENCHUFADO… SI EL BACKTEST LO CONFIRMA. Si con
+     vuestras partidas (cada una predicha solo con las anteriores) el modelo de
+     `lib/recommender` acierta mejor que tirar una moneda, con 30 predicciones o
+     más, los cruces de vuestros torneos pasan a pesar por recencia (τ = 60) y
+     por lo competitivo del torneo. Si no, se queda todo como estaba. Los pesos
+     se reescalan para conservar el número de partidas (el encogimiento del
+     recomendador sigue viendo la misma muestra). */
+  const bt = backtest(partidasDelGrupo(snap));
+  const modeloNuevo = { activo: bt.n >= 30 && bt.brier != null && bt.brierBase != null && bt.brier < bt.brierBase, n: bt.n, brier: bt.brier, base: bt.brierBase };
+  const hoyGrupo = new Date().toISOString().slice(0, 10);
+  const pesoPartida = (fecha: string, tipoT: string, online: boolean) => modeloNuevo.activo
+    ? Math.exp(-Math.max(0, (Date.parse(`${hoyGrupo}T12:00:00Z`) - Date.parse(`${fecha}T12:00:00Z`)) / 86_400_000) / 60) * pesoTorneo(online ? "online" : tipoT)
+    : 1;
   const grupo = {} as Record<TipoTorneo, Fuente>;
   for (const tipo of Object.keys(KINDS) as TipoTorneo[]) {
     const kinds = new Set(KINDS[tipo]);
@@ -276,6 +293,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
     // v1.0 — los cruces de vuestros torneos son resultados de SERIE (ganar la ronda), no partidas.
     const f: Fuente = { id: "grupo", cuota: {}, cruces: [], serie: true };
     const cruces = new Map<string, Cruce>();
+    let sumaPesos = 0, nPartidas = 0;
     for (const m of snap.matches) {
       if (!m.tournamentId || !tours.has(m.tournamentId) || !isPlayed(m)) continue;
       const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
@@ -285,10 +303,15 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
       nombrar(la, a!.name);
       const o = outcome(m).winner;
       const x = cruces.get(`${la}|${lb}`) ?? { a: la, b: lb, w: 0, l: 0, t: 0 };
-      if (o === "a") x.w++; else if (o === "b") x.l++; else if (o === "tie") x.t++;
+      const tt = snap.toursById.get(m.tournamentId);
+      const w = pesoPartida(m.date, tt?.kind ?? "otro", tt?.scope === "online");
+      if (o === "a") x.w += w; else if (o === "b") x.l += w; else if (o === "tie") x.t += w;
+      sumaPesos += w; nPartidas++;
       cruces.set(`${la}|${lb}`, x);
     }
-    f.cruces = [...cruces.values()];
+    // v0.140 — reescalar: la suma de pesos vuelve a ser el número de partidas.
+    const escala = sumaPesos > 0 ? nPartidas / sumaPesos : 1;
+    f.cruces = [...cruces.values()].map((c) => ({ ...c, w: c.w * escala, l: c.l * escala, t: c.t * escala }));
     /* v0.82 — vuestros RESULTADOS en ese tipo de torneo (puesto y mazo): si
        entrasteis al corte (sin corte, top 8) y si lo ganasteis. */
     f.conversion = {};
@@ -444,7 +467,7 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
   const tot = conv.reduce((s, c) => ({ n: s.n + c.n, corte: s.corte + c.corte }), { n: 0, corte: 0 });
 
   return {
-    fuentes: { online, regionales, cityleagues }, trainerHill, ciphermaniac, locales, grupo, consistencia, nombres, iconos,
+    fuentes: { online, regionales, cityleagues }, trainerHill, ciphermaniac, locales, grupo, consistencia, nombres, iconos, modeloNuevo,
     resumen: { online: resOnline, regionales: nReg, cityleagues: nCity, trainerHill: partidasTH, eventosDia2 },
     variantes: Object.fromEntries(Object.entries(variantes).map(([l, m]) => [l, [...m.values()]])),
     evaluacion,

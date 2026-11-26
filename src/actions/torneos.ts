@@ -31,6 +31,8 @@ import { saveMatch } from "./partidas";
 import { notificarResultadosTorneo } from "@/lib/discord";
 import { guardarDireccion } from "@/lib/torneoDireccionDb";
 import { buscarDuplicado } from "@/lib/duplicados";
+import { after } from "next/server";
+import { avisoRondaApuntada } from "@/lib/ligaAutoDb";
 
 export async function saveTournament(fd: FormData) {
   const actor = await requireActor();
@@ -701,6 +703,8 @@ async function guardarRondaNucleo(fd: FormData, actor: Actor): Promise<Resultado
     justLocked ? archetypeAId : null,
   );
   refresh();
+  // v0.140 — «Ronda N: apunta tu resultado» a los del grupo en el torneo de hoy (después de responder).
+  try { after(() => avisoRondaApuntada(tournamentId, round, playerId)); } catch { /* fuera de una petición */ }
   return { ok: true, round, id };
 }
 

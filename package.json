@@ -1,8 +1,9 @@
 {
   "name": "poke-arena",
-  "version": "0.139.0",
+  "version": "0.140.0",
   "private": true,
   "scripts": {
+    "vapid": "node scripts/generar-vapid.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

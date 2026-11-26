@@ -6,7 +6,9 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { competitionPlayers, competitions, competitionTeams, leagueDecks, matches } from "@/db/schema";
+import { competitionPlayers, competitions, competitionTeams, leagueDecks, matches, players } from "@/db/schema";
+import { ponerLigaAutomatica, resolverConfirmacion } from "@/lib/ligaAutoDb";
+import { enviarA } from "@/lib/pushDb";
 import { MODALIDADES, TAM_EQUIPO, asModalidad, jornadaEquipos, partidasDeDuelo } from "@/lib/modalidades";
 import { canManageLeague } from "@/lib/auth";
 import { newId, todayISO } from "@/lib/format";
@@ -268,4 +270,29 @@ export async function deleteTeam(fd: FormData) {
     .where(and(eq(competitionTeams.id, teamId), eq(competitionTeams.competitionId, competitionId)));
   refresh();
   redirect(withFlash(`/competiciones/${competitionId}`, "ok", await msj("x.b3a7a59e")));
+}
+
+/** v0.140 — Activar o quitar las jornadas automáticas de una competición (organizadores). */
+export async function cambiarLigaAutomatica(fd: FormData) {
+  const actor = await requireActor();
+  if (!canManageLeague(actor.role)) return;
+  const id = str(fd, "competitionId");
+  const ok = await ponerLigaAutomatica(id, str(fd, "auto") === "1");
+  redirect(withFlash(`/competiciones/${id}`, ok ? "ok" : "error", ok
+    ? (str(fd, "auto") === "1" ? "Jornadas automáticas: cuando acabe la jornada, la siguiente se empareja sola." : "Jornadas automáticas desactivadas.")
+    : "No se ha podido guardar: falta la migración 0037."));
+}
+
+/** v0.140 — Confirmar (o discutir) el resultado que ha apuntado tu rival de liga. */
+export async function confirmarResultadoLiga(fd: FormData) {
+  const actor = await requireActor();
+  const matchId = str(fd, "matchId");
+  const discutir = str(fd, "discutir") === "1";
+  const ok = await resolverConfirmacion(matchId, actor.id, discutir ? "discutido" : "confirmado");
+  if (ok && discutir) {
+    const orgs = (await db.select({ id: players.id, role: players.role }).from(players)).filter((p) => canManageLeague(p.role)).map((p) => p.id);
+    await enviarA(orgs, { titulo: "Resultado discutido", cuerpo: `${actor.name} no está de acuerdo con un resultado de liga.`, url: `/partidas/${matchId}`, etiqueta: "discutido" }, `discutido:${matchId}`);
+  }
+  refresh();
+  redirect(withFlash("/avisos", ok ? "ok" : "error", ok ? (discutir ? "Avisado a los organizadores." : "Resultado confirmado.") : "Ese resultado ya estaba resuelto."));
 }

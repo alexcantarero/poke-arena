@@ -132,3 +132,29 @@ self.addEventListener("fetch", (e) => {
     );
   }
 });
+
+/* v0.140 — NOTIFICACIONES PUSH. Llegan cifradas para este navegador; aquí se
+   enseñan y, al tocarlas, se abre (o se enfoca) la app en la página del aviso. */
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { cuerpo: e.data ? e.data.text() : "" }; }
+  const titulo = d.titulo || "PokeArena";
+  e.waitUntil(self.registration.showNotification(titulo, {
+    body: d.cuerpo || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: d.etiqueta || undefined,
+    data: { url: d.url || "/avisos" },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "/avisos", self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
+    for (const v of ventanas) {
+      if (v.url.startsWith(self.location.origin) && "focus" in v) { v.navigate(url); return v.focus(); }
+    }
+    return self.clients.openWindow(url);
+  }));
+});

@@ -10,6 +10,7 @@ import { tr, trf } from "@/lib/i18n";
 import { anotarSesionLive } from "@/actions";
 import { dificultades, sesionesDeMazo } from "@/lib/mazosExtraDb";
 import { VotoDificultad } from "@/components/VotoDificultad";
+import { ImportarLive } from "@/components/ImportarLive";
 import { liveConPeso, pesoLadder } from "@/lib/ladderPeso";
 import { pct, todayISO } from "@/lib/format";
 import { getLang } from "@/lib/lang";
@@ -93,6 +94,15 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
           </>
         )}
       </section>
+
+      {/* v0.140 — importar las partidas del PTCG Live pegando su registro de batalla. */}
+      <details className="card mt-4">
+        <summary className="tap cursor-pointer justify-between px-4 font-display text-lg font-bold">{tr(lng, "v140.live.titulo")}</summary>
+        <div className="border-t border-line-soft p-4">
+          <ImportarLive deckId={deck.id} hoy={hoy}
+            catalogo={snap.archetypes.map((a) => ({ id: a.id, name: a.name, main: a.main, secondary: a.secondary ?? null }))} />
+        </div>
+      </details>
 
       {/* El buscador va SIEMPRE, con lista o sin ella: es justo cuando no hay
           lista todavía cuando más falta hace. Cerrado por defecto, como todo

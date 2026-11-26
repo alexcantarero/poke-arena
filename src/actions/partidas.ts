@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { archetypes, competitions, games, matches, players, tournaments } from "@/db/schema";
+import { pedirConfirmacion } from "@/lib/ligaAutoDb";
 import { validarMazosPorJuego } from "@/lib/juegosMazos";
 import { asModalidad } from "@/lib/modalidades";
 import { canManageLeague } from "@/lib/auth";
@@ -227,6 +228,11 @@ export async function saveMatch(fd: FormData) {
   if (!especial && str(fd, "causasTocadas") === "1" && (causasDe === playerAId || (causasDe && causasDe === playerBId))) {
     await guardarCausas(id, causasDe, leerCausas(str(fd, "causas")));
   }
+  /* v0.140 — un resultado de LIGA apuntado por uno de los dos: el otro lo confirma. */
+  if (values.competitionId && playerBId && (actor.id === playerAId || actor.id === playerBId)) {
+    const comp = (await db.select({ name: competitions.name }).from(competitions).where(eq(competitions.id, values.competitionId)))[0];
+    await pedirConfirmacion(id, actor.id, actor.id === playerAId ? playerBId : playerAId, comp?.name ?? "liga");
+  }
   refresh();
   if (pendienteLiga) {
     redirect(withFlash(`/competiciones/${pendienteLiga.competitionId}`, "ok", await msj("v71.anotadaEnLiga", { n: pendienteLiga.round })));
@@ -312,6 +318,11 @@ export async function resultadoRapido(fd: FormData) {
      esto, la ficha del torneo enseñaba el récord de antes hasta la siguiente
      ronda. Sin mazo que fijar: eso solo pasa al elegirlo en el formulario. */
   if (m.tournamentId) await syncTournamentRecord(m.tournamentId, m.playerAId);
+  // v0.140 — resultado de LIGA apuntado por uno de los dos: el otro lo confirma.
+  if (m.competitionId && m.playerBId && (actor.id === m.playerAId || actor.id === m.playerBId)) {
+    const comp = (await db.select({ name: competitions.name }).from(competitions).where(eq(competitions.id, m.competitionId)))[0];
+    await pedirConfirmacion(id, actor.id, actor.id === m.playerAId ? m.playerBId : m.playerAId, comp?.name ?? "liga");
+  }
   refresh();
   redirect(withFlash(volver, "ok", await msj(correccion ? "rr.corregido" : "rr.guardado")));
 }

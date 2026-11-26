@@ -13,7 +13,7 @@
    sigue descartada. Esto es dentro de la web.
    ========================================================================= */
 
-export type TipoAviso = "resultado" | "liga" | "reset" | "ladder" | "inscripcion" | "nick" | "oficial" | "torneo" | "regional";
+export type TipoAviso = "resultado" | "liga" | "reset" | "ladder" | "inscripcion" | "nick" | "oficial" | "torneo" | "regional" | "confirmar" | "instalar";
 
 export type Aviso = {
   id: string;
@@ -51,6 +51,10 @@ export type EstadoAvisos = {
   proximoLiga?: { rival: string } | null;
   /** v0.136 — Un Regional (o mayor) recién importado. */
   regionalNuevo?: { nombre: string; fecha: string } | null;
+  /** v0.140 — Resultados de liga que tu rival ha apuntado y te toca confirmar. */
+  porConfirmar?: ReadonlyArray<{ matchId: string; nombre: string }>;
+  /** v0.140 — La app no está instalada en este dispositivo (se sabe por una cookie que pone la app instalada). */
+  sinInstalar?: boolean;
 };
 
 /** Los avisos de un jugador, de lo más urgente a lo menos. */
@@ -63,7 +67,11 @@ export function avisosDe(e: EstadoAvisos): Aviso[] {
   if (e.faltaNick) perfil.push({ id: "nick", tipo: "nick", href: "/perfil/editar#limitlessHandle" });
   if (e.faltaOficial) perfil.push({ id: "oficial", tipo: "oficial", href: `/perfil/${e.playerId}#mundial` });
   if (e.cuentaNueva && !e.resetLadder && e.ladderToca) perfil.push({ id: "ladder", tipo: "ladder", href: `/perfil/${e.playerId}#ladder` });
+  // v0.140 — instalar la app: lo primero de todo en una cuenta nueva.
+  if (e.cuentaNueva && e.sinInstalar) out.push({ id: "instalar", tipo: "instalar", href: "/ajustes#app" });
   if (e.cuentaNueva) out.push(...perfil);
+  // v0.140 — confirmar los resultados de liga que ha apuntado tu rival.
+  for (const c of e.porConfirmar ?? []) out.push({ id: `confirmar:${c.matchId}`, tipo: "confirmar", href: "/avisos", nombre: c.nombre });
   // Lo que se olvida y luego no hay quien lo recuerde: el resultado de un torneo. Del más reciente al más antiguo.
   for (const t of [...e.torneosSinResultado].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5)) {
     out.push({ id: `resultado:${t.id}`, tipo: "resultado", href: `/torneos/${t.id}`, nombre: t.nombre, fecha: t.fecha });

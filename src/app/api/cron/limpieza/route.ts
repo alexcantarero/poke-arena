@@ -74,10 +74,18 @@ export async function GET(req: NextRequest) {
   } catch { rondasOnline = null; }
   // v0.138 — el registro de predicciones del modelo de cruces (las rondas de los últimos 3 días).
   let prediccionesNuevas = 0;
+  // v0.140 — la liga que funciona sola y los avisos push.
+  const liga = { jornadas: 0, recordatorios: 0, confirmadas: 0, manana: 0 };
   try {
     const { loadSnapshot } = await import("@/lib/data");
     const { registrarPredicciones } = await import("@/lib/recommender/datos");
-    prediccionesNuevas = await registrarPredicciones(await loadSnapshot(), 3);
+    const snapCron = await loadSnapshot();
+    prediccionesNuevas = await registrarPredicciones(snapCron, 3);
+    const auto = await import("@/lib/ligaAutoDb");
+    liga.confirmadas = await auto.autoConfirmar();
+    liga.jornadas = await auto.jornadasAutomaticas(snapCron);
+    liga.recordatorios = await auto.recordatoriosLiga(snapCron);
+    liga.manana = await auto.avisosTorneoManana();
   } catch { prediccionesNuevas = 0; }
   try {
     const r = await importarDesdeLimitless({ dias: 2, maxTorneos: 100 });
@@ -105,6 +113,7 @@ export async function GET(req: NextRequest) {
     limitless,
     rondasOnline,
     prediccionesNuevas,
+    liga,
     usoNeon,
     cinturon,
     plazoCinturon: plazoCinturon?.kind ?? null,

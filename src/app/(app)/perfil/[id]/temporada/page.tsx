@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentPlayer, loadSnapshot } from "@/lib/data";
-import { archetypesOfMatch, esNoPresentadoPartida, outcome } from "@/lib/stats";
-import { cpKindOf, effectiveCp, seasonOfDate } from "@/lib/cp";
 import { badgesOf } from "@/lib/badges";
 import { entradaMedallasDeJugador } from "@/lib/perfilTitulos";
-import { resumenDeTemporada, type PartidaTemporada, type TorneoTemporada } from "@/lib/resumenTemporada";
+import { datosDeTemporada } from "@/lib/temporadaDatos";
 import { pct } from "@/lib/format";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
@@ -33,32 +31,8 @@ export default async function TemporadaPage({
 
   const pedida = Number(q.t);
   const temporada = Number.isInteger(pedida) && pedida >= 2020 && pedida <= 2100 ? pedida : snap.config.cpSeason;
-  const enTemporada = (fecha: string) => seasonOfDate(fecha) === temporada;
 
-  const partidas: PartidaTemporada[] = [];
-  const temporadasConDatos = new Set<number>();
-  for (const m of snap.matches) {
-    const soyA = m.playerAId === id, soyB = m.playerBId === id;
-    if (!soyA && !soyB) continue;
-    const s = seasonOfDate(m.date);
-    if (s != null) temporadasConDatos.add(s);
-    if (!enTemporada(m.date) || m.opponentName === "BYE" || esNoPresentadoPartida(m)) continue;
-    const g = outcome(m).winner;
-    if (!g) continue;
-    const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
-    partidas.push({
-      fecha: m.date, r: g === "tie" ? "t" : (g === "a") === soyA ? "w" : "l",
-      miMazo: (soyA ? a : b)?.name ?? "", suMazo: (soyA ? b : a)?.name ?? "",
-    });
-  }
-  const torneos: TorneoTemporada[] = [];
-  for (const t of snap.tournaments) {
-    const r = t.results.find((x) => x.playerId === id);
-    if (!r || (t.season ?? seasonOfDate(t.date)) !== temporada) continue;
-    torneos.push({ nombre: t.name, fecha: t.date, puesto: r.placement, jugadores: t.playerCount, cp: effectiveCp(temporada, cpKindOf(t), r, t.playerCount) });
-  }
-  const elo = (snap.elo.history[id] ?? []).filter((h) => enTemporada(h.date)).map((h) => ({ fecha: h.date, valor: h.value }));
-  const r = resumenDeTemporada(partidas, torneos, elo);
+  const { r, temporadasConDatos } = datosDeTemporada(snap, id, temporada);
 
   const medallas = badgesOf(entradaMedallasDeJugador(snap, id));
   const oro = medallas.filter((b) => b.tier === "gold").length, plata = medallas.filter((b) => b.tier === "silver").length,
@@ -88,6 +62,12 @@ export default async function TemporadaPage({
       <h1 className="mb-4 font-display text-3xl font-black leading-tight">
         {esMio ? tr(lng, "v130.tuTemporada") : trf(lng, "v130.temporadaDe", { n: jugador.name })}
       </h1>
+      {/* v0.140 — la imagen de la temporada, para compartir (como la del torneo). */}
+      {(r.partidas > 0 || r.torneos > 0) && (
+        <p className="-mt-2 mb-4">
+          <a href={`/perfil/${id}/temporada/imagen?t=${temporada}`} target="_blank" rel="noopener" className="btn btn-brand btn-sm">{tr(lng, "v140.imagenTemporada")}</a>
+        </p>
+      )}
 
       {r.partidas === 0 && r.torneos === 0 ? (
         <p className="card p-4 text-sm text-muted">{tr(lng, "v130.sinTemporada")}</p>

@@ -54,3 +54,11 @@ test("v0.136 — el torneo al que vas, el próximo de liga con su rival y el Reg
   assert.equal(a[0].href, "/torneos/t8/preparacion");
   assert.equal(a[2].nombre, "Alex");
 });
+
+test("v0.140 — cuenta nueva: lo primero, instalar la app; y los resultados de liga por confirmar", () => {
+  const a = avisosDe({ ...base, cuentaNueva: true, sinInstalar: true, faltaNick: true, porConfirmar: [{ matchId: "m1", nombre: "Alex" }] });
+  assert.deepEqual(a.map((x) => x.id), ["instalar", "nick", "confirmar:m1"]);
+  assert.equal(a[0].href, "/ajustes#app");
+  // Instalada (o cuenta antigua): no sale.
+  assert.deepEqual(avisosDe({ ...base, cuentaNueva: false, sinInstalar: true }).map((x) => x.id), []);
+});

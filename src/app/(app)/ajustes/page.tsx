@@ -17,6 +17,8 @@ import { InviteManager } from "@/components/InviteManager";
 import { PlayerAdmin } from "@/components/PlayerAdmin";
 import { PasswordForm } from "@/components/PasswordForm";
 import { BorrarCuenta } from "@/components/BorrarCuenta";
+import { AppMovil } from "@/components/AppMovil";
+import { vapid } from "@/lib/pushDb";
 import { registroLibre } from "@/lib/ajustesExtraDb";
 import { cambiarRegistroLibre } from "@/actions";
 import { isOwner } from "@/lib/auth";
@@ -132,6 +134,11 @@ export default async function SettingsPage() {
 
 
       </Grupo>
+      {/* v0.140 — la app en el móvil: instalarla y las notificaciones push. */}
+      <Grupo id="app" titulo={tr(lng, "v140.grupo")}>
+        <div className="card p-4"><AppMovil vapidPublica={vapid()?.publica ?? null} /></div>
+      </Grupo>
+
       <Grupo id="cuenta" titulo={tr(lng, "x.e92a19d9")}>
       <PasswordForm />
 

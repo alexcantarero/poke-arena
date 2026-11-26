@@ -441,6 +441,32 @@ export const predicciones = pgTable("predicciones", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** v0.140 — Suscripciones a notificaciones push, una por navegador (migración 0040). */
+export const pushSuscripciones = pgTable("push_suscripciones", {
+  endpoint: text("endpoint").primaryKey(),
+  playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("push_suscripciones_player_idx").on(t.playerId)]);
+
+/** v0.140 — Avisos push ya enviados, para no repetir el mismo (clave única por aviso y persona). */
+export const pushEnviados = pgTable("push_enviados", {
+  clave: text("clave").primaryKey(),
+  enviadoAt: timestamp("enviado_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** v0.140 — Confirmación de resultados de liga: quien apunta y el rival que confirma (migración 0040). */
+export const confirmacionesLiga = pgTable("confirmaciones_liga", {
+  matchId: text("match_id").primaryKey().references(() => matches.id, { onDelete: "cascade" }),
+  reportadoPor: text("reportado_por").notNull().references(() => players.id, { onDelete: "cascade" }),
+  rivalId: text("rival_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  reportadoAt: timestamp("reportado_at", { withTimezone: true }).notNull().defaultNow(),
+  /** «pendiente», «confirmado» o «discutido». */
+  estado: text("estado").notNull().default("pendiente"),
+  resueltoAt: timestamp("resuelto_at", { withTimezone: true }),
+});
+
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
   playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
