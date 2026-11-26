@@ -344,6 +344,9 @@ export function recomendar(opts: {
       x.dia2 += w * (c.dia2 ?? 0); x.dia2Base += w * (c.dia2Base ?? 0);
     }
   }
+  // v0.139 — los totales de lo real, para comparar cada mazo con la media de las mismas listas.
+  const evTot = Object.values(ev).reduce((a, x) => ({ n: a.n + x.n, corte: a.corte + x.corte, ganados: a.ganados + x.ganados, dia2: a.dia2 + x.dia2, dia2Base: a.dia2Base + x.dia2Base }),
+    { n: 0, corte: 0, ganados: 0, dia2: 0, dia2Base: 0 });
   const PESO_EXITO: Record<TipoTorneo, number> = { regional: 0.1, league_cup: 0.06, city_league: 0.06, league_challenge: 0.03 };
   const ratioExito = (l: string): number | null => {
     const c = conv[l];
@@ -443,16 +446,31 @@ export function recomendar(opts: {
     const K = 8;
     let pObj = pObjetivo, pBajo = pObjetivoBajo, conEvidencia = false;
     let sorpresa: FilaRecomendada["sorpresa"] = null;
-    const conReal = (exitos: number, base: number, previo: number) => {
-      const pp = (exitos + K * previo) / (base + K);
-      return { pp, bajo: wilsonBajo(exitos + K * previo, base + K, Z_BAJO) };
+    /* v0.139 — EL FALLO DE LOS 58 %: las listas importadas de los Regionales y
+       City Leagues son las de ARRIBA de la clasificación (top 32/64), no el
+       campo entero. Así que «5 de 12 al corte» no es la probabilidad de entrar
+       al corte con ese mazo, sino entre los que ya acabaron arriba: un mazo con
+       12 listas importadas salía al 27 % en un Regional de 2.500 personas, y el
+       ranking premiaba tener muchas listas buenas importadas.
+       Ahora lo real se usa en RELATIVO: su tasa frente a la media de todos los
+       mazos en esas mismas listas (el sesgo de muestreo es el mismo para todos
+       y se cancela), encogida con 8 listas al nivel medio. La cifra es mitad
+       modelo y mitad resultados reales, las dos por jugador que se apunta:
+           p = √( p_modelo · p_mazo_medio · ritmo_real ) */
+    const tasaMedia = { corte: evTot.n ? evTot.corte / evTot.n : 0, ganados: evTot.n ? evTot.ganados / evTot.n : 0, dia2: evTot.dia2Base ? evTot.dia2 / evTot.dia2Base : 0 };
+    const conReal = (exitos: number, base: number, media: number, pModelo: number, pModeloBajo: number) => {
+      if (!(media > 0)) return { pp: pModelo, bajo: pModeloBajo };
+      const rel = (exitos + K * media) / (base + K) / media;
+      const relBajo = wilsonBajo(exitos + K * media, base + K, Z_BAJO) / media;
+      const objMed = objMedia;
+      return { pp: Math.sqrt(Math.max(0, pModelo) * objMed * rel), bajo: Math.sqrt(Math.max(0, pModeloBajo) * objMed * relBajo) };
     };
     if (e && objetivo === "top" && e.corte > 0) {
-      ({ pp: pObj, bajo: pBajo } = conReal(e.corte, e.n, r.pTop)); conEvidencia = true;
+      ({ pp: pObj, bajo: pBajo } = conReal(e.corte, e.n, tasaMedia.corte, r.pTop, rBajo.pTop)); conEvidencia = true;
     } else if (e && objetivo === "ganar" && e.ganados > 0) {
-      ({ pp: pObj, bajo: pBajo } = conReal(e.ganados, e.n, r.pGanar)); conEvidencia = true;
+      ({ pp: pObj, bajo: pBajo } = conReal(e.ganados, e.n, tasaMedia.ganados, r.pGanar, rBajo.pGanar)); conEvidencia = true;
     } else if (e && objetivo === "dia2" && e.dia2Base > 0) {
-      ({ pp: pObj, bajo: pBajo } = conReal(e.dia2, e.dia2Base, r.pDia2 ?? r.pTop)); conEvidencia = true;
+      ({ pp: pObj, bajo: pBajo } = conReal(e.dia2, e.dia2Base, tasaMedia.dia2, r.pDia2 ?? r.pTop, rBajo.pDia2 ?? rBajo.pTop)); conEvidencia = true;
     } else if (e && objetivo === "sorpresa" && e.n > 0 && e.corte > 0) {
       /* v0.84 — dos clases de sorpresa:
          · pocas listas (≤ 30) que han entrado al corte;
@@ -468,9 +486,14 @@ export function recomendar(opts: {
         sorpresa = e.n <= 30 ? "pocas" : "pronostico";
       }
     }
+    /* v0.139 — la fiabilidad cuenta también los resultados reales: un mazo nuevo
+       con pocos cruces registrados pero que ya ha hecho corte en varios
+       Regionales no es «de fiabilidad baja» (por eso no salían los mazos con
+       buenos resultados recientes). Cada lista real cuenta como 5 partidas. */
+    const fiab = neff + 5 * (e?.n ?? 0);
     return {
-      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: pBajo, indice: pObj / objMedia, datos: Math.round(neff),
-      confianza: neff >= 300 ? "alta" : neff >= 60 ? "media" : "baja", mejor, peor, conversion,
+      lider, cuota: campo[lider] ?? 0, pRonda, ...r, pObjetivo: pObj, pObjetivoBajo: Math.min(pBajo, pObj), indice: pObj / objMedia, datos: Math.round(neff),
+      confianza: fiab >= 300 ? "alta" : fiab >= 60 ? "media" : "baja", mejor, peor, conversion,
       evidencia: e ? { n: Math.round(e.n), corte: Math.round(e.corte), ganados: Math.round(e.ganados), dia2: Math.round(e.dia2), dia2Base: Math.round(e.dia2Base) } : null,
       conEvidencia, sorpresa,
     };

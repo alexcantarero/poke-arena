@@ -1613,7 +1613,7 @@ const ES = {
   "v90.pq.real": "Resultados reales: {c} de {n} listas al corte, {g} torneos ganados.",
   "v90.pq.live": "En TCG Live lleváis {w}-{l} con él (solo cuenta para Challenges).",
   "v90.pq.tuyo": "Contigo rinde {d} puntos por encima (o por debajo) de lo esperado.",
-  "v90.pq.conReal": "La cifra sale de resultados reales, con el modelo como base.",
+  "v90.pq.conReal": "La cifra es mitad modelo y mitad resultados reales, comparados con la media de las mismas listas (las importadas son las de arriba de la clasificación).",
   "v90.pq.soloModelo": "La cifra es la estimación del modelo: no hay resultados reales para este objetivo.",
   "elo.historia": "Su Elo partida a partida · máximo {max} ({r})",
   "v90.resumen": "Tu torneo",
@@ -1876,7 +1876,7 @@ const ES = {
   "rc.soloModelo": "Ningún mazo tiene resultados reales para este objetivo: es la estimación del modelo.",
   "rc.pocasFiables": "Solo hay {n} recomendaciones con fiabilidad media o alta para estos filtros.",
   "rc.sinFiables": "No hay recomendaciones con fiabilidad media o alta para estos filtros.",
-  "rc.real": "Real: {c}/{n} al corte · {g} ganados",
+  "rc.real": "Real: {c}/{n} listas importadas al corte · {g} ganados",
   "rc.realDia2": "Día 2: {d}/{b}",
   "rc.ayuda.cuota": "Qué parte del campo esperas que juegue este mazo en este tipo de torneo.",
   "rc.ayuda.ronda": "Probabilidad de ganar una ronda (serie) contra el campo esperado.",
@@ -1969,7 +1969,7 @@ const ES = {
   "rc.conf.media": "media",
   "rc.conf.baja": "baja",
   "rc.fuentes": "Datos: {t} torneos online ({p} partidas, 45 días), {r} Regionales y {c} City Leagues importados (120 días) y {g} rivales en vuestros torneos de este tipo.",
-  "rc.nota": "Es una estimación para ordenar opciones, no una predicción. «×» compara con un mazo medio (1,00 = igual). Con fiabilidad baja, los números se acercan al 50 %. No sabe cómo juegas tú: eso, en una versión siguiente.",
+  "rc.nota": "Es una estimación para ordenar opciones, no una predicción. El % es por jugador que se apunta con ese mazo; «×» compara con un mazo medio (1,00 = igual), y es lo que mejor sirve para comparar. Con fiabilidad baja, los números se acercan a la media. No sabe cómo juegas tú: eso es la pestaña «Para ti».",
   // v0.73
   "pm.titulo": "Camino al Mundial",
   "pm.llegas": "Ya llegas a la referencia. Lo que sumes ahora te sube en el ranking de tu zona.",
@@ -2788,7 +2788,7 @@ const ES = {
   "v133.igual": "Misma lista que {n}.",
   "v133.cambios": "{n} cartas distintas respecto a {b}",
   "v133.nota": "La referencia es la versión más usada. Las cartas se comparan por nombre: la misma carta de otra expansión cuenta como la misma. Los comentarios son los de cada mazo.",
-  "v133.comparar": "Comparar versiones →",
+  "v133.comparar": "Versiones y dificultad →",
   "v133.escribeMazo": "Escribe el nombre del mazo…",
   "v133.record": "Récord (opcional)",
   "v133.ganadas": "Ganadas",
@@ -2937,6 +2937,9 @@ const ES = {
   "v138.comoTexto": "Cada partida pesa exp(−días/τ) por lo reciente y por lo competitivo del torneo (la fuerza del rival). Con eso, la probabilidad sale de una Beta que con pocas partidas tira hacia el 50 %. Más bajo es mejor en Brier y log-loss.",
   "v138.pesos": "Peso por torneo:",
   "v138.enlace": "El modelo de cruces, puesto a prueba →",
+  "v139.difAyuda": "La media de los votos de todos. Cualquiera puede votar cualquier mazo: aquí, en «Versiones y dificultad» de la biblioteca.",
+  "v139.difRanking": "Los mazos más difíciles",
+  "v139.difRankingSub": "Según los votos de todos (1 muy fácil … 5 muy difícil), por arquetipo.",
 } as const;
 
 export type I18nKey = keyof typeof ES;
@@ -4524,7 +4527,7 @@ const EN: Record<I18nKey, string> = {
   "v90.pq.real": "Real results: {c} of {n} lists made cut, {g} events won.",
   "v90.pq.live": "On TCG Live you're {w}-{l} with it (only counts for Challenges).",
   "v90.pq.tuyo": "With you it performs {d} points above (or below) expectations.",
-  "v90.pq.conReal": "The number comes from real results, with the model as baseline.",
+  "v90.pq.conReal": "The number is half model, half real results compared with the average of the same lists (imported lists are the top of the standings).",
   "v90.pq.soloModelo": "The number is the model's estimate: no real results for this goal.",
   "elo.historia": "Their Elo game by game · peak {max} ({r})",
   "v90.resumen": "Your tournament",
@@ -4787,7 +4790,7 @@ const EN: Record<I18nKey, string> = {
   "rc.soloModelo": "No deck has real results for this goal: this is the model's estimate.",
   "rc.pocasFiables": "Only {n} recommendations have medium or high reliability for these filters.",
   "rc.sinFiables": "No recommendations have medium or high reliability for these filters.",
-  "rc.real": "Real: {c}/{n} made cut · {g} wins",
+  "rc.real": "Real: {c}/{n} imported lists made cut · {g} wins",
   "rc.realDia2": "Day 2: {d}/{b}",
   "rc.ayuda.cuota": "Share of the field you expect to play this deck in this tournament type.",
   "rc.ayuda.ronda": "Chance of winning a round (series) against the expected field.",
@@ -4880,7 +4883,7 @@ const EN: Record<I18nKey, string> = {
   "rc.conf.media": "medium",
   "rc.conf.baja": "low",
   "rc.fuentes": "Data: {t} online tournaments ({p} matches, 45 days), {r} Regionals and {c} City Leagues imported (120 days) and {g} opponents in your tournaments of this type.",
-  "rc.nota": "An estimate to rank options, not a prediction. “×” compares with an average deck (1.00 = equal). With low reliability, numbers drift towards 50%. It doesn't know how you play: that comes in a later version.",
+  "rc.nota": "An estimate to rank options, not a prediction. The % is per player entering with that deck; “×” compares with an average deck (1.00 = equal) and is the best way to compare. With low reliability, numbers drift towards the average. It doesn't know how you play: that's the “For you” tab.",
   // v0.73
   "pm.titulo": "Road to Worlds",
   "pm.llegas": "You're already at the reference. Whatever you add now moves you up your zone's ranking.",
@@ -5699,7 +5702,7 @@ const EN: Record<I18nKey, string> = {
   "v133.igual": "Same list as {n}.",
   "v133.cambios": "{n} cards differ from {b}",
   "v133.nota": "The reference is the most used version. Cards are compared by name: the same card from another set counts as the same. Comments are each deck's own.",
-  "v133.comparar": "Compare versions →",
+  "v133.comparar": "Versions and difficulty →",
   "v133.escribeMazo": "Type the deck's name…",
   "v133.record": "Record (optional)",
   "v133.ganadas": "Won",
@@ -5848,6 +5851,9 @@ const EN: Record<I18nKey, string> = {
   "v138.comoTexto": "Each match weighs exp(−days/τ) for recency and by how competitive the tournament was (opponent strength). From that, the probability comes from a Beta that pulls towards 50% when there are few matches. Lower is better for Brier and log-loss.",
   "v138.pesos": "Weight by tournament:",
   "v138.enlace": "The matchup model, put to the test →",
+  "v139.difAyuda": "The average of everyone's votes. Anyone can vote on any deck: here, or in the library's “Versions and difficulty”.",
+  "v139.difRanking": "The hardest decks",
+  "v139.difRankingSub": "From everyone's votes (1 very easy … 5 very hard), by archetype.",
 };
 
 const DICT: Record<Lang, Record<I18nKey, string>> = { es: ES, en: EN };

@@ -8,12 +8,10 @@ import { fmtDate, pct } from "@/lib/format";
 import { Sprites } from "@/components/ui";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
-import type { CSSProperties } from "react";
 import { readSession } from "@/lib/auth";
-import { votarDificultad } from "@/actions";
 import { dificultades } from "@/lib/mazosExtraDb";
-import { DIFICULTAD, NIVELES_DIFICULTAD } from "@/lib/dificultad";
 import { ChipDificultad } from "@/components/ChipDificultad";
+import { VotoDificultad } from "@/components/VotoDificultad";
 
 export const metadata = { title: "Versiones del mazo" };
 
@@ -84,7 +82,7 @@ export default async function VersionesPage({ searchParams }: { searchParams: Pr
           const diff = esBase ? null : diffListas(base.cartas, v.cartas);
           const sinLista = v.cartas.size === 0;
           return (
-            <li key={v.id} className={`card p-4 ${v.d.retired ? "opacity-70" : ""}`}>
+            <li key={v.id} id={v.id} className={`card scroll-mt-24 p-4 ${v.d.retired ? "opacity-70" : ""}`}>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Sprites archetype={arch} size="md" />
                 <div className="min-w-0 flex-1">
@@ -103,23 +101,10 @@ export default async function VersionesPage({ searchParams }: { searchParams: Pr
               </div>
               {v.d.notes.trim() && <p className="mt-3 whitespace-pre-line border-l-2 border-line pl-3 text-sm text-ink-2">{v.d.notes.trim()}</p>}
               {/* v0.137 — la dificultad: la media de todos, y aquí votas la tuya. */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <ChipDificultad r={difs.get(v.id)} lng={lng} />
-                {session && (
-                  <form action={votarDificultad} className="flex flex-wrap items-center gap-1">
-                    <input type="hidden" name="deckId" value={v.id} />
-                    <input type="hidden" name="back" value={`/mazos/versiones?de=${encodeURIComponent(clave)}`} />
-                    <span className="mr-1 text-xs text-muted">{tr(lng, "v137.tuVoto")}</span>
-                    {NIVELES_DIFICULTAD.map((n) => (
-                      <button key={n} type="submit" name="nivel" value={mios.get(v.id) === n ? 0 : n}
-                        className="dif-voto" data-on={mios.get(v.id) === n} style={{ "--dif": DIFICULTAD[n].color } as CSSProperties}
-                        title={tr(lng, DIFICULTAD[n].clave)} aria-label={tr(lng, DIFICULTAD[n].clave)} aria-pressed={mios.get(v.id) === n}>
-                        {n}
-                      </button>
-                    ))}
-                  </form>
-                )}
-              </div>
+              {session ? (
+                <VotoDificultad deckId={v.id} resumen={difs.get(v.id)} miVoto={mios.get(v.id)} lng={lng}
+                  back={`/mazos/versiones?de=${encodeURIComponent(clave)}#${v.id}`} />
+              ) : <div className="mt-3"><ChipDificultad r={difs.get(v.id)} lng={lng} /></div>}
               {!esBase && (
                 <div className="mt-3 text-sm">
                   {sinLista || base.cartas.size === 0 ? (

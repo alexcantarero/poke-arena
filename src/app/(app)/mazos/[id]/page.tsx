@@ -8,7 +8,8 @@ import { DeckList } from "@/components/DeckList";
 import { CardSearch } from "@/components/CardSearch";
 import { tr, trf } from "@/lib/i18n";
 import { anotarSesionLive } from "@/actions";
-import { sesionesDeMazo } from "@/lib/mazosExtraDb";
+import { dificultades, sesionesDeMazo } from "@/lib/mazosExtraDb";
+import { VotoDificultad } from "@/components/VotoDificultad";
 import { liveConPeso, pesoLadder } from "@/lib/ladderPeso";
 import { pct, todayISO } from "@/lib/format";
 import { getLang } from "@/lib/lang";
@@ -36,7 +37,7 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
 
   const archetype = snap.archById.get(deck.archetypeId);
   // v0.137 — las sesiones del Live de este mazo y su % ponderado por el ladder.
-  const sesiones = await sesionesDeMazo(deck.id);
+  const [sesiones, difs] = await Promise.all([sesionesDeMazo(deck.id), dificultades(me?.id ?? null)]);
   const resumenLive = liveConPeso(sesiones, deck.liveWins, deck.liveLosses);
   const hoy = todayISO();
   return (
@@ -48,6 +49,13 @@ export default async function EditDeckPage({ params }: { params: Promise<{ id: s
         archetypes={snap.archetypes}
         canPickPlayer={manager}
       />
+
+      {/* v0.139 — la dificultad también se vota al editar (antes solo al crear). */}
+      <section className="card mt-4 p-4" aria-labelledby="dif-mazo">
+        <h2 id="dif-mazo" className="font-display text-lg font-bold">{tr(lng, "v137.dificultad")}</h2>
+        <p className="text-sm text-muted">{tr(lng, "v139.difAyuda")}</p>
+        <VotoDificultad deckId={deck.id} resumen={difs.porMazo.get(deck.id)} miVoto={difs.mios.get(deck.id)} back={`/mazos/${deck.id}`} lng={lng} />
+      </section>
 
       {/* v0.137 — SESIONES DEL PTCG LIVE: victorias y derrotas entre dos fechas, pesadas por el ladder de esas fechas. */}
       <section className="card mt-4 p-4" aria-labelledby="live-sesiones">

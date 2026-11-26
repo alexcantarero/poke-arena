@@ -2,6 +2,32 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.139.0] — 2026-11-26
+
+**Sin migración ni dependencias nuevas.** **Cambian las cifras y el orden del recomendador.**
+
+### Arreglado
+
+- **EL CASO DE LOS 58 % — el recomendador inflaba los resultados reales.** Las listas importadas
+  de los Regionales y City Leagues son las de arriba de la clasificación (top 32/64), no el campo
+  entero. «5 de 12 al corte» se usaba como si fuera la probabilidad de entrar al corte con ese
+  mazo: Marnie's Grimmsnarl, con el 0,7 % del campo, salía con un 27 % en un Regional de 2.500
+  personas, y el orden premiaba tener muchas listas buenas importadas (de ahí el ×90). Ahora lo
+  real se usa en relativo: la tasa de cada mazo frente a la media de todos en esas mismas listas
+  (el sesgo es el mismo para todos y se cancela), encogida con 8 listas al nivel medio. La cifra
+  es mitad modelo y mitad resultados reales, por jugador que se apunta; «×» compara con el mazo
+  medio. Prueba con el caso.
+- **No salían los mazos con buenos resultados recientes**: la fiabilidad solo contaba cruces
+  registrados, así que un mazo nuevo con varios cortes en Regionales era «fiabilidad baja» y
+  «Ocultar fiabilidad baja» lo escondía. Ahora cada lista real cuenta como 5 partidas.
+
+### Añadido
+
+- **Votar la dificultad al editar un mazo** (antes solo al crearlo) y en «Versiones y
+  dificultad» de la biblioteca, donde cualquier cuenta vota cualquier mazo.
+- **Estadísticas → «Los mazos más difíciles»**: ranking por arquetipo con la media de los votos de
+  todos sus mazos, con el color de su nivel.
+
 ## [0.138.0] — 2026-11-25
 
 **Con migración**: `drizzle/0039_v0_138_0.sql` (tabla `predicciones`). Sin ella todo funciona

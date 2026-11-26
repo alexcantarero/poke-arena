@@ -37,7 +37,8 @@ import { ConversionTable, type ConvRow } from "@/components/ConversionTable";
 import { byArchetype, byPlayer, overTime, type PlacementRow } from "@/lib/tournamentStats";
 import { tr, trf } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
-import { sesionesLivePorMazo } from "@/lib/mazosExtraDb";
+import { dificultades, sesionesLivePorMazo } from "@/lib/mazosExtraDb";
+import { DIFICULTAD, type NivelDificultad } from "@/lib/dificultad";
 import { liveConPeso } from "@/lib/ladderPeso";
 
 export const metadata = { title: "Estadísticas" };
@@ -395,6 +396,24 @@ export default async function StatsPage({
     kind: kindLabel,
   });
 
+  /* v0.139 — la dificultad por arquetipo: media de todos los votos de sus mazos (pesada por votos). */
+  const { porMazo: difPorMazo } = await dificultades(null);
+  const difArq = new Map<string, { suma: number; votos: number }>();
+  for (const d of snap.decks) {
+    const r = difPorMazo.get(d.id);
+    if (!r) continue;
+    const x = difArq.get(d.archetypeId) ?? { suma: 0, votos: 0 };
+    x.suma += r.media * r.votos; x.votos += r.votos;
+    difArq.set(d.archetypeId, x);
+  }
+  const rankingDificil = [...difArq.entries()]
+    .map(([id, x]) => {
+      const media = x.suma / x.votos;
+      return { archetype: snap.archById.get(id), media, votos: x.votos, nivel: Math.min(5, Math.max(1, Math.floor(media + 0.5))) as NivelDificultad };
+    })
+    .filter((x) => x.archetype)
+    .sort((a, b) => b.media - a.media || b.votos - a.votos)
+    .slice(0, 10);
   return (
     <>
       <PageHead
@@ -570,6 +589,27 @@ export default async function StatsPage({
           </div>
         </section>
       </div>
+
+      {/* v0.139 — RANKING DE DIFICULTAD: los arquetipos más difíciles según los votos
+          de todos (la media de los votos de todos sus mazos). Solo si hay votos. */}
+      {rankingDificil.length > 0 && (
+        <section className="card mt-4">
+          <div className="card-head">
+            <div>
+              <h2 className="text-lg font-bold">{tr(lng, "v139.difRanking")}</h2>
+              <p className="text-xs text-muted">{tr(lng, "v139.difRankingSub")}</p>
+            </div>
+          </div>
+          <div className="p-4">
+            <Bars max={5} rows={rankingDificil.map((x) => ({
+              label: <EnlaceArquetipo arquetipo={x.archetype} filtroBase={queryFiltro} />,
+              value: x.media,
+              right: `${x.media.toLocaleString(lng === "en" ? "en-GB" : "es-ES", { maximumFractionDigits: 1 })} · ${tr(lng, DIFICULTAD[x.nivel].clave)} (${x.votos})`,
+              color: DIFICULTAD[x.nivel].color,
+            }))} />
+          </div>
+        </section>
+      )}
 
       {fuente !== "live" && (
         <section id="matriz" className="card mt-4 scroll-mt-20 overflow-hidden">

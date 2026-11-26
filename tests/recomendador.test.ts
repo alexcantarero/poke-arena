@@ -298,3 +298,22 @@ test("v0.84: lista sorpresa contra pronóstico (mazo flojo que entra al corte)",
   assert.ok(r.filas.some((f) => f.lider === "flojo" && f.sorpresa === "pronostico"));
   assert.ok(!r.filas.some((f) => f.lider === "fuerte"));
 });
+
+test("v0.139 — EL CASO DE LOS 58 %: las listas importadas son las de arriba; lo real se usa en relativo", () => {
+  // Todos los mazos con tasas altas de corte (muestra de arriba de la clasificación): a, el doble que la media.
+  const fuentes = [{
+    id: "regionales", cuota: { a: 100, b: 100, c: 100 },
+    conversion: { a: { n: 100, corte: 60 }, b: { n: 100, corte: 30 }, c: { n: 12, corte: 5 } },
+  }];
+  const e = { rondas: 8, corte: 8, fase1: 6, umbral: 12, pCorte: { 24: 1, 21: 1, 18: 0.3 } };
+  const r = recomendar({ tipo: "regional", objetivo: "top", fuentes, estructura: e, minCuota: 0, max: null });
+  const f = (l: string) => r.filas.find((x) => x.lider === l)!;
+  // Ya no sale el 60 % de la muestra: sale una probabilidad por jugador, del orden del mazo medio.
+  assert.ok(f("a").pObjetivo < 0.2, String(f("a").pObjetivo));
+  assert.ok(f("a").pObjetivo > f("b").pObjetivo);
+  // Con 12 listas, c no adelanta a a por suerte de muestra.
+  assert.equal(r.filas[0].lider, "a");
+  assert.ok(f("a").indice > 1 && f("a").indice < 3);
+  // La fiabilidad cuenta lo real: 100 listas son fiabilidad alta aunque no haya cruces.
+  assert.equal(f("a").confianza, "alta");
+});
