@@ -72,6 +72,13 @@ export async function GET(req: NextRequest) {
     const c = await completarRondasOnline({ max: 6 });
     rondasOnline = { torneos: c.torneos, rondas: c.rondas, quedan: c.quedan };
   } catch { rondasOnline = null; }
+  // v0.138 — el registro de predicciones del modelo de cruces (las rondas de los últimos 3 días).
+  let prediccionesNuevas = 0;
+  try {
+    const { loadSnapshot } = await import("@/lib/data");
+    const { registrarPredicciones } = await import("@/lib/recommender/datos");
+    prediccionesNuevas = await registrarPredicciones(await loadSnapshot(), 3);
+  } catch { prediccionesNuevas = 0; }
   try {
     const r = await importarDesdeLimitless({ dias: 2, maxTorneos: 100 });
     limitless = { mirados: r.mirados, nuevos: r.nuevos, resultados: r.resultados, rondas: r.rondas };
@@ -97,6 +104,7 @@ export async function GET(req: NextRequest) {
     discord,
     limitless,
     rondasOnline,
+    prediccionesNuevas,
     usoNeon,
     cinturon,
     plazoCinturon: plazoCinturon?.kind ?? null,

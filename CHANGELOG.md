@@ -2,6 +2,38 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.138.0] — 2026-11-25
+
+**Con migración**: `drizzle/0039_v0_138_0.sql` (tabla `predicciones`). Sin ella todo funciona
+salvo el registro de predicciones.
+
+### Añadido — el recomendador, fases 2 a 5 (primera entrega)
+
+- **Modelo de cruces nuevo** (`lib/recommender/modelo.ts`, documentado en
+  `lib/recommender/README.md`, 5 pruebas): usa **solo partidas anteriores** a una fecha de corte
+  (sin fugas), pesa cada partida por **recencia** (exp(−Δdías/τ), τ = 60) y por **lo competitivo
+  del torneo**, que hace de fuerza del rival (Regional e Internacional 1 · City League y Cup
+  0,6 · Challenge y liga 0,5 · online 0,4 · amistoso 0,3), y **encoge hacia el 50 %** con una
+  Beta. Da el tamaño de muestra efectivo, un intervalo del 90 % y la fecha del dato más reciente.
+- **Backtest** (Herramientas → «El modelo de cruces, puesto a prueba», `/herramientas/modelo`):
+  cada partida del grupo predicha con las anteriores; Brier, log-loss y acierto frente a decir
+  siempre 50 %; una rejilla de τ (30–∞) y prior (2–16) que dice qué parámetros funcionan mejor
+  con vuestros datos; ventana de 30, 60, 90 días o todo.
+- **Registro de predicciones**: el cron guarda cada día la predicción de las rondas nuevas
+  (calculada con lo anterior a cada una) y la pantalla del modelo enseña su acierto acumulado.
+
+### Cambiado
+
+- **Recencia unificada a τ = 60 días** (vida media ≈ 42 días; era 30) en todo el recomendador.
+- **Menos fuga en la calibración α del recomendador**: solo usa las rondas de los últimos 45 días,
+  la ventana de los datos de fuera con que se evalúa. No es fuga cero: está explicado en el README.
+
+### Pendiente (dicho en el README)
+
+- Enchufar el modelo nuevo al recomendador de Herramientas cuando el backtest demuestre que
+  mejora a la tabla actual.
+- La «conversión real» por mazo.
+
 ## [0.137.0] — 2026-11-25
 
 **Con migración**: `drizzle/0038_v0_137_0.sql` (tablas `deck_dificultad` y `live_sesiones`). Sin

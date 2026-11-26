@@ -12,10 +12,11 @@ test("días entre fechas, sin líos de hora", () => {
 });
 
 test("la vida media: a los 30 días la mitad, a los 60 un cuarto", () => {
-  assert.equal(VIDA_MEDIA_DIAS, 30);
+  assert.equal(VIDA_MEDIA_DIAS, 42); // v0.138: τ = 60 días → vida media 60·ln 2 ≈ 42
   cerca(pesoRecencia("2026-11-06", "2026-11-06"), 1);
-  cerca(pesoRecencia("2026-10-07", "2026-11-06"), 0.5);
-  cerca(pesoRecencia("2026-09-07", "2026-11-06"), 0.25);
+  cerca(pesoRecencia("2026-10-07", "2026-11-06", 30), 0.5);
+  cerca(pesoRecencia("2026-09-07", "2026-11-06", 30), 0.25);
+  cerca(pesoRecencia("2026-09-25", "2026-11-06"), 0.5); // 42 días con la vida media por defecto
   // Un evento con fecha futura no pesa más que uno de hoy.
   cerca(pesoRecencia("2026-12-01", "2026-11-06"), 1);
 });
@@ -29,8 +30,8 @@ test("los pesos se normalizan: el total de listas no cambia, cambia el reparto",
   const total = ev.reduce((s, e) => s + e.tam * p.get(e.id)!, 0);
   cerca(total, 600, 1e-6);
   assert.ok(p.get("reciente")! > 1 && p.get("viejo")! < 1);
-  // 90 días de diferencia = tres vidas medias: el reciente pesa 8 veces más.
-  cerca(p.get("reciente")! / p.get("viejo")!, 8, 1e-9);
+  // 90 días de diferencia con vida media 42 (v0.138): el reciente pesa 2^(90/42) ≈ 4,4 veces más.
+  cerca(p.get("reciente")! / p.get("viejo")!, Math.pow(2, 90 / 42), 1e-9);
 });
 
 test("un solo evento, o varios del mismo día, quedan igual que sin ponderar", () => {
@@ -54,5 +55,5 @@ test("sin tamaños, la media de los pesos es 1", () => {
 
 test("ventaja del más reciente sobre el más antiguo, para explicarlo", () => {
   assert.equal(ventajaReciente(["2026-11-01"], "2026-11-06"), null);
-  cerca(ventajaReciente(["2026-11-06", "2026-10-07"], "2026-11-06")!, 2);
+  cerca(ventajaReciente(["2026-11-06", "2026-09-25"], "2026-11-06")!, 2); // 42 días = una vida media (v0.138)
 });

@@ -26,6 +26,8 @@ export default async function HerramientasPage({ searchParams }: { searchParams:
   return (
     <>
       <PageHead title={tr(lng, "hr.titulo")} sub={tr(lng, "hr.sub")} />
+      {/* v0.138 — el modelo de cruces, validado contra vuestras partidas. */}
+      <p className="-mt-2 mb-3 text-right text-sm"><a href="/herramientas/modelo" className="font-semibold text-info hover:underline">{tr(lng, "v138.enlace")}</a></p>
       <Herramientas mazos={mazos} inicial={q.h} mazoInicial={q.mazo} datos={datos}
         /* v0.133 — desde un torneo: la calculadora suiza ya rellena. */
         suiza={q.jug && Number(q.jug) > 0 ? {

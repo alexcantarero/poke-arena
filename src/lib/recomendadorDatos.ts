@@ -388,8 +388,14 @@ export async function cargarDatosRecomendador(snap: Snapshot, meId?: string | nu
 
   const fuera = tablaCruces([online, regionales, cityleagues, ciphermaniac, ...trainerHill]);
   const muestras: Muestra[] = [];
+  /* v0.138 — MENOS FUGA: las tablas de fuera son de HOY (los datos online, de
+     los últimos 45 días). Evaluar con ellas rondas de hace meses era usar el
+     futuro para «predecir» el pasado. Ahora la calibración solo usa las rondas
+     de esa misma ventana. No es fuga cero (ver lib/recommender/README.md). */
+  const desdeCalibracion = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
   for (const m of snap.matches) {
     if (!isPlayed(m)) continue;
+    if (m.date < desdeCalibracion) continue;
     const { a, b } = archetypesOfMatch(m, snap.archIndex, snap.archById);
     const la = ldArch(a), lb = ldArch(b);
     if (!la || !lb || la === lb) continue;

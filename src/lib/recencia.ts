@@ -23,8 +23,11 @@
    exactamente igual que antes.
    ========================================================================= */
 
-/** Días de vida media por defecto: a los 30 días un evento cuenta la mitad. */
-export const VIDA_MEDIA_DIAS = 30;
+/** v0.138 — τ: la constante de la recencia, w = exp(−Δdías / τ). Unificada a 60 días
+    (pedido por Ibai; el backtest de `lib/recommender` dice si conviene otra). */
+export const TAU_DIAS = 60;
+/** La vida media equivalente: τ · ln 2 ≈ 42 días (era 30 hasta la v0.137). */
+export const VIDA_MEDIA_DIAS = Math.round(TAU_DIAS * Math.LN2);
 
 const DIA = 86_400_000;
 

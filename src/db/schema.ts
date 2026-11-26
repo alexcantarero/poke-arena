@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex, primaryKey,
+  pgTable, text, integer, boolean, timestamp, jsonb, date, serial, index, uniqueIndex, primaryKey, real,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
@@ -424,6 +424,22 @@ export const liveSesiones = pgTable("live_sesiones", {
   rango: integer("rango"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("live_sesiones_deck_idx").on(t.deckId)]);
+
+/** v0.138 — Predicciones registradas del modelo de cruces, para medir su acierto después (migración 0039). */
+export const predicciones = pgTable("predicciones", {
+  matchId: text("match_id").primaryKey().references(() => matches.id, { onDelete: "cascade" }),
+  fecha: date("fecha").notNull(),
+  mazoA: text("mazo_a").notNull(),
+  mazoB: text("mazo_b").notNull(),
+  /** Probabilidad de que gane A, con los datos anteriores a `fecha`. */
+  p: real("p").notNull(),
+  /** Tamaño de muestra efectivo detrás. */
+  nEf: real("n_ef").notNull().default(0),
+  /** Lo que pasó para A: 1, 0 o 0,5. */
+  resultado: real("resultado"),
+  parametros: text("parametros").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const beltRegistrations = pgTable("belt_registrations", {
   eventId: text("event_id").notNull(),
